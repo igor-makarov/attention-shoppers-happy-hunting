@@ -9,9 +9,10 @@ auto-deploy through Cloudflare Workers Builds. That is an owner report: the codi
 credentials and has **not** independently verified a production refresh. Outstanding production checks
 are listed below. Iteration 3-59 kept the single-product scope and improved freshness honesty and
 comparison quality: the board's `lastRefreshAt` now advances only when at least one vendor actually saved
-an observation (an FX-only or empty run can no longer look freshly checked), and every offer stores one
+an observation (an FX-only or empty run can no longer look freshly checked), every offer stores one
 step of previous-check evidence so the UI shows the unit-price change since the last successful check in
-ILS, or explains why the comparison is impossible.
+ILS (or explains why the comparison is impossible), and the cheapest per-kilogram offer is called out
+when it differs from the cheapest delivered total.
 
 The 2026-10-12 owner correction retired Qualità Oro, Qualità Rossa, Suerte and every other Lavazza
 product line. They are no longer catalog entries, fetch targets or UI options. Their names survive only
@@ -47,6 +48,9 @@ product line requires an explicit new owner instruction.
   for the same offer, and the board shows the unit-price change since that check in ILS with its timestamp
   ("Unit price down ₪2.00 since the previous check"). A pack-size change or a missing exchange rate makes
   the comparison say why instead of claiming no change, and a stock change is labelled separately.
+- **Bulk-value callout**: when the cheapest delivered total is not the cheapest per-kilogram offer (for
+  example, two single 250 g packs at 500 g versus the 4 × 250 g pack), the best-offer card and the
+  comparison table name the per-kilogram winner without changing the delivered ranking.
 - **Shipping evidence, honestly framed**: both ranked courier rates carry a structured coverage caveat
   taken from the vendor's terms page — home delivery is subject to a locality list the product page does
   not publish — so the board discloses the geographic restriction instead of claiming country-wide
@@ -115,8 +119,8 @@ Observed board results on the local Worker after the initial refresh on a fresh 
 ## Verification performed (2026-10-12, all local)
 
 1. `npm ci --ignore-scripts` — clean install from the pinned lockfile, 0 vulnerabilities.
-2. `npm run verify` — **80/80** `node:test` cases pass, then `wrangler deploy --dry-run` builds the
-   Worker bundle with no Cloudflare credential (76.33 KiB, gzip 19.60 KiB; bindings `BOARD` + `ASSETS`).
+2. `npm run verify` — **82/82** `node:test` cases pass, then `wrangler deploy --dry-run` builds the
+   Worker bundle with no Cloudflare credential (76.82 KiB, gzip 19.72 KiB; bindings `BOARD` + `ASSETS`).
    Covered acceptance cases include: shipping changes the winner; unknown shipping cannot win;
    stale/out-of-stock/unknown availability stay unranked; variants and multipacks stay separate;
    quantity rounding, minimum order and free-shipping thresholds; missing FX is not zero; destination
@@ -124,7 +128,8 @@ Observed board results on the local Worker after the initial refresh on a fresh 
    still blocks; a stale pickup observation is labelled; pickup separated; shipping alternatives are
    converted but never replace the ranked amount; the variant filter reports excluded offers; an empty or
    FX-only run does not claim a completed offer refresh; previous-check price capture across refresh runs
-   and its ILS down/up/same, missing-FX, pack-size-change and stock-change handling; leases; backoff;
+   and its ILS down/up/same, missing-FX, pack-size-change and stock-change handling; the separate
+   per-kilogram winner; leases; backoff;
    allowlist; crawl-delay pacing;
    retired fixtures are refused by both adapters; retired ids fall back with an explicit reason; the
    catalog exposes exactly one product; a retired `?product=` URL falls back to Crema e Gusto and never
@@ -160,7 +165,7 @@ Observed board results on the local Worker after the initial refresh on a fresh 
    runs are in the persisted run history, and `/api/board` served the results above. This is the
    refresh-while-no-browser-open path plus the post-deployment initial refresh. Evidence:
    `docs/evidence/worker-runtime-status-2026-10-12T1451Z.json`.
-7. `npm run qa:browser` — headless Chrome (chromedriver 154) QA, **50/50 checks pass offline, exit 0**,
+7. `npm run qa:browser` — headless Chrome (chromedriver 154) QA, **52/52 checks pass offline, exit 0**,
    desktop 1440 px and mobile 390 px, screenshots and JSON report in `.shurik-local/qa/`. The command is
    self-contained: it starts `scripts/qa-server.mjs` on an ephemeral port, which serves `public/` plus
    the read-only API computed from `tests/fixtures/` by the production quote engine, so no Worker,
@@ -174,18 +179,20 @@ Observed board results on the local Worker after the initial refresh on a fresh 
    an old `?product=lavazza-qualita-oro-vacuum-ground` URL falls back with the written notice, the
    Crema e Gusto ranking, and no Rossa/Suerte content. Two 3-58 checks: the best-offer card discloses
    the API's structured delivery-coverage caveat, and every ranked item-price cell shows
-   `unit price × packs bought = ILS line total`. Three 3-59 checks: the fixture server's synthetic
+   `unit price × packs bought = ILS line total`. Five 3-59 checks: the fixture server's synthetic
    previous check makes the best-offer card show the API's unit-price change line, the comparison table
-   repeats it for the best offer, and the QA-only previous metadata itself is asserted. Seven extra checks run against a second fixture
+   repeats it for the best offer, the QA-only previous metadata itself is asserted, the fixture board's
+   per-kilogram winner differs from its delivered winner, and that winner is called out in both the card
+   and the table. Seven extra checks run against a second fixture
    server with one clearly labelled QA-only demo offer to verify minimum order, free-shipping threshold,
    free-shipping-met labelling and a locality delivery restriction, plus one check that a board whose
    scheduled refresh stopped for 30 hours is labelled in the footer. Evidence:
-   `docs/evidence/browser-qa-fixtures-2026-10-12T1515Z.json`.
-8. `npm run qa:browser -- http://127.0.0.1:8789` — live mode passed **47/47** against the local
-   `wrangler dev` Worker at 15:15 UTC with the real persisted observations, including the retired-URL
-   notice, the unstated-variant ranking, the disclosed coverage caveat and the item-price arithmetic
-   (the fixture-only previous-check and demo-offer checks are skipped or conditional in live mode).
-   Evidence: `docs/evidence/browser-qa-live-2026-10-12T1515Z.json`.
+   `docs/evidence/browser-qa-fixtures-2026-10-12T1524Z.json`.
+8. `npm run qa:browser -- http://127.0.0.1:8789` — live mode passed **48/48** against the local
+   `wrangler dev` Worker at 15:23 UTC with the real persisted observations, including the retired-URL
+   notice, the unstated-variant ranking, the disclosed coverage caveat, the item-price arithmetic and the
+   per-kilogram callout (the fixture-only previous-check and demo-offer checks are skipped or conditional
+   in live mode). Evidence: `docs/evidence/browser-qa-live-2026-10-12T1523Z.json`.
 9. Local Worker runtime re-run with the 3-59 code (`npx wrangler dev --port 8789`, **fresh** SQLite
    Durable Object state, no browser opened, 15:13-15:15 UTC): the first `/health` started the initial
    refresh, which ran 15:13:59.987 → 15:14:17.855 UTC with **6 bounded requests**, five observations
@@ -195,6 +202,9 @@ Observed board results on the local Worker after the initial refresh on a fresh 
    unstated-variant board ₪106.00, and the retired URL returned `requestedRetiredProduct` Qualità Oro
    with the Crema e Gusto board. First observations correctly show `priceChange: null` (nothing to
    compare with yet). Evidence: `docs/evidence/worker-runtime-status-2026-10-12T1515Z.json`.
+   A 15:23 UTC re-capture with the comparison-quality code recorded `bestPerKg` = the CoffeeMan
+   4 × 250 g pack at ₪149.00/kg while the 500 g delivered best stayed the single pack at ₪91.00; the
+   API keeps both values separate. Evidence: `docs/evidence/worker-runtime-status-2026-10-12T1523Z.json`.
 10. Bounded vendor-coverage re-probe (15:19 UTC, 8-second timeouts, no bypass): previously blocked or
    unreachable hosts are still blocked (403/247/526/timeout); espressocoffeeshop.com's robots file
    allows only whitelisted crawlers; coffeecircle.com's 1,535-URL sitemap has no Lavazza product;
@@ -229,12 +239,20 @@ Current-scope evidence (committed for review, not live data):
   on a fresh Durable Object store: a 6-request initial refresh, five observations, fresh,
   `priceChange: null` on first observations, then a documented 0-request scheduled run that did not
   change `lastRefreshAt`.
-- `docs/evidence/browser-qa-fixtures-2026-10-12T1515Z.json` — 50 offline browser checks, including the
-  single-product catalog, static product label, retired-URL notice, unstated-variant ranking, the
-  disclosed delivery-coverage caveat, the item-price arithmetic, the previous-check price-change line
-  and the stale-refresh footer warning.
-- `docs/evidence/browser-qa-live-2026-10-12T1515Z.json` — 47 live browser checks against the 3-59 local
-  `wrangler dev` Worker with real observations.
+- `docs/evidence/browser-qa-fixtures-2026-10-12T1524Z.json` — 52 offline browser checks with the
+  final 3-59 code, including the single-product catalog, static product label, retired-URL notice,
+  unstated-variant ranking, the disclosed delivery-coverage caveat, the item-price arithmetic, the
+  previous-check price-change line, the per-kilogram callout and the stale-refresh footer warning.
+- `docs/evidence/browser-qa-live-2026-10-12T1523Z.json` — 48 live browser checks against the 3-59 local
+  `wrangler dev` Worker with real observations and the per-kilogram callout.
+- `docs/evidence/worker-runtime-status-2026-10-12T1523Z.json` — `/health`, `/api/status`, and the 500 g /
+  1 kg boards from the 15:23 UTC local Worker re-capture with the comparison-quality code: the 500 g
+  delivered best is the single pack (₪91.00, ₪182.00/kg) while `bestPerKg` is the 4-pack (₪149.00/kg,
+  delivered ₪149.00), and at 1 kg the two coincide.
+- `docs/evidence/browser-qa-fixtures-2026-10-12T1515Z.json` — 50 offline browser checks from the first
+  3-59 batch (previous-check change line before the per-kilogram callout was added).
+- `docs/evidence/browser-qa-live-2026-10-12T1515Z.json` — 47 live browser checks from the first 3-59
+  batch against the local `wrangler dev` Worker.
 - `docs/evidence/vendor-probe-2026-10-12T1519Z.json` — the bounded coverage re-probe of blocked and
   newly reachable candidate vendors; no new vendor, no bypass.
 - `docs/evidence/source-check-2026-10-12T1450Z.json` — the earlier 14:50 UTC live check of the same five
@@ -281,10 +299,12 @@ successful price, stock and pack weight to each new observation, and the quote e
 previous-check unit-price change in ILS (with explicit "not comparable" reasons for a missing exchange
 rate or a changed pack size). The board's `lastRefreshAt` now advances only when at least one vendor
 actually saved an observation, so a run that fetched only the FX table cannot look like a fresh offer
-check. Five new quote tests and two new refresh tests (80 total) and three new browser-QA checks
-(50 offline, 47 live) cover the change, and the full local chain (verify, live source check, offline
+check. Seven new quote tests and two new refresh tests (82 total) and five new browser-QA checks
+(52 offline, 48 live) cover the change and the per-kilogram callout, and the full local chain (verify, live source check, offline
 fixtures, post-deployment initial refresh plus a documented 0-request scheduled run through
-`wrangler dev`, both browser QA modes) was re-run and recorded above. A bounded 15:19 UTC re-probe of
+`wrangler dev`, both browser QA modes) was re-run and recorded above. The board now also names the
+cheapest per-kilogram offer when it differs from the cheapest delivered total, without changing the
+delivered ranking. A bounded 15:19 UTC re-probe of
 blocked and newly reachable candidate vendors found no fourth vendor; the results are recorded in
 docs/SOURCES.md and the committed probe evidence instead of being guessed.
 
