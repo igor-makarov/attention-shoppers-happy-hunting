@@ -384,9 +384,9 @@ labels and the next-source-check footer line, recorded in
 | Item | Status |
 | --- | --- |
 | Worker name in `wrangler.jsonc` | `attention-shoppers` (aligned with the owner correction) |
-| Production URL reported by owner | https://attention-shoppers.igormaka.workers.dev — **independently verified reachable from the runner** (HTTP 200, 2026-10-12 15:51-15:54, 16:17-16:18 and 16:53 UTC, read-only GETs, no credentials) |
+| Production URL reported by owner | https://attention-shoppers.igormaka.workers.dev — **independently verified reachable from the runner** (HTTP 200, 2026-10-12 15:51-15:54, 16:17-16:18, 16:53 and 17:26 UTC, read-only GETs, no credentials) |
 | Production scope | **Independently verified**: `/api/catalog` listed exactly one product (`lavazza-crema-e-gusto-vacuum-ground`) and three vendors; no retired line appeared in any board payload, and the retired Qualità Oro URL returned `requestedRetiredProduct` with the Crema e Gusto board. Re-verified by the 3-63 probe at 16:53 UTC (17/17 scope checks; `docs/evidence/production-probe-20261012T1653Z.json`). |
-| Production refresh / persistence | **Independently verified**: the probe's first `/health` GET started the documented initial refresh (15:51:52.931Z → 15:52:12.546Z, 4 bounded requests, CoffeeMan saved 3; Pucks/Coffee4U inside their backoff window). `/api/status` then showed `lastRefreshAt` 15:52:12.546Z, fresh, five observations and the Bank of Israel table asOf 12:23:04.599Z. The post-deploy probe and the 16:53 probe found the same persisted store with the same timestamps (ageHours 1.0, stale false) and the same three vendor `nextAttemptAt` values (19:34/19:46/21:52 UTC). The 6-hour cron trigger itself has not been observed firing; the first tick after the store state was written is 18:17 UTC (expected to skip every vendor) and the 00:17 UTC tick should refresh. |
+| Production refresh / persistence | **Independently verified**: the probe's first `/health` GET started the documented initial refresh (15:51:52.931Z → 15:52:12.546Z, 4 bounded requests, CoffeeMan saved 3; Pucks/Coffee4U inside their backoff window). `/api/status` then showed `lastRefreshAt` 15:52:12.546Z, fresh, five observations and the Bank of Israel table asOf 12:23:04.599Z. The post-deploy probe, the 16:53 probe and the 3-64 probe at 17:26 UTC found the same persisted store with the same timestamps (ageHours 1.0, stale false) and the same three vendor `nextAttemptAt` values (19:34/19:46/21:52 UTC). The 6-hour cron trigger itself has not been observed firing; the first tick after the store state was written is 18:17 UTC (expected to skip every vendor) and the 00:17 UTC tick should refresh. |
 | Production board values | **Independently verified**: 500 g best ₪91.00 (CoffeeMan 2 × ₪33 + ₪25), 1 kg best ₪149.00 (4-pack), unstated variant ₪106.00 (Coffee4U), matching the local runs and unchanged in the 16:53 probe. |
 | Production UI | **Independently verified**: the fixture-free live browser QA mode drove the deployed site in headless Chrome — **53/53** checks passed with zero console errors on 2026-10-12 16:20 UTC and again at 17:05 UTC after the 3-63 push (evidence `docs/evidence/browser-qa-production-20261012T1620Z.json`, `docs/evidence/browser-qa-production-20261012T1705Z.json`). |
 | Deployed build version | **The 3-61 build is live** (verified 16:17-16:18 UTC: `/health` carries `lastObservationAt`, a 3-61-only field; `/api/status` reports `freshness.dataAsOf`). The 3-62 phase-lock change has no public-API marker (it only changes vendor due-time evaluation), so the 16:53 probe cannot confirm which build serves it; the first observable difference is the **06:17 UTC tick on 2026-10-13**, which should refresh instead of skipping. |
@@ -400,7 +400,8 @@ main pushes should keep reaching Workers Builds. The other checks below were ind
 the runner on 2026-10-12: `/health` reports a non-null `lastRefreshAt` and `lastObservationAt`,
 `/api/catalog` lists exactly one product, the board shows the five Crema e Gusto offers, and the 3-61
 build is live after the push. The 3-63 read-only probe re-verified all of that at 16:53 UTC (17/17 scope
-checks) against the same persisted 15:52:12.546Z store. The 3-62 phase-lock fix is on main; the expected
+checks) and the 3-64 baseline probe at 17:26 UTC passed 18/18 checks against the same persisted
+15:52:12.546Z store, whose run history still contained only the initial run (no cron tick observed yet). The 3-62 phase-lock fix is on main; the expected
 production sequence for the stored state is: the **18:17 UTC tick** records a run that fetches nothing
 while every vendor is inside its six-hour window (does not advance `lastRefreshAt`, expected), the
 **00:17 UTC tick** refreshes all three vendors, and the **06:17 UTC tick on 2026-10-13** is the first
@@ -414,6 +415,24 @@ Cloudflare error back to the loop without pasting credentials.
 
 Current-scope evidence (committed for review, not live data):
 
+- `docs/evidence/browser-qa-fixtures-20261012T1723Z.json` — **63/63** offline browser checks with the
+  final 3-64 code, including six new failed-attempt checks (a failed last attempt keeps its last
+  successful observation ranked; the best card, comparison row, unknown list and footer all disclose the
+  failure and its reason).
+- `docs/evidence/browser-qa-live-20261012T1722Z.json` — **59/59** live browser checks against a
+  fresh-store `wrangler dev` Worker with real observations, zero console errors; the failure-scenario
+  checks run against their own fixture server in both modes.
+- `docs/evidence/source-check-20261012T1722Z.json` — the 17:22 UTC live adapter check of the five active
+  Crema e Gusto offers (₪33 / ₪124 / ₪240 / ₪30 / ₪38, all in stock, same shipping evidence).
+- `docs/evidence/worker-runtime-status-2026-10-12T1729Z-scheduled.json` — fresh-store `wrangler dev`
+  runtime with the request-triggered initial refresh (17:28:22.779Z → 17:28:40.918Z, 6 requests, five
+  observations) followed by a local scheduled tick at 17:29:06.953Z that recorded a **0-request** run
+  with all three vendors skipped and left `lastRefreshAt` at the initial refresh; the same snapshot has
+  the ₪91.00 board, the retired-URL fallback and the catalog with exactly one product.
+- `docs/evidence/production-probe-20261012T1726Z.json` — the 3-64 read-only production baseline probe
+  (18/18 checks) before the 18:17 UTC cron tick: persisted 15:52:12.546Z refresh, five observations,
+  ₪91.00/₪149.00/₪106.00 boards, retired-URL fallback, and the run history still containing only the
+  initial run.
 - `docs/evidence/browser-qa-production-20261012T1705Z.json` — **53/53** live browser checks against
   https://attention-shoppers.igormaka.workers.dev at 17:05 UTC after the 3-63 push, with zero console
   errors: the deployed site still serves the tracked board, the retired-URL fallback, the written
