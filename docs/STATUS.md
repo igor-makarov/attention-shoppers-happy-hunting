@@ -253,8 +253,8 @@ Historical evidence snapshots are committed for review and are not live data:
   2-45…2-47 hit provider 429 "Endpoint is unavailable" before any work landed; sessions 3-48, 3-51 and
   3-52 timed out, but their checkpoints are preserved and 3-52's second product landed. Iterations 3-49,
   3-50, 3-51 and 3-53 ran normally.
-- Next useful task for the loop: a fourth vendor adapter only with evidenced Israeli delivery (for
-  example a vendor that publishes delivery rates next to the product), or a third tracked product; also
-  useful would be a permitted public page that makes Pucks' checkout-only shipping known so its cheaper
-  prices can rank honestly. Keep `npm run check:sources` green against live pages and re-run both
-  `npm run qa:browser` modes after any UI change.
+- Next useful task for the loop: a fourth vendor adapter only with evidenced Israeli delivery (a vendor
+  that publishes delivery rates next to the product), or a third tracked product. Pucks' shipping is a
+  closed path: the public terms page checked on 2026-10-12 publishes no rate, so its offers must stay
+  unranked until something public states an amount. Keep `npm run check:sources` green against live
+  pages and re-run both `npm run qa:browser` modes after any UI change.

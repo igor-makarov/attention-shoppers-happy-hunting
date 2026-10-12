@@ -99,7 +99,7 @@ Tracked listings (two offers, never merged):
 | zap.co.il | 2026-10-12: reachable price-comparison aggregator; its model page for the exact ground 250 g product lists only CoffeeMan, and its Lavazza ground category lists capsule/cleaning stores (Caffe Vero, CaffeNU, Pure) | Aggregator prices are not a vendor listing, carry no shipping terms and are used for research only, never as an adapter. |
 | coffeeclub.co.il (PAUZA) | 2026-10-12: WooCommerce site reachable, but a product search for "lavazza crema e gusto" returns no product pages | Not a source for the tracked product. |
 | caffenu.co.il / caffenu.com / caffevero.co.il | 2026-10-12: Caffenu is a capsule/cleaning brand; caffevero.co.il does not resolve | No ground-coffee listing. |
-| mojeek.com / Bing HTML / DuckDuckGo | 2026-10-12: mojeek returned HTTP 403, Bing HTML had no extractable result links, DuckDuckGo returned an anti-bot challenge | Search engines were used only for research; no viable new source was found through them. |
+| mojeek.com / Bing HTML / DuckDuckGo / Ecosia | 2026-10-12: mojeek returned HTTP 403, Bing HTML had no extractable result links, DuckDuckGo returned an anti-bot challenge; a later probe at 13:17 UTC saw lite.duckduckgo.com return HTTP 202 and ecosia.org HTTP 403 | Search engines were used only for research; no viable new source was found through them. |
 
 Three independent adapters (CoffeeMan, Pucks and Coffee4U) meet and exceed the "at least two" requirement
 with nine real listings across two tracked products: six CoffeeMan offers (Crema e Gusto and Qualità Oro,
