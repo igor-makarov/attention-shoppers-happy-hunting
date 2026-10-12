@@ -1404,20 +1404,31 @@ constants. Iteration 3-77 completes the shared representation:
 
 **Verified locally (2026-10-12 UTC):**
 
-- `npm run verify` — **131/131** `node:test` cases pass (up from 127); `wrangler deploy --dry-run`
+- `npm run verify` — **134/134** `node:test` cases pass (up from 127); `wrangler deploy --dry-run`
   builds the bundle (106.99 KiB, gzip 27.11 KiB; bindings `BOARD` + `ASSETS`). New tests cover the four
   checked-in policies, an old persisted CoffeeMan single-pack row gaining ₪25 + the ₪15 alternative +
   the Amigo caveat at read time (₪91 at 500 g), an old persisted Coffee4U row gaining ₪30 + the ₪15
   pickup-point alternative + the 1,269/420-locality coverage shape (₪106 at 500 g), a fully known row
-  never being rewritten or policy-stamped, and a malformed alternative invalidating the policy.
+  never being rewritten or policy-stamped, a malformed alternative invalidating the policy, and the
+  future-due label regressions below.
 - Fresh-store `wrangler dev` (22:49:27.187Z → 22:49:44.307Z): **6 bounded requests**, all three vendors
   saved (CoffeeMan 3, Pucks 1, Coffee4U 1), five observations. The 500 g board ranks Pucks ₪90,
   CoffeeMan single ₪91 (₪15 alternative), Coffee4U ₪106 (₪15 pickup-point alternative), CoffeeMan
   4-pack ₪149, CoffeeMan 8-pack ₪260; at 1 kg and 2 kg Pucks wins with free delivery above ₪100.
   Evidence: `docs/evidence/worker-runtime-status-2026-10-12T2250Z.json`.
-- `npm run qa:browser` (offline fixtures) **79/79** and `npm run qa:browser -- http://127.0.0.1:8790`
-  (fresh local live Worker) **77/77**, zero console errors. Evidence:
-  `docs/evidence/browser-qa-live-20261012T2250Z.json`.
+- `npm run qa:browser` (offline fixtures) **80/80** and `npm run qa:browser -- http://127.0.0.1:8790`
+  (fresh local live Worker) **78/78**, zero console errors. Evidence:
+  `docs/evidence/browser-qa-fixtures-20261012T2306Z.json`,
+  `docs/evidence/browser-qa-live-20261012T2308Z.json`. The new check asserts the rendered policy line's
+  re-check date is a future due label, not `(just now)`.
+- **Rendered-detail inspection found and fixed one label defect.** `timeLabel()` formatted any timestamp
+  less than six minutes old as `just now`, including dates in the future, so the offer details read
+  `re-check by 11 Nov 2026, 02:00 (just now)` and a failing vendor's `next attempt` would have read the
+  same way. `timeLabel()` now renders a future timestamp as `(in N h/d)`, the policy re-check date and
+  the vendor next-attempt time use `dueLabel()` (extended to `in N d` for dates more than 48 h ahead),
+  and `tests/ui-labels.test.js` plus the browser-QA disclosure check guard the rendered labels. The
+  details were inspected through the rendered DOM text of the live local Worker (all four policies and
+  their alternatives appear inside the collapsed disclosures; the visible cards are unchanged).
 - `npm run cron:offline` — 6 bounded requests, five offers persisted.
 - `npm run check:sources` (live, 22:48 UTC) — all five listings pass with unchanged prices; the Coffee4U
   parsed row now carries the policy-derived coverage caveat and pickup-point alternative. Evidence:
@@ -1425,6 +1436,10 @@ constants. Iteration 3-77 completes the shared representation:
 - Local read-only probe (`npm run probe:production -- --url http://127.0.0.1:8790`) — 22/22 checks pass,
   including the unified board, retired-line fallback and the inert obsolete-variant parameter. Evidence:
   `docs/evidence/local-probe-20261012T2250Z.json`.
+- Visual review record: `docs/evidence/visual-review/2026-10-12-policy-generalization-review.json` plus
+  four sanitized fixture screenshots. The coding agent's file-read tool still rejects PNG input, so the
+  record is a coarse token/geometry review only and every label/amount is corroborated by rendered DOM
+  text and the API in the same session.
 
 **Next step:** the **00:17 UTC cron tick** should replace the 15:52 production store snapshot with fresh
 vendor observations; re-run `npm run probe:production` after that tick and confirm the production

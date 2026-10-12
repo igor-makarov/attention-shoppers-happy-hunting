@@ -393,7 +393,7 @@ function renderFooterStatus(board) {
   const nextDue = vendors.map(vendor => vendor.nextAttemptAt).filter(Boolean).sort()[0] ?? null;
   if (nextDue) body.append(el('div', { text: `Next source check due (approximate, set by each vendor's last run): ${dueLabel(nextDue)}` }));
   for (const vendor of failing) {
-    body.append(el('div', { text: `${vendor.vendorId}: ${vendor.consecutiveFailures} consecutive failure(s) · next attempt ${timeLabel(vendor.nextAttemptAt)}${vendor.lastErrors?.[0] ? ` · last error: ${vendor.lastErrors[0]}` : ''}` }));
+    body.append(el('div', { text: `${vendor.vendorId}: ${vendor.consecutiveFailures} consecutive failure(s) · next attempt ${dueLabel(vendor.nextAttemptAt)}${vendor.lastErrors?.[0] ? ` · last error: ${vendor.lastErrors[0]}` : ''}` }));
   }
   wrap.append(el('details', { class: 'disclosure' }, el('summary', { text: 'Refresh diagnostics' }), body));
   return wrap;

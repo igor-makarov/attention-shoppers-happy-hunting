@@ -245,7 +245,8 @@ try {
       summary: d?.querySelector('summary')?.textContent.trim() ?? null,
       conditions: [...card.querySelectorAll('.conditions li')].map(n => n.textContent),
       caveats: [...card.querySelectorAll('.caveat')].map(n => n.textContent),
-      text: d?.textContent ?? ''
+      text: d?.textContent ?? '',
+      allDetailsText: [...card.querySelectorAll('details')].map(node => node.textContent).join(' ')
     };
   })()`);
   check('disclosure: opening the best offer details shows its conditions and full coverage terms',
@@ -256,6 +257,10 @@ try {
     JSON.stringify({ conditions: delivery.conditions, caveats: delivery.caveats.length }));
   check('disclosure: the same coverage caveat is not repeated on the card',
     (await evaluate(wd, `document.querySelectorAll('#best-offer .caveat').length`)) === 1, 'one caveat element');
+  check('disclosure: the shipping-policy re-check date is a future due label, never "just now"',
+    /re-check by [^(]+\((in \d+ (?:h|d)|due now)\)/.test(delivery.allDetailsText)
+      && !/re-check by[^(]*\(just now\)/.test(delivery.allDetailsText),
+    delivery.allDetailsText.match(/Shipping rule:[^A-Z]*/)?.[0]?.trim() ?? 'no shipping rule line');
   await setDetailsOpen(wd, '#best-offer details', false);
   check('disclosure: closing the details hides them again', (await evaluate(wd, `document.querySelector('#best-offer details')?.open`)) === false, 'closed');
 

@@ -61,7 +61,12 @@ export function timeLabel(iso) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return 'unknown time';
   const hours = (Date.now() - date.getTime()) / 3_600_000;
-  const relative = hours < 0.1 ? 'just now' : hours < 1 ? `${Math.round(hours * 60)} min ago` : hours < 48 ? `${Math.round(hours)} h ago` : `${Math.round(hours / 24)} d ago`;
+  // A timestamp that is actually in the future must never read "just now":
+  // policy review dates and vendor next-attempt times are due times, and a
+  // shopper needs to see that they are still ahead.
+  const relative = hours < 0
+    ? (hours > -48 ? `in ${Math.max(1, Math.round(-hours))} h` : `in ${Math.round(-hours / 24)} d`)
+    : hours < 0.1 ? 'just now' : hours < 1 ? `${Math.round(hours * 60)} min ago` : hours < 48 ? `${Math.round(hours)} h ago` : `${Math.round(hours / 24)} d ago`;
   return `${IL_TIME.format(date)} (${relative})`;
 }
 
@@ -71,7 +76,7 @@ export function dueLabel(iso) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return 'unknown time';
   const hours = (date.getTime() - Date.now()) / 3_600_000;
-  const relative = hours <= 0 ? 'due now' : hours < 1 ? `in ${Math.round(hours * 60)} min` : `in ${Math.round(hours)} h`;
+  const relative = hours <= 0 ? 'due now' : hours < 1 ? `in ${Math.round(hours * 60)} min` : hours < 48 ? `in ${Math.round(hours)} h` : `in ${Math.round(hours / 24)} d`;
   return `${IL_TIME.format(date)} (${relative})`;
 }
 
@@ -234,7 +239,7 @@ export function diagnosticsDisclosure(quote) {
   if (quote.lastAttemptFailed) rows.push(`Last attempt failed ${timeLabel(quote.attemptedAt)}${quote.lastError ? ` — ${truncate(quote.lastError)}` : ''}`);
   const policy = quote.shipping?.policy;
   if (policy) {
-    rows.push(`Shipping rule: ${policy.id} v${policy.version} (${policy.origin === 'observed_cart' ? 'observed anonymous cart quote' : 'published rule'}, observed ${timeLabel(policy.retrievedAt)}, re-check by ${timeLabel(policy.reviewBy)})`);
+    rows.push(`Shipping rule: ${policy.id} v${policy.version} (${policy.origin === 'observed_cart' ? 'observed anonymous cart quote' : 'published rule'}, observed ${timeLabel(policy.retrievedAt)}, re-check by ${dueLabel(policy.reviewBy)})`);
   }
   if (quote.shipping?.note) rows.push(`Shipping terms: ${quote.shipping.note}`);
   const evidence = quote.shipping?.evidence;
