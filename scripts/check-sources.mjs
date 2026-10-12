@@ -77,6 +77,7 @@ if (asJson) {
       console.log(`  price      ${observation.price.amount} ${observation.price.currency}`);
       console.log(`  stock      ${observation.availability} (${observation.availabilityEvidence?.value ?? 'no evidence value'})`);
       console.log(`  shipping   certainty=${observation.shipping.certainty} amount=${observation.shipping.amount ? `${observation.shipping.amount.amount} ${observation.shipping.amount.currency}` : 'unknown'}`);
+      console.log(`  coverage   ${observation.shipping.destination?.caveat ?? 'no documented coverage caveat'}`);
       console.log(`  note       ${observation.shipping.note}`);
       console.log(`  checked    ${observation.observedAt}`);
     }

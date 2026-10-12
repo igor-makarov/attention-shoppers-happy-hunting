@@ -113,7 +113,16 @@ export function parseCoffeemanProduct(html, { now, url = PRODUCT_URL, productId 
       mode: 'delivery',
       certainty: shipping.deliveryCents == null ? 'unknown' : 'verified',
       amount: shipping.deliveryCents == null ? null : { amount: shipping.deliveryCents, currency },
-      destination: { scope: 'country', country: 'IL' },
+      // The product page publishes the courier rate but not the locality list, and the
+      // vendor terms state home delivery is subject to that list. The caveat is kept
+      // structured so the board can disclose the geographic restriction instead of
+      // claiming unconditional country-wide coverage.
+      destination: {
+        scope: 'country',
+        country: 'IL',
+        caveat: 'Home delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout.',
+        caveatSource: 'https://www.coffeeman.co.il/page/%D7%AA%D7%A0%D7%90%D7%99-%D7%A9%D7%99%D7%9E%D7%95%D7%A9'
+      },
       minOrder: null,
       freeThreshold: null,
       note: shipping.note,

@@ -178,6 +178,9 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
       base.itemTotalIls = round2(pickupTotal.amount);
       base.labels.push('Shown for pickup comparison only');
     }
+    if (stale) {
+      base.labels.push('Stale observation — the last successful check is too old; treat the item total as out of date');
+    }
     return base;
   }
 
@@ -215,6 +218,16 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
   if (coverage) {
     reasons.push(coverage);
     return base;
+  }
+  // A published rate whose locality list is not published is a disclosed caveat,
+  // not a blocker: the vendor states home delivery is subject to the list, so the
+  // board keeps ranking but never claims unconditional coverage of the destination.
+  const coverageCaveat = typeof shipping.destination?.caveat === 'string' && shipping.destination.caveat.trim()
+    ? shipping.destination.caveat.trim()
+    : null;
+  if (coverageCaveat) {
+    base.shipping.coverageCaveat = coverageCaveat;
+    base.labels.push(`Delivery coverage caveat: ${coverageCaveat}`);
   }
 
   if (observation.availability === 'out_of_stock') {
@@ -312,7 +325,7 @@ function toPickupEntry(quote) {
       amount: quote.shipping.pickup?.amount ?? null,
       note: quote.shipping.pickup?.note ?? null
     },
-    labels: [...quote.labels, 'Pickup only — not a delivered offer']
+    labels: [...quote.labels.filter(label => !label.startsWith('Delivery coverage caveat:')), 'Pickup only — not a delivered offer']
   };
 }
 

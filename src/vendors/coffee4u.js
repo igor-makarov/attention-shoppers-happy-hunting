@@ -98,7 +98,15 @@ export function parseCoffee4uProduct(html, { now, url = PRODUCT_URL, productId =
       mode: 'delivery',
       certainty: shipping.courierAmount == null ? 'unknown' : 'verified',
       amount: shipping.courierAmount == null ? null : { amount: shipping.courierAmount, currency },
-      destination: { scope: 'country', country: 'IL' },
+      // The product page publishes the door-to-door rate but not the locality list;
+      // the vendor terms make home delivery subject to that list, so the board
+      // discloses the restriction instead of assuming every Israeli destination.
+      destination: {
+        scope: 'country',
+        country: 'IL',
+        caveat: 'Door-to-door delivery is limited to the localities on Coffee4U’s home-delivery list, which the product page does not publish. Confirm the destination at checkout.',
+        caveatSource: 'https://www.coffee4u.co.il/page/%D7%AA%D7%A7%D7%A0%D7%95%D7%9F-0'
+      },
       minOrder: null,
       freeThreshold: null,
       deliveryTime: shipping.deliveryTime,
@@ -166,7 +174,6 @@ export function parseCoffee4uShipping(html) {
   if (selfPickup) {
     notes.push('Free self-pickup at the shop is available and is kept separate from delivery.');
   }
-  notes.push('Door-to-door delivery is subject to the courier\u2019s published list of localities, which the product page does not enumerate.');
 
   return { courierAmount, pickupPointAmount, selfPickup, deliveryTime, pickupPointNote, note: notes.join(' ') };
 }

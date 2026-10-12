@@ -31,6 +31,11 @@ export function createObservation({ vendor, itemUrl, product, price, availabilit
     `${product.totalGrams ?? 'x'}g`,
     `x${product.packCount ?? 1}`
   ].join(':');
+  // Availability and shipping terms are read from the same product-page fetch as
+  // the price. Stamp their evidence with that retrieval time unless the adapter
+  // already knows a more precise one, so every claim on the board carries when
+  // it was observed instead of an unexplained null.
+  const stamp = entry => (entry ? { ...entry, retrievedAt: entry.retrievedAt ?? observedAt } : null);
   return {
     key,
     vendor: { id: vendor.id, name: vendor.name, homepage: vendor.homepage },
@@ -38,8 +43,10 @@ export function createObservation({ vendor, itemUrl, product, price, availabilit
     product,
     price,
     availability,
-    availabilityEvidence: availabilityEvidence ?? null,
-    shipping,
+    availabilityEvidence: stamp(availabilityEvidence),
+    shipping: shipping
+      ? { ...shipping, evidence: stamp(shipping.evidence) }
+      : shipping,
     mandatoryFees,
     observedAt,
     evidence: [
