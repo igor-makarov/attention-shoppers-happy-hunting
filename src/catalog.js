@@ -60,7 +60,9 @@ export const VARIANTS = {
 };
 
 const REJECT_FORMS = [
-  { id: 'beans', pattern: /\b(beans?|whole\s*bean|פולי|bønner|boenner|kaffeebohnen|grain)\b/i, label: 'whole beans' },
+  // Hebrew is written without word characters, so the Hebrew bean words are matched
+  // without \b (a bare \bפולי\b can never match).
+  { id: 'beans', pattern: /\b(beans?|whole\s*bean|kaffeebohnen|bønner|boenner|grain)\b|פולי|פול\s*קפה/i, label: 'whole beans' },
   { id: 'capsules', pattern: /(capsul|קפסול|coffee\s*pods?|\bpods?\b|nespresso|dolce\s*gusto|senseo|a\s*modo\s*mio|\bese\b)/i, label: 'capsules or pods' },
   { id: 'machine', pattern: /(coffee\s*machin|מכונת\s*קפה|espresso\s*machine)/i, label: 'coffee machine' }
 ];

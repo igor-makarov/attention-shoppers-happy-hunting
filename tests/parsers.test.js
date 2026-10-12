@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { decodeBuffer, decodeHtml } from '../src/lib/text.js';
+import { decodeBuffer, decodeEntities, decodeHtml } from '../src/lib/text.js';
 import { parseCoffeemanProduct, parseShippingOptions } from '../src/vendors/coffeeman.js';
 import { parsePucksProduct } from '../src/vendors/pucks.js';
 import { parseCoffee4uProduct, parseCoffee4uShipping } from '../src/vendors/coffee4u.js';
@@ -163,4 +163,95 @@ test('variant classification keeps Forte separate from Classico', () => {
   assert.notEqual(classico.variantId, forte.variantId);
   const beans = classifyListing('פולי קפה Lavazza Crema e Gusto 1 ק"ג');
   assert.equal(beans.matched, false);
+});
+
+test('coffeeman Qualità Oro fixtures keep the second product, its pack sizes and its published shipping', () => {
+  const single = parseCoffeemanProduct(decodeHtml(read('coffeeman-qualita-oro-product.windows-1255.html')), { now, productId: 'lavazza-qualita-oro-vacuum-ground' });
+  assert.equal(single.product.productId, 'lavazza-qualita-oro-vacuum-ground');
+  assert.equal(single.product.variantId, 'unspecified', 'the Qualità Oro page states no blend variant');
+  assert.equal(single.product.packGrams, 250);
+  assert.equal(single.product.packCount, 1);
+  assert.equal(single.product.sku, '930339');
+  assert.equal(single.price.amount, 37);
+  assert.equal(single.price.currency, 'ILS');
+  assert.equal(single.availability, 'in_stock');
+  assert.equal(single.shipping.certainty, 'verified');
+  assert.equal(single.shipping.amount.amount, 25);
+
+  const four = parseCoffeemanProduct(decodeHtml(read('coffeeman-qualita-oro-4pack-product.windows-1255.html')), { now, productId: 'lavazza-qualita-oro-vacuum-ground' });
+  // The page publishes the name as "Lavazza Qualit&#224; Oro": the entity must be decoded
+  // or the listing would not match the tracked product line at all.
+  assert.match(four.product.name, /Qualità Oro/);
+  assert.equal(four.product.packCount, 4);
+  assert.equal(four.product.totalGrams, 1000);
+  assert.equal(four.product.sku, '930340');
+  assert.equal(four.price.amount, 125);
+  assert.equal(four.shipping.certainty, 'verified');
+
+  const eight = parseCoffeemanProduct(decodeHtml(read('coffeeman-qualita-oro-8pack-product.windows-1255.html')), { now, productId: 'lavazza-qualita-oro-vacuum-ground' });
+  assert.equal(eight.product.packCount, 8);
+  assert.equal(eight.product.totalGrams, 2000);
+  assert.equal(eight.price.amount, 239);
+  assert.equal(eight.shipping.certainty, 'unknown', 'the 8-pack page publishes no courier price');
+  assert.equal(eight.shipping.amount, null);
+});
+
+test('pucks Qualità Oro fixture is observed with its own SKU, GTIN and unknown shipping', () => {
+  const observation = parsePucksProduct(read('pucks-qualita-oro-product.html').toString('utf8'), { now, url: 'https://pucks.co.il/product/lavazza-qualita-oro-ground-coffee-250gr', productId: 'lavazza-qualita-oro-vacuum-ground' });
+  assert.equal(observation.product.productId, 'lavazza-qualita-oro-vacuum-ground');
+  assert.equal(observation.product.variantId, 'unspecified');
+  assert.equal(observation.product.packGrams, 250);
+  assert.equal(observation.product.sku, 'lav11');
+  assert.equal(observation.product.gtin, '8000070019911');
+  assert.equal(observation.price.amount, 35);
+  assert.equal(observation.availability, 'in_stock');
+  assert.equal(observation.shipping.certainty, 'unknown');
+  assert.match(observation.shipping.note, /checkout/);
+  assert.equal(observation.itemUrl, 'https://pucks.co.il/product/lavazza-qualita-oro-ground-coffee-250gr');
+});
+
+test('a listing is refused when it belongs to another tracked line', () => {
+  const html = decodeHtml(read('coffeeman-qualita-oro-product.windows-1255.html'));
+  assert.throws(
+    () => parseCoffeemanProduct(html, { now, productId: 'lavazza-crema-e-gusto-vacuum-ground' }),
+    /does not match the tracked product/
+  );
+  const other = decodeHtml(read('coffeeman-product.windows-1255.html'));
+  assert.throws(
+    () => parseCoffeemanProduct(other, { now, productId: 'lavazza-qualita-oro-vacuum-ground' }),
+    /does not match the tracked product/
+  );
+});
+
+test('classification picks the tracked line from the listing name and keeps forms apart', () => {
+  const oro = classifyListing('Lavazza Qualita Oro ground 250 gr - קפה טחון');
+  assert.equal(oro.matched, true);
+  assert.equal(oro.productId, 'lavazza-qualita-oro-vacuum-ground');
+  assert.equal(oro.variantId, 'unspecified');
+  const oroEntity = classifyListing('8 אריזות 250 גרם Lavazza Qualit&#224; Oro קפה טחון');
+  assert.equal(oroEntity.productId, 'lavazza-qualita-oro-vacuum-ground');
+  assert.equal(oroEntity.packCount, 8);
+
+  const oroBeans = classifyListing('Lavazza Qualità Oro 1 kg פולי קפה');
+  assert.equal(oroBeans.matched, false);
+  assert.match(oroBeans.reasons.join(' '), /whole beans/);
+  const oroPods = classifyListing('Lavazza Qualità Oro capsules 100 אלומיניום');
+  assert.equal(oroPods.matched, false);
+  assert.match(oroPods.reasons.join(' '), /capsules or pods/);
+
+  const crema = classifyListing('250 גרם קפה טחון lavazza Crema e Gusto Classico חוזק 7');
+  assert.equal(crema.productId, 'lavazza-crema-e-gusto-vacuum-ground');
+  assert.equal(crema.variantId, 'classico');
+  const unrelated = classifyListing('Lavazza Tierra ground coffee 250 g');
+  assert.equal(unrelated.matched, false);
+  assert.match(unrelated.reasons.join(' '), /tracked Lavazza product line/);
+});
+
+test('html entities are decoded without touching anything else', () => {
+  assert.equal(decodeEntities('Lavazza Qualit&#224; Oro'), 'Lavazza Qualità Oro');
+  assert.equal(decodeEntities('Qualit&agrave; Oro'), 'Qualità Oro');
+  assert.equal(decodeEntities('100 &#8362; &amp; more'), '100 ₪ & more');
+  assert.equal(decodeEntities('plain text'), 'plain text');
+  assert.equal(decodeEntities('&notarealentity;'), '&notarealentity;');
+  assert.equal(decodeEntities(null), '');
 });

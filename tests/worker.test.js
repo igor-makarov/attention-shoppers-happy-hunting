@@ -3,32 +3,36 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import worker from '../src/index.js';
 import { createMemoryStore } from '../src/store.js';
+import { trackedOffers } from './fixtures/vendor-fixtures.mjs';
+import { pacingDefaults } from '../src/refresh.js';
+
+// Pacing waits are injected away: crawl-delay timing has its own test.
+pacingDefaults.sleep = async () => {};
 
 const fixtures = new URL('./fixtures/', import.meta.url);
-const coffeemanBytes = readFileSync(new URL('coffeeman-product.windows-1255.html', fixtures));
-const coffeeman4Bytes = readFileSync(new URL('coffeeman-4pack-product.windows-1255.html', fixtures));
-const coffeeman8Bytes = readFileSync(new URL('coffeeman-8pack-product.windows-1255.html', fixtures));
-const pucksHtml = readFileSync(new URL('pucks-product.html', fixtures), 'utf8');
-const coffee4uBytes = readFileSync(new URL('coffee4u-product.windows-1255.html', fixtures));
+const fixtureCache = new Map();
+for (const offer of trackedOffers()) {
+  if (offer.file) fixtureCache.set(offer.url, readFixtureSync(offer.file));
+}
+function readFixtureSync(file) {
+  const bytes = readFileSync(new URL(file, fixtures));
+  return { bytes, contentType: file.includes('windows-1255') ? 'text/html; charset=windows-1255' : 'text/html; charset=utf-8' };
+}
 const BOI = {
   exchangeRates: [{ key: 'USD', currentExchangeRate: 3.05, unit: 1, lastUpdate: '2026-10-09T09:21:04.476265Z' }]
 };
 
 function fixtureFetch(url) {
-  if (url.includes('coffeeman.co.il')) {
-    const bytes = url.includes('4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA') ? coffeeman4Bytes
-      : url.includes('8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA') ? coffeeman8Bytes
-      : coffeemanBytes;
-    return new Response(bytes, { status: 200, headers: { 'content-type': 'text/html; charset=windows-1255' } });
-  }
-  if (url.includes('pucks.co.il')) {
-    return new Response(pucksHtml, { status: 200, headers: { 'content-type': 'text/html' } });
-  }
-  if (url.includes('coffee4u.co.il')) {
-    return new Response(coffee4uBytes, { status: 200, headers: { 'content-type': 'text/html; charset=windows-1255' } });
-  }
-  if (url.includes('boi.org.il')) return Response.json(BOI);
-  return new Response('unexpected ' + url, { status: 404 });
+  const response = fixtureResponse(url);
+  if (response) return response;
+  if (String(url).includes("boi.org.il")) return Response.json(BOI);
+  return new Response("unexpected " + url, { status: 404 });
+}
+
+function fixtureResponse(url) {
+  const hit = fixtureCache.get(String(url));
+  if (!hit) return null;
+  return new Response(hit.bytes, { status: 200, headers: { "content-type": hit.contentType } });
 }
 
 function envWith(store, extra = {}) {
@@ -180,12 +184,39 @@ test('scheduled handler refreshes and persists through the BOARD binding', async
     globalThis.fetch = originalFetch;
   }
   const snapshot = await store.snapshot();
-  assert.equal(snapshot.observations.length, 5);
+  assert.equal(snapshot.observations.length, 9);
   assert.equal(snapshot.meta.lastRefreshAt.trigger, 'cron');
   assert.equal(snapshot.meta.fx.rates.USD.rate, 3.05);
   const run = snapshot.runs[0];
   assert.equal(run.trigger, 'cron');
-  assert.equal(run.requests, 6);
+  assert.equal(run.requests, 10);
+});
+
+test('the second tracked product has its own board and its own default variant', async () => {
+  const store = await seededStore();
+  const catalog = await (await worker.fetch(new Request('https://example.test/api/catalog'), envWith(createMemoryStore()), {})).json();
+  assert.equal(catalog.products.length, 2, 'both tracked products are listed for the selector');
+  const oro = catalog.products.find(item => item.id === 'lavazza-qualita-oro-vacuum-ground');
+  assert.equal(oro.line, 'Qualità Oro');
+  assert.deepEqual(oro.variants.map(item => item.id), ['unspecified']);
+  assert.equal(oro.defaultVariant, 'unspecified');
+
+  // No product parameter means the first tracked product, exactly as before.
+  const implicit = await (await worker.fetch(new Request('https://example.test/api/board?grams=1000&dest=tel-aviv'), envWith(store), {})).json();
+  assert.equal(implicit.productId, 'lavazza-crema-e-gusto-vacuum-ground');
+
+  const board = await (await worker.fetch(new Request('https://example.test/api/board?product=lavazza-qualita-oro-vacuum-ground&grams=1000&dest=tel-aviv'), envWith(store), {})).json();
+  assert.equal(board.product.id, 'lavazza-qualita-oro-vacuum-ground');
+  assert.equal(board.variantId, 'unspecified', 'Qualità Oro defaults to the unstated variant');
+  assert.equal(board.best.vendor.id, 'coffeeman');
+  assert.equal(board.best.totalIls, 150, '₪125 for the 4 × 250 g pack plus the verified ₪25 courier rate');
+  assert.equal(board.best.ilsPerKg, 150);
+  assert.equal(board.counts.observed, 4, 'only Qualità Oro offers are compared');
+  const single = board.ranked.find(quote => quote.product.packCount === 1);
+  assert.equal(single.totalIls, 173, '4 × ₪37 + ₪25');
+  assert.ok(board.unknown.some(quote => quote.vendor.id === 'pucks'), 'Pucks stays visible with unknown shipping');
+  const wrongVariant = await (await worker.fetch(new Request('https://example.test/api/board?product=lavazza-qualita-oro-vacuum-ground&grams=1000&dest=tel-aviv&variant=classico'), envWith(store), {})).json();
+  assert.equal(wrongVariant.ranked.length, 0, 'a variant of another line never matches Qualità Oro offers');
 });
 
 test('board without a storage binding explains the deployment requirement', async () => {

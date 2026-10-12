@@ -7,8 +7,12 @@ import { startQaServer, fixtureObservations } from '../scripts/qa-server.mjs';
 
 test('fixture observations parse through the production adapters', async () => {
   const observations = await fixtureObservations(Date.parse('2026-10-12T11:00:00.000Z'));
-  assert.equal(observations.length, 5);
-  const coffeeman = observations.find(item => item.vendor.id === 'coffeeman');
+  assert.equal(observations.length, 9, "five Crema e Gusto offers plus four Qualità Oro offers");
+  const coffeeman = observations.find(item => item.vendor.id === "coffeeman");
+  const oroOffers = observations.filter(item => item.product.productId === "lavazza-qualita-oro-vacuum-ground");
+  assert.equal(oroOffers.length, 4, "the second tracked product comes from two independent vendors");
+  assert.equal(oroOffers.find(item => item.vendor.id === "coffeeman" && item.product.packCount === 4).price.amount, 125);
+  assert.equal(oroOffers.find(item => item.vendor.id === "pucks").price.amount, 35);
   assert.equal(coffeeman.product.form, 'ground');
   assert.equal(coffeeman.product.variantId, 'classico');
   assert.equal(coffeeman.product.packGrams, 250);
@@ -79,7 +83,15 @@ test('QA fixture server serves the board API and static assets offline', async (
     assert.equal(unstatedVariant.best.shipping.alternatives[0].amountIls, 15, 'the pickup-point delivery shows as an alternative');
 
     const catalog = await (await fetch(`${server.url}/api/catalog`)).json();
-    assert.deepEqual(catalog.vendors.map(vendor => vendor.id).sort(), ['coffee4u', 'coffeeman', 'pucks']);
+    assert.deepEqual(catalog.vendors.map(vendor => vendor.id).sort(), ["coffee4u", "coffeeman", "pucks"]);
+    assert.deepEqual(catalog.products.map(item => item.id), ["lavazza-crema-e-gusto-vacuum-ground", "lavazza-qualita-oro-vacuum-ground"], "the catalog drives the product selector");
+
+    const oroBoard = await (await fetch(`${server.url}/api/board?product=lavazza-qualita-oro-vacuum-ground&grams=1000&dest=tel-aviv`)).json();
+    assert.equal(oroBoard.product.line, "Qualità Oro");
+    assert.equal(oroBoard.variantId, "unspecified", "the server applies the product's own default variant");
+    assert.equal(oroBoard.best.totalIls, 150, "₪125 four-pack + ₪25 verified courier");
+    assert.equal(oroBoard.counts.observed, 4);
+    assert.ok(oroBoard.unknown.some(quote => quote.vendor.id === "pucks"), "Pucks keeps its unknown shipping on the second product too");
     assert.equal(board.freshness.stale, false, 'a server whose refresh just completed is fresh');
 
     const staleServer = await startQaServer({ port: 0, now: Date.parse('2026-10-12T11:00:00.000Z'), staleRefresh: true });

@@ -23,6 +23,13 @@ export const INITIAL_REFRESH_THROTTLE_MS = 10 * 60 * 1000;
 export const FX_URL = 'https://www.boi.org.il/currency.xml';
 export const FX_HOSTS = ['www.boi.org.il', 'boi.org.il'];
 
+/**
+ * Test seam for crawl-delay pacing. Production and the real cron simulation use
+ * real timers; unit tests and offline simulations replace these with a no-op so
+ * they never wait. Pass `sleep`/`clock` to runRefresh for a per-call override.
+ */
+export const pacingDefaults = { sleep: undefined, clock: undefined };
+
 export function backoffMs(consecutiveFailures) {
   if (!consecutiveFailures || consecutiveFailures <= 0) return 0;
   return Math.min(BACKOFF_BASE_MS * 2 ** (consecutiveFailures - 1), BACKOFF_MAX_MS);
@@ -113,8 +120,8 @@ async function refreshVendor({ store, vendor, state, fetchImpl, now, counter, lo
     // Respect a vendor's published crawl delay (for example "Crawl-delay: 7")
     // instead of firing every tracked offer back to back.
     minIntervalMs: vendor.crawlDelayMs ?? 0,
-    ...(sleep ? { sleep } : {}),
-    ...(clock ? { clock } : {})
+    sleep: sleep ?? pacingDefaults.sleep,
+    clock: clock ?? pacingDefaults.clock
   });
   const attemptedAt = new Date(now).toISOString();
   let saved = 0;

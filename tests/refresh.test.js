@@ -4,14 +4,10 @@ import { readFileSync } from 'node:fs';
 import { runRefresh, maybeInitialRefresh, backoffMs, refreshFreshness, REFRESH_INTERVAL_MS, REFRESH_STALE_MS, BACKOFF_BASE_MS } from '../src/refresh.js';
 import { createMemoryStore } from '../src/store.js';
 import { registeredVendors } from '../src/vendors/index.js';
+import { readFixtureForUrl } from './fixtures/vendor-fixtures.mjs';
 
 const fixtures = new URL('./fixtures/', import.meta.url);
-const coffeemanBytes = readFileSync(new URL('coffeeman-product.windows-1255.html', fixtures));
-const coffeeman4Bytes = readFileSync(new URL('coffeeman-4pack-product.windows-1255.html', fixtures));
-const coffeeman8Bytes = readFileSync(new URL('coffeeman-8pack-product.windows-1255.html', fixtures));
 const coffeemanOosBytes = readFileSync(new URL('coffeeman-product.outofstock.windows-1255.html', fixtures));
-const pucksHtml = readFileSync(new URL('pucks-product.html', fixtures), 'utf8');
-const coffee4uBytes = readFileSync(new URL('coffee4u-product.windows-1255.html', fixtures));
 const coffee4uOosBytes = readFileSync(new URL('coffee4u-product.outofstock.windows-1255.html', fixtures));
 
 const BOI = {
@@ -21,41 +17,38 @@ const BOI = {
   ]
 };
 
-function fixtureFetch({ coffeeman = coffeemanBytes, fourPack = coffeeman4Bytes, eightPack = coffeeman8Bytes, failCoffeeman = false, failFx = false, calls = [] } = {}) {
+function fixtureFetch({ overrides = {}, failCoffeeman = false, failFx = false, calls = [] } = {}) {
   return async url => {
-    calls.push(url);
-    if (url.includes('coffeeman.co.il')) {
-      if (failCoffeeman) return new Response('vendor down', { status: 503 });
-      const bytes = url.includes('4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA') ? fourPack
-        : url.includes('8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA') ? eightPack
-        : coffeeman;
-      return new Response(bytes, { status: 200, headers: { 'content-type': 'text/html; charset=windows-1255' } });
+    calls.push(String(url));
+    if (String(url).includes("boi.org.il")) {
+      return failFx ? new Response("fx down", { status: 500 }) : Response.json(BOI);
     }
-    if (url.includes('pucks.co.il')) {
-      return new Response(pucksHtml, { status: 200, headers: { 'content-type': 'text/html' } });
+    if (failCoffeeman && String(url).includes("coffeeman.co.il")) {
+      return new Response("vendor down", { status: 503 });
     }
-    if (url.includes('coffee4u.co.il')) {
-      return new Response(coffee4uBytes, { status: 200, headers: { 'content-type': 'text/html; charset=windows-1255' } });
-    }
-    if (url.includes('boi.org.il')) {
-      if (failFx) return new Response('fx down', { status: 500 });
-      return Response.json(BOI);
-    }
-    return new Response('unexpected', { status: 404 });
+    const hit = await readFixtureForUrl(url);
+    if (!hit) return new Response("unexpected", { status: 404 });
+    const override = overrides[`${hit.offer.vendorId}:${hit.offer.offerId}`];
+    const body = override ?? hit.bytes;
+    return new Response(body, { status: 200, headers: { "content-type": hit.contentType } });
   };
 }
+
+// Pacing waits are injected away: the crawl-delay timing itself is covered by the
+// dedicated pacing test below, so the suite never really sleeps.
+const run = options => runRefresh({ sleep: async () => {}, ...options });
 
 const NOW = Date.parse('2026-10-12T12:00:00.000Z');
 
 test('scheduled refresh persists observations without a browser', async () => {
   const store = createMemoryStore();
   const calls = [];
-  const summary = await runRefresh({ store, fetchImpl: fixtureFetch({ calls }), now: NOW, trigger: 'cron' });
+  const summary = await run({ store, fetchImpl: fixtureFetch({ calls }), now: NOW, trigger: 'cron' });
   assert.equal(summary.trigger, 'cron');
   assert.equal(summary.vendors.length, 3);
-  assert.equal(summary.requests, 6, 'three CoffeeMan listings plus Pucks, Coffee4U and one FX request');
+  assert.equal(summary.requests, 10, 'six CoffeeMan listings, two Pucks listings, Coffee4U and one FX request');
   const snapshot = await store.snapshot();
-  assert.equal(snapshot.observations.length, 5);
+  assert.equal(snapshot.observations.length, 9);
   const coffeeman = snapshot.observations.find(o => o.vendor.id === 'coffeeman');
   assert.equal(coffeeman.price.amount, 33);
   assert.equal(coffeeman.attemptedAt, new Date(NOW).toISOString());
@@ -69,11 +62,11 @@ test('scheduled refresh persists observations without a browser', async () => {
 
 test('one failing vendor keeps its previous good observation and does not block the other', async () => {
   const store = createMemoryStore();
-  await runRefresh({ store, fetchImpl: fixtureFetch(), now: NOW });
+  await run({ store, fetchImpl: fixtureFetch(), now: NOW });
   const before = (await store.snapshot()).observations.find(o => o.vendor.id === 'coffeeman');
   assert.equal(before.price.amount, 33);
 
-  const second = await runRefresh({
+  const second = await run({
     store,
     fetchImpl: fixtureFetch({ failCoffeeman: true }),
     now: NOW + REFRESH_INTERVAL_MS + 1000
@@ -89,19 +82,19 @@ test('one failing vendor keeps its previous good observation and does not block 
   assert.equal(kept.observedAt, before.observedAt, 'last successful observation timestamp is unchanged');
   assert.ok(kept.attemptedAt, 'failed attempt timestamp is recorded');
   const attempts = await store.listRuns(5);
-  assert.equal(attempts[0].vendors.find(v => v.vendorId === 'coffeeman').failures.length, 3, 'all three CoffeeMan listings report the failure');
+  assert.equal(attempts[0].vendors.find(v => v.vendorId === 'coffeeman').failures.length, 6, 'all six CoffeeMan listings report the failure');
 });
 
 test('repeated failures back off and stop re-fetching the broken vendor', async () => {
   const store = createMemoryStore();
-  const first = await runRefresh({ store, fetchImpl: fixtureFetch({ failCoffeeman: true }), now: NOW });
+  const first = await run({ store, fetchImpl: fixtureFetch({ failCoffeeman: true }), now: NOW });
   assert.equal(first.vendors.find(v => v.vendorId === 'coffeeman').ok, false);
   const state = await store.getVendorState('coffeeman');
   assert.equal(state.consecutiveFailures, 1);
   assert.equal(Date.parse(state.nextAttemptAt), NOW + BACKOFF_BASE_MS);
 
   const calls = [];
-  const second = await runRefresh({ store, fetchImpl: fixtureFetch({ failCoffeeman: true, calls }), now: NOW + 5 * 60 * 1000 });
+  const second = await run({ store, fetchImpl: fixtureFetch({ failCoffeeman: true, calls }), now: NOW + 5 * 60 * 1000 });
   assert.equal(second.vendors.find(v => v.vendorId === 'coffeeman').skipped, true);
   assert.equal(calls.some(url => url.includes('coffeeman')), false, 'vendor in backoff is not fetched');
   assert.equal(backoffMs(2), 60 * 60 * 1000);
@@ -110,10 +103,10 @@ test('repeated failures back off and stop re-fetching the broken vendor', async 
 
 test('a failing FX fetch keeps the previous rate table', async () => {
   const store = createMemoryStore();
-  await runRefresh({ store, fetchImpl: fixtureFetch(), now: NOW });
+  await run({ store, fetchImpl: fixtureFetch(), now: NOW });
   const fx = (await store.snapshot()).meta.fx;
   assert.equal(fx.rates.USD.rate, 3.05);
-  await runRefresh({ store, fetchImpl: fixtureFetch({ failFx: true }), now: NOW + REFRESH_INTERVAL_MS });
+  await run({ store, fetchImpl: fixtureFetch({ failFx: true }), now: NOW + REFRESH_INTERVAL_MS });
   const after = (await store.snapshot()).meta.fx;
   assert.equal(after.rates.USD.rate, 3.05, 'previous rates preserved when the feed fails');
   assert.equal(after.asOf, fx.asOf);
@@ -121,10 +114,10 @@ test('a failing FX fetch keeps the previous rate table', async () => {
 
 test('out-of-stock observation replaces the price but never claims availability', async () => {
   const store = createMemoryStore();
-  await runRefresh({ store, fetchImpl: fixtureFetch(), now: NOW });
-  const summary = await runRefresh({
+  await run({ store, fetchImpl: fixtureFetch(), now: NOW });
+  const summary = await run({
     store,
-    fetchImpl: fixtureFetch({ coffeeman: coffeemanOosBytes }),
+    fetchImpl: fixtureFetch({ overrides: { 'coffeeman:classico-250g': coffeemanOosBytes } }),
     now: NOW + REFRESH_INTERVAL_MS
   });
   assert.equal(summary.vendors.find(v => v.vendorId === 'coffeeman').ok, true);
@@ -134,7 +127,7 @@ test('out-of-stock observation replaces the price but never claims availability'
 
 test('Coffee4U is persisted with its published courier rate and an unstated blend variant', async () => {
   const store = createMemoryStore();
-  await runRefresh({ store, fetchImpl: fixtureFetch(), now: NOW });
+  await run({ store, fetchImpl: fixtureFetch(), now: NOW });
   const observation = (await store.snapshot()).observations.find(o => o.vendor.id === 'coffee4u');
   assert.ok(observation, 'the third vendor is persisted');
   assert.equal(observation.product.productId, 'lavazza-crema-e-gusto-vacuum-ground');
@@ -153,7 +146,7 @@ test('Coffee4U is persisted with its published courier rate and an unstated blen
 
 test('an out-of-stock Coffee4U page stays visible and unranked', async () => {
   const store = createMemoryStore();
-  await runRefresh({
+  await run({
     store,
     fetchImpl: async url => url.includes('coffee4u.co.il')
       ? new Response(coffee4uOosBytes, { status: 200, headers: { 'content-type': 'text/html; charset=windows-1255' } })
@@ -171,9 +164,9 @@ test('leases prevent concurrent refresh runs', async () => {
     await gate;
     return fixtureFetch()(url);
   };
-  const first = runRefresh({ store, fetchImpl: slowFetch, now: NOW });
+  const first = run({ store, fetchImpl: slowFetch, now: NOW });
   await new Promise(resolve => setTimeout(resolve, 2));
-  const second = await runRefresh({ store, fetchImpl: fixtureFetch(), now: NOW });
+  const second = await run({ store, fetchImpl: fixtureFetch(), now: NOW });
   assert.equal(second.skipped, true);
   await first;
 });
@@ -182,13 +175,13 @@ test('refresh runs started in the same tick cannot both acquire the lease', asyn
   const store = createMemoryStore();
   const calls = [];
   const [first, second] = await Promise.all([
-    runRefresh({ store, fetchImpl: fixtureFetch({ calls }), now: NOW }),
-    runRefresh({ store, fetchImpl: fixtureFetch({ calls }), now: NOW })
+    run({ store, fetchImpl: fixtureFetch({ calls }), now: NOW }),
+    run({ store, fetchImpl: fixtureFetch({ calls }), now: NOW })
   ]);
   const summaries = [first, second];
   assert.equal(summaries.filter(summary => summary.skipped).length, 1, 'exactly one run is skipped');
-  assert.equal(summaries.find(summary => !summary.skipped).requests, 6);
-  assert.equal(calls.length, 6, 'the losing run performs no vendor or FX requests');
+  assert.equal(summaries.find(summary => !summary.skipped).requests, 10);
+  assert.equal(calls.length, 10, 'the losing run performs no vendor or FX requests');
 });
 
 test('initial refresh runs once and is throttled afterwards', async () => {
@@ -208,7 +201,7 @@ test('allowlist blocks requests to hosts outside the vendor registry', async () 
     calls.push(url);
     return new Response('ok');
   };
-  await runRefresh({
+  await run({
     store,
     vendors: [{
       id: 'fake',
@@ -255,4 +248,87 @@ test('registered vendors are within their own allowlists', async () => {
     }
     assert.ok(vendor.parserVersion, `${vendor.id} has a parser version`);
   }
+});
+
+test('a vendor crawl delay spaces requests to the same host instead of firing them back to back', async () => {
+  const store = createMemoryStore();
+  const waits = [];
+  let clock = 1_000_000;
+  const calls = [];
+  const summary = await run({
+    store,
+    now: NOW,
+    // A delay large enough that every offer after the first has to wait.
+    vendors: [{
+      id: 'paced',
+      name: 'Paced vendor',
+      homepage: 'https://paced.test',
+      allowedHosts: ['paced.test'],
+      parserVersion: 'paced/1',
+      crawlDelayMs: 7000,
+      offers: [
+        { id: 'a', url: 'https://paced.test/a', productId: null },
+        { id: 'b', url: 'https://paced.test/b', productId: null },
+        { id: 'c', url: 'https://paced.test/c', productId: null }
+      ],
+      async observe({ fetchText }) {
+        for (const offer of this.offers) {
+          await fetchText(offer.url);
+        }
+        return { observations: [], failures: [] };
+      }
+    }],
+    includeFx: false,
+    sleep: async ms => { waits.push(ms); clock += ms; },
+    clock: () => clock,
+    fetchImpl: async url => {
+      calls.push(String(url));
+      clock += 250; // simulate a fast response
+      return new Response('ok');
+    }
+  });
+  assert.equal(summary.vendors[0].ok, false, 'no observations means the vendor is not reported as successful');
+  assert.deepEqual(calls, ['https://paced.test/a', 'https://paced.test/b', 'https://paced.test/c']);
+  assert.equal(waits.length, 2, 'the second and third request wait for the crawl delay');
+  for (const waited of waits) assert.equal(waited, 6750, 'the wait covers the published delay');
+
+  // Without a declared delay nothing is postponed.
+  const noWait = [];
+  await run({
+    store: createMemoryStore(),
+    now: NOW,
+    vendors: [{
+      id: 'unpaced',
+      name: 'Unpaced vendor',
+      homepage: 'https://unpaced.test',
+      allowedHosts: ['unpaced.test'],
+      parserVersion: 'unpaced/1',
+      offers: [{ id: 'a', url: 'https://unpaced.test/a', productId: null }],
+      async observe({ fetchText }) {
+        await fetchText('https://unpaced.test/a');
+        return { observations: [], failures: [] };
+      }
+    }],
+    includeFx: false,
+    sleep: async ms => { noWait.push(ms); },
+    clock: () => 5_000_000,
+    fetchImpl: async () => new Response('ok')
+  });
+  assert.deepEqual(noWait, [], 'a vendor that publishes no crawl delay is not paced');
+});
+
+test('the second tracked product is observed and kept out of the first product\'s board data', async () => {
+  const store = createMemoryStore();
+  await run({ store, fetchImpl: fixtureFetch(), now: NOW });
+  const snapshot = await store.snapshot();
+  const oro = snapshot.observations.filter(o => o.product.productId === 'lavazza-qualita-oro-vacuum-ground');
+  assert.equal(oro.length, 4, 'three CoffeeMan Qualità Oro listings plus one Pucks listing');
+  assert.deepEqual([...new Set(oro.map(o => o.vendor.id))].sort(), ['coffeeman', 'pucks'], 'two independent vendors carry the second product');
+  const fourPack = oro.find(o => o.vendor.id === 'coffeeman' && o.product.packCount === 4);
+  assert.equal(fourPack.price.amount, 125);
+  assert.equal(fourPack.product.totalGrams, 1000);
+  assert.equal(fourPack.shipping.certainty, 'verified');
+  assert.equal(fourPack.shipping.amount.amount, 25);
+  assert.deepEqual([...new Set(oro.map(o => o.product.variantId))], ['unspecified'], 'Qualità Oro publishes no blend variant');
+  assert.equal(snapshot.observations.filter(o => o.product.productId === 'lavazza-crema-e-gusto-vacuum-ground').length, 5);
 });
