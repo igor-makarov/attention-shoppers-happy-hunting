@@ -1235,6 +1235,22 @@ from the home page, the product page, the Worker API and the offline QA harness:
   `docs/evidence/production-probe-20261012T2152Z.json`,
   `docs/evidence/production-build-marker-20261012T2152Z.json`.
 
+**Production browser QA found and fixed one real defect.** `npm run qa:browser --
+https://attention-shoppers.igormaka.workers.dev` passed 72/76 checks: the two failures that were not
+data-state differences showed that the read-time policy enrichment attached the researched Pucks ₪30
+rule and threshold but **dropped the policy's coverage caveat** for an old persisted row that already
+carried a generic `destination: {scope: 'country', country: 'IL'}`. The card then showed only the
+conditional-cart qualifier and no coverage caveat, which could read as unconditional country-wide
+delivery. `enrichObservationShipping()` now keeps the row's own destination scope and adds the policy
+caveat when the row has none (`src/lib/policies.js`), with a regression assertion in
+`tests/policy.test.js` that the enriched row exposes `shipping.coverageCaveat` and a
+`Delivery coverage caveat` label. `npm run verify` stays **124/124** with the build at 98.42 KiB
+(gzip 25.48 KiB); the offline QA stays **78/78** and the fresh-store local-live QA stays **76/76**.
+The fix is committed and deploys through the normal main-push path; production will carry the caveat
+again on the next build. The other two production-QA failures were honest data-state differences (the
+pre-refresh store has no ranked multipack, and its Pucks row had no caveat yet), so the multipack
+check is now derived from the API and skips when no multipack is ranked.
+
 **Next step:** the variant removal is already confirmed live in production (probes above). The remaining
 production check is the **00:17 UTC cron tick**, which should refresh the store itself so the researched
 observations replace the 15:52 snapshot (the read-time policy enrichment already covers Pucks; the
