@@ -1,0 +1,85 @@
+{
+  "kind": "browser-research-coverage",
+  "topic": "Coffee4U rendered checkout delivery-method coverage: destination locality lists and fees for the tracked Crema e Gusto 250 g listing",
+  "date": "2026-10-12",
+  "windowUtc": "2026-10-12T20:20:00Z to 2026-10-12T20:27:00Z",
+  "method": "Interactive headless Google Chrome 154.0.8037.97 + ChromeDriver 154.0.8037.92 through scripts/browser-research.mjs (npm run research:browser), one live session kept across steps. One temporary anonymous cart was built from the real product page (1 x Lavazza Crema e gusto 250 gr טחון, ₪38); the public checkout reached through https://www.coffee4u.co.il/cart.asp was read. Destination localities were selected only from the vendor's own autocomplete list (Tel Aviv - Yafo, Eilat) plus one courier-only control locality (Abu Ghosh). No street address, name, phone, email, order, payment, login or account was entered or submitted, and no bot challenge or access control was bypassed. Cart/session identifiers, cookies and tokens are deliberately not recorded.",
+  "toolingLimitation": "The available file-read tool rejects PNG input ('reading images is not supported'), so the two screenshots were not machine-inspected by the model. Every value below is backed by rendered visible text / DOM excerpts captured through the same live session; the screenshots are kept as artifacts for a human reviewer. No claim of image-based visual review is made for this batch.",
+  "coverage": {
+    "vendor": "Coffee4U",
+    "vendorId": "coffee4u",
+    "entryUrl": "https://www.coffee4u.co.il/cart.asp",
+    "productUrl": "https://www.coffee4u.co.il/product/lavazza-crema-e-gusto-250-gr-%D7%98%D7%97%D7%95%D7%9F",
+    "cartItem": "Lavazza Crema e gusto 250 gr טחון — 1 x 250 g, ₪38.00, variant not stated",
+    "methods": [
+      {
+        "id": "courier",
+        "label": "שליחות מדלת לדלת עד 1-5 ימי עסקים (door-to-door courier, 1-5 business days)",
+        "amountIls": 30,
+        "destinationField": {
+          "element": "u_city (closed <select> behind the u_city_input autocomplete)",
+          "options": 1270,
+          "localities": 1269,
+          "telAvivYafoPresent": true,
+          "eilatPresent": true
+        },
+        "observedTotals": {
+          "telAvivYafo": { "itemIls": 38, "shippingIls": 30, "totalIls": 68 },
+          "eilat": { "itemIls": 38, "shippingIls": 30, "totalIls": 68 }
+        },
+        "excerpt": "שליחות מדלת לדלת עד 1-5 ימי עסקים - 30 ₪ | משלוח ₪30 | סכום כולל מע\"מ ₪68",
+        "qualification": "The destination is chosen from the checkout's own closed locality list; a value that is not an exact list entry is rejected (input cleared, select cleared, red border, message 'City not found. Please select a city from the list above.'). Selecting Tel Aviv - Yafo or Eilat did not change the ₪30 fee or remove the method; no locality restriction message appeared."
+      },
+      {
+        "id": "pickup-point",
+        "label": "משלוח לנקודת איסוף צ`יטה שופס (Chiita Shops pickup point, up to 7 business days, up to 5 kg / 30x30x30)",
+        "amountIls": 15,
+        "destinationField": {
+          "element": "chita_cities (closed <select>) plus a per-locality spot list (chita_spots)",
+          "options": 421,
+          "localities": 420,
+          "telAvivYafoPresent": true,
+          "eilatPresent": true,
+          "courierLocalitiesWithoutPickupEntry": 872,
+          "pickupLocalitiesOutsideCourierList": 23
+        },
+        "observedTotals": {
+          "telAvivYafo": { "itemIls": 38, "shippingIls": 15, "totalIls": 53 },
+          "eilat": { "itemIls": 38, "shippingIls": 15, "totalIls": 53 }
+        },
+        "observedSpots": {
+          "telAvivYafo": [
+            "ציטה שופס אייס סינרמה-*יגאל אלון * 59",
+            "ציטה שופס גן העיר-*אבן גבירול* 71",
+            "ציטה שופס יהודה הימית-*יהודה הימית* 31",
+            "ציטה שופס קניון רמת אביב-*אינשטיין* 40"
+          ],
+          "eilat": [
+            "דיגיטל פוסט-עין יהב 4",
+            "סלקשן - אילת-המלאכה 1"
+          ]
+        },
+        "excerpt": "משלוח לנקודת איסוף צ`יטה שופס (עד 7 ימי עסקים - עד 5 ק\"ג 30*30*30) - 15 ₪ | משלוח ₪15 | סכום כולל מע\"מ ₪53",
+        "qualification": "The pickup-point city must come from the 420-locality list and a specific spot must then be chosen. Selecting Eilat or Tel Aviv - Yafo populated real spots (listed above). For Abu Ghosh (a courier locality with no pickup entry) the method still showed ₪15 / ₪53 in the summary, but the required pickup-point selector contained only its placeholder — the public estimator does not print an explicit coverage error at that step."
+      },
+      {
+        "id": "self-pickup",
+        "label": "איסוף עצמי (self-pickup)",
+        "amountIls": 0,
+        "excerpt": "איסוף מקופי4יו, דרך שלמה 66 תל אביב | סכום כולל מע\"מ ₪38",
+        "qualification": "Free pickup at the Coffee4U shop, 66 Shlomo St, Tel Aviv; kept separate from delivery."
+      }
+    ],
+    "controlLocality": {
+      "name": "Abu Ghosh (אבו גוש)",
+      "courierPresent": true,
+      "pickupEntryPresent": false,
+      "observed": "u_city = 'אבו גוש'; chita_cities = '' (no entry); chita_spots = placeholder only; the method picker still offered the ₪15 pickup point and the summary still printed ₪15 / ₪53."
+    },
+    "screenshots": [
+      "coffee4u-coverage-telaviv-courier-20261012T2024Z.png",
+      "coffee4u-coverage-eilat-pickup-20261012T2025Z.png"
+    ]
+  },
+  "relationshipToEarlierEvidence": "Reproduces and extends the 18:17-18:19 UTC observations in 2026-10-12-vendor-shipping-quotes.json (same ₪30 courier / ₪15 pickup-point rates, same 1,270-entry destination list and 421-city pickup list). New in this batch: the destination lists are closed and exact-match, Tel Aviv - Yafo and Eilat were actually selected without changing the fees, the pickup lists carry real per-locality spots, and a courier-only control locality shows the pickup selector has no entries outside the 420-locality list."
+}

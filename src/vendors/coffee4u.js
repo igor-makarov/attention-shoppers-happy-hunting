@@ -14,6 +14,20 @@ import { createObservation, parseError } from './index.js';
 
 const PRODUCT_URL = 'https://www.coffee4u.co.il/product/lavazza-crema-e-gusto-250-gr-%D7%98%D7%97%D7%95%D7%9F';
 
+// Browser-researched coverage of the rendered anonymous checkout (2026-10-12, no
+// order or personal details). The checkout's own destination lists are closed:
+// door-to-door requires an exact match from its locality list, and the cheaper
+// pickup-point service lists only the localities that have an actual pickup spot.
+const CHECKOUT_COVERAGE = {
+  courierLocalities: 1269,
+  pickupPointLocalities: 420,
+  verifiedLocalities: ['תל אביב - יפו', 'אילת'],
+  observedAt: '2026-10-12T20:25:00Z',
+  entryUrl: 'https://www.coffee4u.co.il/cart.asp',
+  evidence: 'docs/evidence/browser-research/2026-10-12-coffee4u-coverage.json',
+  note: 'Rendered anonymous checkout (2026-10-12): the door-to-door method quotes ₪30.00 with the destination chosen from a closed list of 1,269 Israeli localities (Tel Aviv - Yafo and Eilat selected, fee unchanged); the ₪15 pickup-point method lists 420 localities with pickup spots.'
+};
+
 const AVAILABILITY = {
   InStock: 'in_stock',
   LimitedAvailability: 'in_stock',
@@ -27,7 +41,7 @@ export const coffee4u = {
   name: 'Coffee4U (קופי פור יו)',
   homepage: 'https://www.coffee4u.co.il',
   allowedHosts: ['www.coffee4u.co.il', 'coffee4u.co.il'],
-  parserVersion: 'coffee4u/1',
+  parserVersion: 'coffee4u/2',
   crawlDelayMs: 7000,
   offers: [{ id: 'crema-e-gusto-250g-ground', url: PRODUCT_URL, kind: 'delivery', productId: 'lavazza-crema-e-gusto-vacuum-ground' }],
 
@@ -101,11 +115,21 @@ export function parseCoffee4uProduct(html, { now, url = PRODUCT_URL, productId =
       // The product page publishes the door-to-door rate but not the locality list;
       // the vendor terms make home delivery subject to that list, so the board
       // discloses the restriction instead of assuming every Israeli destination.
+      // The rendered anonymous checkout showed that list is closed and exact-match,
+      // so the caveat names the observed shape and keeps the checkout confirmation.
       destination: {
         scope: 'country',
         country: 'IL',
-        caveat: 'Door-to-door delivery is limited to the localities on Coffee4U’s home-delivery list, which the product page does not publish. Confirm the destination at checkout.',
-        caveatSource: 'https://www.coffee4u.co.il/page/%D7%AA%D7%A7%D7%A0%D7%95%D7%9F-0'
+        caveat: 'Door-to-door delivery is limited to the localities on Coffee4U’s home-delivery list, which the product page does not publish. The rendered anonymous checkout requires the destination from a closed list of 1,269 Israeli localities (Tel Aviv - Yafo and Eilat verified 2026-10-12); the ₪15 pickup-point service lists 420 localities with pickup spots. Confirm the destination at checkout.',
+        caveatSource: 'https://www.coffee4u.co.il/page/%D7%AA%D7%A7%D7%A0%D7%95%D7%9F-0',
+        observed: {
+          courierLocalities: CHECKOUT_COVERAGE.courierLocalities,
+          pickupPointLocalities: CHECKOUT_COVERAGE.pickupPointLocalities,
+          verifiedLocalities: CHECKOUT_COVERAGE.verifiedLocalities,
+          observedAt: CHECKOUT_COVERAGE.observedAt,
+          entryUrl: CHECKOUT_COVERAGE.entryUrl,
+          evidence: CHECKOUT_COVERAGE.evidence
+        }
       },
       minOrder: null,
       freeThreshold: null,
@@ -119,10 +143,10 @@ export function parseCoffee4uProduct(html, { now, url = PRODUCT_URL, productId =
         id: 'pickup-point',
         label: "Delivery to a צ'יטה שופס pickup point",
         amount: { amount: shipping.pickupPointAmount, currency },
-        note: 'Published on the same product page for up to 5 kg; a different service from door-to-door courier delivery.'
+        note: 'Published on the same product page for up to 5 kg; a different service from door-to-door courier delivery. The rendered checkout lists 420 localities with pickup spots (observed 2026-10-12).'
       }],
-      note: shipping.note,
-      evidence: { url, retrievedAt: null, note: 'Delivery options are listed next to the product on the product page.' }
+      note: `${shipping.note} ${CHECKOUT_COVERAGE.note}`,
+      evidence: { url, retrievedAt: null, note: `Delivery options are listed next to the product on the product page. Checkout coverage observed in the rendered anonymous checkout; see ${CHECKOUT_COVERAGE.evidence}.` }
     },
     now
   });
