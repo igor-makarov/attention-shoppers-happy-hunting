@@ -717,8 +717,9 @@ any adapter.
   rate for the currently unrankable offers (the 3-60 probe and the 16:50 UTC live check found none);
   (c) another bounded re-probe of the recorded blocked vendors at a later date for a fourth adapter. The
   2026-10-12 probes (14:25, 14:39-14:58, 15:19 and 15:35-15:41 UTC, the last via Zap and its
-  FreshCafe/Brioso leads) found no viable new vendor, so candidate domains and their blockers stay
-  recorded in docs/SOURCES.md instead of guessed. Adding another product line requires an explicit new
+  FreshCafe/Brioso leads, plus the 3-63 17:04 UTC search-engine and 17:12 UTC direct-domain batches) found
+  no viable new vendor, so candidate domains and their blockers stay recorded in docs/SOURCES.md instead
+  of guessed. Adding another product line requires an explicit new
   owner instruction.
 - Keep `npm run check:sources` green against live pages and re-run both `npm run qa:browser` modes after
   any UI change.
