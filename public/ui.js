@@ -241,5 +241,5 @@ export function diagnosticsDisclosure(quote) {
   }
   const body = el('div', { class: 'disclosure__body' });
   for (const row of rows) body.append(el('div', {}, bidi(row)));
-  return el('details', { class: 'disclosure' }, el('summary', { text: 'Offer details and check history' }), body);
+  return el('details', { class: 'disclosure disclosure--diagnostics' }, el('summary', { text: 'Offer details and check history' }), body);
 }
