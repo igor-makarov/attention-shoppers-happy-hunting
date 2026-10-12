@@ -76,6 +76,71 @@ test('Pucks totals parse the subtotal, flat fee and total, and recognize free sh
   assert.equal(free.deliveredTotalIls, 120);
 });
 
+test('Pucks totals parse the rendered multi-line summary without reading the threshold banner as free delivery', () => {
+  const rendered = `סיכום הזמנה
+(1)
+90 ₪
+2
+lavazza crema e gusto classico-250 גרם קפה טחון
+60 ₪
+תשלום סכום ביניים
+60 ₪
+משלוח
+30 ₪
+1
+דרכי משלוח
+משלוח עד הבית
+30 ₪
+משלוח חינם בהזמנה מעל 100 ₪
+2
+פרטי משלוח
+סך הכל
+90 ₪`;
+  const totals = parsePucksTotals(rendered);
+  assert.equal(totals.itemSubtotalIls, 60);
+  assert.equal(totals.shippingIls, 30, 'the charged ₪30 is read, not the "free above ₪100" banner');
+  assert.equal(totals.deliveredTotalIls, 90);
+  assert.equal(totals.freeThresholdIls, 100);
+  assert.equal(totals.shippingIls + totals.itemSubtotalIls, totals.deliveredTotalIls);
+
+  const freeRendered = `סיכום הזמנה
+(1)
+120 ₪
+4
+lavazza crema e gusto classico-250 גרם קפה טחון
+120 ₪
+תשלום סכום ביניים
+120 ₪
+משלוח
+חינם
+1
+דרכי משלוח
+משלוח עד הבית
+חינם
+משלוח חינם בהזמנה מעל 100 ₪
+סך הכל
+120 ₪`;
+  const free = parsePucksTotals(freeRendered);
+  assert.equal(free.shippingIls, 0);
+  assert.equal(free.deliveredTotalIls, 120);
+
+  // Before a method is chosen the summary shows an em dash, not a rate: the
+  // delivery-methods card must not be read as the applied charge.
+  const unselected = `סיכום הזמנה
+60 ₪
+תשלום סכום ביניים
+60 ₪
+משלוח
+—
+סך הכל
+60 ₪
+דרכי משלוח
+משלוח עד הבית
+30 ₪
+משלוח חינם בהזמנה מעל 100 ₪`;
+  assert.equal(parsePucksTotals(unselected).shippingIls, null, 'an unselected method is not a delivered quote');
+});
+
 test('CoffeeMan totals parse without inventing a threshold', () => {
   const totals = parseCoffeemanTotals(COFFEEMAN);
   assert.equal(totals.itemSubtotalIls, 66);
@@ -157,6 +222,9 @@ test('runRecipe records every step and stops at the first required blocker', asy
     currentUrl: async () => 'https://pucks.co.il/payment/request'
   };
   const record = await runRecipe({ recipe: RECIPES.pucks, driver, params: { grams: 500, locality: 'תל אביב' }, now: Date.parse('2026-10-12T18:09:20Z') });
+  // The recipe's own URLs are expanded from the recipe, never left as placeholders.
+  assert.equal(calls.find(call => call[0] === 'goto')[1], RECIPES.pucks.productUrl);
+  assert.equal(calls.find(call => call[0] === 'gotoUnlessText')[1], RECIPES.pucks.cartUrl);
   // The two clickText steps and the cart-link click are optional, so the run
   // reaches the estimator and reads the totals after selecting home delivery.
   assert.equal(record.status, 'partial', 'a read quote without a verified cart quantity is partial, not quoted');

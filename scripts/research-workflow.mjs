@@ -39,13 +39,16 @@ export const RECIPES = {
     steps: [
       { action: 'goto', url: '{productUrl}' },
       { action: 'waitText', text: 'crema', timeout: 20000 },
+      // Pucks uses a stepper on the product page; set the whole-pack quantity
+      // before adding so the cart starts with the researched cart size.
+      { action: 'setQuantity', target: '{grams}', optional: true },
       { action: 'clickText', text: 'הוסף לעגלה', optional: true },
       { action: 'clickText', text: 'הוספה לסל', optional: true },
       // The estimator keeps the anonymous cart only when it is reached through
       // the cart widget's checkout link; direct navigation loses the cart.
       { action: 'clickSelector', selectors: ['a.slide_cart__btn-checkout', 'a[href*="payment/request"]'], optional: true },
-      { action: 'gotoUnlessText', url: '{cartUrl}', text: 'סכום ביניים', optional: true },
-      { action: 'waitText', text: 'סכום ביניים', timeout: 20000, optional: true },
+      { action: 'gotoUnlessText', url: '{cartUrl}', text: 'דרכי משלוח', optional: true },
+      { action: 'waitText', text: 'דרכי משלוח', timeout: 20000, optional: true },
       { action: 'setQuantity', target: '{grams}', optional: true },
       { action: 'selectLabel', selector: 'select', label: '{locality}', optional: true },
       { action: 'fill', selector: 'input[name*="zip" i], input[name*="postal" i], input[id*="zip" i], input[id*="postal" i]', value: '{postcode}', optional: true },
@@ -178,9 +181,20 @@ function freeLine(value) {
 /** Pucks summary: סכום ביניים / משלוח / סך הכל and the free-shipping sentence. */
 export function parsePucksTotals(text) {
   const value = String(text ?? '');
-  const subtotal = /סכום ביניים[^\d]{0,12}([\d.,]+)/.exec(value)?.[1] ?? null;
-  const shippingMatch = /משלוח[^\S\n]*(?:עד הבית[^\S\n]*)?([\d.,]+|חינם|free)/i.exec(value);
-  const total = /סך הכל[^\d]{0,12}([\d.,]+)/.exec(value)?.[1] ?? null;
+  // The free-shipping sentence is not a charged shipping line: strip it before
+  // looking for the summary fee, otherwise its "חינם" would be read as free
+  // delivery on a cart that is actually below the threshold.
+  const withoutThreshold = value
+    .replace(/משלוח חינם בהזמנה מעל[^\n]*/g, '')
+    .replace(/free shipping (?:above|over)[^\n]*/gi, '');
+  const subtotal = /סכום ביניים[^\d]{0,12}([\d.,]+)/.exec(withoutThreshold)?.[1] ?? null;
+  // The rendered summary prints the label and the amount on separate lines
+  // ("משלוח" then "30 ₪"). Only a bare "משלוח" summary label counts: the
+  // delivery-methods card ("משלוח עד הבית") and the "calculated at payment"
+  // disclaimer must not be read as the applied charge.
+  const shippingMatch = /(?:^|\n)[ \t]*משלוח[ \t]*\n[ \t]*([\d.,]+|חינם|free)/i.exec(withoutThreshold)
+    ?? /משלוח[^\S\n]+([\d.,]+|חינם|free)/i.exec(withoutThreshold);
+  const total = /סך הכל[^\d]{0,12}([\d.,]+)/.exec(withoutThreshold)?.[1] ?? null;
   const threshold = /משלוח חינם בהזמנה מעל\s*([\d.,]+)/.exec(value)?.[1] ?? null;
   const shipping = shippingMatch?.[1] ?? null;
   return {
@@ -338,7 +352,9 @@ export const DRIVER_INTERFACE = [
  * captures what the page displayed.
  */
 export async function runRecipe({ recipe, driver, params = {}, now = Date.now(), logger = null } = {}) {
-  const runParams = { packGrams: recipe.packGrams, ...params };
+  // Recipe URLs are part of the run parameters: a placeholder left unexpanded
+  // would navigate to the literal "{productUrl}" instead of the vendor page.
+  const runParams = { packGrams: recipe.packGrams, productUrl: recipe.productUrl, cartUrl: recipe.cartUrl, ...params };
   const steps = [];
   let status = 'quoted';
   let blocker = null;
@@ -405,6 +421,13 @@ export async function runRecipe({ recipe, driver, params = {}, now = Date.now(),
   if (status === 'quoted' && hasQuantityStep && !Number.isFinite(actualPacks)) {
     status = 'partial';
     qualification = [qualification, 'Cart quantity was not verified by the recipe, so the pack size is the requested target, not a confirmed cart.'].filter(Boolean).join(' ');
+  }
+  // A cart that does not hold the requested number of packs must not be
+  // recorded as a quote for the requested quantity.
+  const requestedPacks = Math.max(1, Math.ceil((Number(runParams.grams) || recipe.packGrams) / recipe.packGrams));
+  if (status === 'quoted' && Number.isFinite(actualPacks) && actualPacks !== requestedPacks) {
+    status = 'partial';
+    qualification = [qualification, `The page held ${actualPacks} pack(s), not the requested ${requestedPacks}, so the displayed amounts are recorded for ${actualPacks} pack(s).`].filter(Boolean).join(' ');
   }
   return buildEvidenceRecord({
     recipe,

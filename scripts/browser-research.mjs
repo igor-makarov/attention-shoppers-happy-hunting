@@ -537,7 +537,7 @@ function createResearchDriver(session) {
           const delta = target - before;
           if (apply && delta !== 0) {
             const button = delta > 0 ? plus : minus;
-            if (!button) return { ok: false, reason: `quantity control has no ${delta > 0 ? 'increase' : 'decrease'} button` };
+            if (!button) return { ok: false, reason: 'quantity control has no ' + (delta > 0 ? 'increase' : 'decrease') + ' button' };
             for (let i = 0; i < Math.min(Math.abs(delta), 20); i += 1) button.click();
           }
           return { ok: true, kind: 'stepper', before, target, after: readNumber(valueNode) ?? before };
