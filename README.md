@@ -29,3 +29,5 @@ npm run dev
 ```
 
 The verification build is Wrangler deploy --dry-run and does not publish to Cloudflare.
+
+For a reusable Codex workspace, follow the [Codex Cloud setup](docs/CODEX_CLOUD.md).
