@@ -69,9 +69,32 @@ test('coffeeman 4-pack and 8-pack fixtures keep pack count, price and shipping s
   assert.equal(eight.shipping.amount.amount, 20);
   assert.equal(eight.shipping.maxTotalGrams, 2000, 'the observed rate is limited to the 2 kg cart it was quoted on');
   assert.match(eight.shipping.note, /checkout quote/i);
-  assert.equal(eight.shipping.evidence.retrievedAt, '2026-10-12T18:16:00Z', 'shipping evidence keeps the research retrieval time');
+  assert.equal(eight.shipping.evidence.retrievedAt, '2026-10-12T20:07:00Z', 'shipping evidence keeps the latest research retrieval time');
   assert.equal(eight.availability, 'in_stock');
   assert.match(eight.shipping.destination.caveat, /home-delivery list/, 'even an unrankable offer keeps the documented coverage caveat');
+});
+
+test('coffeeman cart research adds the distribution-center alternative without changing the ranked rate', () => {
+  const single = parseCoffeemanProduct(decodeHtml(read('coffeeman-product.windows-1255.html')), { now });
+  assert.equal(single.shipping.amount.amount, 25, 'the ranked amount stays the published courier rate');
+  assert.equal(single.shipping.certainty, 'verified', 'the ranked rate is still the published one, not a cart quote');
+  assert.equal(single.shipping.alternatives.length, 1);
+  assert.equal(single.shipping.alternatives[0].id, 'distribution-center');
+  assert.equal(single.shipping.alternatives[0].amount.amount, 15);
+  assert.match(single.shipping.alternatives[0].label, /cart-observed for 0\.5–1 kg carts/);
+  assert.match(single.shipping.alternatives[0].note, /no free-shipping rule is published/i);
+  assert.match(single.shipping.note, /distribution-center/);
+
+  const four = parseCoffeemanProduct(decodeHtml(read('coffeeman-4pack-product.windows-1255.html')), { now, url: 'https://example.test/4pack' });
+  assert.equal(four.shipping.amount.amount, 25, 'the 4-pack ranked rate is unchanged');
+  assert.equal(four.shipping.alternatives[0].amount.amount, 15, 'the 4-pack cart observation resolves by pack shape too');
+  assert.match(four.shipping.alternatives[0].label, /the 1 kg cart/);
+
+  const eight = parseCoffeemanProduct(decodeHtml(read('coffeeman-8pack-product.windows-1255.html')), { now, url: 'https://example.test/8pack' });
+  assert.equal(eight.shipping.amount.amount, 20, 'the 8-pack cart quote is unchanged');
+  assert.equal(eight.shipping.alternatives[0].amount.amount, 20, 'the 8-pack distribution-center alternative carries the observed amount');
+  assert.match(eight.shipping.alternatives[0].label, /the 2 kg cart/);
+  assert.equal(eight.shipping.evidence.retrievedAt, '2026-10-12T20:07:00Z', 'the re-check time is kept as shipping evidence');
 });
 
 test('pucks parser reads the product JSON-LD and keeps the researched checkout rate conditional', () => {

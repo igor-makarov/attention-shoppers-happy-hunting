@@ -176,6 +176,10 @@ function diagnosticsDisclosure(quote) {
   if (stockChange) rows.push(stockChange);
   rows.push(`Last successful check: ${timeLabel(quote.observedAt)}`);
   if (quote.lastAttemptFailed) rows.push(`Last attempt failed ${timeLabel(quote.attemptedAt)}${quote.lastError ? ` — ${truncate(quote.lastError)}` : ''}`);
+  // The adapter's shipping note carries observed conditions (thresholds, cart
+  // sizes, coverage caveats) that are not decision values; it stays in this
+  // collapsed disclosure instead of repeating on the card face.
+  if (quote.shipping?.note) rows.push(`Shipping terms: ${quote.shipping.note}`);
   const evidence = quote.shipping?.evidence;
   if (evidence?.url) {
     rows.push(`Shipping evidence: ${evidence.url}${evidence.retrievedAt ? ` (retrieved ${timeLabel(evidence.retrievedAt)})` : ''}${evidence.note ? ` — ${truncate(evidence.note, 160)}` : ''}`);

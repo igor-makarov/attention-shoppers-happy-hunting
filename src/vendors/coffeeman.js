@@ -41,9 +41,38 @@ export const COFFEEMAN_CHECKOUT_QUOTES = {
     amountIls: 20,
     currency: 'ILS',
     maxTotalGrams: 2000,
-    retrievedAt: '2026-10-12T18:16:00Z',
+    distributionCenterIls: 20,
+    observedCarts: 'the 2 kg cart',
+    retrievedAt: '2026-10-12T20:07:00Z',
     sourceUrl: 'https://www.coffeeman.co.il/checkout.asp',
-    note: 'Anonymous checkout quote for one 8 × 250 g multipack (2 kg) on 2026-10-12: ₪20 home courier and ₪20 distribution-center delivery up to 5 kg; self-pickup free. The product page publishes no courier price, and carts above 2 kg are not verified.'
+    note: 'Anonymous checkout quote for one 8 × 250 g multipack (2 kg) on 2026-10-12, re-checked in a fresh cart at 20:07 UTC: ₪20 home courier and ₪20 distribution-center delivery up to 5 kg; self-pickup free. The product page publishes no courier price, and carts above 2 kg are not verified.'
+  }
+};
+
+/**
+ * Browser-researched anonymous-cart observations for the single 250 g and
+ * 4 × 250 g listings (2026-10-12, 19:56-20:09 UTC). The product page lists the
+ * distribution-center delivery option without a price; the cart quoted ₪15 for
+ * 0.5-1 kg carts, and larger carts were sometimes shown free. No free-shipping
+ * rule is published, so the board keeps the published ₪25 courier rate as the
+ * ranked amount and never assumes free shipping. Evidence:
+ * docs/evidence/browser-research/2026-10-12-coffeeman-cart-single-4pack.json.
+ * No street address, personal detail, login or order submission was involved.
+ */
+export const COFFEEMAN_CART_OBSERVATIONS = {
+  [PRODUCT_URL]: {
+    distributionCenterIls: 15,
+    observedCarts: '0.5–1 kg carts',
+    retrievedAt: '2026-10-12T19:57:00Z',
+    sourceUrl: 'https://www.coffeeman.co.il/checkout.asp',
+    note: 'Anonymous cart 2026-10-12 (https://www.coffeeman.co.il/checkout.asp): ₪25 home courier (matching the published rate) and ₪15 distribution-center delivery up to 5 kg for 0.5–1 kg carts; free courier was observed from a 1.75 kg / ₪231 cart, but no free-shipping rule is published, so the board keeps the published ₪25 and never assumes free shipping.'
+  },
+  [FOUR_PACK_URL]: {
+    distributionCenterIls: 15,
+    observedCarts: 'the 1 kg cart',
+    retrievedAt: '2026-10-12T20:04:00Z',
+    sourceUrl: 'https://www.coffeeman.co.il/checkout.asp',
+    note: 'Anonymous cart 2026-10-12 (https://www.coffeeman.co.il/checkout.asp): ₪25 home courier (matching the published rate) and ₪15 distribution-center delivery up to 5 kg for the 1 kg cart; free courier was observed for a 2 kg / ₪248 two-4-pack cart, but no free-shipping rule is published, so the board keeps the published ₪25 and never assumes free shipping.'
   }
 };
 
@@ -106,9 +135,8 @@ export function parseCoffeemanProduct(html, { now, url = PRODUCT_URL, productId 
 
   const shipping = parseShippingOptions(html);
   const checkoutQuote = checkoutQuoteFor({ url, classification });
-  const shippingNote = checkoutQuote
-    ? `${shipping.note} ${checkoutQuote.note}`
-    : shipping.note;
+  const cartObservation = cartObservationFor({ url, classification });
+  const shippingNote = [...new Set([shipping.note, checkoutQuote?.note, cartObservation?.note].filter(Boolean))].join(' ');
   const observation = createObservation({
     vendor: coffeeman,
     itemUrl: url,
@@ -155,6 +183,17 @@ export function parseCoffeemanProduct(html, { now, url = PRODUCT_URL, productId 
       },
       minOrder: null,
       freeThreshold: null,
+      // The distribution-center option is listed on the product page without a
+      // price; the anonymous cart quoted it for the recorded cart sizes, so it
+      // is shown as a conditional alternative and never replaces the ranked rate.
+      alternatives: shipping.distributionCenter && cartObservation?.distributionCenterIls != null
+        ? [{
+            id: 'distribution-center',
+            label: `Distribution-center delivery up to 5 kg (cart-observed for ${cartObservation.observedCarts})`,
+            amount: { amount: cartObservation.distributionCenterIls, currency },
+            note: cartObservation.note
+          }]
+        : [],
       note: shippingNote,
       deliveryTime: deliveryTime || null,
       pickup: {
@@ -185,6 +224,18 @@ function checkoutQuoteFor({ url, classification }) {
   if (COFFEEMAN_CHECKOUT_QUOTES[url]) return COFFEEMAN_CHECKOUT_QUOTES[url];
   if (classification.packCount === 8 && classification.totalGrams === 2000) return COFFEEMAN_CHECKOUT_QUOTES[EIGHT_PACK_URL];
   return null;
+}
+
+/**
+ * Resolve the cart-researched distribution-center observation for a parsed
+ * listing. The 8-pack quote doubles as its own cart observation; the 4-pack is
+ * accepted by shape so fixture tests with a placeholder URL still exercise it.
+ */
+function cartObservationFor({ url, classification }) {
+  if (COFFEEMAN_CART_OBSERVATIONS[url]) return COFFEEMAN_CART_OBSERVATIONS[url];
+  if (classification.packCount === 4 && classification.totalGrams === 1000) return COFFEEMAN_CART_OBSERVATIONS[FOUR_PACK_URL];
+  const quote = checkoutQuoteFor({ url, classification });
+  return quote?.distributionCenterIls != null ? quote : null;
 }
 
 export function parseShippingOptions(html) {
