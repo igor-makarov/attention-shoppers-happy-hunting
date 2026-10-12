@@ -13,6 +13,27 @@ each run writes its evidence to `.shurik-local/sources/<timestamp>.json`; review
 
 ## Tracked listings (live checks)
 
+### Browser-researched shipping quotes (2026-10-12)
+
+The owner asked for shipping quotes through a real interactive browser rather than product-page disclaimers.
+`scripts/browser-research.mjs` kept one headless Chrome/ChromeDriver session alive to navigate each
+vendor's product page, add the tracked product to a temporary anonymous cart, open the public
+cart/checkout estimator and read the rendered delivery methods and charges. Only locality/postcode fields
+were filled; no order, payment, login, account or street address was involved, and cart/session
+identifiers are never recorded.
+
+| Vendor | Cart | Locality | Service | Shipping | Item subtotal | Qualification |
+| --- | --- | --- | --- | --- | --- | --- |
+| Pucks | 2 × 250 g = 500 g | Tel Aviv / 6100000 | home delivery (only method) | ₪30 | ₪60 | free above ₪100 item subtotal; fee unchanged for Eilat / 8800000, no restriction displayed |
+| Pucks | 4 × 250 g = 1 kg | Tel Aviv / 6100000 | home delivery | free | ₪120 | free-shipping threshold met |
+| CoffeeMan | 8 × 250 g = 2 kg | not requested by the estimator | home courier / distribution center | ₪20 / ₪20 | ₪240 | no free-delivery threshold displayed |
+| CoffeeMan | 8 × 250 g = 2 kg | not requested | self-pickup | ₪0 | ₪240 | a pickup branch must be chosen |
+| Coffee4U | 1 × 250 g | not requested | door-to-door courier | ₪30 | ₪38 | 1,270-entry destination city list; locality-list caveat |
+| Coffee4U | 1 × 250 g | not requested | Chiita Shops pickup point | ₪15 | ₪38 | 421-city list plus a per-city spot |
+| Coffee4U | 1 × 250 g | not requested | self-pickup | ₪0 | ₪38 | pickup at the Tel Aviv shop |
+
+Full evidence matrix, rendered-text excerpts and screenshots: `docs/evidence/browser-research/2026-10-12-vendor-shipping-quotes.json` (observed 18:07-18:19 UTC) plus the fresh Pucks re-check `docs/evidence/browser-research/2026-10-12-pucks-recheck.json` (observed 18:55 UTC). The available file-read tool rejects PNG input, so the screenshots could not be machine-inspected by the model; every amount above is backed by rendered DOM text captured in the same session, and the screenshots are artifacts for a human reviewer. A cart quote is conditional on its recorded quantity and destination: it is not an unconditional nationwide rate and not a completed checkout.
+
 ### CoffeeMan / Amigo — coffeeman.co.il (Israel)
 
 Tracked listings (three Crema e Gusto offers, never merged):
@@ -28,7 +49,7 @@ Tracked listings (three Crema e Gusto offers, never merged):
 - **8 × 250 g multipack** — `https://www.coffeeman.co.il/product/8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico`
   - Retrieved: 2026-10-12 11:46, 11:48, 12:57, 15:12, 16:50 and 17:22 UTC (adapters `coffeeman/1` to `coffeeman/5`)
   - Establishes: name "8 אריזות 250 גרם קפה טחון lavazza Crema e Gusto Classico", SKU 930335, variant Classico, ground, 8 × 250 g = 2000 g, price ₪240.00, schema.org availability `InStock`.
-  - Shipping certainty: **unknown** — the page lists the courier option without a price (only free self-pickup and an unpriced distribution-center option), so the offer stays visible and unranked rather than being treated as free. The same locality-list caveat applies to the courier option if a rate appears.
+  - Shipping certainty: **verified** for the researched anonymous-checkout quote, even though the product page still publishes the courier option without a price (only free self-pickup and an unpriced distribution-center option). The interactive browser research quoted the 2 kg cart at ₪20 home courier and ₪20 distribution-center delivery (2026-10-12 18:16 UTC); self-pickup was ₪0 with a required branch choice, and no free-delivery threshold was displayed. The adapter stores the ₪20 rate with `maxTotalGrams: 2000` (the observed cart size), so a larger cart stays unranked with the exact reason instead of stretching the quote, plus the same unpublished locality-list caveat. The ₪25 single/4-pack page rate and the ₪20 eight-pack cart quote are both recorded as observed; the difference is not explained publicly and is never averaged or guessed.
 
 ### Historical CoffeeMan listings (retired 2026-10-12 — evidence only, do not re-track)
 
@@ -71,8 +92,9 @@ Tracked listing (one Crema e Gusto offer):
 - **Crema e Gusto Classico 250 g** — `https://pucks.co.il/product/lavazza-crema-e-gusto-ground-coffee-250g`
   - Retrieved: 2026-10-12 11:04, 11:20, 11:29, 12:57, 15:12, 16:50 and 17:22 UTC (adapters `pucks/1` to `pucks/5`)
   - Establishes: name "lavazza crema e gusto classico-250 גרם קפה טחון", SKU Lav69, GTIN 8000070038769, variant Classico, ground, 250 g single pack, price ₪30.00, schema.org JSON-LD availability `InStock`.
-  - Shipping certainty: **unknown** — the page states shipping is calculated at checkout, so the offer stays visible and unranked. It is never treated as free.
-  - Shipping research (2026-10-12 13:05 UTC): the public terms page `https://pucks.co.il/terms-and-privacy-policy` was also checked. Its "משלוחים והחזרות" section says the customer is charged delivery fees "according to rates set by Pucks from time to time" and promises delivery within 7 business days, but publishes no amount or free-shipping threshold; the cart widget repeats "המשלוח מחושב בתשלום" (shipping is calculated at payment). The unknown label is therefore evidence-based. Excerpt quotes: `docs/evidence/vendor-research-2026-10-12T1305Z-pucks-shipping.json`.
+  - Shipping certainty: **verified** for the researched anonymous-checkout quote. The product page and the cart widget still say "המשלוח מחושב בתשלום" (shipping is calculated at payment), and the public terms page (`https://pucks.co.il/terms-and-privacy-policy`, checked 13:05 UTC) publishes no amount; the interactive browser research resolved the rate in the public estimator instead of repeating the disclaimer.
+  - Researched quote (2026-10-12 18:08-18:10 UTC, re-confirmed 18:55 UTC): the anonymous checkout at `https://pucks.co.il/payment/request` offered home delivery (משלוח עד הבית) only, flat ₪30, with "משלוח חינם בהזמנה מעל 100 ₪" (free shipping above a ₪100 item subtotal). Observed for 1, 2 and 4 × 250 g carts to Tel Aviv / 6100000, and unchanged for Eilat / 8800000 (no locality restriction was displayed). The adapter carries the ₪30 rate with `freeThreshold` ₪100 and a structured coverage caveat: the fee was only sampled for Tel Aviv and Eilat, so country-wide coverage is not claimed.
+  - Evidence: `docs/evidence/browser-research/2026-10-12-vendor-shipping-quotes.json` and `docs/evidence/browser-research/2026-10-12-pucks-recheck.json` (with screenshots); only locality/postcode were entered, and no order, payment, login or account was submitted. The earlier 13:05 UTC terms-page excerpt remains at `docs/evidence/vendor-research-2026-10-12T1305Z-pucks-shipping.json`.
 
 ### Historical Pucks listings (retired 2026-10-12 — evidence only, do not re-track)
 
@@ -106,7 +128,8 @@ was a real board observation at the time but is historical now.
   - free self-pickup at the shop;
   - delivery to a צ'יטה שופס pickup point, ₪15 (up to 5 kg, up to 7 business days);
   - door-to-door courier, ₪30 (1-5 business days).
-- Shipping certainty: **verified** for the door-to-door courier rate, which is the ranked delivered amount. The ₪15 pickup-point service is stored as an alternative shipping option and is never used as the ranked total, and free self-pickup stays in the separate pickup list. Coverage caveat: the terms page (`https://www.coffee4u.co.il/page/%D7%AA%D7%A7%D7%A0%D7%95%D7%9F-0`, shipping-policy section) states door-to-door delivery is "subject to the company's list of localities where home delivery is performed", which the product page does not enumerate, so the observation carries a structured coverage caveat instead of claiming country-wide coverage.
+- Shipping certainty: **verified** for the door-to-door courier rate, which is the ranked delivered amount. The ₪15 pickup-point service is stored as an alternative shipping option and is never used as the ranked total, and free self-pickup stays in the separate pickup list.
+- Rendered checkout confirmation (2026-10-12 18:17-18:19 UTC): the anonymous checkout quoted the 1 × 250 g cart at ₪30 door-to-door without an address; the checkout carries a 1,270-entry destination city list (Tel Aviv–Yafo and Eilat both present). The ₪15 pickup-point method requires a city plus spot from a 421-city list before its fee is shown, and self-pickup shows the shop address. The vendor's page title tag still says "Lavazza Qualita Oro Beans 1 kg" while the rendered body is the Crema e Gusto 250 g listing; the mismatch is a stale vendor-side title and did not change the cart item. Evidence: `docs/evidence/browser-research/2026-10-12-vendor-shipping-quotes.json`. Coverage caveat: the terms page (`https://www.coffee4u.co.il/page/%D7%AA%D7%A7%D7%A0%D7%95%D7%9F-0`, shipping-policy section) states door-to-door delivery is "subject to the company's list of localities where home delivery is performed", which the product page does not enumerate, so the observation carries a structured coverage caveat instead of claiming country-wide coverage.
 - Variant: the page names only "Crema e gusto" and states no Classico, Forte or other blend variant, so the listing is stored as **variant unspecified** and is never merged into the Classico ranking. The board reports how many offers another variant excluded.
 - Parser: schema.org microdata in a legacy Windows-1255 page; the declared charset is decoded before parsing. `robots.txt` allows product pages and asks for `Crawl-delay: 7`; the adapter fetches one fixed URL per six-hour run, so the delay is respected by the refresh interval.
 - Fixtures: `tests/fixtures/coffee4u-product.windows-1255.html` plus a derived out-of-stock variant, both minimized excerpts of the page retrieved on 2026-10-12.
@@ -178,10 +201,10 @@ was a real board observation at the time but is historical now.
 
 Three independent adapters (CoffeeMan, Pucks and Coffee4U) meet and exceed the "at least two" requirement
 with five real Crema e Gusto listings: three CoffeeMan offers (single 250 g ₪33, 4 × 250 g ₪124 and
-8 × 250 g ₪240, all observed in stock; the two single/4-pack pages publish a verified ₪25 courier rate,
-the 8-pack page does not), one Pucks offer (₪30, in stock, shipping calculated at checkout and therefore
-unknown) and one Coffee4U offer (₪38, in stock, with a published ₪30 door-to-door courier rate and a
-₪15 pickup-point alternative). The 2026-10-12 15:39, 16:50 and 17:22 UTC live checks re-observed exactly
+8 × 250 g ₪240, all observed in stock; the two single/4-pack pages publish a verified ₪25 courier rate and
+the 8-pack cart was quoted ₪20 at the anonymous checkout), one Pucks offer (₪30, in stock, with a
+researched ₪30 flat home-delivery rate and free shipping above ₪100) and one Coffee4U offer (₪38, in
+stock, with a published ₪30 door-to-door courier rate and a ₪15 pickup-point alternative). The 2026-10-12 15:39, 16:50 and 17:22 UTC live checks re-observed exactly
 these five listings with the same prices, stock and published shipping evidence as 15:12 UTC:
 `docs/evidence/source-check-20261012T1544Z.json`, `docs/evidence/source-check-20261012T1650Z.json` and
 `docs/evidence/source-check-20261012T1722Z.json`.
@@ -197,12 +220,13 @@ unknown-shipping labels remain current vendor evidence (`docs/evidence/vendor-pr
 structured coverage caveat recorded from the vendors' terms pages (home delivery is subject to an
 unpublished locality list), so the board discloses the geographic restriction instead of claiming
 country-wide delivery.
-Fixture-backed quote tests show that the CoffeeMan 4 × 250 g pack wins at 1 kg (₪149 delivered) while two
-single packs win at 500 g (₪91 delivered) — the comparison changes with the shopper's quantity using only
-observed prices. The Coffee4U listing is ranked separately from Classico because the vendor does not state
-the blend variant, with its ₪15 pickup-point delivery labelled as an alternative rather than merged into
-the ranked total. Unknown shipping can never win: the cheaper Pucks item and the 8-pack stay visible and
-unranked.
+Fixture-backed quote tests show that the delivered winner changes with the researched rates: Pucks wins at
+500 g (₪90) and 1 kg (₪120, free shipping above the ₪100 threshold) while the CoffeeMan 8 × 250 g pack has
+the lowest price per kilogram at 500 g (₪130/kg) without winning the delivered total. The Coffee4U listing
+is ranked separately from Classico because the vendor does not state the blend variant, with its ₪15
+pickup-point delivery labelled as an alternative rather than merged into the ranked total. Unknown
+shipping can never win: a no-rate offer stays visible and unranked, covered by the quote-engine tests and
+a QA-only browser fixture.
 More vendors carrying the tracked product can be added by creating `src/vendors/<id>.js` with an
 allowlisted product URL and a parser, registering it in `src/vendors/index.js`, and adding fixtures under
 `tests/fixtures/`. A further bounded probe pass on 2026-10-12 (14:25 UTC) found no new viable vendor:

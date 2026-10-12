@@ -247,6 +247,44 @@ try {
   })()`);
   report.desktop = { bestTop: desktop.bestTop, cardCount: desktop.cards.length, metaLines: desktop.metaLines };
 
+  // Rendered contrast: walk visible text elements and compare their computed color
+  // with the effective (first opaque ancestor) background. Normal text must reach
+  // 4.5:1 and large text 3:1, as the owner's design direction requires.
+  const contrast = await evaluate(wd, `(() => {
+    const parse = value => { const m = String(value).match(/rgba?\\(([^)]+)\\)/); if (!m) return null; const parts = m[1].split(',').map(Number); return { r: parts[0], g: parts[1], b: parts[2], a: parts[3] ?? 1 }; };
+    const lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b); };
+    const ratio = (a, b) => { const la = lum(a), lb = lum(b); const hi = Math.max(la, lb), lo = Math.min(la, lb); return (hi + 0.05) / (lo + 0.05); };
+    const effectiveBg = node => {
+      let el = node;
+      while (el) {
+        const bg = parse(getComputedStyle(el).backgroundColor);
+        if (bg && bg.a > 0.9) return bg;
+        el = el.parentElement;
+      }
+      return { r: 255, g: 255, b: 255, a: 1 };
+    };
+    const results = [];
+    for (const node of document.querySelectorAll('#ranked .offer *, #ranked .meta-line, .controls *, .site-footer *, .masthead *, .hero *, #unknown *, #pickup *')) {
+      if (!node.offsetParent && node.tagName !== 'BODY') continue;
+      const text = [...node.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent.trim()).join(' ').trim();
+      if (!text) continue;
+      const style = getComputedStyle(node);
+      const fg = parse(style.color);
+      if (!fg) continue;
+      const bg = effectiveBg(node);
+      const value = ratio(fg, bg);
+      const size = parseFloat(style.fontSize);
+      const bold = Number(style.fontWeight) >= 700;
+      const large = size >= 24 || (size >= 18.66 && bold);
+      const required = large ? 3 : 4.5;
+      if (value + 0.01 < required) results.push({ text: text.slice(0, 40), color: style.color, bg: 'rgb(' + bg.r + ',' + bg.g + ',' + bg.b + ')', ratio: Math.round(value * 100) / 100, size, required });
+    }
+    return results;
+  })()`);
+  report.contrastViolations = contrast;
+  check('desktop: rendered text meets WCAG AA contrast (4.5:1 normal, 3:1 large)', contrast.length === 0,
+    contrast.length ? JSON.stringify(contrast.slice(0, 5)) : 'no violations across cards, controls, footer, hero and unknown/pickup sections');
+
   const bestCard = desktop.cards[0];
   check('desktop: the best card is the API-ranked best offer', bestCard?.best === true && (bestCard.vendor ?? '').includes(best.vendor.name), `${bestCard?.vendor} vs ${best.vendor.name}`);
   check(`desktop: delivered total for 500 g is ${expected500}`, bestCard?.totals?.[2]?.value === expected500, bestCard?.totals?.[2]?.value);
@@ -464,10 +502,12 @@ try {
   const keyboard = await evaluate(wd, `(() => {
     const active = document.activeElement;
     const style = getComputedStyle(active);
-    return { tag: active.tagName, label: active.textContent, outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth };
+    return { tag: active.tagName, label: active.textContent, outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth, outlineColor: style.outlineColor };
   })()`);
   check('keyboard: Tab moves focus to the next quantity button', keyboard.tag === 'BUTTON' && keyboard.label === '500 g', JSON.stringify(keyboard));
-  check('keyboard: focused control shows a visible outline', keyboard.outlineStyle !== 'none' && parseFloat(keyboard.outlineWidth) >= 2, `${keyboard.outlineStyle} ${keyboard.outlineWidth}`);
+  check('keyboard: focused control shows a visible outline in the official Blau focus color',
+    keyboard.outlineStyle !== 'none' && parseFloat(keyboard.outlineWidth) >= 2 && keyboard.outlineColor === 'rgb(0, 112, 180)',
+    `${keyboard.outlineStyle} ${keyboard.outlineWidth} ${keyboard.outlineColor}`);
   await wd('POST', '/actions', { actions: [{ type: 'key', id: 'keyboard', actions: [{ type: 'keyDown', value: '\uE007' }, { type: 'keyUp', value: '\uE007' }] }] });
   await waitForPage(wd, `${BEST_TOTAL_EXPR} === ${JSON.stringify(expected500Eilat)}`, 15_000, `keyboard activation of the 500 g quantity (${expected500Eilat} to ${eilatLabel})`, `({total: ${BEST_TOTAL_EXPR}, search: location.search})`);
   check('keyboard: Enter activates the focused quantity and updates the total', true, `total ${expected500Eilat}`);
