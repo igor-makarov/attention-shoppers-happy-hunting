@@ -85,9 +85,20 @@ export function refreshFreshness(lastRefreshAt, now = Date.now(), lastObservatio
   };
 }
 
+// The cron fires on fixed clock times while nextAttemptAt is stored as
+// "run time + 6 h", so a tick can land seconds before a vendor's due time. Without
+// a small tolerance that tick skips every vendor and the board silently drifts from
+// a six-hour to a twelve-hour refresh cadence (and reports stale for hours between
+// runs). Successful vendors therefore count as due up to this much early; vendors
+// inside a failure backoff keep their strict due time.
+export const EARLY_DUE_TOLERANCE_MS = 15 * 60 * 1000;
+
 export function isVendorDue(state, now) {
   if (!state?.nextAttemptAt) return true;
-  return Date.parse(state.nextAttemptAt) <= now;
+  const due = Date.parse(state.nextAttemptAt);
+  if (!Number.isFinite(due)) return true;
+  const slack = (state.consecutiveFailures ?? 0) > 0 ? 0 : EARLY_DUE_TOLERANCE_MS;
+  return due <= now + slack;
 }
 
 export async function runRefresh({

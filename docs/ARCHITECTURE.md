@@ -36,7 +36,10 @@ saved observation and falls back to it for the age when no completion marker exi
 refreshed, while a recorded but old completion still reports the scheduled pipeline as stopped.
 `src/refresh.js` is the deterministic scheduled pipeline (leases, bounded concurrency, per-vendor
 backoff, last-known-good retention) and the same function runs in the Worker's `scheduled` handler, the
-local cron simulation and tests. `src/store.js` defines the SQLite-backed `BoardStore` Durable Object plus
+local cron simulation and tests. Successful vendors count as due up to fifteen minutes before their
+stored `nextAttemptAt`, so a cron tick that lands seconds before the six-hour mark still refreshes
+instead of silently drifting to a twelve-hour cadence; vendors inside a failure backoff keep their
+strict due time. `src/store.js` defines the SQLite-backed `BoardStore` Durable Object plus
 in-memory and file-backed stores with the same interface. Public routes in `src/index.js` are read-only
 snapshots of that storage and never fetch visitor-supplied URLs.
 

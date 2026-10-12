@@ -54,6 +54,7 @@ Alternative storage was considered and rejected: KV or R2 would add a separate c
 ## Cron behavior
 
 - `wrangler.jsonc` triggers the scheduled handler on `17 */6 * * *` (UTC), about every six hours.
+- A successful vendor is stored as due at `run time + 6 h`. Because the cron fires on fixed clock times, a successful vendor also counts as due up to 15 minutes early (`EARLY_DUE_TOLERANCE_MS` in `src/refresh.js`). Without that tolerance a tick landing seconds before the due time skips every vendor, the board drifts to a twelve-hour cadence and reports stale for hours between runs; vendors inside a failure backoff keep their strict due time, so backoff is not weakened.
 - The first `GET /health` or `GET /api/board` after a deployment starts one initial refresh in the background so the board is not empty until the first cron tick. It is lease- and throttle-protected (10 minutes) and can never be triggered repeatedly by public traffic.
 - Each run fetches at most one URL per tracked offer plus the Bank of Israel rate file, capped at two vendors concurrently, 12 s per request and 1.5 MB per response, with hosts restricted to each adapter's allowlist. Five Crema e Gusto offers from three independent vendors (CoffeeMan, Pucks, Coffee4U) are tracked today; the product and offers are visible in `/api/catalog`.
 - A run that fetched nothing because every vendor is inside its backoff window is recorded in the run history but does not update `lastRefreshAt`, so an empty run cannot mask a stalled pipeline as fresh.

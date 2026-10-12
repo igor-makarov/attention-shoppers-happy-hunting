@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { runRefresh, maybeInitialRefresh, backoffMs, refreshFreshness, newestObservationAt, REFRESH_INTERVAL_MS, REFRESH_STALE_MS, BACKOFF_BASE_MS } from '../src/refresh.js';
+import { runRefresh, maybeInitialRefresh, backoffMs, refreshFreshness, newestObservationAt, isVendorDue, REFRESH_INTERVAL_MS, REFRESH_STALE_MS, BACKOFF_BASE_MS, EARLY_DUE_TOLERANCE_MS } from '../src/refresh.js';
 import { quoteBoard, findDestination } from '../src/lib/quote.js';
 import { createMemoryStore } from '../src/store.js';
 import { registeredVendors } from '../src/vendors/index.js';
@@ -105,6 +105,51 @@ test('repeated failures back off and stop re-fetching the broken vendor', async 
   assert.equal(calls.some(url => url.includes('coffeeman')), false, 'vendor in backoff is not fetched');
   assert.equal(backoffMs(2), 60 * 60 * 1000);
   assert.equal(backoffMs(10), 12 * 60 * 60 * 1000);
+});
+
+test('a successful vendor counts as due a little before its stored due time', () => {
+  const due = new Date(NOW + REFRESH_INTERVAL_MS).toISOString();
+  const state = { nextAttemptAt: due, consecutiveFailures: 0 };
+  assert.equal(isVendorDue(state, NOW + REFRESH_INTERVAL_MS - EARLY_DUE_TOLERANCE_MS), true);
+  assert.equal(isVendorDue(state, NOW + REFRESH_INTERVAL_MS - 60 * 1000), true, 'a tick seconds before the due time is still due');
+  assert.equal(isVendorDue(state, NOW + REFRESH_INTERVAL_MS - 30 * 60 * 1000), false, 'a vendor is not fetched hours early');
+  assert.equal(isVendorDue(null, NOW), true, 'a vendor without state is always due');
+  assert.equal(isVendorDue({ nextAttemptAt: 'not-a-date' }, NOW), true);
+  assert.equal(
+    isVendorDue({ nextAttemptAt: due, consecutiveFailures: 1 }, NOW + REFRESH_INTERVAL_MS - 60 * 1000),
+    false,
+    'failure backoff keeps its strict due time'
+  );
+  assert.equal(
+    isVendorDue({ nextAttemptAt: due, consecutiveFailures: 1 }, NOW + REFRESH_INTERVAL_MS),
+    true
+  );
+});
+
+test('a cron tick just before the six-hour mark refreshes instead of skipping every vendor', async () => {
+  const store = createMemoryStore();
+  const first = await run({ store, fetchImpl: fixtureFetch(), now: NOW, trigger: 'cron' });
+  assert.equal(first.requests, 6);
+  const refreshAt = (await store.snapshot()).meta.lastRefreshAt.value;
+  for (const vendorId of ['coffeeman', 'pucks', 'coffee4u']) {
+    assert.equal(Date.parse((await store.getVendorState(vendorId)).nextAttemptAt), NOW + REFRESH_INTERVAL_MS);
+  }
+
+  // The next cron tick lands 30 seconds before the stored due times. This is the
+  // production phase: cron fires on fixed clock times, the due time is run time + 6 h.
+  const calls = [];
+  const tick = await run({
+    store,
+    fetchImpl: fixtureFetch({ calls }),
+    now: NOW + REFRESH_INTERVAL_MS - 30 * 1000,
+    trigger: 'cron'
+  });
+  assert.equal(tick.vendors.filter(vendor => vendor.skipped).length, 0, 'no vendor is skipped by cron phase drift');
+  assert.equal(tick.requests, 6, 'all five tracked offers and the rate table are re-checked');
+  assert.equal(tick.vendors.filter(vendor => (vendor.saved ?? 0) > 0).length, 3, 'every vendor saved an observation on the tick');
+  const after = (await store.snapshot()).meta.lastRefreshAt.value;
+  assert.ok(after, 'the completed tick advances lastRefreshAt, so the board stays fresh');
+  assert.ok(Date.parse(after) >= Date.parse(refreshAt), 'lastRefreshAt never moves backwards');
 });
 
 test('a failing FX fetch keeps the previous rate table', async () => {
