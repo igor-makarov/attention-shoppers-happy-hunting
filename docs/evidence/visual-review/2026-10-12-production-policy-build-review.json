@@ -1,0 +1,69 @@
+{
+  "recordedAt": "2026-10-12T23:30:00Z",
+  "iteration": "3-78",
+  "scope": "Production screenshots of the home product index and the product comparison page captured by the live browser QA run against https://attention-shoppers.igormaka.workers.dev at 23:12 UTC (the four-policy build).",
+  "limitation": {
+    "tool": "coding agent file-read tool",
+    "result": "PNG input is rejected ('docs/... is an image (image/png); reading images is not supported'), so the screenshots could not be inspected as images by the model. This record is a coarse, machine-derived review only; it cannot establish that text is correct or legible.",
+    "mitigation": "Every label and money value is corroborated by the rendered DOM text and the API payloads captured in the same headless-Chrome session (docs/evidence/browser-qa-production-20261012T2313Z.json) and by the read-only production probe (24/24 checks, docs/evidence/production-probe-20261012T2312Z.json)."
+  },
+  "screenshots": [
+    "docs/evidence/visual-review/production-home-desktop-1440-20261012T2313Z.png",
+    "docs/evidence/visual-review/production-home-mobile-390-20261012T2313Z.png",
+    "docs/evidence/visual-review/production-product-desktop-1440-20261012T2313Z.png",
+    "docs/evidence/visual-review/production-product-mobile-390-20261012T2313Z.png",
+    "docs/evidence/visual-review/production-product-desktop-retired-url-20261012T2313Z.png",
+    "docs/evidence/visual-review/production-product-desktop-unknown-shipping-20261012T2313Z.png"
+  ],
+  "measuredDomGeometry": {
+    "mobileViewport": { "width": 390, "innerHeight": 701, "ownerCriterionHeight": 844 },
+    "bestOfferCard": { "top": 302, "bottom": 836, "left": 16, "right": 359 },
+    "itemSubtotalAndShippingCellsBottom": 542,
+    "shippingMethodValueBottom": 477,
+    "deliveredTotalValueBottom": 591,
+    "pageHeight": 1502,
+    "horizontalOverflow": false,
+    "minimumQuantityTapHeight": 44,
+    "disclosuresOpenByDefault": false
+  },
+  "tokenRegions": {
+    "tool": "node scripts/inspect-screenshot.mjs --palette (coarse luminance map + exact Canton Zürich token pixels)",
+    "productDesktop1440": {
+      "blue": "12135 px, bbox x117-1308 y171-609 (best-offer rule/selected context)",
+      "softblue": "382371 px, bbox x119-1307 y18-846",
+      "green": "419 px, bbox x1136-1289 y260-282 (in-stock label)",
+      "red": "0 px (absent; no unavailable offer in the live board)",
+      "amber": "166 px, bbox x151-733 y450-461 (uncertainty text)",
+      "divider": "13960 px"
+    },
+    "productMobile390": {
+      "blue": "9349 px, bbox x16-358 y140-700",
+      "softblue": "93428 px, bbox x20-358 y14-700",
+      "green": "423 px, bbox x154-306 y349-371",
+      "amber": "149 px, bbox x45-311 y642-688",
+      "red": "0 px (absent)"
+    },
+    "homeDesktop1440": {
+      "blue": "1540 px, bbox x125-509 y185-188 (single rule under the product card heading)",
+      "green": "0 px (absent; the index shows no offer status)",
+      "amber": "0 px (absent)",
+      "divider": "1010 px"
+    },
+    "homeMobile390": {
+      "blue": "1364 px, bbox x17-357 y184-187",
+      "green": "0 px (absent)",
+      "amber": "0 px (absent)",
+      "divider": "951 px"
+    }
+  },
+  "checks": {
+    "productionBrowserQa": "78/78 checks pass against the deployed site, zero console errors (docs/evidence/browser-qa-production-20261012T2313Z.json)",
+    "firstViewportValues": "PASS mobile: item subtotal, shipping charge and method are visible in the initial viewport; PASS mobile: the delivered total is visible in the initial 390x844 viewport (best card top 302, totals bottom 591)",
+    "homeIndex": "PASS mobile home: the product card is visible on the first screen; the home route renders the product index, not the comparison board",
+    "unifiedComparison": "PASS compare: the Coffee4U listing with unstated blend wording is in the same comparison, not withheld; PASS compare: no variant-exclusion notice or blend wording is repeated",
+    "namedVendors": "PASS pickup: every pickup row names the real vendor, not an object string",
+    "methodAndCertainty": "PASS product: the three decision values sit in one visible row; named delivery method rendered separately from the certainty label",
+    "policyStatus": "PASS status exposes every validated shipping policy with a review date; PASS no shipping policy is past its review date (production probe, 24/24 checks)"
+  },
+  "conclusion": "The deployed four-policy build keeps the decision values (item subtotal, named method and charge, delivered total) inside the initial 390x844 mobile viewport; the home index stays minimal (a single blue rule, no offer status colors) and the product page uses the Canton Zürich token roles (blue for the best/selected context, green for in-stock, amber for uncertainty, no red on the live board). No claim of image-based visual review is made."
+}

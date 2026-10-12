@@ -1,0 +1,58 @@
+{
+  "kind": "browser-research-note",
+  "schemaVersion": 1,
+  "vendorId": "pucks",
+  "goal": "Establish whether the Pucks free-shipping threshold is strictly \"above ₪100\" (cart logic > 100) or effectively \"at least ₪100\" (>= 100) by quoting an anonymous cart whose item subtotal is exactly ₪100.",
+  "method": "Interactive headless Google Chrome + ChromeDriver session (scripts/browser-research.mjs). Anonymous cart only; no order, payment, login, account creation, street address or bot-challenge bypass. Session/cart identifiers are stripped from this record.",
+  "observedAt": "2026-10-12T23:08:00Z to 2026-10-12T23:26:00Z",
+  "trackedSku": {
+    "url": "https://pucks.co.il/product/lavazza-crema-e-gusto-ground-coffee-250g",
+    "name": "lavazza crema e gusto classico-250 גרם קפה טחון",
+    "unitPriceIls": 30,
+    "packGrams": 250,
+    "cartCheck": "3 × 250 g cart displayed a ₪90.00 subtotal before delivery selection"
+  },
+  "boundaryProblem": "The only tracked Pucks coffee SKU costs ₪30 per 250 g pack, so a coffee-only cart subtotal is a multiple of ₪30: ₪90 (3 packs, paid delivery observed) and ₪120 (4 packs, free delivery observed). Exactly ₪100 cannot be reached with the tracked coffee alone.",
+  "fillerSurvey": {
+    "shopUrl": "https://pucks.co.il/shop",
+    "productsObserved": [
+      {
+        "name": "גימוקה תואם נספרסו - אינטנסו",
+        "priceIls": 10,
+        "url": "https://pucks.co.il/product/gimoka-nespresso-compateable-intenso",
+        "availability": "out of stock — the product page rendered the disabled \"אזל מהמלאי\" button, so it could not be added to the anonymous cart"
+      },
+      {
+        "name": "איטליאן קופי לדולצ'ה גוסטו®-מוקצי",
+        "priceIls": 22,
+        "url": "https://pucks.co.il/product/italian-coffee-capsulesfor-dolce-gusto-mokacci",
+        "availability": "not added; price read from the shop listing"
+      },
+      {
+        "name": "illy 250 גרם פולי קפה (multiple selections)",
+        "priceIls": 45,
+        "url": "https://pucks.co.il/shop",
+        "availability": "not added; price read from the shop listing"
+      },
+      {
+        "name": "San Marino Aromatic Crema 1 ק\"ג פולי קפה",
+        "priceIls": 75,
+        "url": "https://pucks.co.il/product/san-marino-aromatic-crema-1-kg",
+        "availability": "not added; price read from the shop listing"
+      }
+    ],
+    "combinationsChecked": [
+      "3 × 30 + 10 = 100 — the ₪10 item is out of stock",
+      "2 × 30 + 40 = 100 — no ₪40 item found",
+      "1 × 30 + 70 = 100 — no ₪70 item found",
+      "3 × 30 + 22 = 112, 2 × 30 + 2 × 22 = 104, 2 × 30 + 45 = 105, 1 × 30 + 45 + 22 = 97"
+    ]
+  },
+  "result": "blocked",
+  "blocker": "No in-stock combination of the tracked coffee and the surveyed fillers reaches exactly ₪100.00 item subtotal, and a mixed-cart filler quote would not unambiguously describe the tracked coffee cart rule. The exact boundary therefore remains unobserved.",
+  "policyDecision": "The checked-in policy keeps the vendor's own strict wording (thresholdSemantics: \"above\"): a cart of exactly ₪100 is not treated as free. This can only under-promise free shipping, never over-promise it, and for coffee-only carts the strict boundary has no practical effect because the subtotal jumps from ₪90 (paid) to ₪120 (free). The gap is documented in src/lib/policies.js and docs/SOURCES.md.",
+  "notes": [
+    "The interactive shop filter and category checkboxes did not produce a reliable filtered list in the headless session; cheap products were read from the unfiltered rendered shop page.",
+    "The ₪22 capsules and ₪45/₪75 bean listings are not part of the tracked product scope and were surveyed only as potential cart fillers."
+  ]
+}

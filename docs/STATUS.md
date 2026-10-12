@@ -5,14 +5,13 @@ there is no variant selector, menu entry, warning, "other variant" count or vari
 UI, and every eligible tracked Crema e Gusto vacuum-packed ground listing — including the Coffee4U listing
 whose blend wording is not stated — is compared in one board for the selected quantity, locality and
 delivery method. The Canton Zürich product index + dedicated product page, the browser-researched shipping
-rates and the progressive-disclosure layout are validated locally (124/124 tests, 78/78 offline and 76/76
-live browser checks) and in production (**76/76** live browser checks against the deployed site, which
-already serves the unified-comparison build and applies the researched Pucks rule to the old persisted
-store at read time); the local-live Worker with real vendor data ranks Pucks ₪90, CoffeeMan ₪91 and
-Coffee4U ₪106 at 500 g in the same comparison, and obsolete `variant=` URLs resolve to that one board.**
-Production still serves the earlier build until the next main-push Workers Builds deploy; the researched
-rates reach the production store at the next scheduled cron tick, and production verification remains
-outstanding (listed below).
+policies and the progressive-disclosure layout are validated locally (134/134 tests, 80/80 offline and 78/78
+live browser checks) and against the deployed site: the four-policy build is live (production probe 24/24
+at 23:12 UTC, live browser QA 78/78 at 23:12 UTC with zero console errors), the Pucks free-above-₪100 rule
+is applied to the old persisted store at read time, and obsolete `variant=` URLs resolve to that one board.
+Production's stored vendor snapshot was last refreshed 15:52 UTC; the **00:17 UTC cron tick on 2026-10-13**
+is expected to replace it (the 18:17 tick skipped under the phase lock), after which the read-only probe
+should be re-run.**
 The Worker implements the self-updating board for exactly one product line — **Lavazza Crema e Gusto
 vacuum-packed ground coffee** — with three independent Israeli vendor adapters and five observed
 listings. The owner reports the site deployed at
@@ -1445,3 +1444,62 @@ constants. Iteration 3-77 completes the shared representation:
 vendor observations; re-run `npm run probe:production` after that tick and confirm the production
 `/api/status` exposes all four policies once this build deploys through the main-push Workers Builds
 path. Then continue within Crema e Gusto coverage, shipping evidence, freshness and comparison quality.
+
+## Iteration 3-78 — production verification of the four-policy build; Pucks threshold boundary recorded (2026-10-12)
+
+**Production verification (read-only, 23:11-23:12 UTC).** `npm run probe:production` gained two policy
+checks and now passes **24/24**: `/api/status` exposes all four validated policies —
+`pucks-il-home-delivery`, `coffeeman-single-4pack-il-home-delivery`, `coffeeman-8pack-il-cart-quote` and
+`coffee4u-il-home-delivery` — each with its version, origin (`observed_cart`/`published`), certainty,
+service, alternative ids, observation time and `2026-11-11` review date, and **no policy is past its
+review date** (an expired policy would stop enriching offers, so the probe would fail loudly instead of
+silently serving a stale rate). The deployed build is the 3-77 build: the old 15:52 UTC persisted store
+still ranks the CoffeeMan 8-pack at ₪260 from the read-time `coffeeman-8pack-il-cart-quote` enrichment
+while `lastRefreshAt`/`lastObservationAt` stay 15:52:12.546Z/15:51:52.931Z, so applying the newer rule
+claims no fresh vendor check. Evidence: `docs/evidence/production-probe-20261012T2312Z.json`.
+
+**Production browser QA (live, 23:12 UTC).** `npm run qa:browser -- https://attention-shoppers.igormaka.workers.dev`
+passed **78/78** checks with zero console errors against the deployed four-policy build:
+- mobile 390×844 (701 px measured inner height): the best card spans y=302-836, item subtotal and
+  shipping cells end at y=542, the named delivery-method value at y=477 and the delivered total at
+  y=591, all inside the initial viewport; disclosures are collapsed by default; quantity buttons keep a
+  44 px touch target; page height 1502 px.
+- home index: the product card is visible on the first screen; the home route does not render the
+  comparison board.
+- unified comparison: Coffee4U (unstated blend wording) ranks in the same board with its ₪15
+  pickup-point alternative; no variant-exclusion notice or repeated blend wording; pickup rows name the
+  real vendors (no `[object HTMLSpanElement]`); an old `?variant=unspecified` URL is cleaned to
+  `?grams=250&dest=tel-aviv` and shows the one unified comparison; a directly loaded product URL
+  restores quantity and locality.
+Evidence: `docs/evidence/browser-qa-production-20261012T2313Z.json`; sanitized screenshots
+`docs/evidence/visual-review/production-*-20261012T2313Z.png` and the coarse token/geometry record
+`docs/evidence/visual-review/2026-10-12-production-policy-build-review.json` (the file-read tool still
+rejects PNG input — "reading images is not supported" — so no image-based visual claim is made; the
+labels and amounts are corroborated by rendered DOM text and the API in the same session).
+
+**Pucks exact-₪100 threshold boundary: attempted in the real browser, blocked, documented.** An
+interactive Chrome session (23:08-23:26 UTC) tried to quote an anonymous Pucks cart whose item subtotal is
+exactly ₪100 so the vendor's `above` wording could be checked against the estimator's boundary behavior.
+The tracked coffee is ₪30/250 g, so a coffee-only cart is a multiple of ₪30 (₪90 paid / ₪120 free), and
+the surveyed in-stock fillers (₪22 capsules, ₪45 and ₪75 bean listings) cannot be combined to exactly
+₪100 — the only ₪10 item is out of stock ("אזל מהמלאי"). The boundary therefore remains unobserved; the
+policy keeps the vendor's strict `above` wording, which can only under-promise free shipping, and the gap
+is recorded in the policy comment, `docs/SOURCES.md` and
+`docs/evidence/browser-research/2026-10-12-pucks-threshold-boundary-attempt.json`. No order, payment,
+login, account, street address or bot-challenge bypass was involved and no cart/session identifier was
+recorded.
+
+**Live source check (23:14 UTC).** `npm run check:sources`: all five listings pass with unchanged prices
+(Pucks ₪30; CoffeeMan ₪33 / ₪124 / ₪240; Coffee4U ₪38), stock still `in_stock` from schema.org data, and
+the researched shipping rates and coverage caveats unchanged. The Coffee4U row still carries
+`variant=unspecified` as raw listing identity only. Evidence:
+`docs/evidence/source-check-20261012T2314Z.json`.
+
+**Verified locally.** `npm run verify` — 134/134 `node:test` cases pass and `wrangler deploy --dry-run`
+builds the bundle; `npm run qa:browser` (offline fixtures) **80/80**; production live QA **78/78**. The
+only code change after those runs is the probe script's two policy checks and documentation.
+
+**Next step:** the **00:17 UTC cron tick on 2026-10-13** should replace the 15:52 production store
+snapshot (vendor due times 19:34/19:46/21:51 have passed; the 18:17 tick skipped under the phase lock).
+Re-run `npm run probe:production` after it and confirm fresh vendor observations plus the four policies;
+then continue within Crema e Gusto coverage, shipping evidence, freshness and comparison quality.

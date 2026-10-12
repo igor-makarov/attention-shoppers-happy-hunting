@@ -42,7 +42,12 @@ const AMIGO_CAVEAT_SOURCE = 'https://www.coffeeman.co.il/page/%D7%AA%D7%A0%D7%90
  * The vendor's own wording is "above ₪100"; the boundary was observed only at
  * ₪60 (paid) and ₪120 (free), so `thresholdSemantics` records "above" and the
  * quote engine applies the vendor's strict wording — a cart of exactly ₪100 is
- * not treated as free — see docs/SOURCES.md.
+ * not treated as free. A 2026-10-12 attempt to quote an exactly-₪100 anonymous
+ * cart was blocked (the only ₪10 filler is out of stock and no in-stock
+ * combination reaches ₪100); because a coffee-only cart is a multiple of ₪30
+ * (₪90 paid / ₪120 free), the strict boundary never changes a real coffee
+ * total. See docs/SOURCES.md and
+ * docs/evidence/browser-research/2026-10-12-pucks-threshold-boundary-attempt.json.
  */
 export const pucksHomeDeliveryPolicy = {
   id: 'pucks-il-home-delivery',
