@@ -65,7 +65,13 @@ With `npm run dev` running on port 8789, the same commands used during developme
 ```sh
 curl -s http://127.0.0.1:8789/api/board?grams=500\&dest=tel-aviv
 curl -s http://127.0.0.1:8789/cdn-cgi/local/scheduled   # simulate the cron trigger (wrangler dev only)
-npm run qa:browser http://127.0.0.1:8789
+npm run qa:browser                            # offline fixture-backed browser QA (no network)
+npm run qa:browser -- http://127.0.0.1:8789   # live browser QA against the running Worker
 ```
+
+`npm run qa:browser` without an argument starts `scripts/qa-server.mjs` on an ephemeral port. That server
+serves `public/` and the read-only board API computed from `tests/fixtures/` with the production quote
+engine, so headless Chrome checks the real UI offline and the script compares the DOM against the API
+response instead of hard-coded prices. The live form checks the same UI against a real local Worker.
 
 The real deployment remains disabled until the owner enables it from Cloudflare. The Actions loop has no direct administrative CF access, but its main code pushes become production changes once automatic deployment is enabled.

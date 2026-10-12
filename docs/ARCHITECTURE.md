@@ -11,6 +11,21 @@ This prevents Shurik's Actions process from directly authenticating to CF. It is
 
 GitHub normally does not trigger another push workflow for a push using GITHUB_TOKEN. Do not rely on CI being automatically triggered by every Shurik checkpoint. Shurik must run local verification, and Cloudflare's build command must run npm run verify for every deployment. After connecting CF, verify one actual Shurik push reaches Workers Builds; never assume third-party webhook behavior from GitHub Actions behavior alone.
 
-Start with vendor-specific adapters, a shared product/offer schema, a pure quote/ranking module, persistence and the scheduled-handler pipeline. Keep fetching separate from parsing and pricing. Fixture tests should cover unstable vendor HTML and quote edge cases. Store observation timestamps independently from refresh-attempt timestamps. Public routes are read-only and use cached snapshots; public shoppers must not be able to initiate unlimited vendor traffic.
+## Implemented runtime
 
-Initial scaffold: static assets plus /health and /api/catalog. No real offers, storage or cron are implemented yet. The target product exists, but prices and availability remain explicitly unknown. The coding agent is responsible for building and proving the runtime described in PROMPT.md.
+The target product exists: `src/catalog.js` holds the Lavazza Crema e Gusto vacuum-ground identity and the
+strict classification rules. Vendor-specific adapters under `src/vendors/` fetch fixed allowlisted product
+URLs through the bounded fetcher in `src/lib/http.js` and return versioned observations. `src/lib/quote.js`
+is a pure, timestamp-aware ranking engine; `src/lib/fx.js` converts non-ILS amounts with Bank of Israel
+reference rates and refuses to guess when a rate is missing. `src/refresh.js` is the deterministic
+scheduled pipeline (leases, bounded concurrency, per-vendor backoff, last-known-good retention) and the
+same function runs in the Worker's `scheduled` handler, the local cron simulation and tests.
+`src/store.js` defines the SQLite-backed `BoardStore` Durable Object plus in-memory and file-backed stores
+with the same interface. Public routes in `src/index.js` are read-only snapshots of that storage and never
+fetch visitor-supplied URLs.
+
+Verification is layered: `tests/*.test.js` covers parsers, quote edge cases, the refresh pipeline and the
+Worker routes against recorded fixtures; `scripts/check-sources.mjs` re-checks the live vendor pages;
+`scripts/simulate-cron.mjs` runs the full refresh offline or live; `scripts/qa-server.mjs` serves the
+production front-end against fixture-backed API data so `npm run qa:browser` drives headless Chrome
+offline and derives its expectations from the API. See docs/STATUS.md for the latest recorded results.

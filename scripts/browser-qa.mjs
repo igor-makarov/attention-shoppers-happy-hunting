@@ -1,30 +1,92 @@
 #!/usr/bin/env node
 // Browser QA for the board using the installed headless Chrome via WebDriver.
 //
-//   node scripts/browser-qa.mjs [baseUrl]
+//   npm run qa:browser                       # offline: fixture-backed local server, no network
+//   node scripts/browser-qa.mjs <baseUrl>    # live: run against a server you started (wrangler dev)
 //
-// Default baseUrl is http://127.0.0.1:8789 (npm run dev). The script is
-// dependency-free: it speaks the W3C WebDriver protocol over HTTP and writes
-// screenshots and a JSON report to .shurik-local/qa/.
+// In the default mode the script starts scripts/qa-server.mjs, which serves
+// public/ plus the read-only JSON API computed by the production quote engine
+// from the recorded fixtures in tests/fixtures/. Expectations are derived from
+// that API response, so the checks test the UI wiring and math rather than
+// hard-coded prices. The report records which data source was used.
+//
+// The script is dependency-free: it speaks the W3C WebDriver protocol over HTTP
+// and writes screenshots and a JSON report to .shurik-local/qa/.
 
 import { spawn } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
+import { startQaServer } from './qa-server.mjs';
 
-const BASE = process.argv[2] ?? 'http://127.0.0.1:8789';
+const LIVE_BASE = process.argv.slice(2).find(arg => /^https?:\/\//i.test(arg)) ?? null;
+const FIXTURE_PORT = Number(process.env.QA_PORT) || 0; // 0 = ephemeral port, never clashes with a dev server
 const OUT = '.shurik-local/qa';
 const PORT = 9515;
 const EMOJI = /[\u{1F300}-\u{1FAFF}\u{1F000}-\u{1F2FF}\u{2600}-\u{27BF}\u{FE0F}]/u;
+const ILS = new Intl.NumberFormat('en-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 2 });
+const ils = amount => (amount == null ? null : ILS.format(amount));
 
-const report = { base: BASE, startedAt: new Date().toISOString(), checks: [], consoleErrors: [] };
+const report = {
+  mode: LIVE_BASE ? 'live' : 'fixtures',
+  base: LIVE_BASE,
+  startedAt: new Date().toISOString(),
+  checks: [],
+  consoleErrors: []
+};
 const check = (name, condition, detail = '') => {
   report.checks.push({ name, ok: Boolean(condition), detail });
   console.log(`${condition ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`);
 };
 
+let fixtureServer = null;
+let base = LIVE_BASE;
 const chrome = spawn('chromedriver', [`--port=${PORT}`, '--allowed-ips='], { stdio: ['ignore', 'pipe', 'pipe'] });
 let session;
 try {
+  if (!base) {
+    fixtureServer = await startQaServer({ port: FIXTURE_PORT });
+    base = fixtureServer.url;
+  }
+  report.base = base;
+  report.dataSource = fixtureServer
+    ? `recorded fixtures via scripts/qa-server.mjs (${fixtureServer.observations.length} observations)`
+    : 'server supplied on the command line';
+  report.fixtureObservations = fixtureServer
+    ? fixtureServer.observations.map(observation => ({
+        key: observation.key,
+        vendor: observation.vendor?.name,
+        price: observation.price,
+        availability: observation.availability,
+        shipping: observation.shipping?.certainty
+      }))
+    : null;
+
+  const catalog = await fetchJson(`${base}/api/catalog`);
+  const api500 = await fetchBoard(base, 500, 'tel-aviv');
+  const api1000 = await fetchBoard(base, 1000, 'tel-aviv');
+  const api1000Eilat = await fetchBoard(base, 1000, 'eilat');
+  const api500Eilat = await fetchBoard(base, 500, 'eilat');
+  const best = api500.best;
+  if (!best) throw new Error('the board API has no ranked offer, so UI comparison checks cannot run');
+  const expected500 = ils(best.totalIls);
+  const expectedPerKg = ils(best.ilsPerKg);
+  const expected1000 = ils(api1000.best?.totalIls);
+  const expected1000Eilat = ils(api1000Eilat.best?.totalIls);
+  const expected500Eilat = ils(api500Eilat.best?.totalIls);
+  const unknownReasons = [...api500.unrankable, ...api500.staleOrUnavailable].map(quote => quote.reasons.join(' ')).join(' | ');
+  const eilatLabel = catalog.destinations.find(item => item.id === 'eilat')?.label ?? 'Eilat';
+  report.expectations = { expected500, expectedPerKg, expected1000, expected1000Eilat, expected500Eilat, bestVendor: best.vendor.name };
+
+  if (fixtureServer) {
+    check('fixtures: CoffeeMan is the ranked fixture offer at ₪91.00 for 500 g',
+      best.vendor.name.includes('CoffeeMan') && best.totalIls === 91 && expected500 === '₪91.00',
+      `${best.vendor.name} ${expected500}`);
+    check('fixtures: Pucks stays unranked with unknown shipping',
+      api500.unrankable.some(quote => quote.vendor.name.includes('Pucks')) && /Shipping is not published before checkout/.test(unknownReasons),
+      unknownReasons);
+  }
+  check('api: ranked offer exists with a verified delivered total', Number.isFinite(best.totalIls) && best.shipping.certainty !== 'unknown', `${expected500} shipping=${best.shipping.certainty}`);
+
   await waitFor(() => fetch(`http://127.0.0.1:${PORT}/status`).then(r => r.json()).then(() => true).catch(() => false), 15_000, 'chromedriver start');
 
   session = await webdriver('POST', '/session', {
@@ -46,7 +108,7 @@ try {
 
   // Desktop scenario.
   await wd('POST', '/window/rect', { width: 1440, height: 1000, x: 0, y: 0 });
-  await wd('POST', '/url', { url: `${BASE}/?grams=500&dest=tel-aviv` });
+  await wd('POST', '/url', { url: `${base}/?grams=500&dest=tel-aviv` });
   await waitForBoard(wd);
   const desktop = await evaluate(wd, `(() => ({
     bestVendor: document.querySelector('.best__vendor')?.textContent ?? null,
@@ -65,12 +127,15 @@ try {
     quantityPressed: [...document.querySelectorAll('#quantity-group button')].map(b => [b.textContent.trim(), b.getAttribute('aria-pressed')]),
     destinationOptions: [...document.querySelectorAll('#destination option')].map(o => o.textContent.trim())
   }))()`);
-  check('desktop: best vendor is CoffeeMan', /CoffeeMan/.test(desktop.bestVendor ?? ''), desktop.bestVendor);
-  check('desktop: delivered total for 500 g is ₪91.00', desktop.bestTotal === '₪91.00', desktop.bestTotal);
-  check('desktop: per-kilogram normalization is shown', /182/.test(desktop.perKg ?? ''), desktop.perKg);
-  check('desktop: stock status has a written label', desktop.statuses.includes('In stock (observed)'), desktop.statuses.join(' | '));
-  check('desktop: vendor link points at the product page', /coffeeman\.co\.il\/product\//.test(desktop.bestLink ?? ''), desktop.bestLink);
-  check('desktop: unknown-shipping offer stays visible with a plain-language reason', /Shipping is not published before checkout/.test(desktop.unknownReasons.join(' ')), desktop.unknownReasons[0]);
+  check('desktop: best vendor matches the API ranking', desktop.bestVendor === best.vendor.name, `${desktop.bestVendor} vs ${best.vendor.name}`);
+  check(`desktop: delivered total for 500 g is ${expected500}`, desktop.bestTotal === expected500, desktop.bestTotal);
+  check(`desktop: per-kilogram normalization shows ${expectedPerKg}`, (desktop.perKg ?? '').includes(`${expectedPerKg} per kilogram`), desktop.perKg);
+  check('desktop: stock status has a written label', desktop.statuses.includes(best.availabilityLabel), `${best.availabilityLabel} in [${desktop.statuses.join(' | ')}]`);
+  check('desktop: vendor link points at the API product page', desktop.bestLink === best.itemUrl, `${desktop.bestLink} vs ${best.itemUrl}`);
+  check('desktop: unknown-shipping offer stays visible with a plain-language reason',
+    /Shipping is not published before checkout/.test(desktop.unknownReasons.join(' ')) && desktop.unknownVendors.length === api500.unrankable.length + api500.staleOrUnavailable.length,
+    desktop.unknownReasons[0]);
+  check('desktop: pickup is displayed separately from delivery', desktop.pickupRows === api500.pickup.length && api500.pickup.length >= 1, `rows=${desktop.pickupRows} api=${api500.pickup.length}`);
   check('desktop: destination selector lists Israeli localities', desktop.destinationOptions.length >= 5, desktop.destinationOptions.join(' | '));
   check('desktop: quantity control marks 500 g pressed', desktop.quantityPressed.some(([label, pressed]) => label === '500 g' && pressed === 'true'), desktop.quantityPressed.join(' | '));
   check('desktop: no emoji in visible text', !EMOJI.test(desktop.visibleText), 'emoji scan');
@@ -81,21 +146,21 @@ try {
   // Quantity interaction: click "1 kg".
   const kgButton = await wd('POST', '/element', { using: 'css selector', value: '#quantity-group button[data-grams="1000"]' });
   await wd('POST', `/element/${elementId(kgButton)}/click`, {});
-  await waitForPage(wd, `document.querySelector('.best__total')?.textContent === '₪157.00'`, 15_000, 'quantity update to 1 kg', `({total: document.querySelector('.best__total')?.textContent ?? null, search: location.search, pressed: [...document.querySelectorAll('#quantity-group button')].map(b => b.getAttribute('aria-pressed'))})`);
+  await waitForPage(wd, `document.querySelector('.best__total')?.textContent === ${JSON.stringify(expected1000)}`, 15_000, `quantity update to 1 kg (${expected1000})`, `({total: document.querySelector('.best__total')?.textContent ?? null, search: location.search, pressed: [...document.querySelectorAll('#quantity-group button')].map(b => b.getAttribute('aria-pressed'))})`);
   const kgState = await evaluate(wd, `({
     total: document.querySelector('.best__total')?.textContent,
     perKg: document.querySelector('.best__perkg')?.textContent,
     url: location.search
   })`);
-  check('interaction: 1 kg updates the delivered total to ₪157.00', kgState.total === '₪157.00', JSON.stringify(kgState));
-  check('interaction: per-kg price recalculated', /157/.test(kgState.perKg ?? ''), kgState.perKg);
+  check(`interaction: 1 kg updates the delivered total to ${expected1000}`, kgState.total === expected1000, JSON.stringify(kgState));
+  check('interaction: per-kg price recalculated for 1 kg', (kgState.perKg ?? '').includes(`${ils(api1000.best?.ilsPerKg)} per kilogram`), kgState.perKg);
   check('interaction: quantity is reflected in the shareable URL', /grams=1000/.test(kgState.url ?? ''), kgState.url);
 
   // Destination change.
   await evaluate(wd, `(() => { const select = document.getElementById('destination'); select.value = 'eilat'; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
-  await waitForPage(wd, `document.querySelector('.section__intro')?.textContent.includes('Eilat')`, 15_000, 'destination update');
+  await waitForPage(wd, `document.querySelector('.section__intro')?.textContent.includes(${JSON.stringify(eilatLabel)})`, 15_000, 'destination update');
   const eilat = await evaluate(wd, `({ intro: document.querySelector('.section__intro')?.textContent, total: document.querySelector('.best__total')?.textContent })`);
-  check('interaction: destination change recalculates for Eilat', /Eilat/.test(eilat.intro ?? ''), eilat.intro);
+  check(`interaction: destination change recalculates for ${eilatLabel}`, /Eilat/.test(eilat.intro ?? '') && eilat.total === expected1000Eilat, `${eilat.intro} · ${eilat.total} vs ${expected1000Eilat}`);
 
   // Unknown toggle.
   await evaluate(wd, `(() => { const box = document.getElementById('show-unknown'); box.checked = false; box.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
@@ -116,13 +181,13 @@ try {
   check('keyboard: Tab moves focus to the next quantity button', keyboard.tag === 'BUTTON' && keyboard.label === '500 g', JSON.stringify(keyboard));
   check('keyboard: focused control shows a visible outline', keyboard.outlineStyle !== 'none' && parseFloat(keyboard.outlineWidth) >= 2, `${keyboard.outlineStyle} ${keyboard.outlineWidth}`);
   await wd('POST', '/actions', { actions: [{ type: 'key', id: 'keyboard', actions: [{ type: 'keyDown', value: '\uE007' }, { type: 'keyUp', value: '\uE007' }] }] });
-  await waitForPage(wd, `document.querySelector('.best__total')?.textContent === '₪91.00'`, 15_000, 'keyboard activation of the 500 g quantity', `({total: document.querySelector('.best__total')?.textContent ?? null, search: location.search})`);
-  check('keyboard: Enter activates the focused quantity and updates the total', true, 'total ₪91.00');
+  await waitForPage(wd, `document.querySelector('.best__total')?.textContent === ${JSON.stringify(expected500Eilat)}`, 15_000, `keyboard activation of the 500 g quantity (${expected500Eilat} to ${eilatLabel})`, `({total: document.querySelector('.best__total')?.textContent ?? null, search: location.search})`);
+  check('keyboard: Enter activates the focused quantity and updates the total', true, `total ${expected500Eilat}`);
   await wd('DELETE', '/actions');
 
   // Mobile scenario.
   await wd('POST', '/window/rect', { width: 390, height: 844, x: 0, y: 0 });
-  await wd('POST', '/url', { url: `${BASE}/?grams=500&dest=tel-aviv` });
+  await wd('POST', '/url', { url: `${base}/?grams=500&dest=tel-aviv` });
   await waitForBoard(wd);
   const mobile = await evaluate(wd, `(() => {
     const rect = document.querySelector('.best').getBoundingClientRect();
@@ -151,6 +216,7 @@ try {
   console.error('browser QA error:', error);
 } finally {
   chrome.kill('SIGTERM');
+  if (fixtureServer) await fixtureServer.close();
   report.finishedAt = new Date().toISOString();
   report.failed = !report.checks.every(item => item.ok) || Boolean(report.error);
   await mkdir(OUT, { recursive: true });
@@ -158,6 +224,16 @@ try {
   console.log(`\n${report.checks.filter(c => c.ok).length}/${report.checks.length} checks passed; report: ${OUT}/report.json`);
   // Explicit exit so a lingering browser/driver child handle cannot keep the runner busy.
   process.exit(report.failed ? 1 : 0);
+}
+
+async function fetchJson(url) {
+  const response = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+  if (!response.ok) throw new Error(`GET ${url} -> ${response.status}`);
+  return response.json();
+}
+
+function fetchBoard(baseUrl, grams, dest) {
+  return fetchJson(`${baseUrl}/api/board?grams=${grams}&dest=${encodeURIComponent(dest)}&variant=classico`);
 }
 
 async function webdriver(method, path, body) {

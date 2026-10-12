@@ -44,12 +44,13 @@ so it is treated as unknown, not free". FX reference table from the Bank of Isra
 ## Verification performed (2026-10-12, all local)
 
 1. `npm ci --ignore-scripts` — clean install from the pinned lockfile, 0 vulnerabilities.
-2. `npm run verify` — 37/37 `node:test` cases pass, then `wrangler deploy --dry-run` builds the Worker
+2. `npm run verify` — 39/39 `node:test` cases pass, then `wrangler deploy --dry-run` builds the Worker
    bundle with no Cloudflare credential (54.60 KiB, gzip 14.89 KiB; bindings `BOARD` + `ASSETS` shown).
    Covered acceptance cases include: shipping changes the winner; unknown shipping cannot win;
    stale/out-of-stock/unknown availability stay unranked; variants and multipacks stay separate;
    quantity rounding, minimum order and free-shipping thresholds; missing FX is not zero; destination
-   coverage; pickup separated; leases; backoff; allowlist.
+   coverage; pickup separated; leases; backoff; allowlist; and the fixture-backed QA server keeping the
+   browser harness aligned with the production quote engine.
 3. `npm run check:sources` (live) — CoffeeMan and Pucks both PASS against the real pages at
    11:04 UTC. The same adapters and bounded fetcher fetched both pages again during the local scheduled
    refresh at 11:20 UTC and parsed identically.
@@ -61,12 +62,20 @@ so it is treated as unknown, not free". FX reference table from the Bank of Isra
    3 bounded requests, both vendors saved, `nextAttemptAt` +6 h, and persisted `lastRefreshAt`. A second
    scheduled trigger made 0 requests and skipped both vendors on backoff. `/api/board` then served the
    ranked board from storage. This is the refresh-while-no-browser-open path.
-7. `npm run qa:browser` — headless Chrome (chromedriver 154) QA: **23/23 checks pass**, exit 0, desktop
-   1440 px and mobile 390 px, screenshots and JSON report in `.shurik-local/qa/`. Checks include:
-   best delivered total and per-kg math, written stock labels, unknown-shipping reason, destination and
-   quantity controls, shareable URL updates, keyboard Tab focus with a visible 3 px focus outline and
-   Enter activation, Hebrew text isolated with `dir="auto"`, no emoji anywhere in the visible text, no
-   horizontal overflow, and 44 px touch targets on mobile.
+7. `npm run qa:browser` — headless Chrome (chromedriver 154) QA: **27/27 checks pass offline, exit 0**,
+   desktop 1440 px and mobile 390 px, screenshots and JSON report in `.shurik-local/qa/`. The command is
+   self-contained: it starts `scripts/qa-server.mjs` on an ephemeral port, which serves `public/` plus the
+   read-only API computed from `tests/fixtures/` by the production quote engine, so no Worker, network or
+   vendor site is needed. Expectations are derived from the API response (not hard-coded prices). Checks
+   include: best delivered total and per-kg math, written stock labels, unknown-shipping reason, pickup
+   shown separately, destination and quantity controls, shareable URL updates, keyboard Tab focus with a
+   visible 3 px focus outline and Enter activation, Hebrew text isolated with `dir="auto"`, no emoji
+   anywhere in the visible text, no horizontal overflow, and 44 px touch targets on mobile.
+   Live mode (`npm run qa:browser -- http://127.0.0.1:8789`) passed **25/25** against a real
+   `wrangler dev` Worker on 2026-10-12 11:32 UTC (fixture-only checks are skipped in live mode). That run
+   also re-verified the no-browser refresh path: `/health` started the initial refresh (3 bounded requests,
+   both vendors saved, `nextAttemptAt` +6 h, FX fetched), and a following
+   `/cdn-cgi/local/scheduled` made 0 requests and skipped both vendors on backoff.
 
 This iteration (3-49) fixed three real defects found by the new QA: quantity buttons were dead because
 `el()` registered `addEventListener('Click')` instead of `click`; the browser QA harness misread the
@@ -74,9 +83,18 @@ W3C element id, never polled page conditions (`waitFor` misuse) and deleted the 
 Hebrew vendor/product names were not direction-isolated. Added `npm run check:sources` and
 `npm run qa:browser` for repeatable evidence.
 
+This iteration (3-50) made the browser QA repeatable. It previously failed with `ERR_CONNECTION_REFUSED`
+on a clean checkout because it assumed a dev server already on port 8789 and compared the DOM to
+hard-coded live prices. Now `npm run qa:browser` starts a fixture-backed server derived from the recorded
+vendor pages, and every UI expectation comes from the API response. Added `scripts/qa-server.mjs`,
+`tests/qa-server.test.js` and live-mode support, standardised `npm run dev` on the documented port 8789,
+and corrected the stale scaffold note in docs/ARCHITECTURE.md.
+
 Static evidence snapshots are committed for review: `docs/evidence/source-check-2026-10-12T1104Z.json`
-(live adapter observations) and `docs/evidence/runtime-and-browser-qa-2026-10-12.json` (scheduled-run
-records and the 23 browser QA checks). They are historical evidence, not live data.
+(live adapter observations), `docs/evidence/browser-qa-fixtures-2026-10-12T1135Z.json` (27 offline browser
+checks), `docs/evidence/browser-qa-live-2026-10-12T1133Z.json` (25 live browser checks) and
+`docs/evidence/worker-runtime-status-2026-10-12T1133Z.json` (initial-refresh and backoff run records from
+the local Worker). They are historical evidence, not live data.
 
 ## Repository and security checks
 
@@ -106,6 +124,8 @@ records and the 23 browser QA checks). They are historical evidence, not live da
 
 - Model/provider: opencode-go / deepseek-v4.1-flash at max reasoning (owner-authorized). Iterations
   2-45…2-47 hit provider 429 "Endpoint is unavailable" before any work landed; session 3-48 timed out
-  mid vendor research, but its checkpoints are preserved. This iteration ran normally.
-- Next useful task for the loop: add a third vendor adapter only with evidenced Israeli delivery, keep
-  `npm run check:sources` green against live pages, and re-run `npm run qa:browser` after UI changes.
+  mid vendor research, but its checkpoints are preserved. Iterations 3-49 and 3-50 ran normally.
+- Next useful task for the loop: add a third vendor adapter only with evidenced Israeli delivery (or one
+  public, permitted international listing with documented IL shipping) so the board shows more than one
+  ranked delivered offer; keep `npm run check:sources` green against live pages and re-run
+  `npm run qa:browser` after any UI change.

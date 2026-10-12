@@ -34,8 +34,16 @@ npm run cron:local      # full refresh pipeline against the live vendor pages
 npm run dev             # local Worker with a local SQLite Durable Object
 ```
 
-With `npm run dev` running, `npm run qa:browser http://127.0.0.1:8789` drives headless Chrome through the
-desktop and mobile board. The verification build is Wrangler deploy --dry-run and does not publish to
-Cloudflare.
+With `npm run dev` running on port 8789, browser QA is self-contained and offline by default:
+
+```sh
+npm run qa:browser                            # fixture server + headless Chrome, no network
+npm run qa:browser -- http://127.0.0.1:8789   # live: QA a running local Worker
+```
+
+The default mode serves `public/` plus fixture-backed API responses from `scripts/qa-server.mjs`, drives
+headless Chrome through the desktop and mobile board, and derives expected totals from the API. The live
+mode checks the same UI against a Worker you started. The verification build is `wrangler deploy --dry-run`
+and does not publish to Cloudflare.
 
 For a reusable Codex workspace, follow the [Codex Cloud setup](docs/CODEX_CLOUD.md).
