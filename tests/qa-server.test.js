@@ -129,3 +129,41 @@ test('QA fixture server serves the board API and static assets offline', async (
     await server.close();
   }
 });
+
+test('a historical retired row cannot make the fixture board look fresh', async () => {
+  const now = Date.parse('2026-10-12T11:00:00.000Z');
+  const server = await startQaServer({ port: 0, now, interruptedRefresh: true });
+  try {
+    // Every tracked offer is 30 hours old; the retired historical row is newer and
+    // must not become the freshness anchor for the single-product board.
+    for (const observation of server.observations) {
+      observation.observedAt = new Date(now - 30 * 60 * 60 * 1000).toISOString();
+    }
+    server.observations.push({
+      key: 'coffeeman:offer:qualita-oro-historical',
+      vendor: { id: 'coffeeman', name: 'CoffeeMan (אמיגו)' },
+      itemUrl: 'https://www.coffeeman.co.il/product/retired-historical',
+      product: {
+        productId: 'lavazza-qualita-oro-vacuum-ground',
+        name: 'Retired historical listing',
+        form: 'ground',
+        variantId: 'unspecified',
+        packGrams: 250,
+        packCount: 1,
+        totalGrams: 250
+      },
+      price: { amount: 37, currency: 'ILS' },
+      availability: 'in_stock',
+      observedAt: new Date(now - 60 * 60 * 1000).toISOString()
+    });
+
+    const board = await (await fetch(`${server.url}/api/board?grams=500&dest=tel-aviv`)).json();
+    assert.equal(board.freshness.lastObservationAt, new Date(now - 30 * 60 * 60 * 1000).toISOString());
+    assert.equal(board.freshness.stale, true, 'the retired row cannot mask a stalled tracked board');
+    assert.equal(board.counts.observed, 4, 'only the tracked Classico rows are quoted');
+    assert.equal(board.counts.excludedByVariant, 1, 'the unstated-variant tracked row stays out of the Classico ranking');
+    assert.ok(!JSON.stringify(board).includes('Retired historical listing'), 'the retired row never reaches the board payload');
+  } finally {
+    await server.close();
+  }
+});

@@ -28,6 +28,9 @@ import { readFixtureForUrl } from '../tests/fixtures/vendor-fixtures.mjs';
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PUBLIC_DIR = resolve(ROOT, 'public');
 const PUBLIC_CACHE = 'public, max-age=300, stale-while-revalidate=3600';
+// Mirror the Worker: freshness only counts observations for product lines that are
+// still tracked, so a historical retired row can never make the fixture board look fresh.
+const TRACKED_PRODUCT_IDS = products.map(product => product.id);
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -172,7 +175,7 @@ async function handle(request, response, { observations, now, withTermsDemo, las
       product: publicProducts().find(item => item.id === product.id) ?? null,
       requestedRetiredProduct: retired ? { id: retired.id, line: retired.line } : null,
       freshness: {
-        ...refreshFreshness(lastRefreshAt, now, newestObservationAt(observations)),
+        ...refreshFreshness(lastRefreshAt, now, newestObservationAt(observations, TRACKED_PRODUCT_IDS)),
         fx: null,
         vendors: registeredVendors().map(vendor => ({
           vendorId: vendor.id,

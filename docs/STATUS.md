@@ -32,7 +32,7 @@ first independently verified production refresh from the runner. Iteration 3-62 
 that runtime: because a vendor's stored due time is `run time + 6 h` while the cron fires at fixed clock
 times, a tick landing seconds early skipped every vendor and would silently drift the cadence to twelve
 hours (with the board reporting stale for hours between runs). Successful vendors now count as due up to
-15 minutes early; failure backoff stays strict. The fix is locally verified (**89/89** tests, fixture
+15 minutes early; failure backoff stays strict. The fix is locally verified (**90/90** tests, fixture
 refresh, **57/57** offline browser checks) and waits for the next main-push deployment.
 
 The 2026-10-12 owner correction retired Qualità Oro, Qualità Rossa, Suerte and every other Lavazza
@@ -314,13 +314,15 @@ labels and the next-source-check footer line, recorded in
     that alternates into a twelve-hour refresh cadence, and the board (stale after eight hours) would
     report stale for hours between runs. `isVendorDue()` now counts a vendor with no consecutive failures
     as due up to `EARLY_DUE_TOLERANCE_MS` (15 minutes) early; vendors inside a failure backoff keep their
-    strict due time, so backoff is not weakened. `npm run verify` — **89/89** `node:test` cases pass (two
-    new: the early-due rule, and a cron tick 30 seconds before the six-hour mark refreshing all three
-    vendors and saving observations), then `wrangler deploy --dry-run` builds the bundle (79.00 KiB,
-    gzip 20.17 KiB; bindings `BOARD` + `ASSETS`). `npm run cron:offline` — **6 bounded requests**, five
+    strict due time, so backoff is not weakened. `npm run verify` — **90/90** `node:test` cases pass (three
+    new: the early-due rule, a cron tick 30 seconds before the six-hour mark refreshing all three vendors
+    and saving observations, and a fixture-QA-server check that a historical retired row cannot anchor the
+    offline board's freshness). The fixture QA server now applies the same tracked-product freshness
+    filter as the Worker, so the browser harness verifies production behavior. `wrangler deploy --dry-run`
+    then builds the bundle (79.00 KiB, gzip 20.17 KiB; bindings `BOARD` + `ASSETS`). `npm run cron:offline` — **6 bounded requests**, five
     offers persisted, `pruned: 0`. `npm run qa:browser` — **57/57** offline checks pass. The reproduced
     before/after pipeline scenario (successful run at 00:17:20Z, next tick at 06:17:00Z, 20 s before the
-    stored due times) is recorded in `docs/evidence/cron-phase-lock-20261012T163342Z.json`: the pre-fix
+    stored due times) is recorded in `docs/evidence/cron-phase-lock-20261012T163945Z.json`: the pre-fix
     `refresh.js` from commit 0f8ccae makes **1** request, skips all three vendors and saves **0**
     observations on the tick, while the fixed code makes **6** requests, skips none and saves all three.
     The fixed pipeline was then exercised live: `npm run cron:local -- --fresh` ran 16:34:59.732Z →
@@ -358,7 +360,7 @@ skipping. Report any Cloudflare error back to the loop without pasting credentia
 
 Current-scope evidence (committed for review, not live data):
 
-- `docs/evidence/cron-phase-lock-20261012T163342Z.json` — the 3-62 cron phase-lock reproduction: the
+- `docs/evidence/cron-phase-lock-20261012T163945Z.json` — the 3-62 cron phase-lock reproduction: the
   pre-fix `refresh.js` (commit 0f8ccae) and the fixed code each run the real fixture pipeline through a
   successful 00:17:20Z refresh and the 06:17:00Z cron tick 20 s before the stored due times. Pre-fix: 1
   request, 3 vendors skipped, 0 observations saved, no production completion marker. Fixed: 6 requests,
@@ -604,7 +606,7 @@ any adapter.
   reproduced and fixed the cron phase-lock that would have drifted the production cadence to twelve hours
   (successful vendors now count as due up to 15 minutes before their stored due time, failure backoff
   stays strict), with pre-fix/fixed pipeline evidence in
-  `docs/evidence/cron-phase-lock-20261012T163342Z.json`.
+  `docs/evidence/cron-phase-lock-20261012T163945Z.json`.
 - Next useful task for the loop: improve only Crema e Gusto coverage, shipping evidence, freshness and
   comparison quality. Candidates, in order: (a) once the 3-62 push is deployed, observe the production
   cron ticks with read-only `/api/status` GETs and confirm a `cron`-triggered run saves observations and

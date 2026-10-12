@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-12T16:33:42.560Z",
+  "capturedAt": "2026-10-12T16:39:45.689Z",
   "iteration": "3-62",
   "defect": "Cron phase lock: a successful run stores nextAttemptAt = run start + 6 h, but the cron fires at fixed clock times (17 */6 * * *). A tick landing seconds before the due time skipped every vendor; the run saved no observations and did not advance lastRefreshAt, so the refresh cadence drifted from six to twelve hours and the board (stale after 8 h) reported stale for hours between runs.",
   "scenario": {
@@ -39,10 +39,11 @@
     "tests/refresh.test.js: a successful vendor counts as due a little before its stored due time",
     "tests/refresh.test.js: a cron tick just before the six-hour mark refreshes instead of skipping every vendor",
     "tests/refresh.test.js: repeated failures back off and stop re-fetching the broken vendor (strict backoff unchanged)",
-    "tests/refresh.test.js: a run that only refreshes the FX table does not claim a completed offer refresh"
+    "tests/refresh.test.js: a run that only refreshes the FX table does not claim a completed offer refresh",
+    "tests/qa-server.test.js: a historical retired row cannot make the fixture board look fresh (the QA server now mirrors the Worker freshness filter)"
   ],
   "verification": {
-    "npm run verify": "89/89 node:test cases pass; wrangler deploy --dry-run builds the Worker bundle (79.00 KiB, gzip 20.17 KiB; bindings BOARD + ASSETS)",
+    "npm run verify": "90/90 node:test cases pass; wrangler deploy --dry-run builds the Worker bundle (79.00 KiB, gzip 20.17 KiB; bindings BOARD + ASSETS)",
     "npm run cron:offline": "6 bounded requests, all three vendors saved (CoffeeMan 3, Pucks 1, Coffee4U 1), five offers persisted, pruned 0",
     "npm run qa:browser": "57/57 offline browser checks pass"
   }
