@@ -126,6 +126,7 @@ export function parsePucksProduct(html, { now, url = PRODUCT_URL, productId = nu
       certainty: pucksHomeDeliveryPolicy.certainty,
       amount: { ...pucksHomeDeliveryPolicy.rule.amount },
       freeThreshold: { ...pucksHomeDeliveryPolicy.rule.freeThreshold },
+      freeThresholdSemantics: pucksHomeDeliveryPolicy.rule.thresholdSemantics,
       destination: { ...pucksHomeDeliveryPolicy.destination },
       note: shippingNote === 'Shipping is calculated at checkout'
         ? `${PUCKS_CHECKOUT_SHIPPING.note} The product page still says shipping is calculated at checkout.`

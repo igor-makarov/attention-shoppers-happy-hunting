@@ -129,6 +129,26 @@ test('a newer policy version applies immediately without waiting for the next it
   assert.equal(board.shippingPolicies[0].observedAt, '2026-10-12T13:30:00Z');
 });
 
+test('the vendor boundary wording decides the free-shipping comparison', () => {
+  // 4 × ₪25 = exactly the ₪100 threshold at 1 kg. "above ₪100" does not include
+  // the boundary itself, so the ₪30 fee stays; "at least ₪100" makes it free.
+  const above = quote([oldPersistedPucksObservation({ price: { amount: 25, currency: 'ILS' } })], { targetGrams: 1000 });
+  assert.equal(above.best.itemTotalIls, 100);
+  assert.equal(above.best.shipping.freeThresholdSemantics, 'above');
+  assert.equal(above.best.shipping.amountIls, 30, 'the exact threshold is not silently treated as free');
+  assert.equal(above.best.totalIls, 130);
+
+  const atLeastPolicy = {
+    ...pucksHomeDeliveryPolicy,
+    id: 'pucks-il-home-delivery-at-least',
+    rule: { ...pucksHomeDeliveryPolicy.rule, thresholdSemantics: 'at_least' }
+  };
+  const atLeast = quote([oldPersistedPucksObservation({ price: { amount: 25, currency: 'ILS' } })], { targetGrams: 1000, policies: [atLeastPolicy] });
+  assert.equal(atLeast.best.shipping.freeThresholdSemantics, 'at_least');
+  assert.equal(atLeast.best.shipping.amountIls, 0, 'a recorded "at least" wording keeps the inclusive comparison');
+  assert.equal(atLeast.best.totalIls, 100);
+});
+
 test('an expired policy stops applying and the offer falls back to explicit unknown shipping', () => {
   const expired = { ...pucksHomeDeliveryPolicy, reviewBy: '2026-10-01T00:00:00.000Z' };
   const resolved = resolveShippingPolicy({ observation: oldPersistedPucksObservation(), policies: [expired], now: NOW });

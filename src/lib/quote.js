@@ -216,6 +216,10 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
       amountIls: null,
       freeThreshold: shipping.freeThreshold?.amount ?? null,
       freeThresholdCurrency: shipping.freeThreshold?.currency ?? null,
+      // The vendor's own wording decides the boundary: "above ₪100" is strictly
+      // greater than the threshold, "from/at least ₪100" is greater-or-equal.
+      // The default only applies when no wording was recorded.
+      freeThresholdSemantics: shipping.freeThresholdSemantics ?? shipping.policy?.thresholdSemantics ?? 'at_least',
       minOrder: shipping.minOrder?.amount ?? null,
       minOrderCurrency: shipping.minOrder?.currency ?? null,
       destination: shipping.destination ?? { scope: 'country', country: 'IL' },
@@ -357,9 +361,15 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
 
   if (shipping.freeThreshold != null) {
     const threshold = toIls(shipping.freeThreshold.amount, shipping.freeThreshold.currency, fx);
-    if (threshold.known && base.itemTotalIls >= threshold.amount - 0.005) {
+    // "above ₪100" means the ₪100 boundary itself is not free; only a strictly
+    // larger item subtotal is. Never silently relax the vendor's wording.
+    const semantics = base.shipping.freeThresholdSemantics;
+    const met = threshold.known && (semantics === 'above'
+      ? base.itemTotalIls > threshold.amount + 0.005
+      : base.itemTotalIls >= threshold.amount - 0.005);
+    if (met) {
       shippingIls = 0;
-      base.labels.push(`Free shipping threshold met (${formatAmount(threshold.amount, 'ILS')})`);
+      base.labels.push(`Free shipping threshold met (${semantics === 'above' ? 'above' : 'from'} ${formatAmount(threshold.amount, 'ILS')})`);
     }
   }
 

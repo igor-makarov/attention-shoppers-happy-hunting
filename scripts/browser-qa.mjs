@@ -245,7 +245,7 @@ try {
   })()`);
   check('disclosure: opening the best offer details shows its conditions and full coverage terms',
     deliveryOpened === true && delivery.open === true
-      && delivery.conditions.some(text => /Free shipping from ₪100.00 item subtotal/.test(text))
+      && delivery.conditions.some(text => /Free shipping above ₪100.00 item subtotal/.test(text))
       && delivery.caveats.length === 1
       && delivery.caveats[0].includes(best.shipping.coverageCaveat ?? 'never'),
     JSON.stringify({ conditions: delivery.conditions, caveats: delivery.caveats.length }));

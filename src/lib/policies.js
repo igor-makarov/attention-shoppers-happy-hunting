@@ -187,6 +187,12 @@ export function enrichObservationShipping(observation, options = {}) {
     shipping.freeThreshold = { ...policy.rule.freeThreshold };
     changed = true;
   }
+  // Keep the vendor's boundary wording attached to the threshold it belongs to,
+  // so "above ₪100" is never silently evaluated as "at least ₪100".
+  if (shipping.freeThresholdSemantics == null && shipping.freeThreshold != null && policy.rule?.thresholdSemantics) {
+    shipping.freeThresholdSemantics = policy.rule.thresholdSemantics;
+    changed = true;
+  }
   if (shipping.minOrder == null && policy.rule?.minOrder?.amount != null) {
     shipping.minOrder = { ...policy.rule.minOrder };
     changed = true;

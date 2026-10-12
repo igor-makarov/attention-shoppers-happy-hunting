@@ -184,9 +184,13 @@ export function conditionsList(quote, destinationLabelFn = id => id) {
   const shipping = quote.shipping ?? {};
   const items = [];
   if (shipping.freeThreshold != null) {
-    items.push(quote.itemTotalIls != null && quote.itemTotalIls >= shipping.freeThreshold
-      ? `Free-shipping threshold met (from ${money(shipping.freeThreshold)})`
-      : `Free shipping from ${money(shipping.freeThreshold)} item subtotal`);
+    const wording = shipping.freeThresholdSemantics === 'above' ? 'above' : 'from';
+    const met = quote.itemTotalIls != null && (shipping.freeThresholdSemantics === 'above'
+      ? quote.itemTotalIls > shipping.freeThreshold + 0.005
+      : quote.itemTotalIls >= shipping.freeThreshold - 0.005);
+    items.push(met
+      ? `Free-shipping threshold met (${wording} ${money(shipping.freeThreshold)})`
+      : `Free shipping ${wording} ${money(shipping.freeThreshold)} item subtotal`);
   }
   if (shipping.minOrder != null) items.push(`Minimum order ${money(shipping.minOrder)}`);
   const coverage = shipping.destination;
