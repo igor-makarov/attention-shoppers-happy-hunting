@@ -1,0 +1,71 @@
+{
+  "kind": "layout-review",
+  "topic": "Before/after review of the revised shopping board (compact pickup rows + conditional checkout-rate label)",
+  "date": "2026-10-12",
+  "observedAt": "2026-10-12T19:33:00Z to 2026-10-12T19:38:00Z",
+  "method": "Headless Google Chrome 154 full-height viewport screenshots of the local fixture QA server (production front-end code, recorded fixtures) plus DOM geometry through scripts/browser-research.mjs. Screenshots were then inspected with scripts/inspect-screenshot.mjs, which decodes the PNG with node:zlib and prints (a) a coarse luminance character map and (b) a design-token pixel report (Canton Zürich blue/soft-blue/green/red/amber, muted text, dividers). This is a layout/density/colour-region review, not OCR: all prices and labels are verified from the rendered DOM text and the API payloads, and the QA harness separately checks rendered-text contrast (WCAG AA) and horizontal overflow.",
+  "toolingLimitation": "The coding agent's file-read tool rejects PNG input ('reading images is not supported'), so the model cannot see the screenshots directly. scripts/inspect-screenshot.mjs is the workaround: it exposes layout blocks, whitespace, density and colour regions at coarse resolution. Small text is not legible in the character map, so no claim of image-based reading of individual labels is made.",
+  "before": {
+    "description": "Fixture board before the 3-70 pickup compaction (same data, same front-end otherwise).",
+    "desktop1440": {
+      "screenshot": "before-1440-20261012T1933Z.png",
+      "window": [1440, 2600],
+      "contentHeightPx": 2599
+    },
+    "mobile390": {
+      "screenshot": "before-390-20261012T1933Z.png",
+      "window": [390, 6000],
+      "contentHeightPx": 5627,
+      "pickupRowHeightsPx": [401, 420, 421]
+    }
+  },
+  "after": {
+    "description": "Fixture board with the 3-70 changes: compact pickup rows, 'Checkout rate (observed, conditional)' label, conditional missing-rate copy.",
+    "desktop1440": {
+      "screenshot": "after-1440-20261012T1938Z.png",
+      "window": [1440, 3600],
+      "contentHeightPx": 3283,
+      "scrollHeightPx": 3325,
+      "horizontalOverflow": false,
+      "bestCardTopPx": 484,
+      "totalsCellRects": [[140, 523, 618], [523, 906, 618], [906, 1290, 618]],
+      "note": "The three decision values (item subtotal / shipping / delivered total) sit in one row that ends at x=1290 inside the 1440 px viewport; the owner-reported b75e296 defect had 'Delivered total' at x=1641 inside a 1325 px container."
+    },
+    "mobile390": {
+      "screenshot": "after-390-20261012T1938Z.png",
+      "window": [390, 5600],
+      "contentHeightPx": 5047,
+      "scrollHeightPx": 5237,
+      "horizontalOverflow": false,
+      "bestCardTopPx": 952,
+      "pickupRowHeightsPx": [199, 218, 218],
+      "note": "The three pickup-only offers cost about half their former height and no longer repeat three separate three-cell cards. The best card starts 108 px below an 844 px first screen; the QA harness accepts this ('not pushed far below the first screen'), and the desktop first screen shows it at 484 px."
+    },
+    "paletteDesktop1440": {
+      "blue": 14144,
+      "softblue": 417997,
+      "green": 1683,
+      "greenSoft": 10134,
+      "red": 0,
+      "amber": 858,
+      "amberSoft": 139900,
+      "muted": 6841,
+      "divider": 42938,
+      "reading": "Soft-blue is confined to the best-offer panel/selected context, blue to rules, the selected control, the best tag and the delivered-total value, green to verified in-stock labels, amber to coverage/uncertainty text, and red is absent because the fixture board has no unavailable offer. No arbitrary vendor colouring was observed."
+    }
+  },
+  "asciiInspection": [
+    "Desktop hero and controls occupy the top ~430 px; the best card follows immediately and its three totals cells read as one aligned row with the blue total value.",
+    "Ranked offer cards stack below in a single column with consistent left alignment and one short conditions list each; pickup rows are visibly shorter and left-bordered.",
+    "Mobile: hero, single-column controls, then the best card; the three totals cells stack but stay inside the 390 px viewport with no horizontal overflow.",
+    "Footer disclosures stay compact and below the decision content."
+  ],
+  "screenshots": [
+    "before-1440-20261012T1933Z.png",
+    "before-390-20261012T1933Z.png",
+    "after-1440-20261012T1938Z.png",
+    "after-390-20261012T1938Z.png",
+    "production-1440-20261012.png",
+    "production-390-20261012.png"
+  ]
+}

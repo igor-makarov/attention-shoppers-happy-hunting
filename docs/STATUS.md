@@ -2,9 +2,11 @@
 
 Stage: **Crema e Gusto scope enforced; the Canton Zürich shopping board, the browser-researched
 shipping rates and the redesigned UI validated locally (95/95 tests, 81/81 offline and 77/77 live browser
-checks); production serves the redesigned assets and its stored observations pick up the researched rates
+checks); production serves the redesigned assets, the first production cron tick was observed at
+18:17:55 UTC (0 requests, exactly as expected) and its stored observations pick up the researched rates
 at the 00:17 UTC cron tick; a fresh 19:07-19:16 UTC browser session independently reproduced all three
-vendors' rendered shipping quotes.**
+vendors' rendered shipping quotes; iteration 3-70 labels cart-observed rates as conditional checkout
+rates and halves the pickup-row space.**
 The Worker implements the self-updating board for exactly one product line — **Lavazza Crema e Gusto
 vacuum-packed ground coffee** — with three independent Israeli vendor adapters and five observed
 listings. The owner reports the site deployed at
@@ -96,14 +98,16 @@ product line requires an explicit new owner instruction.
 - **Readable comparison rows**: every ranked row states its difference from the cheapest delivered total
   (`+₪58.00 vs best`; the best row says `Cheapest delivered total`, an equal total says
   `Same delivered total as best`), so the ranking is auditable without recomputing the arithmetic.
-- **Shipping evidence, honestly framed**: both ranked courier rates carry a structured coverage caveat
-  taken from the vendor's terms page — home delivery is subject to a locality list the product page does
-  not publish — so the board discloses the geographic restriction instead of claiming country-wide
-  delivery. Every rate is also labelled in words: `Published rate (verified)`, `Estimated rate` or
-  `Not published before checkout`. Availability and shipping evidence are stamped with the retrieval time
-  of the page they came from, and the best-offer card and comparison table show unit price × packs bought
-  = ILS line total so the delivered total is auditable. Pucks publishes no rate at all and keeps no
-  invented caveat.
+- **Shipping evidence, honestly framed**: each published or browser-observed rate carries a structured
+  coverage caveat where the vendor terms make home delivery subject to a locality list the product page
+  does not publish, so the board discloses the geographic restriction instead of claiming country-wide
+  delivery. Every rate is also labelled in words: `Published rate (verified)`, `Checkout rate (observed,
+  conditional)`, `Estimated rate` or `Not published before checkout`. Availability and shipping evidence
+  are stamped with the retrieval time of the page (or estimator) they came from, and the best-offer card
+  and comparison table show unit price × packs bought = ILS line total so the delivered total is
+  auditable. A cart-observed rate is never relabelled as published and is never stretched to an
+  unobserved cart size (the CoffeeMan 8-pack quote carries its 2000 g limit); a genuinely missing rate
+  keeps the `Not published before checkout` label and never becomes zero.
 - **Self-updating runtime**: `wrangler.jsonc` triggers `17 */6 * * *` (about every six hours); the first
   `/health` or `/api/board` after deployment starts one throttled initial refresh. Observations, vendor
   state, FX rates, run history and leases persist in the SQLite-backed `BoardStore` Durable Object. The
@@ -145,15 +149,19 @@ of the CoffeeMan 8-pack page and the Pucks cart again found no published shippin
 | --- | --- | --- | --- | --- | --- |
 | CoffeeMan (IL) | Crema e Gusto Classico 250 g ground, SKU 930333 | ₪33 (regular ₪36) | in stock (schema.org microdata) | ₪25 courier; free self-pickup | verified |
 | CoffeeMan (IL) | Crema e Gusto Classico 4 × 250 g ground, SKU 930334 | ₪124.00 | in stock | ₪25 courier; free self-pickup | verified |
-| CoffeeMan (IL) | Crema e Gusto Classico 8 × 250 g ground, SKU 930335 | ₪240.00 | in stock | courier price not published | unknown (unranked) |
-| Pucks (IL) | Crema e Gusto Classico 250 g ground, SKU Lav69, GTIN 8000070038769 | ₪30.00 | in stock (JSON-LD) | calculated at checkout | unknown (unranked) |
+| CoffeeMan (IL) | Crema e Gusto Classico 8 × 250 g ground, SKU 930335 | ₪240.00 | in stock | ₪20 home courier / ₪20 distribution-center / free self-pickup on the observed 2 kg cart | checkout_quote (conditional, cart ≤ 2000 g) |
+| Pucks (IL) | Crema e Gusto Classico 250 g ground, SKU Lav69, GTIN 8000070038769 | ₪30.00 | in stock (JSON-LD) | ₪30 home delivery, free above ₪100 item subtotal (observed 1-4 packs) | checkout_quote (conditional) |
 | Coffee4U (IL) | Crema e gusto 250 g ground, SKU 2010561, variant not stated | ₪38.00 | in stock (schema.org microdata) | ₪30 door-to-door courier; ₪15 pickup-point alternative; free self-pickup | verified |
 
-Both ranked courier rates (CoffeeMan ₪25, Coffee4U ₪30) carry the same disclosed caveat: the vendor terms
-make home delivery subject to a locality list that the product page does not publish, so the board shows a
-structured "Delivery coverage" caveat instead of claiming country-wide delivery. The caveat source URLs and
-the exact terms quotes are recorded in docs/SOURCES.md. Pucks publishes no rate, so no caveat is invented
-for it; its offer stays unranked.
+The two product-page courier rates (CoffeeMan ₪25, Coffee4U ₪30) and the two browser-researched
+estimator rates (Pucks ₪30 with the ₪100 free-shipping threshold, CoffeeMan 8-pack ₪20 with a 2000 g cart
+limit) each carry their disclosed caveat: the vendor terms make home delivery subject to a locality list
+that the product page does not publish, and the estimator rates were sampled for the recorded carts and
+localities, so the board shows a structured "Delivery coverage" caveat instead of claiming country-wide
+delivery. The estimator rates are stored as `checkout_quote` and rendered as **Checkout rate (observed,
+conditional)**, never as `Published rate (verified)`; the exact conditions live in the shipping evidence
+disclosure and docs/SOURCES.md. No rate is invented for an unobserved cart size: the 8-pack quote carries
+`maxTotalGrams: 2000`, so a larger cart stays unranked with the exact reason.
 
 Observed board results on the local Worker after the initial refresh on a fresh store (14:50 UTC, evidence
 `docs/evidence/worker-runtime-status-2026-10-12T1451Z.json`; the 3-59 re-run on a second fresh store at
@@ -166,9 +174,17 @@ labels and the next-source-check footer line, recorded in
 - **Crema e Gusto, 500 g to Tel Aviv**: best delivered total **₪91.00** = 2 × ₪33 + ₪25 shipping for
   CoffeeMan single packs (₪182.00/kg); the 4-pack is ranked second at ₪149.00. The Pucks ₪30 item and
   the 8-pack stay visible and unranked because shipping is not published before checkout / not published
-  at all, so neither is treated as free. Three pickup rows are shown separately.
+  at all, so neither is treated as free. Three pickup rows are shown separately. *(This was the state
+  before the researched estimator rates were integrated; the 3-70 run below supersedes it.)*
 - **Crema e Gusto, 1 kg to Tel Aviv**: the 4-pack wins at **₪149.00** against ₪157.00 for four single
-  packs, so the best choice changes with the shopper's quantity using only observed prices.
+  packs, so the best choice changes with the shopper's quantity using only observed prices. *(Pre-integration state.)*
+- **Crema e Gusto, 500 g / 1 kg / 2 kg to Tel Aviv after the estimator rates were integrated (3-70 live
+  run at 19:35 UTC, `docs/evidence/worker-runtime-status-2026-10-12T1941Z.json`)**: Pucks wins all three
+  targets with **₪90.00** (2 × ₪30 + ₪30) at 500 g, **₪120.00** (4 × ₪30, free-shipping threshold met) at
+  1 kg and **₪240.00** (8 × ₪30, free) at 2 kg; CoffeeMan's single pack (₪91.00), 4-pack (₪149.00) and
+  8-pack (₪260.00) stay ranked behind it, and the CoffeeMan 8-pack is the cheapest per kilogram at 500 g
+  (₪130.00/kg). All four ranked offers carry a written certainty label; there are zero unrankable offers
+  for the Classico variant and three separate pickup rows remain.
 - **Variant not stated, 500 g to Tel Aviv**: the Coffee4U offer ranks at **₪106.00** (₪212.00/kg) with
   the ₪15 pickup-point delivery shown as a labelled alternative service; at 250 g the same offer is
   **₪68.00** (₪272.00/kg). It is never merged into the Classico ranking, and the ranked rate keeps the
@@ -963,3 +979,70 @@ Other verification this iteration:
 **Next step:** after the 00:17 UTC tick, re-run `npm run probe:production` to confirm the researched rates
 reached the production store, then continue within Crema e Gusto coverage, shipping evidence, freshness
 and comparison quality.
+
+## Iteration 3-70 — conditional checkout-rate label, compact pickup rows, first production cron tick observed
+
+**First production cron tick observed (read-only).** `npm run probe:production` at 19:24:19 UTC passed
+**20/20** checks and the production run history now contains
+`cron(0 req, 2026-10-12T18:17:55.845Z)` alongside the 15:52:12.546Z initial refresh. That is the first
+independently observed firing of the `17 */6 * * *` trigger, and it behaved exactly as the 3-62/3-63
+analysis predicted: the tick landed while every vendor was inside its six-hour window, made **0**
+requests and did not advance `lastRefreshAt`. The stored observations are still the pre-research
+15:52 rows (Pucks and the CoffeeMan 8-pack still unranked in production), so the **00:17 UTC tick** is
+still the expected point where the researched rates reach the production store; the probe recorded the
+vendor due times (pucks 19:34, coffee4u 19:46, coffeeman 21:51 UTC), all before that tick. Evidence:
+`docs/evidence/production-probe-20261012T1924Z.json`.
+
+**Cart-observed rates are no longer called published rates.** The quote engine gained a fourth shipping
+certainty, `checkout_quote`, rendered as **Checkout rate (observed, conditional)**. The two
+browser-researched estimator rates (Pucks ₪30 with the ₪100 free-shipping threshold, CoffeeMan 8-pack
+₪20 with `maxTotalGrams: 2000`) now use it, while product-page rates (CoffeeMan ₪25, Coffee4U ₪30/₪15)
+keep `verified` / **Published rate (verified)**. The unrankable-offer card now shows the
+"Shipping not published" explanation only when the rate is genuinely unknown or absent, so a cart quote
+that is merely out of scope for the selected quantity keeps its own exact reason. One label test, one
+quote test, the parser/QA-server assertions, the browser QA Pucks expectation and the worker API
+assertion were updated; `docs/DESIGN.md` and `docs/SOURCES.md` document the distinction.
+
+**Pickup rows compacted.** The three pickup-only offers were three near-identical three-cell cards
+(~400-420 px each at 390 px) with the same note repeated per card. They are now one compact row each
+(vendor, pack/quantity, item subtotal, pickup fee, written "Delivered total: Not applicable") with the
+repeated terms behind a `Pickup terms` disclosure. Rendered mobile height for the five-offer fixture
+board dropped from **5627 px to 5047 px** and the pickup rows from **401/420/421 px to 199/218/218 px**,
+with the section still present, still out of the delivered ranking and still naming the fee and the
+missing delivered total.
+
+**Visual review with a new dependency-free inspector.** The coding agent's file-read tool still rejects
+PNG input, so `scripts/inspect-screenshot.mjs` was added: it decodes a PNG with `node:zlib`, prints a
+coarse luminance character map and reports pixel counts/bounding boxes for the Canton Zürich design
+tokens. Used on before/after full-height screenshots (1440 px and 390 px) it confirmed: soft-blue confined
+to the best-offer panel, blue to rules/selected control/best tag/delivered-total value, green to in-stock
+labels, amber to uncertainty, no red (no unavailable offer in the fixture board), no horizontal overflow,
+the three decision cells in one row ending at x=1290 inside 1440 px, and the compacted pickup section.
+Small text is not legible in the character map, so every amount/label claim remains backed by rendered
+DOM text and the API; the QA harness separately asserts WCAG AA rendered contrast. Evidence:
+`docs/evidence/visual-review/2026-10-12-revised-layout-review.json` plus before/after screenshots.
+
+**Verification runs (2026-10-12 UTC):**
+
+- `npm ci --ignore-scripts` — clean install from the pinned lockfile, 0 vulnerabilities.
+- `npm run verify` — **95/95** `node:test` cases pass; `wrangler deploy --dry-run` builds the bundle
+  (83.90 KiB, gzip 21.73 KiB; bindings `BOARD` + `ASSETS`).
+- `npm run qa:browser` — **81/81** offline checks pass against the fixture QA server.
+- `npm run qa:browser -- http://127.0.0.1:8789` — **77/77** live checks pass against a fresh-store
+  `wrangler dev` Worker with real vendor data and the new label/pickup markup, zero console errors.
+- Fresh-store `wrangler dev` initial refresh (19:35:29.524Z → 19:35:47.099Z): **6 bounded requests**,
+  all three vendors saved (CoffeeMan 3, Pucks 1, Coffee4U 1), five observations, Bank of Israel table;
+  the live board ranks Pucks **₪90** at 500 g, **₪120** at 1 kg and **₪240** at 2 kg, with the
+  CoffeeMan 8-pack at ₪260 and the Coffee4U unstated variant at ₪106. Evidence:
+  `docs/evidence/worker-runtime-status-2026-10-12T1941Z.json`.
+- `npm run check:sources` (live, 19:27 UTC) — all five listings pass with the researched rates:
+  Pucks ₪30 `checkout_quote`, CoffeeMan ₪25/₪25/₪20 (`verified`/`verified`/`checkout_quote`),
+  Coffee4U ₪30 `verified`. Evidence: `docs/evidence/source-check-20261012T1927Z.json`.
+
+**Docs:** `docs/SOURCES.md` now states the `verified` vs `checkout_quote` distinction for the researched
+rates and points to the new screenshot inspector; `docs/DESIGN.md` documents the conditional checkout-rate
+label and the compact pickup rows; this file records the first observed production cron tick.
+
+**Next step:** after the 00:17 UTC tick, re-run `npm run probe:production` to confirm the researched
+rates (and the new labels once this commit is deployed) reach the production store; then continue within
+Crema e Gusto coverage, shipping evidence, freshness and comparison quality.
