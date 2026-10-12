@@ -555,7 +555,10 @@ cases — the QA-server scenario and a partial per-offer failure through the rea
 ₪33/₪124/₪240/₪30/₪38 prices, stock and shipping evidence; `npm run cron:offline` — 6 bounded requests,
 five offers, `pruned: 0`; `npm run cron:local -- --fresh` (17:24 UTC) — 6 requests, five offers, all three
 vendors saved, USD 3.078 asOf 12:23:04Z; fresh-store `wrangler dev` initial refresh (17:19:32 → 17:19:50
-UTC, 6 requests, five observations, all three vendors); `npm run qa:browser` — **63/63** offline and
+UTC, 6 requests, five observations, all three vendors) and, in a second runtime pass, one local scheduled
+tick at 17:29:06 UTC that recorded a **0-request** run with all three vendors skipped and left
+`lastRefreshAt` at the 17:28:40.918Z initial refresh
+(`docs/evidence/worker-runtime-status-2026-10-12T1729Z-scheduled.json`); `npm run qa:browser` — **63/63** offline and
 **59/59** live against the local Worker, zero console errors. Evidence:
 `docs/evidence/browser-qa-fixtures-20261012T1723Z.json`,
 `docs/evidence/browser-qa-live-20261012T1722Z.json`, `docs/evidence/source-check-20261012T1722Z.json`.
