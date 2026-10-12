@@ -18,13 +18,16 @@ const BOI = {
   ]
 };
 
-function fixtureFetch({ overrides = {}, failCoffeeman = false, failFx = false, calls = [] } = {}) {
+function fixtureFetch({ overrides = {}, failCoffeeman = false, failVendors = [], failFx = false, calls = [] } = {}) {
   return async url => {
     calls.push(String(url));
     if (String(url).includes("boi.org.il")) {
       return failFx ? new Response("fx down", { status: 500 }) : Response.json(BOI);
     }
     if (failCoffeeman && String(url).includes("coffeeman.co.il")) {
+      return new Response("vendor down", { status: 503 });
+    }
+    if (failVendors.some(vendor => String(url).includes(`${vendor}.co.il`))) {
       return new Response("vendor down", { status: 503 });
     }
     const hit = await readFixtureForUrl(url);
@@ -235,6 +238,64 @@ test('the production cron sequence keeps a six-hour cadence and recovers from th
   const runs = await store.listRuns(10);
   assert.equal(runs.filter(runEntry => runEntry.requests === 0).length, 1);
   assert.equal(runs.filter(runEntry => runEntry.requests === 6).length, 6, 'the initial run and the five on-phase ticks each fetched every offer');
+});
+
+test('a vendor failure inside the cron sequence keeps its previous good offer and recovers on the next due tick', async () => {
+  const store = createMemoryStore();
+  let simMs = Date.parse('2026-10-12T12:00:00.000Z');
+  const timeSource = () => simMs;
+  const tick = async (startIso, fetchImpl) => {
+    simMs = Date.parse(startIso);
+    return run({ store, fetchImpl, now: simMs, trigger: 'cron', timeSource, clock: () => simMs });
+  };
+
+  const first = await tick('2026-10-12T12:00:00.000Z', fixtureFetch());
+  assert.equal(first.vendors.every(vendor => vendor.ok), true);
+  const goodCoffeeman = (await store.snapshot()).observations.find(observation => observation.vendor.id === 'coffeeman' && observation.product.packCount === 1);
+  assert.equal(goodCoffeeman.price.amount, 33);
+
+  // The next tick: CoffeeMan is down, the other two vendors still refresh. The
+  // board must keep the previous good CoffeeMan observation (price, stock and
+  // observedAt) instead of erasing it, and the failed attempt is recorded.
+  const failing = await tick('2026-10-12T18:00:00.000Z', fixtureFetch({ failVendors: ['coffeeman'] }));
+  const coffeemanResult = failing.vendors.find(vendor => vendor.vendorId === 'coffeeman');
+  assert.equal(coffeemanResult.ok, false);
+  assert.equal(coffeemanResult.saved, 0);
+  assert.equal(failing.vendors.filter(vendor => (vendor.saved ?? 0) > 0).length, 2, 'the other two vendors are not blocked by the failure');
+  const keptCoffeeman = (await store.snapshot()).observations.find(observation => observation.vendor.id === 'coffeeman' && observation.product.packCount === 1);
+  assert.equal(keptCoffeeman.price.amount, 33, 'the previous good price is preserved');
+  assert.equal(keptCoffeeman.observedAt, goodCoffeeman.observedAt, 'the successful observation time is not overwritten');
+  assert.equal(keptCoffeeman.attemptedAt, '2026-10-12T18:00:00.000Z', 'the failed attempt is stamped separately');
+  assert.ok(keptCoffeeman.lastError, 'the failure reason is kept on the row');
+  const failedState = await store.getVendorState('coffeeman');
+  assert.equal(failedState.consecutiveFailures, 1);
+  assert.equal(Date.parse(failedState.nextAttemptAt), simMs + BACKOFF_BASE_MS, 'the failed vendor backs off, not the whole board');
+
+  const snapshot = await store.snapshot();
+  const board = quoteBoard({
+    observations: snapshot.observations,
+    productId: 'lavazza-crema-e-gusto-vacuum-ground',
+    variantId: 'classico',
+    targetGrams: 500,
+    destination: findDestination('tel-aviv'),
+    fx: snapshot.meta.fx,
+    now: simMs
+  });
+  assert.equal(board.best.vendor.id, 'coffeeman', 'the last known good observation still ranks');
+  assert.equal(board.best.totalIls, 91);
+  assert.equal(board.best.freshness, 'fresh');
+
+  // The next cron tick is six hours later, past the 30-minute backoff, so the
+  // recovered vendor saves again and resets its failure count.
+  const recovered = await tick('2026-10-13T00:00:00.000Z', fixtureFetch());
+  const recoveredResult = recovered.vendors.find(vendor => vendor.vendorId === 'coffeeman');
+  assert.equal(recoveredResult.ok, true);
+  assert.equal(recoveredResult.saved, 3);
+  const recoveredState = await store.getVendorState('coffeeman');
+  assert.equal(recoveredState.consecutiveFailures, 0);
+  const recoveredObservation = (await store.snapshot()).observations.find(observation => observation.vendor.id === 'coffeeman' && observation.product.packCount === 1);
+  assert.equal(recoveredObservation.previous.price.amount, 33, 'the recovered check still compares with the pre-failure price');
+  assert.equal(recoveredObservation.previous.observedAt, goodCoffeeman.observedAt);
 });
 
 test('a failing FX fetch keeps the previous rate table', async () => {
