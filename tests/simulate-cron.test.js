@@ -33,13 +33,14 @@ test('cron:offline simulation runs the full fixture pipeline twice in a row', as
 
     for (const [label, { report }] of [['first', first], ['second', second]]) {
       assert.equal(report.mode, 'offline fixtures', `${label} run mode`);
-      assert.equal(report.summary.requests, 15, `${label} run stays inside the request budget`);
+      assert.equal(report.summary.requests, 6, `${label} run stays inside the request budget`);
       assert.deepEqual(
         report.summary.vendors.map(vendor => [vendor.vendorId, vendor.saved, vendor.skipped ?? false]),
-        [['coffeeman', 8, false], ['pucks', 5, false], ['coffee4u', 1, false]],
+        [['coffeeman', 3, false], ['pucks', 1, false], ['coffee4u', 1, false]],
         `${label} run refreshes every vendor`
       );
-      assert.equal(report.offers.length, 14, `${label} run persists all fourteen tracked offers`);
+      assert.equal(report.offers.length, 5, `${label} run persists every tracked Crema e Gusto offer`);
+      assert.ok(report.offers.every(offer => offer.productId === 'lavazza-crema-e-gusto-vacuum-ground'), `${label} run stays on the tracked product line`);
       assert.ok(report.offers.every(offer => offer.observedAt === report.summary.startedAt), `${label} run observations are fresh`);
       assert.ok(report.fx?.usd?.rate > 0, `${label} run records an FX reference rate`);
     }
@@ -47,7 +48,7 @@ test('cron:offline simulation runs the full fixture pipeline twice in a row', as
     // The fixture run keeps its own state file so it can never consume the live
     // run's backoff window, and the state really is persisted between runs.
     const state = JSON.parse(await readFile(join(dir, '.shurik-local', 'board-offline.json'), 'utf8'));
-    assert.equal(state.observations.length, 14);
+    assert.equal(state.observations.length, 5);
     assert.equal(Object.keys(state.vendors).length, 3);
   } finally {
     await rm(dir, { recursive: true, force: true });

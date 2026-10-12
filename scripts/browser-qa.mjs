@@ -186,81 +186,47 @@ try {
   await waitForPage(wd, `document.querySelector('.best__vendor')?.textContent.includes('CoffeeMan')`, 15_000, 'restore classico ranking', `({vendor: document.querySelector('.best__vendor')?.textContent ?? null})`);
   await screenshot(wd, 'desktop-1440.png');
 
-  // Product selector: the second tracked product (Lavazza Qualità Oro) has its own board,
-  // its own default variant and its own winner, and it never mixes with the first product.
-  // The UI is still on 500 g / Tel Aviv at this point, so the expectation is read at the same settings.
-  const apiOro = await fetchBoard(base, 500, 'tel-aviv', 'unspecified', 'lavazza-qualita-oro-vacuum-ground');
-  const expectedOro = ils(apiOro.best?.totalIls);
-  await evaluate(wd, `(() => { const select = document.getElementById('product'); select.value = 'lavazza-qualita-oro-vacuum-ground'; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
-  await waitForPage(wd, `document.querySelector('.section__intro')?.textContent.includes('Qualità Oro')`, 15_000, 'product switch to Qualità Oro', `({intro: document.querySelector('.section__intro')?.textContent ?? null, product: document.getElementById('product')?.value ?? null})`);
-  const oro = await evaluate(wd, `({
-    intro: document.querySelector('.section__intro')?.textContent ?? null,
-    vendor: document.querySelector('.best__vendor')?.textContent ?? null,
-    total: document.querySelector('.best__total')?.textContent ?? null,
-    variantOptions: [...document.querySelectorAll('#variant option')].map(node => node.textContent.trim()),
-    variantValue: document.getElementById('variant')?.value ?? null,
-    productOptions: [...document.querySelectorAll('#product option')].map(node => node.textContent.trim()),
-    url: location.search,
-    tableRows: document.querySelectorAll('table.compare tbody tr').length
+  // Owner correction 2026-10-12: exactly one product line is tracked. The UI must not
+  // offer a picker for a retired line, and an old shared URL that names one must fall
+  // back to Crema e Gusto with a written explanation instead of reviving that board.
+  check('product: the catalog exposes only the tracked Crema e Gusto line',
+    catalog.products.length === 1 && catalog.products[0].id === 'lavazza-crema-e-gusto-vacuum-ground',
+    catalog.products.map(item => item.id).join(' | '));
+  const productControls = await evaluate(wd, `({
+    selectorHidden: document.getElementById('product')?.hidden ?? null,
+    staticLabel: document.getElementById('product-static')?.textContent ?? null,
+    staticHidden: document.getElementById('product-static')?.hidden ?? null,
+    options: [...document.querySelectorAll('#product option')].map(node => node.textContent.trim()),
+    intro: document.querySelector('.section__intro')?.textContent ?? null
   })`);
-  check(`product: switching to ${catalog.products[1].line} ranks its own best offer at ${expectedOro}`,
-    oro.vendor === apiOro.best?.vendor.name && oro.total === expectedOro && /Qualità Oro/.test(oro.intro ?? ''),
-    `${oro.vendor} ${oro.total} vs ${expectedOro} (${oro.intro})`);
-  check('product: the second product uses its own default variant, not the first product\'s',
-    oro.variantValue === 'unspecified' && oro.variantOptions.length === 1 && /Variant not stated/.test(oro.variantOptions[0] ?? ''),
-    `value=${oro.variantValue} options=${oro.variantOptions.join(' | ')}`);
-  check('product: the selector lists every tracked product',
-    oro.productOptions.length === catalog.products.length && catalog.products.every(item => oro.productOptions.some(label => label.includes(item.line))),
-    oro.productOptions.join(' | '));
-  check('product: the switch is reflected in the shareable URL',
-    /product=lavazza-qualita-oro-vacuum-ground/.test(oro.url ?? ''), oro.url);
-  check('product: only offers of the selected product are compared',
-    oro.tableRows === apiOro.ranked.length && apiOro.counts?.observed === 4, `rows=${oro.tableRows} ranked=${apiOro.ranked.length} observed=${apiOro.counts?.observed}`);
-  await screenshot(wd, 'desktop-1440-qualita-oro.png');
+  check('product: the selector is a static tracked-product label, not a retired-line picker',
+    productControls.selectorHidden === true && productControls.options.length === 1
+      && /Lavazza Crema e Gusto/.test(productControls.staticLabel ?? '') && productControls.staticHidden === false
+      && /Crema e Gusto/.test(productControls.intro ?? ''),
+    JSON.stringify(productControls));
+  await screenshot(wd, 'desktop-1440-product-scope.png');
 
-  // Every further tracked product (Lavazza Qualità Rossa, Lavazza Suerte, ...) has its own
-  // board, its own default variant and only its own offers. A cheaper item whose shipping is
-  // unknown, or a page observed out of stock, must stay visible with a written label instead
-  // of being dropped or presented as available.
-  for (let index = 2; index < catalog.products.length; index += 1) {
-    const item = catalog.products[index];
-    const apiProduct = await fetchBoard(base, 500, 'tel-aviv', 'unspecified', item.id);
-    const expectedProduct = ils(apiProduct.best?.totalIls);
-    await evaluate(wd, `(() => { const select = document.getElementById('product'); select.value = ${JSON.stringify(item.id)}; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
-    await waitForPage(wd, `document.querySelector('.section__intro')?.textContent.includes(${JSON.stringify(item.line)})`, 15_000, `product switch to ${item.line}`, `({intro: document.querySelector('.section__intro')?.textContent ?? null, product: document.getElementById('product')?.value ?? null})`);
-    const state = await evaluate(wd, `({
-      intro: document.querySelector('.section__intro')?.textContent ?? null,
-      vendor: document.querySelector('.best__vendor')?.textContent ?? null,
-      total: document.querySelector('.best__total')?.textContent ?? null,
-      variantValue: document.getElementById('variant')?.value ?? null,
-      url: location.search,
-      tableRows: document.querySelectorAll('table.compare tbody tr').length,
-      unknownText: [...document.querySelectorAll('#unknown .unknown')].map(node => node.innerText).join(' || ')
-    })`);
-    check(`product: switching to ${item.line} ranks its own best offer at ${expectedProduct}`,
-      state.vendor === apiProduct.best?.vendor.name && state.total === expectedProduct && (state.intro ?? '').includes(item.line),
-      `${state.vendor} ${state.total} vs ${expectedProduct} (${state.intro})`);
-    // The compare table only renders when there is more than one ranked offer.
-    const expectedRows = apiProduct.ranked.length > 1 ? apiProduct.ranked.length : 0;
-    const leaked = catalog.products.filter(other => other.id !== item.id).map(other => other.line)
-      .filter(line => (state.unknownText ?? '').includes(line) || (state.intro ?? '').includes(line));
-    check(`product: ${item.line} compares only its own offers with its own default variant`,
-      state.tableRows === expectedRows && apiProduct.counts?.observed > 0 && state.variantValue === 'unspecified' && leaked.length === 0,
-      `rows=${state.tableRows}/${expectedRows} observed=${apiProduct.counts?.observed} variant=${state.variantValue} leaked=${leaked.join(',')}`);
-    check(`product: the ${item.line} switch is reflected in the shareable URL`,
-      (state.url ?? '').includes(`product=${item.id}`), state.url);
-    const missing = (apiProduct.unknown ?? [])[0];
-    // innerText reflects the CSS text-transform (uppercase), so compare case-insensitively.
-    check(`product: ${item.line} keeps its unknown-shipping or out-of-stock offer visible with a written label`,
-      Boolean(missing)
-        && (state.unknownText ?? '').toLowerCase().includes(String(missing.availabilityLabel).toLowerCase())
-        && (state.unknownText ?? '').includes(missing.vendor.name),
-      `${missing?.availabilityLabel} :: ${(state.unknownText ?? '').slice(0, 160)}`);
-    await screenshot(wd, `desktop-1440-${item.id}.png`);
-  }
-  await screenshot(wd, 'desktop-1440-qualita-oro.png');
-  await evaluate(wd, `(() => { const select = document.getElementById('product'); select.value = 'lavazza-crema-e-gusto-vacuum-ground'; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
-  await waitForPage(wd, `document.querySelector('.best__vendor')?.textContent.includes('CoffeeMan')`, 15_000, 'restore the first product', `({vendor: document.querySelector('.best__vendor')?.textContent ?? null})`);
+  // An old product query URL naming a retired line falls back to the tracked product
+  // and says so; the page must not render that line's offers or its name as a board.
+  await wd('POST', '/url', { url: `${base}/?product=lavazza-qualita-oro-vacuum-ground&grams=500&dest=tel-aviv` });
+  await waitForBoard(wd);
+  const retiredUrl = await evaluate(wd, `(() => ({
+    notice: document.getElementById('retired-product-notice')?.innerText ?? null,
+    intro: document.querySelector('.section__intro')?.textContent ?? null,
+    bestVendor: document.querySelector('.best__vendor')?.textContent ?? null,
+    bestTotal: document.querySelector('.best__total')?.textContent ?? null,
+    bodyText: document.body.innerText,
+    staticLabel: document.getElementById('product-static')?.textContent ?? null
+  }))()`);
+  check('product: a retired-line query URL falls back to Crema e Gusto with a written notice',
+    /retired product line/i.test(retiredUrl.notice ?? '') && /Qualità Oro/.test(retiredUrl.notice ?? '')
+      && /Crema e Gusto/.test(retiredUrl.intro ?? '') && /Lavazza Crema e Gusto/.test(retiredUrl.staticLabel ?? '')
+      && retiredUrl.bestVendor === best.vendor.name && retiredUrl.bestTotal === expected500
+      && !/Qualità Rossa|Lavazza Suerte/.test(retiredUrl.bodyText ?? ''),
+    retiredUrl.notice);
+  await screenshot(wd, 'desktop-1440-retired-url.png');
+  await wd('POST', '/url', { url: `${base}/?grams=500&dest=tel-aviv` });
+  await waitForBoard(wd);
 
   // A shared URL with an untracked variant id (a typo or an old link) must fall back to
   // the product's default variant instead of rendering an empty board.

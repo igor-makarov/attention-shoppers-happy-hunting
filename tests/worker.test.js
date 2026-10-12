@@ -74,6 +74,7 @@ test('catalog route lists the product, destinations and vendor allowlist without
   const response = await worker.fetch(new Request('https://example.test/api/catalog'), envWith(createMemoryStore()), {});
   const body = await response.json();
   assert.equal(body.products[0].id, 'lavazza-crema-e-gusto-vacuum-ground');
+  assert.equal(body.products.length, 1, 'only the one tracked product line is selectable');
   assert.ok(body.destinations.length >= 5);
   const vendorIds = body.vendors.map(vendor => vendor.id).sort();
   assert.deepEqual(vendorIds, ['coffee4u', 'coffeeman', 'pucks']);
@@ -184,80 +185,46 @@ test('scheduled handler refreshes and persists through the BOARD binding', async
     globalThis.fetch = originalFetch;
   }
   const snapshot = await store.snapshot();
-  assert.equal(snapshot.observations.length, 14);
+  assert.equal(snapshot.observations.length, 5);
   assert.equal(snapshot.meta.lastRefreshAt.trigger, 'cron');
   assert.equal(snapshot.meta.fx.rates.USD.rate, 3.05);
   const run = snapshot.runs[0];
   assert.equal(run.trigger, 'cron');
-  assert.equal(run.requests, 15);
+  assert.equal(run.requests, 6);
 });
 
-test('the second tracked product has its own board and its own default variant', async () => {
-  const store = await seededStore();
+test('the catalog lists only the tracked Crema e Gusto product and its own variants', async () => {
   const catalog = await (await worker.fetch(new Request('https://example.test/api/catalog'), envWith(createMemoryStore()), {})).json();
-  assert.equal(catalog.products.length, 4, 'every tracked product is listed for the selector');
-  const oro = catalog.products.find(item => item.id === 'lavazza-qualita-oro-vacuum-ground');
-  assert.equal(oro.line, 'Qualità Oro');
-  assert.deepEqual(oro.variants.map(item => item.id), ['unspecified']);
-  assert.equal(oro.defaultVariant, 'unspecified');
-
-  // No product parameter means the first tracked product, exactly as before.
-  const implicit = await (await worker.fetch(new Request('https://example.test/api/board?grams=1000&dest=tel-aviv'), envWith(store), {})).json();
-  assert.equal(implicit.productId, 'lavazza-crema-e-gusto-vacuum-ground');
-
-  const board = await (await worker.fetch(new Request('https://example.test/api/board?product=lavazza-qualita-oro-vacuum-ground&grams=1000&dest=tel-aviv'), envWith(store), {})).json();
-  assert.equal(board.product.id, 'lavazza-qualita-oro-vacuum-ground');
-  assert.equal(board.variantId, 'unspecified', 'Qualità Oro defaults to the unstated variant');
-  assert.equal(board.best.vendor.id, 'coffeeman');
-  assert.equal(board.best.totalIls, 150, '₪125 for the 4 × 250 g pack plus the verified ₪25 courier rate');
-  assert.equal(board.best.ilsPerKg, 150);
-  assert.equal(board.counts.observed, 4, 'only Qualità Oro offers are compared');
-  const single = board.ranked.find(quote => quote.product.packCount === 1);
-  assert.equal(single.totalIls, 173, '4 × ₪37 + ₪25');
-  assert.ok(board.unknown.some(quote => quote.vendor.id === 'pucks'), 'Pucks stays visible with unknown shipping');
-  const wrongVariant = await (await worker.fetch(new Request('https://example.test/api/board?product=lavazza-qualita-oro-vacuum-ground&grams=1000&dest=tel-aviv&variant=classico'), envWith(store), {})).json();
-  assert.equal(wrongVariant.ranked.length, 0, 'a variant of another line never matches Qualità Oro offers');
+  assert.equal(catalog.products.length, 1, 'no retired product line is selectable');
+  const crema = catalog.products[0];
+  assert.equal(crema.id, 'lavazza-crema-e-gusto-vacuum-ground');
+  assert.equal(crema.line, 'Crema e Gusto');
+  assert.equal(crema.form, 'ground');
+  assert.equal(crema.packaging, 'vacuum brick');
+  assert.equal(crema.defaultVariant, 'classico');
+  assert.deepEqual(crema.variants.map(item => item.id), ['classico', 'forte', 'ricco', 'risveglio', 'decaf', 'unspecified']);
+  assert.ok(!/oro|rossa|suerte/i.test(JSON.stringify(catalog.products)), 'no retired line appears in the catalog');
 });
 
-test('the third tracked product ranks its own delivered total and keeps its out-of-stock offer honest', async () => {
+test('an old product URL for a retired line falls back to Crema e Gusto and says so', async () => {
   const store = await seededStore();
-  const catalog = await (await worker.fetch(new Request('https://example.test/api/catalog'), envWith(createMemoryStore()), {})).json();
-  const rossa = catalog.products.find(item => item.id === 'lavazza-qualita-rossa-vacuum-ground');
-  assert.equal(rossa.line, 'Qualità Rossa');
-  assert.equal(rossa.defaultVariant, 'unspecified');
+  const board = await (await worker.fetch(new Request('https://example.test/api/board?product=lavazza-qualita-oro-vacuum-ground&grams=500&dest=tel-aviv'), envWith(store), {})).json();
+  assert.equal(board.product.id, 'lavazza-crema-e-gusto-vacuum-ground', 'the retired line is never displayed or compared');
+  assert.deepEqual(board.requestedRetiredProduct, { id: 'lavazza-qualita-oro-vacuum-ground', line: 'Qualità Oro' });
+  assert.equal(board.counts.observed, 4, 'only Crema e Gusto Classico offers are compared; the unstated-variant listing is excluded, not merged');
+  const offers = [...board.ranked, ...board.unknown, ...board.pickup, ...board.unrankable, ...board.staleOrUnavailable];
+  assert.ok(offers.length > 0, 'the fallback board still renders its own offers');
+  assert.ok(offers.every(quote => quote.product.productId === 'lavazza-crema-e-gusto-vacuum-ground'), 'no retired observation is mixed into the comparison');
 
-  const board = await (await worker.fetch(new Request('https://example.test/api/board?product=lavazza-qualita-rossa-vacuum-ground&grams=500&dest=tel-aviv'), envWith(store), {})).json();
-  assert.equal(board.product.id, 'lavazza-qualita-rossa-vacuum-ground');
-  assert.equal(board.counts.observed, 3, 'only Qualità Rossa offers are compared');
-  // 2 × ₪33 CoffeeMan single packs + ₪25 verified courier
-  assert.equal(board.best.vendor.id, 'coffeeman');
-  assert.equal(board.best.totalIls, 91);
-  assert.equal(board.best.ilsPerKg, 182);
-  const unknown = board.unknown.find(quote => quote.product.sku === 'Lav80');
-  assert.equal(unknown.totalIls, null, 'the cheaper Pucks item cannot win with unknown shipping');
-  assert.match(unknown.reasons.join(' '), /unknown, not free/);
-  const oos = board.staleOrUnavailable.find(quote => quote.product.sku === 'Lav35');
-  assert.equal(oos.availability, 'out_of_stock');
-  assert.match(oos.labels.join(' '), /Out of stock/);
-  assert.equal(oos.totalIls, null, 'an out-of-stock page is never ranked as available');
-});
+  // A Suerte URL behaves the same way, and the Crema e Gusto ranking still works.
+  const suerte = await (await worker.fetch(new Request('https://example.test/api/board?product=lavazza-suerte-ground&grams=500&dest=tel-aviv'), envWith(store), {})).json();
+  assert.equal(suerte.product.id, 'lavazza-crema-e-gusto-vacuum-ground');
+  assert.equal(suerte.requestedRetiredProduct.line, 'Suerte');
+  assert.equal(suerte.best.totalIls, 91, 'the Crema e Gusto board still ranks normally');
 
-test('the fourth tracked product (Suerte) ranks its own delivered total and keeps its unknown shipping visible', async () => {
-  const store = await seededStore();
-  const catalog = await (await worker.fetch(new Request('https://example.test/api/catalog'), envWith(createMemoryStore()), {})).json();
-  const suerte = catalog.products.find(item => item.id === 'lavazza-suerte-ground');
-  assert.equal(suerte.line, 'Suerte');
-  assert.equal(suerte.defaultVariant, 'unspecified');
-
-  const board = await (await worker.fetch(new Request('https://example.test/api/board?product=lavazza-suerte-ground&grams=500&dest=tel-aviv'), envWith(store), {})).json();
-  assert.equal(board.product.id, 'lavazza-suerte-ground');
-  assert.equal(board.counts.observed, 2, 'only Suerte offers are compared');
-  // 2 × ₪33 CoffeeMan single packs + ₪25 verified courier
-  assert.equal(board.best.vendor.id, 'coffeeman');
-  assert.equal(board.best.totalIls, 91);
-  const unknown = board.unknown.find(quote => quote.product.sku === 'Lav03');
-  assert.equal(unknown.totalIls, null, 'the Pucks item cannot win with unknown shipping');
-  assert.match(unknown.reasons.join(' '), /unknown, not free/);
+  // A normal request reports no retired product.
+  const plain = await (await worker.fetch(new Request('https://example.test/api/board?product=lavazza-crema-e-gusto-vacuum-ground&grams=500&dest=tel-aviv'), envWith(store), {})).json();
+  assert.equal(plain.requestedRetiredProduct, null);
 });
 
 test('an unknown variant id falls back to the product default instead of an empty board', async () => {
@@ -269,11 +236,10 @@ test('an unknown variant id falls back to the product default instead of an empt
   assert.deepEqual(fallback.ranked.map(quote => quote.key), defaultBoard.ranked.map(quote => quote.key));
   const prototype = await (await worker.fetch(new Request('https://example.test/api/board?grams=500&dest=tel-aviv&variant=constructor'), envWith(store), {})).json();
   assert.equal(prototype.variantId, 'classico', 'object prototype keys are never treated as variant ids');
-  // A real variant of another tracked line is not a typo: it stays strict and
-  // matches no offer rather than being silently rewritten.
-  const wrongLine = await (await worker.fetch(new Request('https://example.test/api/board?product=lavazza-qualita-oro-vacuum-ground&grams=500&dest=tel-aviv&variant=classico'), envWith(store), {})).json();
-  assert.equal(wrongLine.variantId, 'classico');
-  assert.equal(wrongLine.ranked.length, 0);
+  // A variant id that belongs to no tracked variant is still a fallback, not an error.
+  const unknownVariant = await (await worker.fetch(new Request('https://example.test/api/board?grams=500&dest=tel-aviv&variant=taglio-macina'), envWith(store), {})).json();
+  assert.equal(unknownVariant.variantId, 'classico');
+  assert.ok(unknownVariant.ranked.length > 0);
 });
 
 test('board without a storage binding explains the deployment requirement', async () => {

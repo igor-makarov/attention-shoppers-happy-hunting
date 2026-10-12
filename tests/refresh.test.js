@@ -46,9 +46,14 @@ test('scheduled refresh persists observations without a browser', async () => {
   const summary = await run({ store, fetchImpl: fixtureFetch({ calls }), now: NOW, trigger: 'cron' });
   assert.equal(summary.trigger, 'cron');
   assert.equal(summary.vendors.length, 3);
-  assert.equal(summary.requests, 15, 'eight CoffeeMan listings, five Pucks listings, Coffee4U and one FX request');
+  assert.equal(summary.requests, 6, 'three CoffeeMan listings, one Pucks listing, Coffee4U and one FX request');
   const snapshot = await store.snapshot();
-  assert.equal(snapshot.observations.length, 14);
+  assert.equal(snapshot.observations.length, 5, 'only the tracked Crema e Gusto offers are observed');
+  assert.deepEqual(
+    [...new Set(snapshot.observations.map(o => o.product.productId))],
+    ['lavazza-crema-e-gusto-vacuum-ground'],
+    'no retired product line is observed any more'
+  );
   const coffeeman = snapshot.observations.find(o => o.vendor.id === 'coffeeman');
   assert.equal(coffeeman.price.amount, 33);
   assert.equal(coffeeman.attemptedAt, new Date(NOW).toISOString());
@@ -82,7 +87,7 @@ test('one failing vendor keeps its previous good observation and does not block 
   assert.equal(kept.observedAt, before.observedAt, 'last successful observation timestamp is unchanged');
   assert.ok(kept.attemptedAt, 'failed attempt timestamp is recorded');
   const attempts = await store.listRuns(5);
-  assert.equal(attempts[0].vendors.find(v => v.vendorId === 'coffeeman').failures.length, 8, 'all eight CoffeeMan listings report the failure');
+  assert.equal(attempts[0].vendors.find(v => v.vendorId === 'coffeeman').failures.length, 3, 'all three CoffeeMan listings report the failure');
 });
 
 test('repeated failures back off and stop re-fetching the broken vendor', async () => {
@@ -180,8 +185,8 @@ test('refresh runs started in the same tick cannot both acquire the lease', asyn
   ]);
   const summaries = [first, second];
   assert.equal(summaries.filter(summary => summary.skipped).length, 1, 'exactly one run is skipped');
-  assert.equal(summaries.find(summary => !summary.skipped).requests, 15);
-  assert.equal(calls.length, 15, 'the losing run performs no vendor or FX requests');
+  assert.equal(summaries.find(summary => !summary.skipped).requests, 6);
+  assert.equal(calls.length, 6, 'the losing run performs no vendor or FX requests');
 });
 
 test('initial refresh runs once and is throttled afterwards', async () => {
@@ -317,72 +322,45 @@ test('a vendor crawl delay spaces requests to the same host instead of firing th
   assert.deepEqual(noWait, [], 'a vendor that publishes no crawl delay is not paced');
 });
 
-test('the second tracked product is observed and kept out of the first product\'s board data', async () => {
-  const store = createMemoryStore();
-  await run({ store, fetchImpl: fixtureFetch(), now: NOW });
+test('retired-line observations and attempt markers are pruned from the live store', async () => {
+  const store = createMemoryStore({
+    observations: [
+      {
+        key: 'coffeeman:930339:unspecified:ground:250g:x1',
+        vendor: { id: 'coffeeman', name: 'CoffeeMan (אמיגו)' },
+        product: { productId: 'lavazza-qualita-oro-vacuum-ground', variantId: 'unspecified', form: 'ground', totalGrams: 250, packCount: 1 },
+        price: { amount: 37, currency: 'ILS' },
+        availability: 'in_stock',
+        shipping: { certainty: 'verified', amount: { amount: 25, currency: 'ILS' } },
+        observedAt: '2026-10-12T09:00:00.000Z'
+      },
+      {
+        key: 'pucks:offer:suerte-250g',
+        product: {},
+        price: {},
+        shipping: {},
+        attemptedAt: '2026-10-12T09:00:00.000Z',
+        lastError: 'HTTP 404'
+      }
+    ]
+  });
+  const summary = await run({ store, fetchImpl: fixtureFetch(), now: NOW });
+  assert.equal(summary.pruned, 2, 'the retired observation and the retired attempt marker are removed');
   const snapshot = await store.snapshot();
-  const oro = snapshot.observations.filter(o => o.product.productId === 'lavazza-qualita-oro-vacuum-ground');
-  assert.equal(oro.length, 4, 'three CoffeeMan Qualità Oro listings plus one Pucks listing');
-  assert.deepEqual([...new Set(oro.map(o => o.vendor.id))].sort(), ['coffeeman', 'pucks'], 'two independent vendors carry the second product');
-  const fourPack = oro.find(o => o.vendor.id === 'coffeeman' && o.product.packCount === 4);
-  assert.equal(fourPack.price.amount, 125);
-  assert.equal(fourPack.product.totalGrams, 1000);
-  assert.equal(fourPack.shipping.certainty, 'verified');
-  assert.equal(fourPack.shipping.amount.amount, 25);
-  assert.deepEqual([...new Set(oro.map(o => o.product.variantId))], ['unspecified'], 'Qualità Oro publishes no blend variant');
-  assert.equal(snapshot.observations.filter(o => o.product.productId === 'lavazza-crema-e-gusto-vacuum-ground').length, 5);
+  assert.equal(snapshot.observations.length, 5, 'only the five tracked Crema e Gusto offers remain after the refresh');
+  assert.ok(!snapshot.observations.some(o => o.product?.productId === 'lavazza-qualita-oro-vacuum-ground'));
+  assert.ok(!snapshot.observations.some(o => o.key === 'pucks:offer:suerte-250g'));
+  assert.ok(snapshot.observations.every(o => o.product.productId === 'lavazza-crema-e-gusto-vacuum-ground'), 'the tracked line is never pruned');
 });
 
-test('the third tracked product is observed from two vendors with honest stock and stays out of the other boards', async () => {
-  const store = createMemoryStore();
-  await run({ store, fetchImpl: fixtureFetch(), now: NOW });
-  const snapshot = await store.snapshot();
-  const rossa = snapshot.observations.filter(o => o.product.productId === 'lavazza-qualita-rossa-vacuum-ground');
-  assert.equal(rossa.length, 3, 'one CoffeeMan listing plus two Pucks listings');
-  assert.deepEqual([...new Set(rossa.map(o => o.vendor.id))].sort(), ['coffeeman', 'pucks'], 'two independent vendors carry the third product');
-
-  const coffeeman = rossa.find(o => o.vendor.id === 'coffeeman');
-  assert.equal(coffeeman.product.sku, '930336');
-  assert.equal(coffeeman.product.packGrams, 250);
-  assert.equal(coffeeman.product.variantId, 'unspecified', 'the page states no blend variant');
-  assert.equal(coffeeman.price.amount, 33);
-  assert.equal(coffeeman.price.currency, 'ILS');
-  assert.equal(coffeeman.availability, 'in_stock');
-  assert.equal(coffeeman.shipping.certainty, 'verified');
-  assert.equal(coffeeman.shipping.amount.amount, 25);
-
-  const inStock = rossa.find(o => o.vendor.id === 'pucks' && o.product.sku === 'Lav80');
-  assert.equal(inStock.price.amount, 30);
-  assert.equal(inStock.availability, 'in_stock');
-  assert.equal(inStock.shipping.certainty, 'unknown');
-
-  const outOfStock = rossa.find(o => o.vendor.id === 'pucks' && o.product.sku === 'Lav35');
-  assert.equal(outOfStock.price.amount, 35, 'a price is still observed for an out-of-stock listing');
-  assert.equal(outOfStock.availability, 'out_of_stock', 'the page is observed as out of stock, not assumed available');
-  assert.equal(snapshot.observations.filter(o => o.product.productId === 'lavazza-qualita-oro-vacuum-ground').length, 4);
-});
-
-test('the fourth tracked product (Lavazza Suerte) is observed from two vendors and stays separate', async () => {
-  const store = createMemoryStore();
-  await run({ store, fetchImpl: fixtureFetch(), now: NOW });
-  const snapshot = await store.snapshot();
-  const suerte = snapshot.observations.filter(o => o.product.productId === 'lavazza-suerte-ground');
-  assert.equal(suerte.length, 2, 'one CoffeeMan listing plus one Pucks listing');
-  assert.deepEqual([...new Set(suerte.map(o => o.vendor.id))].sort(), ['coffeeman', 'pucks'], 'two independent vendors carry the fourth product');
-
-  const coffeeman = suerte.find(o => o.vendor.id === 'coffeeman');
-  assert.equal(coffeeman.product.sku, '930661');
-  assert.equal(coffeeman.product.packGrams, 250);
-  assert.equal(coffeeman.product.form, 'ground');
-  assert.equal(coffeeman.price.amount, 33);
-  assert.equal(coffeeman.availability, 'in_stock');
-  assert.equal(coffeeman.shipping.certainty, 'verified');
-  assert.equal(coffeeman.shipping.amount.amount, 25);
-
-  const pucks = suerte.find(o => o.vendor.id === 'pucks');
-  assert.equal(pucks.product.sku, 'Lav03');
-  assert.equal(pucks.product.gtin, '8000070083103');
-  assert.equal(pucks.price.amount, 35);
-  assert.equal(pucks.availability, 'in_stock');
-  assert.equal(pucks.shipping.certainty, 'unknown');
+test('the tracked offers are the only fetch targets the adapters declare', () => {
+  for (const vendor of registeredVendors()) {
+    for (const offer of vendor.offers) {
+      assert.equal(offer.productId, 'lavazza-crema-e-gusto-vacuum-ground', `${vendor.id}:${offer.id} is a tracked Crema e Gusto offer`);
+    }
+  }
+  const urls = registeredVendors().flatMap(vendor => vendor.offers.map(offer => offer.url));
+  for (const url of urls) {
+    assert.ok(!/qualita|suerte/i.test(decodeURIComponent(url)), `${url} is not a retired product URL`);
+  }
 });

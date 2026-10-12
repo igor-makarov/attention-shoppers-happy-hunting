@@ -75,7 +75,10 @@ async function load() {
     const catalogResponse = await fetch('/api/catalog').then(response => response.json());
     state.catalog = catalogResponse;
     applyProductDefaults();
-    const params = new URLSearchParams({ product: state.product, grams: String(state.grams), dest: state.destination, variant: state.variant });
+    // A product id from the URL is sent as requested, even when it names a
+    // retired line, so the API can report the fallback instead of hiding it.
+    const requestedProduct = state.requestedProduct ?? state.product;
+    const params = new URLSearchParams({ product: requestedProduct, grams: String(state.grams), dest: state.destination, variant: state.variant });
     const board = await fetch(`/api/board?${params}`).then(response => response.json());
     state.board = board;
     state.error = null;
@@ -114,6 +117,7 @@ function render() {
   if (!state.board) return;
 
   const boardData = state.board;
+  if (boardData.requestedRetiredProduct) board.append(renderRetiredNotice(boardData.requestedRetiredProduct));
   board.append(renderRankedSection(boardData));
   if (boardData.pickup.length) board.append(renderPickupSection(boardData.pickup));
   if (state.showUnknown) board.append(renderUnknownSection(boardData));
@@ -185,10 +189,21 @@ function renderControls() {
   variant.value = state.variant ?? '';
 
   const productSelect = document.getElementById('product');
-  const productSignature = (state.catalog?.products ?? []).map(item => item.id).join(',');
+  const productStatic = document.getElementById('product-static');
+  const catalogProducts = state.catalog?.products ?? [];
+  // Owner correction 2026-10-12: exactly one product line is tracked, so the
+  // selector is replaced by a static label instead of a dead one-option control.
+  if (productSelect) productSelect.hidden = catalogProducts.length <= 1;
+  if (productStatic) {
+    productStatic.hidden = catalogProducts.length > 1;
+    productStatic.textContent = catalogProducts.length === 1
+      ? `${catalogProducts[0].brand} ${catalogProducts[0].line} · ${catalogProducts[0].form} in a ${catalogProducts[0].packaging}`
+      : '';
+  }
+  const productSignature = catalogProducts.map(item => item.id).join(',');
   if (productSelect && productSelect.dataset.signature !== productSignature) {
     productSelect.replaceChildren();
-    for (const item of state.catalog?.products ?? []) {
+    for (const item of catalogProducts) {
       productSelect.append(el('option', { value: item.id, text: `${item.brand} ${item.line} · ${item.form} ${item.packaging}` }));
     }
     productSelect.dataset.signature = productSignature;
@@ -203,6 +218,9 @@ function renderControls() {
 
 function update(patch) {
   Object.assign(state, patch);
+  // Any user interaction replaces the URL's original product request with the
+  // tracked product, so a retired-line link is not kept in the shareable URL.
+  state.requestedProduct = null;
   // Changing the product resets the variant to that product's default so a
   // Classico selection is never silently applied to a different line.
   if (patch.product) {
@@ -220,6 +238,15 @@ function update(patch) {
   history.replaceState(null, '', `?${params}`);
   renderControls();
   load();
+}
+
+function renderRetiredNotice(retired) {
+  return el('div', { class: 'notice', attrs: { id: 'retired-product-notice', role: 'note' } },
+    el('strong', { text: 'Retired product line' }),
+    el('p', {},
+      'This link asked for Lavazza ',
+      bidi(retired.line),
+      '. Only Lavazza Crema e Gusto vacuum-packed ground coffee is tracked now, so the board below compares Crema e Gusto offers only. Re-tracking another product line needs an explicit new owner instruction.'));
 }
 
 function renderRankedSection(board) {
@@ -411,6 +438,7 @@ const params = new URLSearchParams(location.search);
 state.grams = Number(params.get('grams')) || 500;
 state.destination = params.get('dest') || 'tel-aviv';
 state.product = params.get('product') || null;
+state.requestedProduct = params.get('product') || null;
 state.variant = params.get('variant') || null;
 state.showUnknown = params.get('unknown') !== '0';
 load();

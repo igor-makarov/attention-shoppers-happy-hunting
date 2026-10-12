@@ -7,29 +7,19 @@ import { startQaServer, fixtureObservations } from '../scripts/qa-server.mjs';
 
 test('fixture observations parse through the production adapters', async () => {
   const observations = await fixtureObservations(Date.parse('2026-10-12T11:00:00.000Z'));
-  assert.equal(observations.length, 14, "five Crema e Gusto, four Qualità Oro, three Qualità Rossa and two Suerte offers");
-  const suerteOffers = observations.filter(item => item.product.productId === "lavazza-suerte-ground");
-  assert.equal(suerteOffers.length, 2, "the fourth tracked product comes from two independent vendors");
-  assert.equal(suerteOffers.find(item => item.vendor.id === "coffeeman").price.amount, 33);
-  assert.equal(suerteOffers.find(item => item.vendor.id === "coffeeman").shipping.amount.amount, 25);
-  assert.equal(suerteOffers.find(item => item.vendor.id === "pucks").product.sku, "Lav03");
-  const rossaOffers = observations.filter(item => item.product.productId === "lavazza-qualita-rossa-vacuum-ground");
-  assert.equal(rossaOffers.length, 3, "the third tracked product comes from two independent vendors");
-  assert.equal(rossaOffers.find(item => item.vendor.id === "coffeeman").price.amount, 33);
-  assert.equal(rossaOffers.find(item => item.vendor.id === "coffeeman").shipping.amount.amount, 25);
-  assert.equal(rossaOffers.find(item => item.product.sku === "Lav80").availability, "in_stock");
-  assert.equal(rossaOffers.find(item => item.product.sku === "Lav35").availability, "out_of_stock");
-  const coffeeman = observations.find(item => item.vendor.id === "coffeeman");
-  const oroOffers = observations.filter(item => item.product.productId === "lavazza-qualita-oro-vacuum-ground");
-  assert.equal(oroOffers.length, 4, "the second tracked product comes from two independent vendors");
-  assert.equal(oroOffers.find(item => item.vendor.id === "coffeeman" && item.product.packCount === 4).price.amount, 125);
-  assert.equal(oroOffers.find(item => item.vendor.id === "pucks").price.amount, 35);
+  assert.equal(observations.length, 5, 'three CoffeeMan, one Pucks and one Coffee4U Crema e Gusto offer');
+  assert.ok(observations.every(item => item.product.productId === 'lavazza-crema-e-gusto-vacuum-ground'), 'only the tracked line is parsed');
+  const coffeeman = observations.find(item => item.vendor.id === 'coffeeman');
   assert.equal(coffeeman.product.form, 'ground');
   assert.equal(coffeeman.product.variantId, 'classico');
   assert.equal(coffeeman.product.packGrams, 250);
   assert.equal(coffeeman.price.amount, 33);
   assert.equal(coffeeman.shipping.certainty, 'verified');
   assert.equal(coffeeman.availability, 'in_stock');
+  const fourPack = observations.find(item => item.vendor.id === 'coffeeman' && item.product.packCount === 4);
+  assert.equal(fourPack.price.amount, 124);
+  const eightPack = observations.find(item => item.vendor.id === 'coffeeman' && item.product.packCount === 8);
+  assert.equal(eightPack.shipping.certainty, 'unknown', 'the 8-pack page publishes no courier price');
   const pucks = observations.find(item => item.vendor.id === 'pucks');
   assert.equal(pucks.shipping.certainty, 'unknown');
   assert.equal(pucks.product.packGrams, 250);
@@ -95,14 +85,16 @@ test('QA fixture server serves the board API and static assets offline', async (
 
     const catalog = await (await fetch(`${server.url}/api/catalog`)).json();
     assert.deepEqual(catalog.vendors.map(vendor => vendor.id).sort(), ["coffee4u", "coffeeman", "pucks"]);
-    assert.deepEqual(catalog.products.map(item => item.id), ["lavazza-crema-e-gusto-vacuum-ground", "lavazza-qualita-oro-vacuum-ground", "lavazza-qualita-rossa-vacuum-ground", "lavazza-suerte-ground"], "the catalog drives the product selector");
+    assert.deepEqual(catalog.products.map(item => item.id), ["lavazza-crema-e-gusto-vacuum-ground"], "only the tracked Crema e Gusto product drives the UI");
 
-    const oroBoard = await (await fetch(`${server.url}/api/board?product=lavazza-qualita-oro-vacuum-ground&grams=1000&dest=tel-aviv`)).json();
-    assert.equal(oroBoard.product.line, "Qualità Oro");
-    assert.equal(oroBoard.variantId, "unspecified", "the server applies the product's own default variant");
-    assert.equal(oroBoard.best.totalIls, 150, "₪125 four-pack + ₪25 verified courier");
-    assert.equal(oroBoard.counts.observed, 4);
-    assert.ok(oroBoard.unknown.some(quote => quote.vendor.id === "pucks"), "Pucks keeps its unknown shipping on the second product too");
+    // An old shared URL that still names a retired line must fall back to the
+    // tracked product and say so instead of reviving the retired board.
+    const retiredBoard = await (await fetch(`${server.url}/api/board?product=lavazza-qualita-oro-vacuum-ground&grams=1000&dest=tel-aviv`)).json();
+    assert.equal(retiredBoard.product.id, "lavazza-crema-e-gusto-vacuum-ground");
+    assert.deepEqual(retiredBoard.requestedRetiredProduct, { id: "lavazza-qualita-oro-vacuum-ground", line: "Qualità Oro" });
+    assert.equal(retiredBoard.variantId, "classico", "the fallback uses the tracked product's own default variant");
+    assert.equal(retiredBoard.best.totalIls, 149, "₪124 four-pack + ₪25 verified courier");
+    assert.ok(!JSON.stringify(retiredBoard.ranked).match(/Qualità Oro|Qualità Rossa|Suerte/), "no retired line is compared");
     assert.equal(board.freshness.stale, false, 'a server whose refresh just completed is fresh');
 
     const staleServer = await startQaServer({ port: 0, now: Date.parse('2026-10-12T11:00:00.000Z'), staleRefresh: true });
