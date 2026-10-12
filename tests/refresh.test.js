@@ -380,3 +380,28 @@ test('the tracked offers are the only fetch targets the adapters declare', () =>
     assert.ok(!/qualita|suerte/i.test(decodeURIComponent(url)), `${url} is not a retired product URL`);
   }
 });
+
+test('retired product URLs have no fixture route, so offline tools cannot serve them', async () => {
+  const retiredUrls = [
+    'https://www.coffeeman.co.il/product/lavazza-qualita-oro-ground-250-gr--%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F',
+    'https://www.coffeeman.co.il/product/4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-lavazza-qualit224-oro-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F',
+    'https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-qualita-rossa',
+    'https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-suerte-%D7%97%D7%95%D7%96%D7%A7-10',
+    'https://pucks.co.il/product/lavazza-qualita-oro-ground-coffee-250gr',
+    'https://pucks.co.il/product/lavazza-qualita-rossa-ground-coffee-250g',
+    'https://pucks.co.il/product/lavazza-qualita-rossa-ground-coffee-powder-250g',
+    'https://pucks.co.il/product/lavazza-suerte-ground-coffee-250g'
+  ];
+  for (const url of retiredUrls) {
+    assert.equal(await readFixtureForUrl(url), null, `${url} must not be routable`);
+  }
+  // Every mapped fixture belongs to a tracked offer; none of the historical
+  // retired excerpts can be reached through the fixture fetch used by the
+  // offline tools, tests and browser QA server.
+  const mapped = trackedOffers().filter(offer => offer.file);
+  assert.equal(mapped.length, 5, 'the five tracked Crema e Gusto offers have fixtures');
+  assert.ok(mapped.every(offer => offer.productId === 'lavazza-crema-e-gusto-vacuum-ground'));
+  const fixtureFetch = createFixtureFetch();
+  const retiredResponse = await fixtureFetch(retiredUrls[0]);
+  assert.equal(retiredResponse.status, 404, 'a retired URL is a fixture 404, never a vendor page');
+});
