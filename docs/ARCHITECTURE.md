@@ -13,9 +13,11 @@ GitHub normally does not trigger another push workflow for a push using GITHUB_T
 
 ## Implemented runtime
 
-The target products exist: `src/catalog.js` holds the tracked Lavazza ground products (Crema e Gusto,
-Qualità Oro and Qualità Rossa in vacuum bricks, plus Suerte as a ground pack) and the strict
-classification rules. Vendor-specific adapters under `src/vendors/` (CoffeeMan, Pucks, Coffee4U)
+The tracked scope is one product line: `src/catalog.js` holds Lavazza Crema e Gusto (a ground vacuum
+brick) with its blend variants and strict classification rules. The 2026-10-12 owner correction retired
+Qualità Oro, Qualità Rossa and Suerte; their ids remain as tombstones so `classifyListing` and
+`resolveProductRequest` reject or explain them instead of reviving them, and each refresh prunes any
+stored observation or attempt marker that belongs to a retired line. Vendor-specific adapters under `src/vendors/` (CoffeeMan, Pucks, Coffee4U)
 fetch fixed allowlisted product URLs through the bounded fetcher in `src/lib/http.js` and return versioned
 observations. `src/lib/quote.js` is a pure, timestamp-aware ranking engine; `src/lib/fx.js` converts
 non-ILS amounts with Bank of Israel reference rates and refuses to guess when a rate is missing. It keeps
@@ -31,4 +33,7 @@ Verification is layered: `tests/*.test.js` covers parsers, quote edge cases, the
 Worker routes against recorded fixtures; `scripts/check-sources.mjs` re-checks the live vendor pages;
 `scripts/simulate-cron.mjs` runs the full refresh offline or live; `scripts/qa-server.mjs` serves the
 production front-end against fixture-backed API data so `npm run qa:browser` drives headless Chrome
-offline and derives its expectations from the API. See docs/STATUS.md for the latest recorded results.
+offline and derives its expectations from the API. Browser QA also loads an old
+`?product=lavazza-qualita-oro-vacuum-ground` URL and checks that the page shows the Crema e Gusto board
+with a written retired-line notice rather than reviving the retired line. See docs/STATUS.md for the
+latest recorded results.

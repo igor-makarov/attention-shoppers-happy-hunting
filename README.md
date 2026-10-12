@@ -1,8 +1,10 @@
 # Attention shoppers. Happy hunting.
 
-A public online shopping board for delivery in Israel, starting with **Lavazza Crema e Gusto vacuum-packed ground coffee**. The goal is to compare actual availability and item price plus shipping for a selected quantity and destination, with visible source evidence and freshness.
+A public online shopping board for delivery in Israel tracking **one product**: **Lavazza Crema e Gusto vacuum-packed ground coffee** (Classico, Forte and other blend variants and every pack size or multipack kept separate). The board compares actual availability and item price plus shipping for a selected quantity and Israeli locality, with visible source evidence and freshness. Unknown shipping is never silently treated as free.
 
-Four Lavazza ground products are tracked today — Crema e Gusto, Qualità Oro and Qualità Rossa in vacuum bricks, plus Suerte as a ground pack — across three Israeli vendors, and more products or vendors can be added per adapter. Swiss signage design, meaningful status colors, no emoji typography. Unknown shipping is never silently treated as free.
+The 2026-10-12 owner correction retired the earlier multi-product scope: Lavazza Qualità Oro, Qualità Rossa and Suerte are no longer fetched, culled or shown. Their old listings survive only as historical evidence in [docs/SOURCES.md](docs/SOURCES.md), labelled as such, and as negative fixtures that prove the adapters refuse them. Re-adding any product line needs an explicit new owner instruction.
+
+Three Israeli vendor adapters currently observe **five real Crema e Gusto listings**: CoffeeMan single 250 g, 4 × 250 g and 8 × 250 g, Pucks 250 g and Coffee4U 250 g. Swiss signage design, meaningful status colors, no emoji typography.
 
 The board is implemented and self-updating: deterministic vendor adapters observe real product pages, a
 pure quote engine ranks delivered ILS totals, and a scheduled Durable Object refresh keeps the data
@@ -17,9 +19,15 @@ DeepSeek V4.1 Flash is present in Shurik's pinned Pi AI catalog and supports low
 
 ## Deployment and refreshing
 
-The owner will enable auto-deploy on main pushes from **Cloudflare Workers Builds** at the second handoff. GitHub stores no CF credentials and has no deployment job. Once connected, Cloudflare Cron Triggers run the Worker's scheduled handler about every six hours, and the SQLite-backed `BoardStore` Durable Object defined in `wrangler.jsonc` persists the last known observations, vendor refresh state, FX rates and run history.
+The owner reports auto-deploy enabled on main pushes from **Cloudflare Workers Builds** with the
+production Worker `attention-shoppers`, already served at
+https://attention-shoppers.igormaka.workers.dev (owner report; the coding loop has no Cloudflare access
+and does not administer the deployment). GitHub stores no CF credentials and has no deployment job.
+Cloudflare Cron Triggers run the Worker's scheduled handler about every six hours, and the
+SQLite-backed `BoardStore` Durable Object defined in `wrangler.jsonc` persists the last known
+observations, vendor refresh state, FX rates and run history.
 
-Follow [the two handoffs](docs/DEPLOYMENT.md). Agent-authored code can affect the CF build and production Worker once auto-deploy is enabled; keeping CF API credentials out of Shurik does not remove that authority.
+Follow [the deployment notes and outstanding production checks](docs/DEPLOYMENT.md). Agent-authored code can affect the CF build and production Worker once auto-deploy is enabled; keeping CF API credentials out of Shurik does not remove that authority.
 
 ## Develop locally
 
