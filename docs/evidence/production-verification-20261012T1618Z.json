@@ -1,0 +1,477 @@
+{
+  "capturedAt": "2026-10-12T16:17:58Z to 2026-10-12T16:18:00Z",
+  "mode": "read-only public GETs from the coding runner to the owner-reported production URL after the supervisor published the 3-61 commits; no Cloudflare credentials, admin API, deploy or remote resource change",
+  "url": "https://attention-shoppers.igormaka.workers.dev",
+  "interpretation": [
+    "/health now includes lastObservationAt, a field only the 3-61 code emits. A build containing the 3-61 changes is therefore serving in production, which independently verifies that the main-push Workers Builds path deployed the pushed commits from this runner.",
+    "The Durable Object store persisted across the deploy: lastRefreshAt (15:52:12.546Z) and lastObservationAt (15:51:52.931Z) are the same values recorded by the 15:51-15:52 probe, and /api/status still reports the same five observations and the single completed initial run.",
+    "Board values are unchanged and match the documented expectations: 500 g best NIS 91.00, 1 kg best NIS 149.00, unstated variant NIS 106.00, and the retired Qualita Oro URL falls back with requestedRetiredProduct and no retired offer in the payload.",
+    "Freshness now exposes lastObservationAt and dataAsOf in both /api/status and /api/board; ageHours was 0.4 and stale false at capture time. No cf-cache-status header was present on the responses.",
+    "The 6-hour cron trigger has still not been observed firing from the runner; the observed refresh was request-triggered."
+  ],
+  "health": {
+    "status": "ok",
+    "stage": "live",
+    "lastRefreshAt": "2026-10-12T15:52:12.546Z",
+    "lastObservationAt": "2026-10-12T15:51:52.931Z",
+    "storageError": null
+  },
+  "status": {
+    "lastRefreshAt": "2026-10-12T15:52:12.546Z",
+    "lastObservationAt": "2026-10-12T15:51:52.931Z",
+    "freshness": {
+      "lastRefreshAt": "2026-10-12T15:52:12.546Z",
+      "lastObservationAt": "2026-10-12T15:51:52.931Z",
+      "dataAsOf": "2026-10-12T15:52:12.546Z",
+      "ageHours": 0.4,
+      "stale": false
+    },
+    "fx": {
+      "asOf": "2026-10-12T12:23:04.599423Z",
+      "fetchedAt": "2026-10-12T15:51:52.931Z"
+    },
+    "vendors": [
+      {
+        "vendorId": "pucks",
+        "lastAttemptAt": "2026-10-12T13:34:41.295Z",
+        "lastSuccessAt": "2026-10-12T13:34:41.295Z",
+        "consecutiveFailures": 0,
+        "nextAttemptAt": "2026-10-12T19:34:41.295Z",
+        "lastErrors": []
+      },
+      {
+        "vendorId": "coffee4u",
+        "lastAttemptAt": "2026-10-12T13:46:30.869Z",
+        "lastSuccessAt": "2026-10-12T13:46:30.869Z",
+        "consecutiveFailures": 0,
+        "nextAttemptAt": "2026-10-12T19:46:30.869Z",
+        "lastErrors": []
+      },
+      {
+        "vendorId": "coffeeman",
+        "lastAttemptAt": "2026-10-12T15:51:52.931Z",
+        "lastSuccessAt": "2026-10-12T15:51:52.931Z",
+        "consecutiveFailures": 0,
+        "nextAttemptAt": "2026-10-12T21:51:52.931Z",
+        "lastErrors": []
+      }
+    ],
+    "runs": [
+      {
+        "trigger": "initial",
+        "startedAt": "2026-10-12T15:51:52.931Z",
+        "finishedAt": "2026-10-12T15:52:12.546Z",
+        "requests": 4,
+        "vendors": [
+          {
+            "vendorId": "pucks",
+            "skipped": true,
+            "reason": "backoff",
+            "nextAttemptAt": "2026-10-12T19:34:41.295Z"
+          },
+          {
+            "vendorId": "coffee4u",
+            "skipped": true,
+            "reason": "backoff",
+            "nextAttemptAt": "2026-10-12T19:46:30.869Z"
+          },
+          {
+            "vendorId": "coffeeman",
+            "ok": true,
+            "saved": 3,
+            "failures": [],
+            "nextAttemptAt": "2026-10-12T21:51:52.931Z"
+          }
+        ]
+      }
+    ],
+    "observations": 5
+  },
+  "catalogSummary": {
+    "products": [
+      "lavazza-crema-e-gusto-vacuum-ground"
+    ],
+    "vendorIds": [
+      "coffeeman",
+      "pucks",
+      "coffee4u"
+    ]
+  },
+  "board500": {
+    "generatedAt": "2026-10-12T16:17:58.066Z",
+    "productId": "lavazza-crema-e-gusto-vacuum-ground",
+    "variantId": "classico",
+    "targetGrams": 500,
+    "destination": {
+      "id": "tel-aviv",
+      "label": "Tel Aviv–Yafo",
+      "postcode": "6100000",
+      "country": "IL"
+    },
+    "best": {
+      "vendorId": "coffeeman",
+      "totalIls": 91,
+      "ilsPerKg": 182,
+      "key": "coffeeman:930333:classico:ground:250g:x1"
+    },
+    "ranked": [
+      {
+        "vendorId": "coffeeman",
+        "key": "coffeeman:930333:classico:ground:250g:x1",
+        "totalIls": 91,
+        "ilsPerKg": 182,
+        "shippingCertainty": "Published rate (verified)"
+      },
+      {
+        "vendorId": "coffeeman",
+        "key": "coffeeman:930334:classico:ground:1000g:x4",
+        "totalIls": 149,
+        "ilsPerKg": 149,
+        "shippingCertainty": "Published rate (verified)"
+      }
+    ],
+    "unrankable": [
+      {
+        "vendorId": "pucks",
+        "key": "pucks:Lav69:classico:ground:250g:x1",
+        "reasons": [
+          "Shipping is not published before checkout, so it is treated as unknown, not free (Shipping is calculated at checkout)"
+        ]
+      },
+      {
+        "vendorId": "coffeeman",
+        "key": "coffeeman:930335:classico:ground:2000g:x8",
+        "reasons": [
+          "Shipping is not published before checkout, so it is treated as unknown, not free (No published courier rate found; delivery cost is unknown before checkout. A distribution-center delivery option exists, but its price is not published on the product page. Free self-pickup is available and is kept separate from delivery.)"
+        ]
+      }
+    ],
+    "counts": {
+      "observed": 4,
+      "ranked": 2,
+      "pickup": 3,
+      "unknown": 2,
+      "excludedByVariant": 1,
+      "excludedVariants": [
+        "unspecified"
+      ]
+    },
+    "requestedRetiredProduct": null,
+    "freshness": {
+      "lastRefreshAt": "2026-10-12T15:52:12.546Z",
+      "lastObservationAt": "2026-10-12T15:51:52.931Z",
+      "dataAsOf": "2026-10-12T15:52:12.546Z",
+      "ageHours": 0.4,
+      "stale": false,
+      "fx": {
+        "asOf": "2026-10-12T12:23:04.599423Z",
+        "fetchedAt": "2026-10-12T15:51:52.931Z",
+        "source": "Bank of Israel exchange rates"
+      },
+      "vendors": [
+        {
+          "vendorId": "pucks",
+          "lastAttemptAt": "2026-10-12T13:34:41.295Z",
+          "lastSuccessAt": "2026-10-12T13:34:41.295Z",
+          "consecutiveFailures": 0,
+          "nextAttemptAt": "2026-10-12T19:34:41.295Z",
+          "lastErrors": []
+        },
+        {
+          "vendorId": "coffee4u",
+          "lastAttemptAt": "2026-10-12T13:46:30.869Z",
+          "lastSuccessAt": "2026-10-12T13:46:30.869Z",
+          "consecutiveFailures": 0,
+          "nextAttemptAt": "2026-10-12T19:46:30.869Z",
+          "lastErrors": []
+        },
+        {
+          "vendorId": "coffeeman",
+          "lastAttemptAt": "2026-10-12T15:51:52.931Z",
+          "lastSuccessAt": "2026-10-12T15:51:52.931Z",
+          "consecutiveFailures": 0,
+          "nextAttemptAt": "2026-10-12T21:51:52.931Z",
+          "lastErrors": []
+        }
+      ]
+    }
+  },
+  "board1000": {
+    "generatedAt": "2026-10-12T16:17:58.320Z",
+    "productId": "lavazza-crema-e-gusto-vacuum-ground",
+    "variantId": "classico",
+    "targetGrams": 1000,
+    "destination": {
+      "id": "tel-aviv",
+      "label": "Tel Aviv–Yafo",
+      "postcode": "6100000",
+      "country": "IL"
+    },
+    "best": {
+      "vendorId": "coffeeman",
+      "totalIls": 149,
+      "ilsPerKg": 149,
+      "key": "coffeeman:930334:classico:ground:1000g:x4"
+    },
+    "ranked": [
+      {
+        "vendorId": "coffeeman",
+        "key": "coffeeman:930334:classico:ground:1000g:x4",
+        "totalIls": 149,
+        "ilsPerKg": 149,
+        "shippingCertainty": "Published rate (verified)"
+      },
+      {
+        "vendorId": "coffeeman",
+        "key": "coffeeman:930333:classico:ground:250g:x1",
+        "totalIls": 157,
+        "ilsPerKg": 157,
+        "shippingCertainty": "Published rate (verified)"
+      }
+    ],
+    "unrankable": [
+      {
+        "vendorId": "pucks",
+        "key": "pucks:Lav69:classico:ground:250g:x1",
+        "reasons": [
+          "Shipping is not published before checkout, so it is treated as unknown, not free (Shipping is calculated at checkout)"
+        ]
+      },
+      {
+        "vendorId": "coffeeman",
+        "key": "coffeeman:930335:classico:ground:2000g:x8",
+        "reasons": [
+          "Shipping is not published before checkout, so it is treated as unknown, not free (No published courier rate found; delivery cost is unknown before checkout. A distribution-center delivery option exists, but its price is not published on the product page. Free self-pickup is available and is kept separate from delivery.)"
+        ]
+      }
+    ],
+    "counts": {
+      "observed": 4,
+      "ranked": 2,
+      "pickup": 3,
+      "unknown": 2,
+      "excludedByVariant": 1,
+      "excludedVariants": [
+        "unspecified"
+      ]
+    },
+    "requestedRetiredProduct": null,
+    "freshness": {
+      "lastRefreshAt": "2026-10-12T15:52:12.546Z",
+      "lastObservationAt": "2026-10-12T15:51:52.931Z",
+      "dataAsOf": "2026-10-12T15:52:12.546Z",
+      "ageHours": 0.4,
+      "stale": false,
+      "fx": {
+        "asOf": "2026-10-12T12:23:04.599423Z",
+        "fetchedAt": "2026-10-12T15:51:52.931Z",
+        "source": "Bank of Israel exchange rates"
+      },
+      "vendors": [
+        {
+          "vendorId": "pucks",
+          "lastAttemptAt": "2026-10-12T13:34:41.295Z",
+          "lastSuccessAt": "2026-10-12T13:34:41.295Z",
+          "consecutiveFailures": 0,
+          "nextAttemptAt": "2026-10-12T19:34:41.295Z",
+          "lastErrors": []
+        },
+        {
+          "vendorId": "coffee4u",
+          "lastAttemptAt": "2026-10-12T13:46:30.869Z",
+          "lastSuccessAt": "2026-10-12T13:46:30.869Z",
+          "consecutiveFailures": 0,
+          "nextAttemptAt": "2026-10-12T19:46:30.869Z",
+          "lastErrors": []
+        },
+        {
+          "vendorId": "coffeeman",
+          "lastAttemptAt": "2026-10-12T15:51:52.931Z",
+          "lastSuccessAt": "2026-10-12T15:51:52.931Z",
+          "consecutiveFailures": 0,
+          "nextAttemptAt": "2026-10-12T21:51:52.931Z",
+          "lastErrors": []
+        }
+      ]
+    }
+  },
+  "boardUnstated": {
+    "generatedAt": "2026-10-12T16:17:58.564Z",
+    "productId": "lavazza-crema-e-gusto-vacuum-ground",
+    "variantId": "unspecified",
+    "targetGrams": 500,
+    "destination": {
+      "id": "tel-aviv",
+      "label": "Tel Aviv–Yafo",
+      "postcode": "6100000",
+      "country": "IL"
+    },
+    "best": {
+      "vendorId": "coffee4u",
+      "totalIls": 106,
+      "ilsPerKg": 212,
+      "key": "coffee4u:2010561:unspecified:ground:250g:x1"
+    },
+    "ranked": [
+      {
+        "vendorId": "coffee4u",
+        "key": "coffee4u:2010561:unspecified:ground:250g:x1",
+        "totalIls": 106,
+        "ilsPerKg": 212,
+        "shippingCertainty": "Published rate (verified)"
+      }
+    ],
+    "unrankable": [],
+    "counts": {
+      "observed": 1,
+      "ranked": 1,
+      "pickup": 1,
+      "unknown": 0,
+      "excludedByVariant": 4,
+      "excludedVariants": [
+        "classico"
+      ]
+    },
+    "requestedRetiredProduct": null,
+    "freshness": {
+      "lastRefreshAt": "2026-10-12T15:52:12.546Z",
+      "lastObservationAt": "2026-10-12T15:51:52.931Z",
+      "dataAsOf": "2026-10-12T15:52:12.546Z",
+      "ageHours": 0.4,
+      "stale": false,
+      "fx": {
+        "asOf": "2026-10-12T12:23:04.599423Z",
+        "fetchedAt": "2026-10-12T15:51:52.931Z",
+        "source": "Bank of Israel exchange rates"
+      },
+      "vendors": [
+        {
+          "vendorId": "pucks",
+          "lastAttemptAt": "2026-10-12T13:34:41.295Z",
+          "lastSuccessAt": "2026-10-12T13:34:41.295Z",
+          "consecutiveFailures": 0,
+          "nextAttemptAt": "2026-10-12T19:34:41.295Z",
+          "lastErrors": []
+        },
+        {
+          "vendorId": "coffee4u",
+          "lastAttemptAt": "2026-10-12T13:46:30.869Z",
+          "lastSuccessAt": "2026-10-12T13:46:30.869Z",
+          "consecutiveFailures": 0,
+          "nextAttemptAt": "2026-10-12T19:46:30.869Z",
+          "lastErrors": []
+        },
+        {
+          "vendorId": "coffeeman",
+          "lastAttemptAt": "2026-10-12T15:51:52.931Z",
+          "lastSuccessAt": "2026-10-12T15:51:52.931Z",
+          "consecutiveFailures": 0,
+          "nextAttemptAt": "2026-10-12T21:51:52.931Z",
+          "lastErrors": []
+        }
+      ]
+    }
+  },
+  "retiredUrl": {
+    "generatedAt": "2026-10-12T16:17:58.828Z",
+    "productId": "lavazza-crema-e-gusto-vacuum-ground",
+    "variantId": "classico",
+    "targetGrams": 500,
+    "destination": {
+      "id": "tel-aviv",
+      "label": "Tel Aviv–Yafo",
+      "postcode": "6100000",
+      "country": "IL"
+    },
+    "best": {
+      "vendorId": "coffeeman",
+      "totalIls": 91,
+      "ilsPerKg": 182,
+      "key": "coffeeman:930333:classico:ground:250g:x1"
+    },
+    "ranked": [
+      {
+        "vendorId": "coffeeman",
+        "key": "coffeeman:930333:classico:ground:250g:x1",
+        "totalIls": 91,
+        "ilsPerKg": 182,
+        "shippingCertainty": "Published rate (verified)"
+      },
+      {
+        "vendorId": "coffeeman",
+        "key": "coffeeman:930334:classico:ground:1000g:x4",
+        "totalIls": 149,
+        "ilsPerKg": 149,
+        "shippingCertainty": "Published rate (verified)"
+      }
+    ],
+    "unrankable": [
+      {
+        "vendorId": "pucks",
+        "key": "pucks:Lav69:classico:ground:250g:x1",
+        "reasons": [
+          "Shipping is not published before checkout, so it is treated as unknown, not free (Shipping is calculated at checkout)"
+        ]
+      },
+      {
+        "vendorId": "coffeeman",
+        "key": "coffeeman:930335:classico:ground:2000g:x8",
+        "reasons": [
+          "Shipping is not published before checkout, so it is treated as unknown, not free (No published courier rate found; delivery cost is unknown before checkout. A distribution-center delivery option exists, but its price is not published on the product page. Free self-pickup is available and is kept separate from delivery.)"
+        ]
+      }
+    ],
+    "counts": {
+      "observed": 4,
+      "ranked": 2,
+      "pickup": 3,
+      "unknown": 2,
+      "excludedByVariant": 1,
+      "excludedVariants": [
+        "unspecified"
+      ]
+    },
+    "requestedRetiredProduct": {
+      "id": "lavazza-qualita-oro-vacuum-ground",
+      "line": "Qualità Oro"
+    },
+    "freshness": {
+      "lastRefreshAt": "2026-10-12T15:52:12.546Z",
+      "lastObservationAt": "2026-10-12T15:51:52.931Z",
+      "dataAsOf": "2026-10-12T15:52:12.546Z",
+      "ageHours": 0.4,
+      "stale": false,
+      "fx": {
+        "asOf": "2026-10-12T12:23:04.599423Z",
+        "fetchedAt": "2026-10-12T15:51:52.931Z",
+        "source": "Bank of Israel exchange rates"
+      },
+      "vendors": [
+        {
+          "vendorId": "pucks",
+          "lastAttemptAt": "2026-10-12T13:34:41.295Z",
+          "lastSuccessAt": "2026-10-12T13:34:41.295Z",
+          "consecutiveFailures": 0,
+          "nextAttemptAt": "2026-10-12T19:34:41.295Z",
+          "lastErrors": []
+        },
+        {
+          "vendorId": "coffee4u",
+          "lastAttemptAt": "2026-10-12T13:46:30.869Z",
+          "lastSuccessAt": "2026-10-12T13:46:30.869Z",
+          "consecutiveFailures": 0,
+          "nextAttemptAt": "2026-10-12T19:46:30.869Z",
+          "lastErrors": []
+        },
+        {
+          "vendorId": "coffeeman",
+          "lastAttemptAt": "2026-10-12T15:51:52.931Z",
+          "lastSuccessAt": "2026-10-12T15:51:52.931Z",
+          "consecutiveFailures": 0,
+          "nextAttemptAt": "2026-10-12T21:51:52.931Z",
+          "lastErrors": []
+        }
+      ]
+    }
+  }
+}
