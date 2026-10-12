@@ -40,9 +40,7 @@ export async function runRefresh({
   holderId = `refresh-${now}-${Math.random().toString(36).slice(2, 8)}`,
   logger = null
 } = {}) {
-  console.log('[debug] runRefresh start trigger=' + trigger);
   const acquired = await store.acquireLease('refresh', holderId, LEASE_TTL_MS);
-  console.log('[debug] lease acquired=' + acquired);
   if (!acquired) {
     return { skipped: true, reason: 'another refresh holds the lease', trigger };
   }
@@ -55,7 +53,6 @@ export async function runRefresh({
     const queued = [];
     for (const vendor of vendors) {
       const state = await store.getVendorState(vendor.id);
-      console.log('[debug] vendor ' + vendor.id + ' state=' + JSON.stringify(state));
       if (!isVendorDue(state, now)) {
         results.push({ vendorId: vendor.id, skipped: true, reason: 'backoff', nextAttemptAt: state.nextAttemptAt });
         continue;
@@ -175,9 +172,7 @@ export async function refreshFx({ store, fetchImpl, now, counter, logger }) {
  * traffic can never trigger unlimited scraping.
  */
 export async function maybeInitialRefresh({ store, ctx, now = Date.now(), run = runRefresh, ...options } = {}) {
-  console.log('[debug] maybeInitialRefresh called, ctx.waitUntil=' + typeof ctx?.waitUntil);
   const last = await store.getMeta('lastRefreshAt');
-  console.log('[debug] lastRefreshAt=' + JSON.stringify(last));
   if (last?.value) return { skipped: true, reason: 'already refreshed' };
   const attempt = await store.getMeta('initialRefreshAttemptAt');
   if (attempt?.value && now - Date.parse(attempt.value) < INITIAL_REFRESH_THROTTLE_MS) {

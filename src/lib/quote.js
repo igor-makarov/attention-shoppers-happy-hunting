@@ -50,7 +50,12 @@ export function quoteBoard({
     quotes.push(quoteOffer(observation, { grams, destination, fx, now, staleAfterMs }));
   }
   const ranked = quotes.filter(quote => quote.rankable).sort(compareQuotes);
-  const pickup = quotes.filter(quote => quote.group === 'pickup');
+  const pickup = [
+    ...quotes.filter(quote => quote.group === 'pickup'),
+    ...quotes
+      .filter(quote => quote.group !== 'pickup' && quote.shipping?.pickup?.available)
+      .map(toPickupEntry)
+  ];
   const unrankable = quotes.filter(quote => quote.group === 'unrankable');
   const staleOrUnavailable = quotes.filter(quote => quote.group === 'stale_unavailable');
   const unknown = [...unrankable, ...staleOrUnavailable];
@@ -267,6 +272,27 @@ function coverageProblem(shippingDestination, destination) {
     return null;
   }
   return 'Vendor delivery coverage is not documented';
+}
+
+function toPickupEntry(quote) {
+  const itemTotal = quote.itemTotalIls ?? (quote.itemPrice.amount != null && quote.units
+    ? round2(quote.itemPrice.amount * quote.units)
+    : null);
+  return {
+    ...quote,
+    key: `${quote.key}:pickup`,
+    group: 'pickup',
+    rankable: false,
+    totalIls: null,
+    ilsPerKg: null,
+    itemTotalIls: itemTotal,
+    pickup: {
+      available: true,
+      amount: quote.shipping.pickup?.amount ?? null,
+      note: quote.shipping.pickup?.note ?? null
+    },
+    labels: [...quote.labels, 'Pickup only — not a delivered offer']
+  };
 }
 
 function compareQuotes(a, b) {

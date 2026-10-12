@@ -22,14 +22,14 @@ export default {
       return Response.json({ error: 'Method not allowed' }, { status: 405, headers: { allow: 'GET, HEAD' } });
     }
     if (url.pathname === '/health') {
-      triggerInitialRefreshIfNeeded(env, ctx).catch(error => console.warn('initial refresh trigger failed:', error?.stack ?? error));
+      scheduleInitialRefresh(env, ctx);
       return handleHealth(env);
     }
     if (url.pathname === '/api/catalog') {
       return json({ products, destinations: DESTINATIONS, vendors: publicVendors() });
     }
     if (url.pathname === '/api/board') {
-      triggerInitialRefreshIfNeeded(env, ctx).catch(error => console.warn('initial refresh trigger failed:', error?.stack ?? error));
+      scheduleInitialRefresh(env, ctx);
       return handleBoard(request, env, ctx, url);
     }
     if (url.pathname === '/api/status') {
@@ -150,6 +150,13 @@ function publicVendors() {
     homepage: vendor.homepage,
     offers: vendor.offers.map(offer => ({ id: offer.id, url: offer.url, kind: offer.kind }))
   }));
+}
+
+function scheduleInitialRefresh(env, ctx) {
+  const work = triggerInitialRefreshIfNeeded(env, ctx)
+    .catch(error => console.warn('initial refresh trigger failed:', error?.stack ?? error));
+  if (ctx?.waitUntil) ctx.waitUntil(work);
+  return work;
 }
 
 export async function triggerInitialRefreshIfNeeded(env, ctx) {

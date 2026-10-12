@@ -204,6 +204,25 @@ test('pickup offers are kept separate from delivered ranking', () => {
   assert.equal(board.pickup[0].itemTotalIls, 80);
 });
 
+test('pickup availability is listed separately while delivery stays ranked', () => {
+  const withPickup = observation({
+    key: 'both:1',
+    shipping: {
+      certainty: 'verified',
+      amount: { amount: 25, currency: 'ILS' },
+      pickup: { available: true, amount: { amount: 0, currency: 'ILS' }, note: 'Free self-pickup, listed on the product page.' }
+    }
+  });
+  const board = quote([withPickup]);
+  assert.equal(board.ranked.length, 1);
+  assert.equal(board.ranked[0].totalIls, 105); // 2 × 40 + 25
+  assert.equal(board.pickup.length, 1);
+  assert.equal(board.pickup[0].totalIls, null);
+  assert.equal(board.pickup[0].itemTotalIls, 80);
+  assert.match(board.pickup[0].labels.join(' '), /Pickup only/);
+  assert.equal(board.counts.pickup, 1);
+});
+
 test('stale attempts beyond the threshold do not rank even with fresh prices', () => {
   const stale = observation({ key: 'old:1', observedAt: '2026-10-10T09:00:00.000Z' });
   const board = quote([stale]);

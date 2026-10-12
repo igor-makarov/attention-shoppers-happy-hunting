@@ -244,10 +244,10 @@ function renderPickupSection(pickup) {
       el('div', {}, el('span', { class: 'vendor-name', text: quote.vendor.name }), el('div', { class: 'unknown__meta', text: quote.product.name ?? '' })),
       el('div', {},
         el('div', { class: 'unknown__grid' },
-          el('span', { text: `Item total for ${quote.units} pack(s): ${money(quote.itemTotalIls) ?? 'unknown'}` }),
-          el('span', { text: 'Pickup: free or store policy' }),
+          el('span', { text: `Item total for ${quote.units ?? 1} pack(s): ${money(quote.itemTotalIls) ?? 'unknown'}` }),
+          el('span', { text: `Pickup fee: ${quote.pickup?.amount?.amount === 0 ? 'Free' : quote.pickup?.amount?.amount != null ? money(quote.pickup.amount.amount) : 'See vendor policy'}` }),
           el('span', { text: `Checked ${timeLabel(quote.observedAt)}` })),
-        el('p', { class: 'unknown__reason', text: quote.labels.join('. ') }),
+        el('p', { class: 'unknown__reason', text: [quote.pickup?.note, quote.labels.join('. ')].filter(Boolean).join(' ') }),
         offerLink(quote))));
   }
   return section;
