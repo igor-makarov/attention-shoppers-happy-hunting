@@ -1,7 +1,7 @@
 # Project status
 
 Stage: **Crema e Gusto scope enforced; the Canton Zürich shopping board, the browser-researched
-shipping rates and the redesigned UI validated locally (95/95 tests, 81/81 offline and 77/77 live browser
+shipping rates and the redesigned UI validated locally (98/98 tests, 81/81 offline and 77/77 live browser
 checks); production serves the redesigned assets, the first production cron tick was observed at
 18:17:55 UTC (0 requests, exactly as expected) and its stored observations pick up the researched rates
 at the 00:17 UTC cron tick; a fresh 19:07-19:16 UTC browser session independently reproduced all three
@@ -1030,7 +1030,8 @@ WCAG AA rendered contrast. Evidence:
 **Verification runs (2026-10-12 UTC):**
 
 - `npm ci --ignore-scripts` — clean install from the pinned lockfile, 0 vulnerabilities.
-- `npm run verify` — **95/95** `node:test` cases pass; `wrangler deploy --dry-run` builds the bundle
+- `npm run verify` — **98/98** `node:test` cases pass (95 task tests plus three smoke tests for the new
+  `scripts/inspect-screenshot.mjs` review tool); `wrangler deploy --dry-run` builds the bundle
   (83.90 KiB, gzip 21.73 KiB; bindings `BOARD` + `ASSETS`).
 - `npm run qa:browser` — **81/81** offline checks pass against the fixture QA server.
 - `npm run qa:browser -- http://127.0.0.1:8789` — **77/77** live checks pass against a fresh-store
