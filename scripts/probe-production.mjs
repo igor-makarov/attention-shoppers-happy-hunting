@@ -154,6 +154,23 @@ check(
   `${endpoints.health.body?.status ?? 'missing'} / ${endpoints.health.body?.storageError ?? 'no storage error'}`
 );
 
+// Run-history integrity: a completed refresh must be recorded and time-ordered, so
+// a missing or mis-stamped cron run is visible instead of silently reading as "never
+// refreshed". The newest run is printed below, which is how a cron tick is observed.
+const statusBody = endpoints.status.body ?? {};
+const runs = Array.isArray(statusBody.runs) ? statusBody.runs : [];
+const runsWellFormed = runs.length > 0 && runs.every(run => {
+  const started = Date.parse(run?.startedAt);
+  const finished = Date.parse(run?.finishedAt);
+  return Number.isFinite(started) && Number.isFinite(finished) && finished >= started;
+});
+check('status run history is present and time-ordered', runsWellFormed, `${runs.length} run(s)`);
+check(
+  'health and status agree on the last completed refresh',
+  (endpoints.health.body?.lastRefreshAt ?? null) === (statusBody.lastRefreshAt ?? null),
+  `health=${endpoints.health.body?.lastRefreshAt ?? null} status=${statusBody.lastRefreshAt ?? null}`
+);
+
 const boards = {
   board500: endpoints.board500.body,
   board1000: endpoints.board1000.body,
