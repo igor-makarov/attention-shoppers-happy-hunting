@@ -62,6 +62,35 @@ test('QA fixture server can add the labelled terms-demo offer without touching t
   }
 });
 
+test('QA fixture server can simulate a failed last attempt without erasing the last good observation', async () => {
+  const now = Date.parse('2026-10-12T11:00:00.000Z');
+  const plain = await startQaServer({ port: 0, now });
+  const failed = await startQaServer({ port: 0, now, failedAttempt: true });
+  try {
+    const plainBoard = await (await fetch(`${plain.url}/api/board?grams=500&dest=tel-aviv&variant=classico`)).json();
+    assert.equal(plainBoard.qa.failedAttempt, false);
+    assert.equal(plainBoard.best.lastAttemptFailed, false);
+
+    const failedBoard = await (await fetch(`${failed.url}/api/board?grams=500&dest=tel-aviv&variant=classico`)).json();
+    assert.equal(failedBoard.qa.failedAttempt, true);
+    assert.equal(failedBoard.best.vendor.id, 'coffeeman', 'the last known good offer still ranks');
+    assert.equal(failedBoard.best.totalIls, 91, 'the preserved price is unchanged');
+    assert.equal(failedBoard.best.lastAttemptFailed, true, 'the quote says the most recent attempt failed');
+    assert.match(failedBoard.best.lastError, /HTTP 503/);
+    assert.notEqual(failedBoard.best.attemptedAt, failedBoard.best.observedAt, 'the failed attempt is stamped separately from the last success');
+    const pucks = failedBoard.unrankable.find(quote => quote.vendor.id === 'pucks');
+    assert.equal(pucks.lastAttemptFailed, true, 'the unrankable offer also carries its failed attempt');
+    const coffeemanState = failedBoard.freshness.vendors.find(vendor => vendor.vendorId === 'coffeeman');
+    assert.equal(coffeemanState.consecutiveFailures, 1);
+    assert.ok(coffeemanState.lastErrors.some(error => /HTTP 503/.test(error)));
+    const plainState = plainBoard.freshness.vendors.find(vendor => vendor.vendorId === 'coffeeman');
+    assert.equal(plainState.consecutiveFailures, 0, 'the default fixture server reports no failure');
+  } finally {
+    await plain.close();
+    await failed.close();
+  }
+});
+
 test('QA fixture server serves the board API and static assets offline', async () => {
   const server = await startQaServer({ port: 0, now: Date.parse('2026-10-12T11:00:00.000Z') });
   try {

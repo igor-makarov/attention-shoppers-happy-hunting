@@ -32,6 +32,11 @@ const PUBLIC_CACHE = 'public, max-age=300, stale-while-revalidate=3600';
 // still tracked, so a historical retired row can never make the fixture board look fresh.
 const TRACKED_PRODUCT_IDS = products.map(product => product.id);
 
+// A single plain-language failure reason for the QA-only failed-attempt scenario.
+// It is fixture metadata about a simulated vendor outage, never a claim about a real
+// vendor response.
+export const FAILED_ATTEMPT_REASON = 'HTTP 503 from the vendor product page';
+
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -128,16 +133,31 @@ export function termsDemoObservation(now = Date.now()) {
  * Start a local HTTP server that behaves like the deployed read-only board.
  * Returns { url, port, observations, close }.
  */
-export async function startQaServer({ port = 0, now = Date.now(), withTermsDemo = false, staleRefresh = false, interruptedRefresh = false } = {}) {
-  const observations = await fixtureObservations(now);
+export async function startQaServer({ port = 0, now = Date.now(), withTermsDemo = false, staleRefresh = false, interruptedRefresh = false, failedAttempt = false } = {}) {
+  const observations = await fixtureObservations(failedAttempt ? now - 30 * 60 * 1000 : now);
   if (withTermsDemo) observations.push(termsDemoObservation(now));
+  // `failedAttempt` simulates the most recent vendor check failing while the last
+  // successful observation is preserved: the fixture pages are parsed 30 minutes
+  // before the server's reference time, then the ranked CoffeeMan offer and the
+  // unrankable Pucks offer keep their price, stock and observedAt while carrying
+  // attemptedAt/lastError for the failed check, so the UI must disclose it.
+  if (failedAttempt) {
+    const failedAt = new Date(now).toISOString();
+    for (const observation of observations) {
+      const isFailed = (observation.vendor.id === 'coffeeman' && observation.product.packCount === 1)
+        || observation.vendor.id === 'pucks';
+      if (!isFailed) continue;
+      observation.attemptedAt = failedAt;
+      observation.lastError = FAILED_ATTEMPT_REASON;
+    }
+  }
   // `staleRefresh` simulates a board whose scheduled refresh has stopped running: the
   // offers are still as fresh as the fixture timestamps say, but the refresh is old.
   // `interruptedRefresh` simulates a run that saved observations but was stopped before
   // writing the completion marker (for example a redeploy killed the background job).
   const lastRefreshAt = interruptedRefresh ? null : new Date(staleRefresh ? now - 30 * 60 * 60 * 1000 : now).toISOString();
   const server = createServer((request, response) => {
-    handle(request, response, { observations, now, withTermsDemo, lastRefreshAt, staleRefresh, interruptedRefresh }).catch(error => {
+    handle(request, response, { observations, now, withTermsDemo, lastRefreshAt, staleRefresh, interruptedRefresh, failedAttempt }).catch(error => {
       response.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
       response.end(`qa server error: ${error?.message ?? error}`);
     });
@@ -155,7 +175,7 @@ export async function startQaServer({ port = 0, now = Date.now(), withTermsDemo 
   };
 }
 
-async function handle(request, response, { observations, now, withTermsDemo, lastRefreshAt, staleRefresh, interruptedRefresh }) {
+async function handle(request, response, { observations, now, withTermsDemo, lastRefreshAt, staleRefresh, interruptedRefresh, failedAttempt }) {
   const url = new URL(request.url, 'http://127.0.0.1');
   if (url.pathname === '/api/catalog') {
     return json(response, {
@@ -177,16 +197,22 @@ async function handle(request, response, { observations, now, withTermsDemo, las
       freshness: {
         ...refreshFreshness(lastRefreshAt, now, newestObservationAt(observations, TRACKED_PRODUCT_IDS)),
         fx: null,
-        vendors: registeredVendors().map(vendor => ({
-          vendorId: vendor.id,
-          lastAttemptAt: new Date(now).toISOString(),
-          lastSuccessAt: new Date(now).toISOString(),
-          consecutiveFailures: 0,
-          // Synthetic six-hour due time, matching the Worker's successful-refresh
-          // schedule so the footer next-check line is testable offline.
-          nextAttemptAt: new Date(now + 6 * 60 * 60 * 1000).toISOString(),
-          lastErrors: []
-        }))
+        vendors: registeredVendors().map(vendor => {
+          const failed = failedAttempt && (vendor.id === 'coffeeman' || vendor.id === 'pucks');
+          const lastSuccessAt = observations.find(row => row.vendor.id === vendor.id && row.observedAt)?.observedAt
+            ?? new Date(now).toISOString();
+          return {
+            vendorId: vendor.id,
+            lastAttemptAt: new Date(now).toISOString(),
+            lastSuccessAt: failed ? lastSuccessAt : new Date(now).toISOString(),
+            consecutiveFailures: failed ? 1 : 0,
+            // Synthetic due time: six hours after a successful refresh (matching the
+            // Worker's schedule) or the 30-minute failure backoff so the footer
+            // next-check and failure lines are both testable offline.
+            nextAttemptAt: new Date(now + (failed ? 30 * 60 * 1000 : 6 * 60 * 60 * 1000)).toISOString(),
+            lastErrors: failed ? [FAILED_ATTEMPT_REASON] : []
+          };
+        })
       },
       status: board.ranked.length > 0
         ? 'Delivered totals ranked from verified observations.'
@@ -196,6 +222,7 @@ async function handle(request, response, { observations, now, withTermsDemo, las
         demoOffers: withTermsDemo ? 1 : 0,
         staleRefresh,
         interruptedRefresh,
+        failedAttempt,
         previousCheckMetadata: 1,
         note: withTermsDemo
           ? 'Offline browser QA server. Recorded fixtures plus one clearly labelled QA-only terms demo offer (not a real vendor) and one synthetic previous-check price for change rendering.'

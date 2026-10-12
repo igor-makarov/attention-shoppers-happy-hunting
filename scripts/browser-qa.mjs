@@ -449,6 +449,57 @@ try {
     await interruptedServer.close();
   }
 
+  // Failed-attempt scenario: the most recent check failed, but the last successful
+  // observation is preserved and still ranks. The board must say the last attempt
+  // failed instead of presenting the row as freshly re-checked.
+  const failedServer = await startQaServer({ port: 0, failedAttempt: true });
+  try {
+    const failedBoard = await fetchBoard(failedServer.url, 500, 'tel-aviv');
+    const failedBest = failedBoard.best ?? null;
+    check('failure: a failed last attempt keeps its last successful observation ranked',
+      failedBest?.lastAttemptFailed === true
+        && failedBest?.lastError != null
+        && failedBest?.observedAt != null
+        && failedBest?.attemptedAt != null
+        && failedBest.attemptedAt !== failedBest.observedAt,
+      JSON.stringify({ observedAt: failedBest?.observedAt, attemptedAt: failedBest?.attemptedAt, lastError: failedBest?.lastError }));
+    const failedUnrankable = failedBoard.unrankable.find(quote => quote.vendor.id === 'pucks') ?? null;
+    check('failure: the unrankable fixture offer also carries its failed attempt',
+      failedUnrankable?.lastAttemptFailed === true,
+      JSON.stringify({ lastAttemptFailed: failedUnrankable?.lastAttemptFailed, lastError: failedUnrankable?.lastError }));
+    await wd('POST', '/url', { url: `${failedServer.url}/?grams=500&dest=tel-aviv` });
+    await waitForBoard(wd);
+    const failedUi = await evaluate(wd, `(() => {
+      const dl = document.querySelector('.best__side dl');
+      const dts = dl ? [...dl.querySelectorAll('dt')] : [];
+      const dds = dl ? [...dl.querySelectorAll('dd')] : [];
+      return {
+        rows: dts.map((dt, index) => [dt.textContent.trim(), (dds[index]?.textContent ?? '').trim()]),
+        compareCheckedCells: [...document.querySelectorAll('table.compare tbody tr td:nth-child(8)')].map(n => n.innerText),
+        unknownText: [...document.querySelectorAll('.unknown__grid span, .unknown__reason, .unknown__meta')].map(n => n.textContent.trim()).join(' | '),
+        visibleText: document.body.innerText,
+        footer: document.getElementById('footer-status')?.textContent ?? null
+      };
+    })()`);
+    const lastAttemptRow = failedUi.rows.find(([term]) => term === 'Last attempt') ?? null;
+    check('failure: best-offer card says the last attempt failed and names the last successful observation',
+      lastAttemptRow != null && /^Failed /.test(lastAttemptRow[1]) && /showing the last successful observation/.test(lastAttemptRow[1]),
+      JSON.stringify(lastAttemptRow));
+    check('failure: comparison row repeats the failed last attempt next to the checked time',
+      failedUi.compareCheckedCells.some(cell => /Last attempt failed/.test(cell)),
+      failedUi.compareCheckedCells.join(' | '));
+    check('failure: unknown-list offer shows the failed attempt with its reason',
+      /Last attempt: .*failed: HTTP 503/.test(failedUi.unknownText),
+      failedUi.unknownText.slice(0, 300));
+    check('failure: footer names the failing source, its consecutive failures and next attempt',
+      /source\(s\) failing/i.test(failedUi.visibleText ?? '')
+        && /consecutive failure\(s\)/i.test(failedUi.visibleText ?? '')
+        && /last error: HTTP 503/i.test(failedUi.visibleText ?? ''),
+      (failedUi.visibleText ?? '').split('\n').filter(line => /failing|consecutive|last error/i.test(line)).join(' | '));
+  } finally {
+    await failedServer.close();
+  }
+
   // Close the session, then remove the driver's child processes before exiting.
   await wd('DELETE', '');
   report.sessionClosed = true;
