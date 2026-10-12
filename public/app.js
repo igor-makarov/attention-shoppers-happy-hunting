@@ -412,7 +412,7 @@ function renderRankedSection(board) {
   section.append(el('div', { class: 'section__head' },
     el('div', { class: 'section__kicker', text: '01 / Delivered comparison' }),
     el('h2', { attrs: { id: 'ranked-title' }, text: 'Item subtotal + shipping = delivered total' }),
-    el('p', { class: 'section__intro', text: `${board.product?.line ?? product?.line ?? 'Crema e Gusto'} ${board.product?.form ?? 'ground'} (${board.product?.packaging ?? 'vacuum brick'}), ${board.targetGrams} g to ${board.destination.label}. Packs round up to whole packs.` })));
+    el('p', { class: 'section__intro', text: `${board.product?.line ?? product?.line ?? 'Crema e Gusto'} ${board.product?.form ?? 'ground'} (${board.product?.packaging ?? 'vacuum brick'}), ${board.targetGrams} g to ${board.destination.label}.` })));
 
   if (!board.best) {
     section.append(el('div', { class: 'empty' },
