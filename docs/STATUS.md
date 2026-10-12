@@ -3,7 +3,8 @@
 Stage: **Crema e Gusto scope enforced; the Canton Zürich shopping board, the browser-researched
 shipping rates and the redesigned UI validated locally (95/95 tests, 81/81 offline and 77/77 live browser
 checks); production serves the redesigned assets and its stored observations pick up the researched rates
-at the 00:17 UTC cron tick.**
+at the 00:17 UTC cron tick; a fresh 19:07-19:16 UTC browser session independently reproduced all three
+vendors' rendered shipping quotes.**
 The Worker implements the self-updating board for exactly one product line — **Lavazza Crema e Gusto
 vacuum-packed ground coffee** — with three independent Israeli vendor adapters and five observed
 listings. The owner reports the site deployed at
@@ -915,3 +916,50 @@ browser-researched shipping matrix and corrected Pucks / CoffeeMan-8-pack shippi
 **Next steps:** (a) re-run `npm run probe:production` after the per-vendor due times to confirm the researched rates reach
 production; (b) keep `npm run verify` and both `npm run qa:browser` modes green after any UI change; (c) further work stays
 within Crema e Gusto vendor coverage, shipping evidence, freshness and comparison quality.
+
+## Iteration 3-69 — fresh independent browser re-check of all three shipping flows
+
+The immediate browser task was re-verified in a new live headless Chrome 154 + ChromeDriver 154 session
+(`scripts/browser-research.mjs`, one session kept alive across steps, 2026-10-12 19:07-19:16 UTC) against
+the real vendor sites. Temporary anonymous carts were used only to read public shipping estimators; no
+order, payment, login, account, street address or bot-challenge bypass was involved, and cart/session
+identifiers are not recorded. The amounts reproduce the 3-67/3-68 matrix:
+
+- **Pucks**, Tel Aviv / 6100000, `https://pucks.co.il/payment/request`: 2 x 250 g (₪60 subtotal) ->
+  `משלוח עד הבית 30 ₪`, total **₪90**; 4 x 250 g (₪120 subtotal, above the published ₪100 threshold) ->
+  shipping `חינם` (free), total **₪120**. New nuance recorded: the summary total includes the ₪30 only
+  after the delivery-method card is selected; before that the page prints `המשלוח מחושב בתשלום` with a
+  ₪60 total, so the quote is conditional on the chosen method rather than automatic.
+- **CoffeeMan 8 x 250 g (2 kg)**, anonymous `https://www.coffeeman.co.il/cart.asp`: the public method
+  picker lists home courier ₪20, distribution-center delivery up to 5 kg ₪20 and self-pickup ₪0 (branch
+  choice required); selecting the courier shows `משלוח ₪20.00 | ₪260.00` for the ₪240 cart. No
+  free-delivery threshold is displayed. Still a 2 kg cart quote, not a nationwide rate.
+- **Coffee4U 1 x 250 g**, anonymous `https://www.coffee4u.co.il/cart.asp`: door-to-door courier ₪30
+  (1-5 business days) -> **₪68**; Chiita Shops pickup point ₪15 (up to 7 business days, up to 5 kg,
+  pickup point must be chosen) -> **₪53**; self-pickup ₪0 showing `איסוף מקופי4יו, דרך שלמה 66 תל אביב`
+  -> **₪38**. The vendor's title tag still says "Lavazza Qualita Oro Beans 1 kg" while the body and cart
+  item are the Crema e Gusto 250 g listing. Coverage remains subject to the vendor's unpublished
+  home-delivery locality list already recorded in docs/SOURCES.md.
+
+Evidence: `docs/evidence/browser-research/2026-10-12-fresh-recheck-3-69.json` plus four viewport
+screenshots in the same directory. **Tool limitation (unchanged, re-confirmed):** the available file-read
+tool rejects PNG input ("reading images is not supported"), so the screenshots could not be
+machine-inspected; every amount is backed by rendered visible text captured in the same live session.
+
+Other verification this iteration:
+
+- `npm ci --ignore-scripts` — clean install, 0 vulnerabilities; `npm run verify` — **95/95** tests and the
+  `wrangler deploy --dry-run` bundle pass (83.49 KiB, gzip 21.58 KiB; bindings `BOARD` + `ASSETS`).
+- `npm run qa:browser` — **81/81** offline checks pass against the fixture QA server.
+- `npm run cron:offline` — the fixture pipeline runs again with **6 bounded requests**, all three vendors
+  saved (CoffeeMan 3, Pucks 1, Coffee4U 1), five offers persisted and no failures.
+- `npm run probe:production` (read-only, 19:13:57 UTC) — all checks pass; `/health`/`/api/status` still
+  show the 15:52:12.546Z refresh and five pre-research observations, and the 18:17:55.845Z cron tick was
+  recorded with 0 requests (expected: every vendor was inside its six-hour window). Vendor due times
+  (pucks 19:34, coffee4u 19:46, coffeeman 21:51 UTC) are all before the 00:17 UTC tick, which remains the
+  expected refresh point for the researched rates. This iteration does **not** claim the rates are live in
+  production yet.
+
+**Next step:** after the 00:17 UTC tick, re-run `npm run probe:production` to confirm the researched rates
+reached the production store, then continue within Crema e Gusto coverage, shipping evidence, freshness
+and comparison quality.
