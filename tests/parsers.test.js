@@ -6,6 +6,7 @@ import { parseCoffeemanProduct, parseShippingOptions } from '../src/vendors/coff
 import { parsePucksProduct } from '../src/vendors/pucks.js';
 import { parseCoffee4uProduct, parseCoffee4uShipping } from '../src/vendors/coffee4u.js';
 import { classifyListing, isRetiredProductId, resolveProductRequest } from '../src/catalog.js';
+import { coffeemanEightPackPolicy } from '../src/lib/policies.js';
 
 const fixtures = new URL('./fixtures/', import.meta.url);
 const read = name => readFileSync(new URL(name, fixtures));
@@ -70,6 +71,9 @@ test('coffeeman 4-pack and 8-pack fixtures keep pack count, price and shipping s
   assert.equal(eight.shipping.maxTotalGrams, 2000, 'the observed rate is limited to the 2 kg cart it was quoted on');
   assert.match(eight.shipping.note, /checkout quote/i);
   assert.equal(eight.shipping.evidence.retrievedAt, '2026-10-12T20:07:00Z', 'shipping evidence keeps the latest research retrieval time');
+  assert.equal(eight.shipping.policy.id, coffeemanEightPackPolicy.id, 'the parsed row names the validated policy it came from');
+  assert.equal(eight.shipping.policy.version, coffeemanEightPackPolicy.version);
+  assert.equal(eight.shipping.policy.reviewBy, coffeemanEightPackPolicy.reviewBy);
   assert.equal(eight.availability, 'in_stock');
   assert.match(eight.shipping.destination.caveat, /home-delivery list/, 'even an unrankable offer keeps the documented coverage caveat');
 });

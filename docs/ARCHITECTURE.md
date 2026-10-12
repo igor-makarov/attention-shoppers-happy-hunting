@@ -51,8 +51,12 @@ and a policy past its review date is `expired`, so the offer falls back to expli
 instead of a stale unconditional rate. Enrichment never touches the observation's price, stock,
 `observedAt` or the refresh completion marker, so applying a newer shipping rule cannot claim a fresh
 vendor price/stock check; `policySummary()` exposes the rule version, observation time and review date
-through `/api/status`. Pucks' ₪30/free-above-₪100 home-delivery rule is the first validated policy and
-is also the adapter's single source for that rate.
+through `/api/status`. Two validated policies are checked in: Pucks' ₪30/free-above-₪100 home-delivery
+rule and CoffeeMan's ₪20 checkout quote for the one-8-pack (2 kg) cart, which carries `maxTotalGrams:
+2000` so the quote engine never stretches it to an unobserved larger cart and records no free
+threshold for this SKU. Each policy is also the adapter's single source for the rate it describes, so
+the parsed row, the read-time evaluator and the tests share one researched rule instead of separate
+hard-coded strings.
 
 `src/refresh.js` is the deterministic scheduled pipeline (leases, bounded concurrency, per-vendor
 backoff, last-known-good retention) and the same function runs in the Worker's `scheduled` handler, the
@@ -64,7 +68,8 @@ in-memory and file-backed stores with the same interface. Public routes in `src/
 snapshots of that storage and never fetch visitor-supplied URLs.
 
 Verification is layered: `tests/*.test.js` covers parsers, quote edge cases, the shipping-policy
-evaluator (including an old persisted Pucks row gaining the evidenced rule after a policy update), the
+evaluator (including an old persisted Pucks row and an old persisted CoffeeMan 8-pack row each gaining
+their evidenced rule after a policy update), the
 refresh pipeline and the Worker routes against recorded fixtures; `scripts/check-sources.mjs` re-checks
 the live vendor pages; `scripts/simulate-cron.mjs` runs the full refresh offline or live;
 `scripts/research-workflow.mjs` defines the vendor navigation recipes and the common, sanitized

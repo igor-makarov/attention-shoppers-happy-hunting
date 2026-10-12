@@ -1269,3 +1269,50 @@ observations replace the 15:52 snapshot (the read-time policy enrichment already
 CoffeeMan 8-pack cart rate is not a shared policy, so its old row stays unrankable until then). Re-run
 `npm run probe:production` after that tick, then continue within Crema e Gusto coverage, shipping
 evidence, freshness and comparison quality.
+
+## Iteration 3-76 — the researched CoffeeMan 8-pack cart quote becomes a read-time policy (2026-10-12)
+
+Production probe at 22:04 UTC confirmed the still-old store: five observations, `lastRefreshAt`
+15:52:12.546Z, four ranked offers and one unrankable row — the persisted CoffeeMan 8 × 250 g row whose
+shipping was unknown because the product page publishes no courier price for SKU 930335. The ₪20
+anonymous-checkout quote researched at 18:16/20:07 UTC lived only in the adapter constant, so unlike the
+Pucks row it could not be enriched at read time.
+
+Iteration 3-76 moves that researched quote into the shared versioned policy model and makes the adapter
+derive its constant from the policy, so the parsed row, the read-time evaluator and the tests share one
+rule:
+
+- `src/lib/policies.js` adds `coffeeman-8pack-il-cart-quote` v1 (`observed_cart` / `checkout_quote`,
+  ₪20 ILS home courier, `maxTotalGrams: 2000`, no free threshold, the unpublished locality-list caveat,
+  evidence `https://www.coffeeman.co.il/checkout.asp` retrieved 2026-10-12T20:07:00Z, `reviewBy`
+  2026-11-11). `SHIPPING_POLICIES` now carries both validated rules and `/api/status` exposes both.
+- `src/vendors/coffeeman.js` derives `COFFEEMAN_CHECKOUT_QUOTES` from the policy (amount, currency,
+  cart-size cap, retrieval time, source URL, note) and stamps `shipping.policy` on the parsed 8-pack row,
+  so an offer detail can name the rule version and review date instead of an unexplained constant.
+- The evaluator is unchanged: it only fills the old row's missing amount/service/cart-size scope and never
+  overwrites a fresher parsed rate, never touches price, stock, `observedAt` or `lastRefreshAt`.
+
+**Verified locally (2026-10-12 UTC):**
+
+- `npm run verify` — **125/125** `node:test` cases pass (up from 124); `wrangler deploy --dry-run` builds
+  the bundle (100.57 KiB, gzip 25.98 KiB; bindings `BOARD` + `ASSETS`).
+- New test `an old persisted CoffeeMan 8-pack offer gains the researched cart quote at read time` proves
+  the old row (₪240, in stock, shipping unknown, observed 12:00 UTC in the test clock) ranks at
+  **₪260** (₪240 + ₪20, 130 ILS/kg) with `checkout_quote` certainty, `maxTotalGrams: 2000`, the
+  `coffeeman-8pack-il-cart-quote` policy id and the locality-list caveat; a 3 kg target (two 8-packs)
+  stays unrankable with the exact cart-size reason; a single-pack row is never given the multipack quote;
+  and the stored observation is deep-equal before and after (no mutation, no fresh check claimed).
+- `tests/parsers.test.js` asserts the parsed 8-pack row names policy `coffeeman-8pack-il-cart-quote` v1
+  and its `reviewBy` date.
+- Fresh-store `wrangler dev` (22:09:29-22:09:47 UTC, 6 bounded requests): all five listings ranked in one
+  comparison at 500 g — Pucks ₪90, CoffeeMan single ₪91, Coffee4U ₪106, CoffeeMan 4-pack ₪149 and
+  CoffeeMan 8-pack **₪260** (₪20 checkout quote, policy `coffeeman-8pack-il-cart-quote`) — and
+  `/api/board` reports both policies with their versions, observation times and review dates.
+- `npm run qa:browser` (offline fixtures) **78/78** and `npm run qa:browser -- http://127.0.0.1:8789`
+  (local live Worker with real vendor data) **76/76**, zero console errors; the money/method/disclosure
+  and unified-comparison checks are unchanged.
+
+**Next step:** the production build deployed from main should now enrich the old persisted 8-pack row to
+₪260 at read time; verify with `npm run probe:production` after the push deploys. Then re-run the probe
+after the **00:17 UTC cron tick**, which should also replace the 15:52 store snapshot with fresh vendor
+observations. Continue within Crema e Gusto coverage, shipping evidence, freshness and comparison quality.

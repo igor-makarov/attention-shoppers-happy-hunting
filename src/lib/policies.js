@@ -88,7 +88,7 @@ export const coffeemanEightPackPolicy = {
   version: 1,
   vendorId: 'coffeeman',
   productIds: [PRODUCT_ID],
-  itemUrlPrefixes: ['https://www.coffeeman.co.il/product/8-'],
+  itemUrlPrefixes: ['https://www.coffeeman.co.il/product/8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico'],
   service: 'home_delivery',
   origin: 'observed_cart',
   certainty: 'checkout_quote',
