@@ -885,8 +885,9 @@ rendered-contrast walker asserts WCAG AA (no violations) with the focus outline 
 - `npm run verify` — 95/95 tests and the `wrangler deploy --dry-run` bundle pass (the fresh workspace needed `npm ci`
   for the pinned wrangler 4.149.0).
 - `npm run qa:browser` (offline fixtures) — **81/81** checks.
-- `node scripts/browser-qa.mjs http://127.0.0.1:8789` against `wrangler dev` with live vendor data — **76/76** checks;
-  the local scheduled trigger refreshed all three vendors (five observations).
+- `node scripts/browser-qa.mjs http://127.0.0.1:8789` against `wrangler dev` with live vendor data — **77/77** checks
+  (81/81 offline in the final re-run after the mobile copy/space compaction); the local scheduled trigger refreshed
+  all three vendors (five observations).
 - `npm run cron:offline` — full fixture pipeline OK; `npm run cron:local` — live vendors + Bank of Israel wrote five
   observations (Pucks ₪30, CoffeeMan ₪33/₪124/₪240, Coffee4U ₪38; USD 3.078 from the 2026-10-12 BOI table), and the
   immediate re-run skipped all three vendors with 0 requests under the six-hour backoff.
@@ -903,6 +904,9 @@ rendered-contrast walker asserts WCAG AA (no violations) with the focus outline 
 - Production layout measured read-only: 1440 px — no table, no horizontal overflow, delivered-total cell at x=906-1290
   (the owner-reported defect had it starting at x=1641); 390 px — no horizontal overflow, 44 px quantity taps, pickup rows
   grouped. Metrics and screenshots: `docs/evidence/visual-review/2026-10-12-production-layout.json`.
+- Owner copy/space ask: the hero sub-copy was shortened to one factual line and the narrow-viewport spacing tightened,
+  moving the best offer card from y=1029 to y=952 at 390 px (hero 174→132 px, controls 597→563 px) with no overflow; the
+  hero itself was already compact and period-free.
 
 **Docs:** `docs/DESIGN.md` rewritten to the Canton Zürich direction (tokens/roles, Inter + features, layout and offer-card
 components, uncertainty semantics, measured contrast and keyboard/layout validation); `docs/SOURCES.md` now carries the
