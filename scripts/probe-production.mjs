@@ -206,6 +206,38 @@ check(
   `variants=${catalogProduct?.variants === undefined ? 'absent' : JSON.stringify(catalogProduct?.variants)} defaultVariant=${catalogProduct?.defaultVariant ?? 'absent'}`
 );
 
+// Versioned shipping policies: the deployed status API must name the rules it
+// applies at read time, with the date each one must be re-checked. A policy past
+// its reviewBy date stops enriching offers, so an expired policy here is a real
+// research gap, not a silent success.
+const EXPECTED_POLICY_IDS = [
+  'pucks-il-home-delivery',
+  'coffeeman-single-4pack-il-home-delivery',
+  'coffeeman-8pack-il-cart-quote',
+  'coffee4u-il-home-delivery'
+];
+const shippingPolicies = Array.isArray(statusBody.shippingPolicies) ? statusBody.shippingPolicies : [];
+const policyIds = shippingPolicies.map(policy => policy?.id);
+const policiesWellFormed = EXPECTED_POLICY_IDS.every(id => {
+  const policy = shippingPolicies.find(entry => entry?.id === id);
+  return policy
+    && Number.isInteger(policy.version) && policy.version >= 1
+    && Number.isFinite(Date.parse(policy.reviewBy))
+    && typeof policy.expired === 'boolean'
+    && policy.origin && policy.certainty;
+});
+check(
+  'status exposes every validated shipping policy with a review date',
+  policiesWellFormed,
+  `ids=[${policyIds.join(', ')}]`
+);
+const expiredPolicies = shippingPolicies.filter(policy => policy?.expired).map(policy => policy.id);
+check(
+  'no shipping policy is past its review date',
+  shippingPolicies.length > 0 && expiredPolicies.length === 0,
+  expiredPolicies.length ? `expired=[${expiredPolicies.join(', ')}]` : 'none expired'
+);
+
 const snapshot = {
   capturedAt: `${startedAt} to ${finishedAt}`,
   mode: 'read-only public GETs from the coding runner; no Cloudflare credentials, admin API, deploy or remote resource change',
@@ -238,6 +270,7 @@ if (jsonOnly) {
   console.log(`Status: observations=${status.observations ?? null} lastRefreshAt=${status.lastRefreshAt ?? null} stale=${status.freshness?.stale ?? null} ageHours=${status.freshness?.ageHours ?? null}`);
   console.log(`Catalog: products=[${catalogProducts.join(', ')}] vendors=[${(catalog.vendors ?? []).map(vendor => vendor.id).join(', ')}]`);
   console.log(`Vendor next attempts: ${(status.vendors ?? []).map(vendor => `${vendor.vendorId}@${vendor.nextAttemptAt}`).join(' ')}`);
+  console.log(`Shipping policies: ${shippingPolicies.map(policy => `${policy.id} v${policy.version} (${policy.origin}, reviewBy ${policy.reviewBy}${policy.expired ? ', EXPIRED' : ''})`).join(' | ')}`);
   console.log(`Runs: ${(status.runs ?? []).map(run => `${run.trigger}(${run.requests} req, ${run.finishedAt})`).join(' ')}`);
   for (const [name, board] of Object.entries(boards)) {
     const best = boards[name]?.best;
