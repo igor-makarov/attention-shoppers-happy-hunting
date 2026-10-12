@@ -1295,8 +1295,9 @@ rule:
 **Verified locally (2026-10-12 UTC):**
 
 - `npm run verify` — **125/125** `node:test` cases pass (up from 124); `wrangler deploy --dry-run` builds
-  the bundle (100.57 KiB, gzip 25.98 KiB; bindings `BOARD` + `ASSETS`). After the research-workflow fix the
-  suite is **126/126** with the bundle at 100.70 KiB (gzip 26.01 KiB).
+  the bundle (100.57 KiB, gzip 25.98 KiB; bindings `BOARD` + `ASSETS`). After the research-workflow and
+  destination-verification changes the suite is **127/127** with the bundle at 100.70 KiB (gzip
+  26.01 KiB).
 - New test `an old persisted CoffeeMan 8-pack offer gains the researched cart quote at read time` proves
   the old row (₪240, in stock, shipping unknown, observed 12:00 UTC in the test clock) ranks at
   **₪260** (₪240 + ₪20, 130 ILS/kg) with `checkout_quote` certainty, `maxTotalGrams: 2000`, the
@@ -1325,12 +1326,18 @@ rule:
   `select`, which matched the estimator's only `<select>` (the language dropdown) and recorded a locality
   that was never set. The recipe now fills the named `#city` and `#zip` text inputs as **required** steps
   (a run that cannot set the destination is `blocked`, never attributed to it), and the driver's `fill`
-  reads the field back so the evidence steps show `#city=ירושלים` / `#zip=9100000`. New tests cover the
-  expanded steps and the blocked-destination path. A live run of the fixed recipe produced
-  `docs/evidence/browser-research/2026-10-12-pucks-jerusalem-1kg-recipe.json`: a 4 × 250 g (₪120) cart to
-  Jerusalem / 9100000 with home delivery selected, free delivery and the vendor's "משלוח חינם בהזמנה מעל
-  100 ₪" wording — the threshold behavior is now evidenced for a third locality, while the below-threshold
-  ₪30 fee itself remains evidenced for Tel Aviv and Eilat.
+  reads the field back so the evidence steps show `#city=ירושלים` / `#zip=9100000`. Destination steps are
+  marked `verifies: 'destination'`; the runner compares the requested locality/postcode with what the page
+  actually holds, records `destinationVerified` (`true`/`false`/`null`) and adds a qualification when a
+  requested destination could not be verified — a quoted record with `destinationVerified: false` now
+  fails schema validation without that disclosure. New tests cover the expanded steps, the
+  blocked-destination path and the wrong-value (language dropdown) case. Live runs of the fixed recipe:
+  `docs/evidence/browser-research/2026-10-12-pucks-jerusalem-1kg-recipe.json` (4 × 250 g = ₪120 cart to
+  Jerusalem / 9100000, home delivery selected, free delivery with the vendor's "משלוח חינם בהזמנה מעל
+  100 ₪" wording — the threshold behavior is now evidenced for a third locality) and
+  `docs/evidence/browser-research/2026-10-12-pucks-telaviv-500g-recipe-verified.json` (2 × 250 g = ₪60
+  + ₪30 = ₪90 below the threshold, `destinationVerified: true` with the `#city`/`#zip` readbacks). The
+  below-threshold ₪30 fee itself remains evidenced for Tel Aviv and Eilat.
 
 **Production verification (22:14 UTC, read-only public GETs):** the main-push Workers Builds deploy of the
 policy carried the read-time enrichment to the deployed site. The probe reports **ranked=5,
