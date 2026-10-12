@@ -1,7 +1,120 @@
-export const products = [{
-  id: 'lavazza-crema-e-gusto-vacuum-ground',
-  name: 'Lavazza Crema e Gusto',
-  form: 'Vacuum-packed ground coffee',
-  targetMarket: 'IL',
-  notes: 'Verify the exact blend and grams per pack from each vendor. Keep Classico, Forte and other variants separate. Exclude beans, capsules and pods.'
-}];
+// Target products and strict listing classification.
+//
+// The board compares one product at a time. Classification is deliberately
+// conservative: a listing that cannot be tied to Lavazza Crema e Gusto ground
+// coffee in a vacuum brick is rejected instead of being merged into the board.
+
+export const PRODUCTS = [
+  {
+    id: 'lavazza-crema-e-gusto-vacuum-ground',
+    brand: 'Lavazza',
+    line: 'Crema e Gusto',
+    form: 'ground',
+    packaging: 'vacuum brick',
+    targetMarket: 'IL',
+    notes: 'Ground coffee only. Beans, capsules, pods and machines are rejected. Classico, Forte, Ricco, Risveglio and decaf remain separate variants.'
+  }
+];
+
+export const products = PRODUCTS;
+
+export const VARIANTS = {
+  classico: { id: 'classico', label: 'Classico', aliases: ['classico', 'classic', 'קלאסיקו', 'קלאסי'] },
+  forte: { id: 'forte', label: 'Forte', aliases: ['forte', 'פורטה'] },
+  ricco: { id: 'ricco', label: 'Ricco', aliases: ['ricco', 'ריקו'] },
+  risveglio: { id: 'risveglio', label: 'Risveglio', aliases: ['risveglio', 'התעוררות'] },
+  decaf: { id: 'decaf', label: 'Decaffeinated', aliases: ['decaf', 'decaffeinato', 'נטול קפאין', 'dek'] },
+  unspecified: { id: 'unspecified', label: 'Variant not stated', aliases: [] }
+};
+
+const REJECT_FORMS = [
+  { id: 'beans', pattern: /\b(beans?|whole\s*bean|פולי|bønner|boenner|kaffeebohnen|grain)\b/i, label: 'whole beans' },
+  { id: 'capsules', pattern: /(capsul|קפסול|coffee\s*pods?|\bpods?\b|nespresso|dolce\s*gusto|senseo|a\s*modo\s*mio|\bese\b)/i, label: 'capsules or pods' },
+  { id: 'machine', pattern: /(coffee\s*machin|מכונת\s*קפה|espresso\s*machine)/i, label: 'coffee machine' }
+];
+
+const GROUND_PATTERN = /(ground|טחון|macinato|molido|moulu|gemahlen|malet|filtro|filter\s*coffee)/i;
+const BRAND_PATTERN = /(lavazza|לוואצה|לבאצה)/i;
+const LINE_PATTERN = /(crema\s*(?:e|&|and|-)?\s*gusto|קרמה\s*אה\s*גוסטו|קרמה\s*גוסטו)/i;
+
+/** Nominal product identity for the target listing. */
+export function classifyListing(text) {
+  const value = String(text || '').toLowerCase();
+  const reasons = [];
+  if (!BRAND_PATTERN.test(value)) reasons.push('brand is not Lavazza');
+  if (!LINE_PATTERN.test(value)) reasons.push('line is not Crema e Gusto');
+  const rejected = REJECT_FORMS.find(form => form.pattern.test(value));
+  if (rejected) reasons.push(`listing is ${rejected.label}`);
+  const ground = GROUND_PATTERN.test(value);
+  if (!ground) reasons.push('listing does not state ground coffee');
+
+  const variant = variantOf(value);
+  const pack = parsePackSize(text);
+  const matched = reasons.length === 0;
+
+  return {
+    matched,
+    productId: matched ? PRODUCTS[0].id : null,
+    variantId: variant.id,
+    variantLabel: variant.label,
+    form: matched ? 'ground' : (rejected ? rejected.id : 'unknown'),
+    packGrams: pack.grams,
+    packCount: pack.count,
+    totalGrams: pack.grams != null ? pack.grams * pack.count : null,
+    reasons: matched
+      ? (pack.grams == null ? ['pack weight not stated; offer can be shown but not normalized'] : [])
+      : reasons
+  };
+}
+
+export function variantOf(text) {
+  const value = String(text || '').toLowerCase();
+  for (const variant of Object.values(VARIANTS)) {
+    if (variant.id === 'unspecified') continue;
+    if (variant.aliases.some(alias => value.includes(alias))) return variant;
+  }
+  return VARIANTS.unspecified;
+}
+
+const OZ_TO_GRAMS = 28.349523125;
+
+/** Parse grams per pack and pack count from a listing name. */
+export function parsePackSize(text) {
+  const value = String(text || '');
+  let grams = null;
+
+  const ounce = /(\d+(?:[.,]\d+)?)\s*(?:-|\s)?(?:ounce|oz)\b/i.exec(value);
+  if (ounce) {
+    grams = round(Math.round(parseDecimalValue(ounce[1]) * OZ_TO_GRAMS));
+  }
+  if (grams == null) {
+    const gram = /(\d{2,4}(?:[.,]\d+)?)\s*(?:גרם|גר'|ג'|ג׳|gr\b|g\b|grams?\b|grs\b|gramos\b)/i.exec(value);
+    if (gram) grams = round(parseDecimalValue(gram[1]));
+  }
+  if (grams == null) {
+    const kg = /(\d+(?:[.,]\d+)?)\s*(?:kg|ק"ג|קג|קילו)/i.exec(value);
+    if (kg) grams = round(parseDecimalValue(kg[1]) * 1000);
+  }
+
+  let count = 1;
+  const packOf = /pack\s*of\s*(\d{1,3})/i.exec(value);
+  const multiply = /(\d{1,3})\s*(?:x|×)\s*\d{2,4}\s*(?:גרם|gr\b|g\b|grams?\b|oz\b|ounce)/i.exec(value);
+  const hebrewPacks = /(\d{1,3})\s*(?:אריזות|חבילות|יחידות)/.exec(value);
+  if (packOf) count = Number(packOf[1]);
+  else if (multiply) count = Number(multiply[1]);
+  else if (hebrewPacks) count = Number(hebrewPacks[1]);
+  else if (grams == null) {
+    const bareCount = /^(\d{1,3})\s*(?:אריזות|חבילות)/.exec(value.trim());
+    if (bareCount) count = Number(bareCount[1]);
+  }
+  if (!Number.isFinite(count) || count < 1 || count > 99) count = 1;
+  return { grams, count };
+}
+
+function parseDecimalValue(raw) {
+  return Number(String(raw).replace(',', '.'));
+}
+
+function round(value) {
+  return Math.round(value * 10) / 10;
+}
