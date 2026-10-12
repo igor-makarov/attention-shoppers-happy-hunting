@@ -38,14 +38,14 @@ export const RECIPES = {
     parseTotals: parsePucksTotals,
     steps: [
       { action: 'goto', url: '{productUrl}' },
-      { action: 'waitText', text: 'קרמה', timeout: 20000 },
+      { action: 'waitText', text: 'crema', timeout: 20000 },
+      { action: 'clickText', text: 'הוסף לעגלה', optional: true },
       { action: 'clickText', text: 'הוספה לסל', optional: true },
-      { action: 'clickText', text: 'הוסף לסל', optional: true },
       { action: 'goto', url: '{cartUrl}' },
       { action: 'waitText', text: 'סיכום', timeout: 20000, optional: true },
       { action: 'setQuantity', target: '{grams}', optional: true },
       { action: 'selectLabel', selector: 'select', label: '{locality}', optional: true },
-      { action: 'fill', selector: 'input[name*="zip"], input[name*="postal"], input[type="tel"]', value: '{postcode}', optional: true },
+      { action: 'fill', selector: 'input[name*="zip" i], input[name*="postal" i], input[id*="zip" i], input[id*="postal" i]', value: '{postcode}', optional: true },
       { action: 'sleep', ms: 1500 },
       { action: 'readTotals' }
     ]
@@ -61,9 +61,9 @@ export const RECIPES = {
     parseTotals: parseCoffeemanTotals,
     steps: [
       { action: 'goto', url: '{productUrl}' },
-      { action: 'waitText', text: 'קרמה', timeout: 20000 },
+      { action: 'waitText', text: 'crema', timeout: 20000 },
+      { action: 'clickText', text: 'הוסף לעגלה', optional: true },
       { action: 'clickText', text: 'הוספה לסל', optional: true },
-      { action: 'clickText', text: 'הוסף לסל', optional: true },
       { action: 'goto', url: '{cartUrl}' },
       { action: 'waitText', text: 'סה"כ', timeout: 20000, optional: true },
       { action: 'setQuantity', target: '{grams}', optional: true },
@@ -83,9 +83,9 @@ export const RECIPES = {
     parseTotals: parseCoffee4uTotals,
     steps: [
       { action: 'goto', url: '{productUrl}' },
-      { action: 'waitText', text: 'קרמה', timeout: 20000 },
+      { action: 'waitText', text: 'crema', timeout: 20000 },
+      { action: 'clickText', text: 'הוסף לעגלה', optional: true },
       { action: 'clickText', text: 'הוספה לסל', optional: true },
-      { action: 'clickText', text: 'הוסף לסל', optional: true },
       { action: 'goto', url: '{cartUrl}' },
       { action: 'waitText', text: 'סל', timeout: 20000, optional: true },
       { action: 'setQuantity', target: '{grams}', optional: true },
@@ -139,11 +139,13 @@ export function sanitizeUrl(url) {
 }
 
 const TOKEN_LIKE = /\b[A-Za-z0-9_-]{24,}\b/g;
+const SESSION_LIKE = /\b(?:sess(?:ion)?|sid|token|cart_?id|PHPSESSID|JSESSIONID|cf_clearance)\b\s*[=:]\s*\S+/gi;
 
-/** Collapse whitespace, drop token-like runs and cap the excerpt length. */
+/** Collapse whitespace, drop session/token-like runs and cap the excerpt length. */
 export function sanitizeExcerpt(text, max = 600) {
   const value = String(text ?? '')
     .replace(/\u00a0/g, ' ')
+    .replace(SESSION_LIKE, '[redacted]')
     .replace(TOKEN_LIKE, '[redacted]')
     .replace(/[ \t]+/g, ' ')
     .replace(/\n{2,}/g, '\n')
@@ -231,10 +233,12 @@ export function buildEvidenceRecord({
   pageUrl = null,
   blocker = null,
   steps = [],
+  actualPacks = null,
   now = Date.now()
 } = {}) {
   const grams = Number(params.grams) > 0 ? Number(params.grams) : recipe.packGrams;
-  const wholePacks = Math.max(1, Math.ceil(grams / recipe.packGrams));
+  const requestedPacks = Math.max(1, Math.ceil(grams / recipe.packGrams));
+  const packs = Number.isFinite(actualPacks) && actualPacks > 0 ? actualPacks : requestedPacks;
   const arithmeticOk = totals.itemSubtotalIls != null && totals.shippingIls != null && totals.deliveredTotalIls != null
     && Math.abs(totals.itemSubtotalIls + totals.shippingIls - totals.deliveredTotalIls) <= 0.05;
   const resolvedStatus = status === 'quoted' && !arithmeticOk ? 'partial' : status;
@@ -245,8 +249,9 @@ export function buildEvidenceRecord({
     vendorName: recipe.vendorName,
     productUrl: sanitizeUrl(recipe.productUrl),
     cartUrl: sanitizeUrl(pageUrl ?? recipe.cartUrl),
-    pack: `${wholePacks} × ${recipe.packGrams} g = ${wholePacks * recipe.packGrams} g`,
+    pack: `${packs} × ${recipe.packGrams} g = ${packs * recipe.packGrams} g`,
     requestedGrams: grams,
+    observedPacks: Number.isFinite(actualPacks) ? actualPacks : null,
     locality: params.locality ?? null,
     postcode: params.postcode ?? null,
     service: params.service ?? null,
@@ -318,15 +323,18 @@ export const DRIVER_INTERFACE = [
  * captures what the page displayed.
  */
 export async function runRecipe({ recipe, driver, params = {}, now = Date.now(), logger = null } = {}) {
+  const runParams = { packGrams: recipe.packGrams, ...params };
   const steps = [];
   let status = 'quoted';
   let blocker = null;
+  let actualPacks = null;
   const recordStep = (step, ok, error) => {
     steps.push({ step: step.action, ok, optional: Boolean(step.optional), error: error ? String(error.message ?? error) : null });
   };
-  for (const step of expandSteps(recipe, params)) {
+  for (const step of expandSteps(recipe, runParams)) {
     try {
-      await executeStep(step, driver, params);
+      const result = await executeStep(step, driver, runParams);
+      if (step.action === 'setQuantity' && Number.isFinite(result)) actualPacks = result;
       recordStep(step, true);
     } catch (error) {
       recordStep(step, false, error);
@@ -364,14 +372,28 @@ export async function runRecipe({ recipe, driver, params = {}, now = Date.now(),
     status = 'blocked';
     blocker = blocker ?? 'The rendered flow did not display an item subtotal.';
   }
+  if (status === 'quoted' && totals.itemSubtotalIls === 0) {
+    status = 'blocked';
+    blocker = blocker ?? 'The cart appears empty: no item subtotal was displayed for the tracked product.';
+  }
+  // A quote read without a verified whole-pack quantity is not a quoted cart:
+  // keep it visible as partial evidence instead of attributing it to a cart
+  // size that was never confirmed.
+  const hasQuantityStep = recipe.steps.some(step => step.action === 'setQuantity');
+  let qualification = totals.qualification ?? null;
+  if (status === 'quoted' && hasQuantityStep && !Number.isFinite(actualPacks)) {
+    status = 'partial';
+    qualification = [qualification, 'Cart quantity was not verified by the recipe, so the pack size is the requested target, not a confirmed cart.'].filter(Boolean).join(' ');
+  }
   return buildEvidenceRecord({
     recipe,
-    params,
+    params: runParams,
     status,
-    totals: { ...totals, excerpt: text.slice(0, 1200) },
+    totals: { ...totals, qualification, excerpt: text.slice(0, 1200) },
     pageUrl,
     blocker,
     steps,
+    actualPacks,
     now
   });
 }
@@ -387,7 +409,7 @@ async function executeStep(step, driver, params) {
     case 'fill':
       return driver.fill(step.selector, step.value);
     case 'setQuantity':
-      return driver.setQuantity(Number(step.target) || params.grams);
+      return driver.setQuantity(Number(step.target) || params.grams, params.packGrams);
     case 'waitText':
       return driver.waitText(step.text, step.timeout ?? 15000);
     case 'sleep':

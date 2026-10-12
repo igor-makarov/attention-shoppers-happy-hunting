@@ -31,6 +31,7 @@ import { mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { setTimeout as delay } from 'node:timers/promises';
 import path from 'node:path';
+import { RECIPES, listRecipes, recipeById, runRecipe, validateEvidence } from './research-workflow.mjs';
 
 const STATE_DIR = process.env.BROWSER_RESEARCH_DIR ?? '.shurik-local/browser-research';
 const SESSION_FILE = path.join(STATE_DIR, 'session.json');
@@ -374,6 +375,145 @@ async function html(session) {
   console.log(normalize(out, flag('limit', 20000)));
 }
 
+/**
+ * WebDriver adapter for the recipe runner in scripts/research-workflow.mjs.
+ * It exposes only navigation/read actions; the runner owns the evidence shape.
+ */
+function createResearchDriver(session) {
+  const evalIn = (script, args = []) => evaluate(session, script, args);
+  const findElement = async css => {
+    const element = await wdValue(session, 'POST', '/element', { using: 'css selector', value: css });
+    return element['element-6066-11e4-a52e-4f735466cecf'];
+  };
+  return {
+    async goto(url) {
+      await wd(session, 'POST', '/url', { url });
+      await delay(1500);
+    },
+    async clickText(text) {
+      const matched = await evalIn(`return (() => {
+        const needle = String(arguments[0]).toLowerCase();
+        const candidates = [...document.querySelectorAll('a, button, input[type=submit], input[type=button], [role=button], label')];
+        const score = node => {
+          const value = (node.innerText ?? node.value ?? '').replace(/\\s+/g, ' ').trim().toLowerCase();
+          if (!value) return -1;
+          if (value === needle) return 100;
+          if (value.includes(needle)) return 50 - Math.min(20, value.length - needle.length);
+          return -1;
+        };
+        const best = candidates.map(node => ({ node, score: score(node) })).filter(c => c.score >= 0)
+          .sort((a, b) => b.score - a.score)[0];
+        if (!best) return null;
+        best.node.setAttribute('data-research-click', '1');
+        best.node.scrollIntoView({ block: 'center', inline: 'center' });
+        return (best.node.innerText ?? best.node.value ?? '').slice(0, 120);
+      })()`, [text]);
+      if (!matched) throw new Error(`no clickable element matched ${JSON.stringify(text)}`);
+      const id = await findElement('[data-research-click="1"]');
+      await wdValue(session, 'POST', `/element/${id}/click`, {});
+      await evalIn(`document.querySelector('[data-research-click="1"]')?.removeAttribute('data-research-click');`);
+      await delay(1200);
+    },
+    async selectLabel(selector, label) {
+      const out = await evalIn(`return (() => {
+        const el = document.querySelector(arguments[0]);
+        if (!el) return { ok: false, reason: 'selector not found' };
+        const options = [...el.options].map(o => ({ value: o.value, label: o.textContent.trim() }));
+        const option = options.find(o => o.label.includes(String(arguments[1])));
+        if (!option) return { ok: false, reason: 'option not found', options: options.slice(0, 20).map(o => o.label) };
+        el.value = option.value;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        return { ok: true, selected: option.label };
+      })()`, [selector, label]);
+      if (!out?.ok) throw new Error(`select ${selector}: ${out?.reason ?? 'failed'}${out?.options ? ` (options: ${out.options.join(', ')})` : ''}`);
+      await delay(1500);
+    },
+    async fill(selector, value) {
+      const exists = await evalIn(`return !!document.querySelector(arguments[0])`, [selector]);
+      if (!exists) throw new Error(`fill: no element matches ${selector}`);
+      const id = await findElement(selector);
+      await wdValue(session, 'POST', `/element/${id}/clear`, {});
+      await wdValue(session, 'POST', `/element/${id}/value`, { text: String(value) });
+      await delay(500);
+    },
+    /**
+     * Set a whole-pack quantity in the cart and return how many packs the cart
+     * now shows. Throws when no quantity control is found, so the caller records
+     * a blocker instead of assuming a cart size.
+     */
+    async setQuantity(grams, packGrams) {
+      const out = await evalIn(`return (() => {
+        const grams = Number(arguments[0]);
+        const packGrams = Number(arguments[1]) || 250;
+        const selectors = ['input[name*="qty" i]', 'input[name*="quantity" i]', 'input[id*="qty" i]', 'input[class*="qty" i]'];
+        let input = null;
+        for (const selector of selectors) { input = document.querySelector(selector); if (input) break; }
+        if (!input) return { ok: false, reason: 'no quantity input found' };
+        const current = Number(String(input.value).replace(/[^\\d.]/g, '')) || 1;
+        const packs = Math.max(1, Math.ceil(grams / packGrams));
+        const step = packs - current;
+        if (step !== 0) {
+          const plus = document.querySelector('[class*="plus" i], [aria-label*="+"], button[data-action="increase"]');
+          const minus = document.querySelector('[class*="minus" i], [aria-label*="-"], button[data-action="decrease"]');
+          const button = step > 0 ? plus : minus;
+          if (button) {
+            for (let i = 0; i < Math.abs(step); i += 1) button.click();
+          } else {
+            input.value = String(packs);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        }
+        const after = Number(String(input.value).replace(/[^\\d.]/g, '')) || packs;
+        return { ok: true, packs: after, requestedPacks: packs };
+      })()`, [grams, packGrams]);
+      if (!out?.ok) throw new Error(out?.reason ?? 'quantity not set');
+      await delay(1200);
+      return out.packs;
+    },
+    async waitText(text, timeoutMs) {
+      const deadline = Date.now() + timeoutMs;
+      while (Date.now() < deadline) {
+        const found = await evalIn(`return (document.body?.innerText ?? '').toLowerCase().includes(String(arguments[0]).toLowerCase())`, [text]);
+        if (found) return true;
+        await delay(300);
+      }
+      throw new Error(`timed out waiting for text ${JSON.stringify(text)}`);
+    },
+    async sleep(ms) {
+      await delay(ms);
+    },
+    async getText() {
+      return evalIn('return document.body?.innerText ?? "";');
+    },
+    async currentUrl() {
+      return evalIn('return location.href;');
+    }
+  };
+}
+
+async function recipeCommand(session) {
+  const [id] = positional();
+  const recipe = recipeById(id);
+  if (!recipe) throw new Error(`unknown recipe ${JSON.stringify(id)}; known recipes: ${Object.keys(RECIPES).join(', ')}`);
+  const grams = Number(flag('grams', recipe.packGrams));
+  const locality = flag('locality');
+  const postcode = flag('postcode');
+  const out = flag('out');
+  const driver = createResearchDriver(session);
+  const record = await runRecipe({ recipe, driver, params: { grams, locality, postcode } });
+  const validation = validateEvidence(record);
+  const payload = { ...record, validation };
+  console.log(JSON.stringify(payload, null, 2));
+  if (out) {
+    const target = path.resolve(String(out));
+    await mkdir(path.dirname(target), { recursive: true });
+    await writeFile(target, `${JSON.stringify(payload, null, 2)}\n`);
+  }
+  if (!validation.ok) process.exitCode = 1;
+}
+
 async function main() {
   switch (command) {
     case 'start': return start();
@@ -390,6 +530,10 @@ async function main() {
     case 'frames': return frames(await requireSession());
     case 'eval': return evalCommand(await requireSession());
     case 'html': return html(await requireSession());
+    case 'recipes':
+      console.log(JSON.stringify(listRecipes(), null, 2));
+      return;
+    case 'recipe': return recipeCommand(await requireSession());
     default:
       console.log(`browser-research commands:
   start | stop
@@ -401,7 +545,8 @@ async function main() {
   select <selector> --value v | --label "text"
   wait <selector> | wait --text "text" [--timeout ms]
   shot <name> [--viewport 1440x1200] [--scroll selector] [--full]
-  resize [WxH] | frames | eval '<js expression>' | html [selector]`);
+  resize [WxH] | frames | eval '<js expression>' | html [selector]
+  recipes | recipe <id> [--grams n] [--locality "..."] [--postcode ...] [--out evidence.json]`);
       process.exit(command ? 1 : 0);
   }
 }
