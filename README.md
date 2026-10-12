@@ -8,9 +8,9 @@ This initial commit is a deployable scaffold, not a completed price tracker. Shu
 
 ## Coding loop
 
-The workflow uses [igor-makarov/shurik@v1](https://github.com/igor-makarov/shurik), opencode-go/step-5-preview-free and high reasoning. The owner chose direct work on main and has added the OPENCODE_API_KEY Actions secret. The first handoff is complete; the main loop will develop the tracker while Cloudflare remains disconnected. Check the Actions page and shurik-control/main for live loop state.
+The workflow uses [igor-makarov/shurik@v1](https://github.com/igor-makarov/shurik), opencode-go/deepseek-v4.1-flash and max reasoning. The owner chose direct work on main and has added the OPENCODE_API_KEY Actions secret. The first handoff is complete; the main loop will develop the tracker while Cloudflare remains disconnected. Check the Actions page and shurik-control/main for live loop state.
 
-Shurik v1.1.10 accepts the exact model ID even when it is absent from Pi AI's bundled catalog, using the native OpenCode Go transport and explicit high reasoning. It does not auto-refresh the catalog. No paid-model fallback is permitted.
+DeepSeek V4.1 Flash is present in Shurik's pinned Pi AI catalog and supports low, high and max reasoning. Its native adapter preserves reasoning content across tool calls. The owner authorized this switch after Step 5 returned repeated unavailable-endpoint errors. No further model fallback is permitted without an owner instruction.
 
 ## Deployment and refreshing
 

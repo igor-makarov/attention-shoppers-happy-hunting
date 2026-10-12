@@ -2,7 +2,7 @@
 
 Build a public, self-updating website on Cloudflare Workers that finds ways to order products online for delivery in Israel and compares the item price plus shipping. Start with Lavazza Crema e Gusto vacuum-packed ground coffee, then make it straightforward to add other products and vendors. This is a working shopping tool, not a marketing landing page.
 
-The owner chose Shurik v1, opencode-go/step-5-preview-free at its maximum supported reasoning, high. Assume capability comparable to DeepSeek V4.1 Flash when organizing work: use concrete milestones, short feedback cycles and verifiable evidence. Do not change provider/model or switch to a paid model. If the free model becomes unavailable, record the issue for the maintainer.
+The owner chose Shurik v1 and explicitly switched the coding loop to opencode-go/deepseek-v4.1-flash at its maximum supported reasoning, max, after repeated Step 5 endpoint errors. Use concrete milestones, short feedback cycles and verifiable evidence. This specific model switch is authorized; do not change provider/model or add another fallback without the owner's instruction. If the provider becomes unavailable, record the issue for the maintainer.
 
 The coding loop writes directly to main. After the owner connects Cloudflare Workers Builds, main pushes will auto-deploy. Shurik has no Cloudflare credentials, API access or deployment tools. All development and integration validation must work locally. Read AGENTS.md and the design/architecture docs.
 
