@@ -243,7 +243,8 @@ with the retrieval time of the page they came from. The best-offer card and comp
 (47 offline, 45 live) cover the caveat, the timestamp and the arithmetic; the full local chain (verify,
 live source check, offline and live cron, post-deployment initial refresh plus a documented 0-request
 scheduled run through `wrangler dev`, both browser QA modes) was re-run and recorded above. No new vendor
-or tracked listing was found by the 14:39-14:46 UTC sitemap/category/domain probe pass.
+or tracked listing was found by the 14:39-14:58 UTC sitemap/category/domain probe passes (including
+pricez.co.il, coffeebar.co.il, coffeelab.co.il, barista.co.il and mycafe.co.il).
 
 Iteration 3-57 finished the owner correction that checkpoint 3-56 began. Tests, UI, browser QA and docs
 were narrowed to the single Crema e Gusto scope; retired fixtures became negative inputs;

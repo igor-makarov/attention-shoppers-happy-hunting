@@ -158,6 +158,12 @@ was a real board observation at the time but is historical now.
 | coffeepoint.co.il | 2026-10-12 14:45 UTC: Wix storefront; the public product sitemap lists 13 products, none of them Lavazza Crema e Gusto | Not a source for the tracked product. |
 | pucks.co.il sitemap and ground-coffee category | 2026-10-12 14:40 UTC: the sitemap contains 23 crema-e-gusto URLs, but the ground category carries only the tracked Classico 250 g; `lavazza-crema-e-gusto-forte` and `-dolce` are Nespresso-compatible capsules, `lavazza-crema-e-gusto-classico-12kg-beans` is beans, and `lavazza-decaffeinato-ground-coffee-250g` is a different line (observed out of stock) | Confirms the tracked Pucks offer is the only Crema e Gusto ground listing there; nothing new to track. |
 | coffeeman.co.il sitemap | 2026-10-12 14:39 UTC: 2,531 URLs; the 23 crema-e-gusto URLs include the three tracked ground listings, coffee beans, capsules and a `...crema-e-gusto-risveglio-espresso-classico-0` ground URL that redirects to a generic "4 blends 250 g mix your choice of 9 ground blends" page (SKU 930188) which does not name Crema e Gusto | No additional tracked ground listing; the generic mix page cannot be claimed as a Crema e Gusto offer. |
+| pricez.co.il | 2026-10-12 14:58 UTC: `/Search.php?q=lavazza+crema+e+gusto` returns two results, both Nespresso-compatible capsules (Forte/Ricco); no ground Crema e Gusto listing | Aggregator used for research only, never an adapter; it adds no tracked listing. |
+| coffeebar.co.il | 2026-10-12 14:57 UTC: café chain homepage; ordering runs through Wolt/10bis, no online shop of coffee packs | Not an e-commerce source for the tracked product. |
+| coffeelab.co.il | 2026-10-12 14:57 UTC: Wix store; the public product sitemap lists 22 own-brand blends/capsules and no Lavazza | Not a source for the tracked product. |
+| barista.co.il | 2026-10-12 14:57 UTC: Wix site with only a pages sitemap, no product store | Not an e-commerce source. |
+| mycafe.co.il | 2026-10-12 14:57 UTC: WooCommerce; the public product sitemap lists 23 products, none Lavazza | Not a source for the tracked product. |
+| shops.walla.co.il / coffee-room.co.il / ilovecoffee.co.il / coffeetown.co.il / cafeland.co.il / thecoffee.co.il / cafe24.co.il | 2026-10-12 14:57 UTC probes: the domains do not resolve from the runner | No reachable public product page. |
 
 Three independent adapters (CoffeeMan, Pucks and Coffee4U) meet and exceed the "at least two" requirement
 with five real Crema e Gusto listings: three CoffeeMan offers (single 250 g ₪33, 4 × 250 g ₪124 and
@@ -181,8 +187,11 @@ allowlisted product URL and a parser, registering it in `src/vendors/index.js`, 
 coffeeplus.co.il carries only Lavazza beans/capsules, cafeneto.co.il returns no usable search results,
 and the other candidate domains do not resolve. The 14:39-14:46 UTC pass checked the CoffeeMan and Pucks
 sitemaps and the Pucks ground-coffee category, the coffeepoint.co.il Wix product sitemap, and 21 further
-candidate domains; it found no additional tracked ground listing and no new vendor, and every result is
-recorded in the table above instead of guessed.
+candidate domains; it found no additional tracked ground listing and no new vendor. A second pass at
+14:57-14:58 UTC checked pricez.co.il (two capsule results only), coffeebar.co.il (a café chain with no
+shop), coffeelab.co.il (22 own-brand products), barista.co.il and mycafe.co.il (23 products), plus seven
+non-resolving domains, with the same result. Every probe result is recorded in the table above instead of
+guessed.
 
 ## Product identity rules
 
