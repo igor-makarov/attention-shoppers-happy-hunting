@@ -1,4 +1,5 @@
-// Pucks (pucks.co.il), Ramla, Israel — Lavazza Crema e Gusto Classico 250 g ground.
+// Pucks (pucks.co.il), Ramla, Israel — Lavazza ground coffee in a vacuum brick:
+// Crema e Gusto Classico 250 g and Qualità Oro 250 g.
 // Source of truth: schema.org Product JSON-LD on the public product page.
 // Price and listed availability are observed. Shipping is only calculated at
 // checkout, so it stays unknown and the offer cannot win the ranking.
@@ -8,6 +9,7 @@ import { findJsonLd, textOf } from '../lib/text.js';
 import { createObservation, parseError } from './index.js';
 
 const PRODUCT_URL = 'https://pucks.co.il/product/lavazza-crema-e-gusto-ground-coffee-250g';
+const QUALITA_ORO_URL = 'https://pucks.co.il/product/lavazza-qualita-oro-ground-coffee-250gr';
 
 const AVAILABILITY = {
   'https://schema.org/InStock': 'in_stock',
@@ -21,8 +23,11 @@ export const pucks = {
   name: 'Pucks (פאקס)',
   homepage: 'https://pucks.co.il',
   allowedHosts: ['pucks.co.il', 'www.pucks.co.il'],
-  parserVersion: 'pucks/1',
-  offers: [{ id: 'classico-250g', url: PRODUCT_URL, kind: 'delivery' }],
+  parserVersion: 'pucks/2',
+  offers: [
+    { id: 'classico-250g', url: PRODUCT_URL, kind: 'delivery', productId: 'lavazza-crema-e-gusto-vacuum-ground' },
+    { id: 'qualita-oro-250g', url: QUALITA_ORO_URL, kind: 'delivery', productId: 'lavazza-qualita-oro-vacuum-ground' }
+  ],
 
   async observe({ fetchText, now }) {
     const observations = [];
@@ -34,7 +39,7 @@ export const pucks = {
         continue;
       }
       try {
-        observations.push(parsePucksProduct(response.text, { now }));
+        observations.push(parsePucksProduct(response.text, { now, url: offer.url, productId: offer.productId ?? null }));
       } catch (error) {
         failures.push({ offerId: offer.id, url: offer.url, error: error.message, details: error.details ?? null });
       }
@@ -43,12 +48,12 @@ export const pucks = {
   }
 };
 
-export function parsePucksProduct(html, { now } = {}) {
+export function parsePucksProduct(html, { now, url = PRODUCT_URL, productId = null } = {}) {
   const product = findJsonLd(html, 'Product');
-  if (!product) throw parseError('No schema.org Product JSON-LD found', { url: PRODUCT_URL });
+  if (!product) throw parseError('No schema.org Product JSON-LD found', { url });
   const offer = product.offers ?? {};
   const name = String(product.name ?? '');
-  const classification = classifyListing(name);
+  const classification = classifyListing(name, { productId });
   if (!classification.matched) {
     throw parseError('Listing does not match the tracked product', { name, reasons: classification.reasons });
   }
@@ -64,7 +69,7 @@ export function parsePucksProduct(html, { now } = {}) {
 
   return createObservation({
     vendor: pucks,
-    itemUrl: PRODUCT_URL,
+    itemUrl: url,
     product: {
       productId: classification.productId,
       name,
@@ -81,7 +86,7 @@ export function parsePucksProduct(html, { now } = {}) {
     price: { amount: priceAmount, currency },
     availability,
     availabilityEvidence: {
-      url: PRODUCT_URL,
+      url,
       value: String(offer.availability ?? 'not stated'),
       note: 'Availability comes from the product page structured data, not from a price-only scrape.'
     },
@@ -91,7 +96,7 @@ export function parsePucksProduct(html, { now } = {}) {
       amount: null,
       destination: { scope: 'country', country: 'IL' },
       note: shippingNote,
-      evidence: { url: PRODUCT_URL, retrievedAt: null, note: 'Store states shipping is calculated at checkout.' }
+      evidence: { url, retrievedAt: null, note: 'Store states shipping is calculated at checkout.' }
     },
     now
   });

@@ -10,6 +10,8 @@ export const DEFAULT_HTTP_OPTIONS = {
 
 export class FetchLimitError extends Error {}
 
+const defaultSleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
 export function hostAllowed(url, allowedHosts) {
   let host;
   try {
@@ -23,12 +25,27 @@ export function hostAllowed(url, allowedHosts) {
 /**
  * Create a fetch helper restricted to an explicit host allowlist.
  * Errors are returned, never thrown, so a broken source cannot abort a refresh.
+ *
+ * `minIntervalMs` spaces requests to the same host (a vendor robots.txt
+ * Crawl-delay); the wait happens before the request, so it is not counted
+ * against the per-request timeout, and it is bounded by the number of tracked
+ * offers. `sleep` and `clock` are injectable so tests never really wait.
  */
-export function createBoundedFetcher({ fetchImpl = globalThis.fetch, allowedHosts = [], onRequest, ...overrides } = {}) {
+export function createBoundedFetcher({ fetchImpl = globalThis.fetch, allowedHosts = [], onRequest, minIntervalMs = 0, sleep = defaultSleep, clock = () => Date.now(), ...overrides } = {}) {
   const options = { ...DEFAULT_HTTP_OPTIONS, ...overrides };
+  const lastRequestAt = new Map();
   return async function fetchText(url, { accept, headers = {}, maxBytes } = {}) {
     if (!hostAllowed(url, allowedHosts)) {
       return { ok: false, status: 0, error: `host not allowed: ${safeHost(url)}`, bytes: 0 };
+    }
+    const host = safeHost(url).toLowerCase();
+    if (minIntervalMs > 0) {
+      const previous = lastRequestAt.get(host);
+      if (previous != null) {
+        const waitMs = previous + minIntervalMs - clock();
+        if (waitMs > 0) await sleep(waitMs);
+      }
+      lastRequestAt.set(host, clock());
     }
     onRequest?.(url);
     const controller = new AbortController();

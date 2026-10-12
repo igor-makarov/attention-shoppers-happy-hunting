@@ -29,6 +29,34 @@ export function decodeHtml(bytes, htmlHint = '') {
   return decodeBuffer(bytes, hint);
 }
 
+/**
+ * Decode HTML entities in extracted text. Vendor titles publish names such as
+ * "Lavazza Qualit&#224; Oro", and an undecoded entity would hide the line name.
+ * Only entities are decoded here; fetched markup is still never treated as
+ * instructions and never rendered as HTML.
+ */
+export function decodeEntities(text) {
+  if (text == null) return '';
+  const NAMED = {
+    amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', shy: '', hellip: '…', ndash: '–', mdash: '—',
+    agrave: 'à', aacute: 'á', auml: 'ä', egrave: 'è', eacute: 'é', igrave: 'ì', ograve: 'ò', oacute: 'ó', ugrave: 'ù', ccedil: 'ç',
+    Agrave: 'À', Auml: 'Ä', Ouml: 'Ö', Uuml: 'Ü'
+  };
+  return String(text).replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);/g, (match, entity) => {
+    if (entity.startsWith('#')) {
+      const hex = entity[1] === 'x' || entity[1] === 'X';
+      const code = Number.parseInt(entity.slice(hex ? 2 : 1), hex ? 16 : 10);
+      if (!Number.isFinite(code) || code <= 0 || code > 0x10ffff) return match;
+      try {
+        return String.fromCodePoint(code);
+      } catch {
+        return match;
+      }
+    }
+    return Object.prototype.hasOwnProperty.call(NAMED, entity) ? NAMED[entity] : match;
+  });
+}
+
 export function stripTags(html) {
   return html.replace(/<script[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')

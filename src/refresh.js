@@ -55,7 +55,9 @@ export async function runRefresh({
   includeFx = true,
   trigger = 'scheduled',
   holderId = `refresh-${now}-${Math.random().toString(36).slice(2, 8)}`,
-  logger = null
+  logger = null,
+  sleep = undefined,
+  clock = undefined
 } = {}) {
   const acquired = await store.acquireLease('refresh', holderId, LEASE_TTL_MS);
   if (!acquired) {
@@ -79,7 +81,7 @@ export async function runRefresh({
 
     for (let index = 0; index < queued.length; index += MAX_CONCURRENCY) {
       const batch = queued.slice(index, index + MAX_CONCURRENCY);
-      const batchResults = await Promise.all(batch.map(({ vendor, state }) => refreshVendor({ store, vendor, state, fetchImpl, now, counter, logger })));
+      const batchResults = await Promise.all(batch.map(({ vendor, state }) => refreshVendor({ store, vendor, state, fetchImpl, now, counter, logger, sleep, clock })));
       results.push(...batchResults);
     }
 
@@ -103,11 +105,16 @@ export async function runRefresh({
   }
 }
 
-async function refreshVendor({ store, vendor, state, fetchImpl, now, counter, logger }) {
+async function refreshVendor({ store, vendor, state, fetchImpl, now, counter, logger, sleep, clock }) {
   const fetchText = createBoundedFetcher({
     fetchImpl,
     allowedHosts: vendor.allowedHosts ?? vendorHosts([vendor]),
-    onRequest: counter
+    onRequest: counter,
+    // Respect a vendor's published crawl delay (for example "Crawl-delay: 7")
+    // instead of firing every tracked offer back to back.
+    minIntervalMs: vendor.crawlDelayMs ?? 0,
+    ...(sleep ? { sleep } : {}),
+    ...(clock ? { clock } : {})
   });
   const attemptedAt = new Date(now).toISOString();
   let saved = 0;

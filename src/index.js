@@ -4,7 +4,7 @@
 // supplied by a visitor and never trigger unbounded scraping. The first request
 // after a deployment may start one throttled initial refresh.
 
-import { products, PRODUCTS } from './catalog.js';
+import { products, PRODUCTS, productById, variantCatalog } from './catalog.js';
 import { quoteBoard, findDestination, DESTINATIONS } from './lib/quote.js';
 import { runRefresh, maybeInitialRefresh, refreshFreshness } from './refresh.js';
 import { durableStore, storeClient } from './store.js';
@@ -13,7 +13,6 @@ import { registeredVendors } from './vendors/index.js';
 export { BoardStore } from './store.js';
 
 const PUBLIC_CACHE = 'public, max-age=300, stale-while-revalidate=3600';
-const DEFAULT_VARIANT = 'classico';
 
 export default {
   async fetch(request, env, ctx) {
@@ -26,7 +25,7 @@ export default {
       return handleHealth(env);
     }
     if (url.pathname === '/api/catalog') {
-      return json({ products, destinations: DESTINATIONS, vendors: publicVendors() });
+      return json({ products: publicProducts(), destinations: DESTINATIONS, vendors: publicVendors() });
     }
     if (url.pathname === '/api/board') {
       scheduleInitialRefresh(env, ctx);
@@ -78,8 +77,9 @@ async function handleBoard(request, env, ctx, url) {
     });
   }
   const store = storeClient(durableStore(env));
-  const productId = url.searchParams.get('product') ?? PRODUCTS[0].id;
-  const variantId = url.searchParams.get('variant') ?? DEFAULT_VARIANT;
+  const product = productById(url.searchParams.get('product')) ?? PRODUCTS[0];
+  const productId = product.id;
+  const variantId = url.searchParams.get('variant') ?? product.defaultVariant;
   const grams = url.searchParams.get('grams') ?? '500';
   const destination = findDestination(url.searchParams.get('dest'));
   const snapshot = await store.snapshot();
@@ -95,7 +95,7 @@ async function handleBoard(request, env, ctx, url) {
   const vendors = snapshot.vendors ?? {};
   return json({
     ...board,
-    product: products.find(item => item.id === productId) ?? null,
+    product: publicProduct(product),
     freshness: {
       ...refreshFreshness(snapshot.meta?.lastRefreshAt?.value ?? null, Date.now()),
       fx: snapshot.meta?.fx ? { asOf: snapshot.meta.fx.asOf, fetchedAt: snapshot.meta.fx.fetchedAt, source: snapshot.meta.fx.source?.name ?? null } : null,
@@ -149,8 +149,28 @@ function publicVendors() {
     id: vendor.id,
     name: vendor.name,
     homepage: vendor.homepage,
-    offers: vendor.offers.map(offer => ({ id: offer.id, url: offer.url, kind: offer.kind }))
+    offers: vendor.offers.map(offer => ({ id: offer.id, url: offer.url, kind: offer.kind, productId: offer.productId ?? null }))
   }));
+}
+
+/** Public product shape: identity, packaging and the selectable variants. */
+function publicProduct(product) {
+  if (!product) return null;
+  return {
+    id: product.id,
+    brand: product.brand,
+    line: product.line,
+    form: product.form,
+    packaging: product.packaging,
+    targetMarket: product.targetMarket,
+    defaultVariant: product.defaultVariant,
+    variants: variantCatalog(product),
+    notes: product.notes
+  };
+}
+
+function publicProducts() {
+  return products.map(publicProduct);
 }
 
 function scheduleInitialRefresh(env, ctx) {

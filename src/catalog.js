@@ -1,8 +1,25 @@
-// Target products and strict listing classification.
+// Tracked products and strict listing classification.
 //
 // The board compares one product at a time. Classification is deliberately
-// conservative: a listing that cannot be tied to Lavazza Crema e Gusto ground
-// coffee in a vacuum brick is rejected instead of being merged into the board.
+// conservative: a listing that cannot be tied to a tracked product (Lavazza
+// ground coffee in a vacuum brick) is rejected instead of being merged into
+// the board. Blend variants (Classico, Forte, ...) and pack sizes stay
+// separate so different products are never mixed into one comparison.
+
+import { decodeEntities } from './lib/text.js';
+
+const LINE_PATTERNS = {
+  'lavazza-crema-e-gusto': [
+    /crema\s*(?:e|&|and|-)?\s*gusto/i,
+    /קרמה\s*(?:אה\s*)?גוסטו/
+  ],
+  'lavazza-qualita-oro': [
+    /qualit[aàáy]\s*oro/i,
+    /qualit[aà]\s*oro/i,
+    /קוואליטה\s*אורו/,
+    /קווליטה\s*אורו/
+  ]
+};
 
 export const PRODUCTS = [
   {
@@ -12,7 +29,22 @@ export const PRODUCTS = [
     form: 'ground',
     packaging: 'vacuum brick',
     targetMarket: 'IL',
+    defaultVariant: 'classico',
+    variants: ['classico', 'forte', 'ricco', 'risveglio', 'decaf', 'unspecified'],
+    linePatterns: LINE_PATTERNS['lavazza-crema-e-gusto'],
     notes: 'Ground coffee only. Beans, capsules, pods and machines are rejected. Classico, Forte, Ricco, Risveglio and decaf remain separate variants.'
+  },
+  {
+    id: 'lavazza-qualita-oro-vacuum-ground',
+    brand: 'Lavazza',
+    line: 'Qualità Oro',
+    form: 'ground',
+    packaging: 'vacuum brick',
+    targetMarket: 'IL',
+    defaultVariant: 'unspecified',
+    variants: ['unspecified'],
+    linePatterns: LINE_PATTERNS['lavazza-qualita-oro'],
+    notes: 'Second tracked product: Lavazza Qualità Oro ground coffee in a vacuum brick. The line publishes no blend variant, so listings are stored as "Variant not stated"; beans, capsules and multipacks of another line stay separate.'
   }
 ];
 
@@ -35,14 +67,46 @@ const REJECT_FORMS = [
 
 const GROUND_PATTERN = /(ground|טחון|macinato|molido|moulu|gemahlen|malet|filtro|filter\s*coffee)/i;
 const BRAND_PATTERN = /(lavazza|לוואצה|לבאצה)/i;
-const LINE_PATTERN = /(crema\s*(?:e|&|and|-)?\s*gusto|קרמה\s*אה\s*גוסטו|קרמה\s*גוסטו)/i;
 
-/** Nominal product identity for the target listing. */
-export function classifyListing(text) {
-  const value = String(text || '').toLowerCase();
+/** Look up a tracked product by id. */
+export function productById(id) {
+  return PRODUCTS.find(product => product.id === id) ?? null;
+}
+
+/** Look up a blend variant definition by id. */
+export function variantById(id) {
+  return VARIANTS[id] ?? VARIANTS.unspecified;
+}
+
+/** Variants a product can be compared under, with their display labels. */
+export function variantCatalog(product = PRODUCTS[0]) {
+  return (product?.variants ?? ['unspecified']).map(id => ({ id, label: variantById(id).label }));
+}
+
+/**
+ * Classify a listing name against the tracked products.
+ *
+ * Pass `productId` to require a specific tracked product (vendor adapters do
+ * this for the offer they track); without it the first matching tracked product
+ * is returned. Heavy HTML entities in vendor titles are decoded first, because
+ * pages publish names such as "Lavazza Qualit&#224; Oro".
+ */
+export function classifyListing(text, { productId = null } = {}) {
+  const value = decodeEntities(String(text ?? '')).toLowerCase();
   const reasons = [];
+  const candidates = productId ? [productById(productId)].filter(Boolean) : PRODUCTS;
+
+  if (productId && candidates.length === 0) {
+    reasons.push(`unknown tracked product: ${productId}`);
+  }
   if (!BRAND_PATTERN.test(value)) reasons.push('brand is not Lavazza');
-  if (!LINE_PATTERN.test(value)) reasons.push('line is not Crema e Gusto');
+
+  const product = candidates.find(candidate => candidate.linePatterns.some(pattern => pattern.test(value)));
+  if (!product) {
+    const wanted = productId ? `the tracked ${productById(productId)?.line ?? productId} line` : 'a tracked Lavazza product line';
+    reasons.push(`listing is not ${wanted}`);
+  }
+
   const rejected = REJECT_FORMS.find(form => form.pattern.test(value));
   if (rejected) reasons.push(`listing is ${rejected.label}`);
   const ground = GROUND_PATTERN.test(value);
@@ -54,7 +118,8 @@ export function classifyListing(text) {
 
   return {
     matched,
-    productId: matched ? PRODUCTS[0].id : null,
+    productId: matched ? product.id : null,
+    productLine: matched ? product.line : null,
     variantId: variant.id,
     variantLabel: variant.label,
     form: matched ? 'ground' : (rejected ? rejected.id : 'unknown'),
@@ -80,7 +145,7 @@ const OZ_TO_GRAMS = 28.349523125;
 
 /** Parse grams per pack and pack count from a listing name. */
 export function parsePackSize(text) {
-  const value = String(text || '');
+  const value = decodeEntities(String(text ?? ''));
   let grams = null;
 
   const ounce = /(\d+(?:[.,]\d+)?)\s*(?:-|\s)?(?:ounce|oz)\b/i.exec(value);

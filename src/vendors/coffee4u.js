@@ -4,9 +4,9 @@
 // plus a per-product delivery options list publishing a courier rate and a cheaper
 // delivery-to-pickup-point service. Free self-pickup is kept separate from delivery.
 //
-// The robots.txt allows product pages and asks for a crawl delay of 7 seconds; this
-// adapter fetches a single fixed product URL per scheduled run, so the delay is
-// respected by the refresh interval (about every six hours).
+// The robots.txt allows product pages and asks for a crawl delay of 7 seconds; the
+// adapter declares that delay so the refresh pipeline spaces its requests to this host
+// instead of assuming the six-hour interval is enough.
 
 import { classifyListing } from '../catalog.js';
 import { decodeHtml, parseDecimal, stripTags, collapse } from '../lib/text.js';
@@ -28,7 +28,8 @@ export const coffee4u = {
   homepage: 'https://www.coffee4u.co.il',
   allowedHosts: ['www.coffee4u.co.il', 'coffee4u.co.il'],
   parserVersion: 'coffee4u/1',
-  offers: [{ id: 'crema-e-gusto-250g-ground', url: PRODUCT_URL, kind: 'delivery' }],
+  crawlDelayMs: 7000,
+  offers: [{ id: 'crema-e-gusto-250g-ground', url: PRODUCT_URL, kind: 'delivery', productId: 'lavazza-crema-e-gusto-vacuum-ground' }],
 
   async observe({ fetchText, now }) {
     const observations = [];
@@ -41,7 +42,7 @@ export const coffee4u = {
       }
       try {
         const html = response.buffer ? decodeHtml(response.buffer, response.text) : response.text;
-        observations.push(parseCoffee4uProduct(html, { now, url: offer.url }));
+        observations.push(parseCoffee4uProduct(html, { now, url: offer.url, productId: offer.productId ?? null }));
       } catch (error) {
         failures.push({ offerId: offer.id, url: offer.url, error: error.message, details: error.details ?? null });
       }
@@ -50,10 +51,10 @@ export const coffee4u = {
   }
 };
 
-export function parseCoffee4uProduct(html, { now, url = PRODUCT_URL } = {}) {
+export function parseCoffee4uProduct(html, { now, url = PRODUCT_URL, productId = null } = {}) {
   const name = extractName(html);
   if (!name) throw parseError('Product name not found', { url });
-  const classification = classifyListing(name);
+  const classification = classifyListing(name, { productId });
   if (!classification.matched) {
     throw parseError('Listing does not match the tracked product', { name, reasons: classification.reasons });
   }
