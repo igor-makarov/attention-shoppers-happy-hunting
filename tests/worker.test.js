@@ -150,6 +150,19 @@ test('unknown API paths are JSON 404s and non-GET methods are rejected', async (
   assert.equal(post.status, 405);
 });
 
+test('board freshness reports a stopped scheduled refresh as stale', async () => {
+  const store = await seededStore();
+  await store.setMeta('lastRefreshAt', { value: new Date(Date.now() - 30 * 3600 * 1000).toISOString(), trigger: 'cron' });
+  const stale = await (await worker.fetch(new Request('https://example.test/api/board?grams=500&dest=tel-aviv'), envWith(store), {})).json();
+  assert.equal(stale.freshness.stale, true);
+  assert.ok(stale.freshness.ageHours >= 29.9, `ageHours=${stale.freshness.ageHours}`);
+
+  await store.setMeta('lastRefreshAt', { value: new Date(Date.now() - 60 * 60 * 1000).toISOString(), trigger: 'cron' });
+  const fresh = await (await worker.fetch(new Request('https://example.test/api/board?grams=500&dest=tel-aviv'), envWith(store), {})).json();
+  assert.equal(fresh.freshness.stale, false);
+  assert.ok(fresh.freshness.ageHours <= 1.1);
+});
+
 test('website requests fall through to static assets', async () => {
   const response = await worker.fetch(new Request('https://example.test/'), envWith(createMemoryStore()), {});
   assert.equal(await response.text(), 'asset:/');

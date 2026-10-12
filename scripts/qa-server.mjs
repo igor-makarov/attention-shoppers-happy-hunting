@@ -21,6 +21,7 @@ import { coffee4u } from '../src/vendors/coffee4u.js';
 import { products } from '../src/catalog.js';
 import { quoteBoard, findDestination, DESTINATIONS } from '../src/lib/quote.js';
 import { createObservation, registeredVendors } from '../src/vendors/index.js';
+import { refreshFreshness } from '../src/refresh.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PUBLIC_DIR = resolve(ROOT, 'public');
@@ -121,11 +122,14 @@ export function termsDemoObservation(now = Date.now()) {
  * Start a local HTTP server that behaves like the deployed read-only board.
  * Returns { url, port, observations, close }.
  */
-export async function startQaServer({ port = 0, now = Date.now(), withTermsDemo = false } = {}) {
+export async function startQaServer({ port = 0, now = Date.now(), withTermsDemo = false, staleRefresh = false } = {}) {
   const observations = await fixtureObservations(now);
   if (withTermsDemo) observations.push(termsDemoObservation(now));
+  // `staleRefresh` simulates a board whose scheduled refresh has stopped running: the
+  // offers are still as fresh as the fixture timestamps say, but the refresh is old.
+  const lastRefreshAt = new Date(staleRefresh ? now - 30 * 60 * 60 * 1000 : now).toISOString();
   const server = createServer((request, response) => {
-    handle(request, response, { observations, now, withTermsDemo }).catch(error => {
+    handle(request, response, { observations, now, withTermsDemo, lastRefreshAt, staleRefresh }).catch(error => {
       response.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
       response.end(`qa server error: ${error?.message ?? error}`);
     });
@@ -143,7 +147,7 @@ export async function startQaServer({ port = 0, now = Date.now(), withTermsDemo 
   };
 }
 
-async function handle(request, response, { observations, now, withTermsDemo }) {
+async function handle(request, response, { observations, now, withTermsDemo, lastRefreshAt, staleRefresh }) {
   const url = new URL(request.url, 'http://127.0.0.1');
   if (url.pathname === '/api/catalog') {
     return json(response, {
@@ -167,7 +171,7 @@ async function handle(request, response, { observations, now, withTermsDemo }) {
       ...board,
       product: products.find(item => item.id === productId) ?? null,
       freshness: {
-        lastRefreshAt: new Date(now).toISOString(),
+        ...refreshFreshness(lastRefreshAt, now),
         fx: null,
         vendors: registeredVendors().map(vendor => ({
           vendorId: vendor.id,
@@ -184,6 +188,7 @@ async function handle(request, response, { observations, now, withTermsDemo }) {
       qa: {
         mode: 'fixtures',
         demoOffers: withTermsDemo ? 1 : 0,
+        staleRefresh,
         note: withTermsDemo
           ? 'Offline browser QA server. Recorded fixtures plus one clearly labelled QA-only terms demo offer (not a real vendor).'
           : 'Offline browser QA server. Data comes from tests/fixtures, not a live refresh.'

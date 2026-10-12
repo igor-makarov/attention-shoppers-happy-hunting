@@ -80,6 +80,18 @@ test('QA fixture server serves the board API and static assets offline', async (
 
     const catalog = await (await fetch(`${server.url}/api/catalog`)).json();
     assert.deepEqual(catalog.vendors.map(vendor => vendor.id).sort(), ['coffee4u', 'coffeeman', 'pucks']);
+    assert.equal(board.freshness.stale, false, 'a server whose refresh just completed is fresh');
+
+    const staleServer = await startQaServer({ port: 0, now: Date.parse('2026-10-12T11:00:00.000Z'), staleRefresh: true });
+    try {
+      const stale = await (await fetch(`${staleServer.url}/api/board?grams=500&dest=tel-aviv`)).json();
+      assert.equal(stale.qa.staleRefresh, true);
+      assert.equal(stale.freshness.stale, true);
+      assert.equal(stale.freshness.ageHours, 30);
+      assert.equal(stale.freshness.lastRefreshAt, '2026-10-11T05:00:00.000Z');
+    } finally {
+      await staleServer.close();
+    }
     assert.ok(catalog.destinations.length >= 5);
 
     const index = await fetch(`${server.url}/`);

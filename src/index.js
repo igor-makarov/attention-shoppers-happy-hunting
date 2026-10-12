@@ -6,7 +6,7 @@
 
 import { products, PRODUCTS } from './catalog.js';
 import { quoteBoard, findDestination, DESTINATIONS } from './lib/quote.js';
-import { runRefresh, maybeInitialRefresh } from './refresh.js';
+import { runRefresh, maybeInitialRefresh, refreshFreshness } from './refresh.js';
 import { durableStore, storeClient } from './store.js';
 import { registeredVendors } from './vendors/index.js';
 
@@ -97,7 +97,7 @@ async function handleBoard(request, env, ctx, url) {
     ...board,
     product: products.find(item => item.id === productId) ?? null,
     freshness: {
-      lastRefreshAt: snapshot.meta?.lastRefreshAt?.value ?? null,
+      ...refreshFreshness(snapshot.meta?.lastRefreshAt?.value ?? null, Date.now()),
       fx: snapshot.meta?.fx ? { asOf: snapshot.meta.fx.asOf, fetchedAt: snapshot.meta.fx.fetchedAt, source: snapshot.meta.fx.source?.name ?? null } : null,
       vendors: Object.values(vendors).map(state => ({
         vendorId: state.vendorId,
@@ -123,6 +123,7 @@ async function handleStatus(env) {
   const snapshot = await store.snapshot();
   return json({
     lastRefreshAt: snapshot.meta?.lastRefreshAt?.value ?? null,
+    freshness: refreshFreshness(snapshot.meta?.lastRefreshAt?.value ?? null, Date.now()),
     fx: snapshot.meta?.fx ? { asOf: snapshot.meta.fx.asOf, fetchedAt: snapshot.meta.fx.fetchedAt } : null,
     vendors: Object.values(snapshot.vendors ?? {}).map(state => ({
       vendorId: state.vendorId,

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { runRefresh, maybeInitialRefresh, backoffMs, REFRESH_INTERVAL_MS, BACKOFF_BASE_MS } from '../src/refresh.js';
+import { runRefresh, maybeInitialRefresh, backoffMs, refreshFreshness, REFRESH_INTERVAL_MS, REFRESH_STALE_MS, BACKOFF_BASE_MS } from '../src/refresh.js';
 import { createMemoryStore } from '../src/store.js';
 import { registeredVendors } from '../src/vendors/index.js';
 
@@ -229,6 +229,22 @@ test('allowlist blocks requests to hosts outside the vendor registry', async () 
   });
   assert.deepEqual(calls.filter(url => url.includes('evil.test')), [], 'no network request is made for a non-allowlisted host');
   assert.deepEqual(calls, ['https://www.boi.org.il/currency.xml'], 'only the allowlisted FX host is contacted');
+});
+
+test('board freshness turns stale when the scheduled refresh stops completing', () => {
+  const fresh = refreshFreshness('2026-10-12T11:00:00.000Z', Date.parse('2026-10-12T12:00:00.000Z'));
+  assert.equal(fresh.stale, false);
+  assert.equal(fresh.lastRefreshAt, '2026-10-12T11:00:00.000Z');
+  assert.equal(fresh.ageHours, 1);
+
+  const justInside = refreshFreshness('2026-10-12T04:00:00.000Z', Date.parse('2026-10-12T12:00:00.000Z'));
+  assert.equal(justInside.stale, false, 'eight hours is the stated threshold');
+  const stale = refreshFreshness('2026-10-12T03:59:00.000Z', Date.parse('2026-10-12T12:00:00.000Z'));
+  assert.equal(stale.stale, true);
+  assert.equal(REFRESH_STALE_MS, 8 * 60 * 60 * 1000);
+  const never = refreshFreshness(null, Date.parse('2026-10-12T12:00:00.000Z'));
+  assert.equal(never.stale, true, 'a board that never refreshed is stale, not silently fresh');
+  assert.equal(never.ageHours, null);
 });
 
 test('registered vendors are within their own allowlists', async () => {

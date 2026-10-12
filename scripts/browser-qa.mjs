@@ -254,7 +254,7 @@ try {
   // Shipping-terms scenario: a second fixture server adds one clearly labelled QA-only demo
   // offer that publishes a minimum order, a free-shipping threshold and a locality restriction,
   // so the UI rendering of those terms is verified too. It never runs in production.
-  const termsServer = await startQaServer({ port: 0, withTermsDemo: true });
+  const termsServer = await startQaServer({ port: 0, withTermsDemo: true, staleRefresh: true });
   try {
     report.termsDataSource = 'QA-only demo offer added to the recorded fixtures (not a vendor)';
     const terms2000 = await fetchBoard(termsServer.url, 2000, 'tel-aviv');
@@ -268,7 +268,8 @@ try {
       return {
         rows: dts.map((dt, index) => [dt.textContent.trim(), (dds[index]?.textContent ?? '').trim()]),
         total: document.querySelector('.best__total')?.textContent ?? null,
-        labels: [...document.querySelectorAll('.best__side .unknown__reason')].map(node => node.textContent.trim())
+        labels: [...document.querySelectorAll('.best__side .unknown__reason')].map(node => node.textContent.trim()),
+        footer: document.getElementById('footer-status')?.textContent ?? null
       };
     })()`);
     check('terms: demo offer is the ranked best for 2 kg', terms2000.best?.vendor.id === 'qa-terms-demo' && terms.total === expectedTermsTotal, `${terms.total} vs ${expectedTermsTotal} (${terms2000.best?.vendor.id})`);
@@ -278,6 +279,9 @@ try {
     check('terms: met free-shipping threshold shows Free and a written label',
       terms.rows.some(([term, value]) => term === 'Shipping' && value === 'Free') && terms.labels.some(text => text.includes('Free shipping threshold met')),
       JSON.stringify(terms.labels));
+    check('freshness: a stopped scheduled refresh is labelled in the footer',
+      /No completed scheduled refresh for 30 h/.test(terms.footer ?? ''),
+      terms.footer);
 
     // The locality restriction must actually exclude the offer for Jerusalem.
     await wd('POST', '/url', { url: `${termsServer.url}/?grams=2000&dest=jerusalem` });

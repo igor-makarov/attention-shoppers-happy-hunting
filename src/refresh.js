@@ -11,6 +11,9 @@ import { parseBoiRates, FX_SOURCE } from './lib/fx.js';
 import { registeredVendors, vendorHosts } from './vendors/index.js';
 
 export const REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000; // About every six hours.
+// A scheduled refresh that has not completed for this long is surfaced to shoppers
+// as stale: one missed six-hour run plus slack, so a broken cron does not stay silent.
+export const REFRESH_STALE_MS = 8 * 60 * 60 * 1000;
 export const BACKOFF_BASE_MS = 30 * 60 * 1000;
 export const BACKOFF_MAX_MS = 12 * 60 * 60 * 1000;
 export const LEASE_TTL_MS = 10 * 60 * 1000;
@@ -23,6 +26,20 @@ export const FX_HOSTS = ['www.boi.org.il', 'boi.org.il'];
 export function backoffMs(consecutiveFailures) {
   if (!consecutiveFailures || consecutiveFailures <= 0) return 0;
   return Math.min(BACKOFF_BASE_MS * 2 ** (consecutiveFailures - 1), BACKOFF_MAX_MS);
+}
+
+/**
+ * Freshness of the board as a whole, derived only from the last completed refresh.
+ * Missing or old refresh timestamps are reported as stale instead of being hidden.
+ */
+export function refreshFreshness(lastRefreshAt, now = Date.now()) {
+  const parsed = lastRefreshAt ? Date.parse(lastRefreshAt) : NaN;
+  const ageMs = Number.isFinite(parsed) ? now - parsed : null;
+  return {
+    lastRefreshAt: lastRefreshAt ?? null,
+    ageHours: ageMs == null ? null : Math.round((ageMs / 3_600_000) * 10) / 10,
+    stale: ageMs == null || ageMs > REFRESH_STALE_MS
+  };
 }
 
 export function isVendorDue(state, now) {
