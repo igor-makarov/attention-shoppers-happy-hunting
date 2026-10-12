@@ -42,7 +42,10 @@ conditional)` label so its quantity/destination condition stays visible.
 - Recommended font features `ss07`, `ss08`, `cv03`, `cv04`, `cv10` are enabled globally; prices and
   per-kilogram values use tabular numerals (`.num`).
 - Headings are left aligned and compact. The hero reads **"Attention shoppers"** with no trailing
-  period and does not push the offers below the first screen (best card top ≈507 px at 1440×857).
+  period, keeps no sub-copy, and does not push the offers below the first screen: the best card top is
+  ≈452 px at 1440×857 and ≈829 px inside a 390×844 first screen (measured 2026-10-12, iteration 3-70).
+  The ranked-section intro carries the selected product/pack/quantity/destination once; the quantity
+  buttons stay on one 44 px row at 390 px.
 - No emoji in the typography. Wayfinding uses plain text and monochrome glyphs; Hebrew vendor/product
   text is wrapped in isolated `dir="auto" lang="he"` spans.
 

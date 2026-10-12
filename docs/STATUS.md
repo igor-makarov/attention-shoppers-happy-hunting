@@ -1003,13 +1003,17 @@ that is merely out of scope for the selected quantity keeps its own exact reason
 quote test, the parser/QA-server assertions, the browser QA Pucks expectation and the worker API
 assertion were updated; `docs/DESIGN.md` and `docs/SOURCES.md` document the distinction.
 
-**Pickup rows compacted.** The three pickup-only offers were three near-identical three-cell cards
-(~400-420 px each at 390 px) with the same note repeated per card. They are now one compact row each
-(vendor, pack/quantity, item subtotal, pickup fee, written "Delivered total: Not applicable") with the
-repeated terms behind a `Pickup terms` disclosure. Rendered mobile height for the five-offer fixture
-board dropped from **5627 px to 5047 px** and the pickup rows from **401/420/421 px to 199/218/218 px**,
-with the section still present, still out of the delivered ranking and still naming the fee and the
-missing delivered total.
+**Pickup rows compacted and the mobile first screen tightened.** The three pickup-only offers were
+three near-identical three-cell cards (~400-420 px each at 390 px) with the same note repeated per card.
+They are now one compact row each (vendor, pack/quantity, item subtotal, pickup fee, written "Delivered
+total: Not applicable") with the repeated terms behind a `Pickup terms` disclosure. In the same pass the
+removed hero sub-copy, the shortened ranked-section intro and the one-row quantity control brought the
+best offer card onto the mobile first screen: rendered fixture page **5627 → 4996 px** content
+(scrollHeight 5237 → 5133), pickup rows **401/420/421 → 199/218/218 px**, mobile best card top
+**952 → 829 px** inside a 844 px screen, desktop best card top **484 → 452 px**, hero **132 → 59 px**
+mobile / **~132 → 97 px** desktop, quantity control **94 → 44 px** with the five buttons on one row and
+the 44 px tap height preserved. The pickup section is still present, still out of the delivered ranking
+and still names the fee and the missing delivered total.
 
 **Visual review with a new dependency-free inspector.** The coding agent's file-read tool still rejects
 PNG input, so `scripts/inspect-screenshot.mjs` was added: it decodes a PNG with `node:zlib`, prints a
@@ -1017,9 +1021,10 @@ coarse luminance character map and reports pixel counts/bounding boxes for the C
 tokens. Used on before/after full-height screenshots (1440 px and 390 px) it confirmed: soft-blue confined
 to the best-offer panel, blue to rules/selected control/best tag/delivered-total value, green to in-stock
 labels, amber to uncertainty, no red (no unavailable offer in the fixture board), no horizontal overflow,
-the three decision cells in one row ending at x=1290 inside 1440 px, and the compacted pickup section.
-Small text is not legible in the character map, so every amount/label claim remains backed by rendered
-DOM text and the API; the QA harness separately asserts WCAG AA rendered contrast. Evidence:
+the three decision cells in one row ending at x=1290 inside 1440 px, the compacted pickup section and the
+best card inside both first screens. Small text is not legible in the character map, so every
+amount/label claim remains backed by rendered DOM text and the API; the QA harness separately asserts
+WCAG AA rendered contrast. Evidence:
 `docs/evidence/visual-review/2026-10-12-revised-layout-review.json` plus before/after screenshots.
 
 **Verification runs (2026-10-12 UTC):**

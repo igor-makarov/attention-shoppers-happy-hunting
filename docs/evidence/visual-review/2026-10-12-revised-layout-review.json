@@ -20,44 +20,47 @@
     }
   },
   "after": {
-    "description": "Fixture board with the 3-70 changes: compact pickup rows, 'Checkout rate (observed, conditional)' label, conditional missing-rate copy.",
+    "description": "Fixture board with the 3-70 changes: compact pickup rows, 'Checkout rate (observed, conditional)' label, conditional missing-rate copy, hero sub-copy removed and the quantity control kept to one row on mobile.",
     "desktop1440": {
       "screenshot": "after-1440-20261012T1938Z.png",
       "window": [1440, 3600],
-      "contentHeightPx": 3283,
-      "scrollHeightPx": 3325,
+      "contentHeightPx": 3251,
+      "scrollHeightPx": 3293,
       "horizontalOverflow": false,
-      "bestCardTopPx": 484,
-      "totalsCellRects": [[140, 523, 618], [523, 906, 618], [906, 1290, 618]],
-      "note": "The three decision values (item subtotal / shipping / delivered total) sit in one row that ends at x=1290 inside the 1440 px viewport; the owner-reported b75e296 defect had 'Delivered total' at x=1641 inside a 1325 px container."
+      "heroHeightPx": 97,
+      "bestCardTopPx": 452,
+      "totalsCellRects": [[140, 523, 585], [523, 906, 585], [906, 1290, 585]],
+      "note": "The three decision values (item subtotal / shipping / delivered total) sit in one row that ends at x=1290 inside the 1440 px viewport; the owner-reported b75e296 defect had 'Delivered total' at x=1641 inside a 1325 px container. The best card is fully inside the first 857 px screen."
     },
     "mobile390": {
       "screenshot": "after-390-20261012T1938Z.png",
       "window": [390, 5600],
-      "contentHeightPx": 5047,
-      "scrollHeightPx": 5237,
+      "contentHeightPx": 4996,
+      "scrollHeightPx": 5133,
       "horizontalOverflow": false,
-      "bestCardTopPx": 952,
+      "heroHeightPx": 59,
+      "bestCardTopPx": 829,
+      "quantityControlHeightPx": 44,
       "pickupRowHeightsPx": [199, 218, 218],
-      "note": "The three pickup-only offers cost about half their former height and no longer repeat three separate three-cell cards. The best card starts 108 px below an 844 px first screen; the QA harness accepts this ('not pushed far below the first screen'), and the desktop first screen shows it at 484 px."
+      "note": "The best card now starts at 829 px, inside a 844 px first screen (was 952 px). The three pickup-only offers cost about half their former height and no longer repeat three separate three-cell cards; the five quantity buttons stay on one 44 px row."
     },
     "paletteDesktop1440": {
-      "blue": 14144,
-      "softblue": 417997,
-      "green": 1683,
-      "greenSoft": 10134,
+      "blue": 13908,
+      "softblue": 415955,
+      "green": 1681,
+      "greenSoft": 9980,
       "red": 0,
       "amber": 858,
-      "amberSoft": 139900,
-      "muted": 6841,
-      "divider": 42938,
+      "amberSoft": 139747,
+      "muted": 6608,
+      "divider": 42922,
       "reading": "Soft-blue is confined to the best-offer panel/selected context, blue to rules, the selected control, the best tag and the delivered-total value, green to verified in-stock labels, amber to coverage/uncertainty text, and red is absent because the fixture board has no unavailable offer. No arbitrary vendor colouring was observed."
     }
   },
   "asciiInspection": [
-    "Desktop hero and controls occupy the top ~430 px; the best card follows immediately and its three totals cells read as one aligned row with the blue total value.",
+    "Desktop hero is now a compact title band (97 px) directly above the controls; the best card follows at y=452 and its three totals cells read as one aligned row with the blue total value.",
     "Ranked offer cards stack below in a single column with consistent left alignment and one short conditions list each; pickup rows are visibly shorter and left-bordered.",
-    "Mobile: hero, single-column controls, then the best card; the three totals cells stack but stay inside the 390 px viewport with no horizontal overflow.",
+    "Mobile: compact hero (59 px), single-column controls with the five quantity buttons on one 44 px row, then the best card at y=829; the three totals cells stack but stay inside the 390 px viewport with no horizontal overflow.",
     "Footer disclosures stay compact and below the decision content."
   ],
   "screenshots": [
