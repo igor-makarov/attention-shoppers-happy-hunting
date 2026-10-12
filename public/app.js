@@ -129,6 +129,12 @@ function totalsBlock(quote, { perKg = true } = {}) {
       perKg && quote.ilsPerKg != null ? el('span', { class: 'totals__meta num', text: `${money(quote.ilsPerKg)} per kg` }) : null));
 }
 
+/** Human label for a destination id, used by locality-restricted delivery areas. */
+function destinationLabel(id) {
+  const found = (state.catalog?.destinations ?? []).find(item => item.id === id);
+  return found?.label ?? id;
+}
+
 /** One written conditions list per offer; the same caveat is not repeated on a card. */
 function conditionsList(quote) {
   const shipping = quote.shipping ?? {};
@@ -139,6 +145,11 @@ function conditionsList(quote) {
       : `Free shipping from ${money(shipping.freeThreshold)} item subtotal`);
   }
   if (shipping.minOrder != null) items.push(`Minimum order ${money(shipping.minOrder)}`);
+  const coverage = shipping.destination;
+  if (coverage?.scope === 'localities') {
+    const names = (coverage.localities ?? []).map(destinationLabel);
+    items.push(names.length ? `Delivery area: only ${names.join(', ')}` : 'Delivery area: restricted locality list not published');
+  }
   for (const alternative of shipping.alternatives ?? []) {
     items.push(`${alternative.label}: ${alternative.amountIls != null ? money(alternative.amountIls) : 'rate not published'}`);
   }

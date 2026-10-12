@@ -1,0 +1,11 @@
+import { startQaServer } from './scripts/qa-server.mjs';
+const server = await startQaServer({ port: 0 });
+const c = await fetch(`${server.url}/api/board?grams=500&dest=tel-aviv&variant=classico`).then(r=>r.json());
+console.log('CM single ship:', JSON.stringify(c.ranked[1].shipping, null, 1));
+console.log('PICKUP[0] labels:', JSON.stringify(c.pickup[0].labels), 'ship mode', c.pickup[0].shipping.mode, 'pickup', JSON.stringify(c.pickup[0].shipping.pickup), 'reasons', JSON.stringify(c.pickup[0].reasons), 'total', c.pickup[0].totalIls);
+console.log('PICKUP[1] labels:', JSON.stringify(c.pickup[1].labels), 'pickup', JSON.stringify(c.pickup[1].shipping.pickup), 'reasons', JSON.stringify(c.pickup[1].reasons));
+console.log('PICKUP[2] labels:', JSON.stringify(c.pickup[2].labels), 'pickup', JSON.stringify(c.pickup[2].shipping.pickup), 'reasons', JSON.stringify(c.pickup[2].reasons));
+const x4 = c.ranked.find(q => q.key.endsWith('x4'));
+console.log('X4 ship:', JSON.stringify(x4.shipping.amountIls), x4.shipping.maxTotalGrams, JSON.stringify(x4.product));
+console.log('X8 ship:', JSON.stringify(c.ranked.find(q=>q.key.endsWith('x8')).shipping, null, 1).slice(0,1200));
+await server.close();
