@@ -37,14 +37,44 @@ export function backoffMs(consecutiveFailures) {
 }
 
 /**
- * Freshness of the board as a whole, derived only from the last completed refresh.
- * Missing or old refresh timestamps are reported as stale instead of being hidden.
+ * Newest successful observation time across stored rows. Attempt markers carry no
+ * observedAt, so a failed refresh can never make the board look freshly checked.
  */
-export function refreshFreshness(lastRefreshAt, now = Date.now()) {
-  const parsed = lastRefreshAt ? Date.parse(lastRefreshAt) : NaN;
-  const ageMs = Number.isFinite(parsed) ? now - parsed : null;
+export function newestObservationAt(observations = []) {
+  let newestMs = null;
+  let newest = null;
+  for (const row of observations) {
+    if (!row?.observedAt) continue;
+    const parsed = Date.parse(row.observedAt);
+    if (!Number.isFinite(parsed)) continue;
+    if (newestMs == null || parsed > newestMs) {
+      newestMs = parsed;
+      newest = row.observedAt;
+    }
+  }
+  return newest;
+}
+
+/**
+ * Freshness of the board as a whole. `lastRefreshAt` is the last *completed*
+ * refresh. A run that is interrupted after saving observations (for example a
+ * redeploy stops the background job) never writes that marker, so the board also
+ * reports the newest saved observation and falls back to it for the age when no
+ * completed refresh exists. A recorded but old completion still reads as stale:
+ * that is the scheduled pipeline having stopped, not missing data.
+ */
+export function refreshFreshness(lastRefreshAt, now = Date.now(), lastObservationAt = null) {
+  const refreshMs = lastRefreshAt ? Date.parse(lastRefreshAt) : NaN;
+  const observationMs = lastObservationAt ? Date.parse(lastObservationAt) : NaN;
+  const dataMs = Number.isFinite(refreshMs) && Number.isFinite(observationMs)
+    ? Math.max(refreshMs, observationMs)
+    : (Number.isFinite(refreshMs) ? refreshMs : observationMs);
+  const ageAnchorMs = Number.isFinite(refreshMs) ? refreshMs : observationMs;
+  const ageMs = Number.isFinite(ageAnchorMs) ? now - ageAnchorMs : null;
   return {
     lastRefreshAt: lastRefreshAt ?? null,
+    lastObservationAt: lastObservationAt ?? null,
+    dataAsOf: Number.isFinite(dataMs) ? new Date(dataMs).toISOString() : null,
     ageHours: ageMs == null ? null : Math.round((ageMs / 3_600_000) * 10) / 10,
     stale: ageMs == null || ageMs > REFRESH_STALE_MS
   };

@@ -179,14 +179,20 @@ function updateFooterStatus() {
     node.textContent = 'The board could not be loaded from the snapshot API. Stored observations are safe; try again in a moment.';
     return;
   }
-  const last = state.board?.freshness?.lastRefreshAt;
-  const stale = state.board?.freshness?.stale;
-  const age = state.board?.freshness?.ageHours;
-  node.textContent = last
-    ? `Last completed refresh: ${timeLabel(last)}.${stale ? ` No completed scheduled refresh for ${age} h — prices may be out of date.` : ''}`
-    : (stale
+  const f = state.board?.freshness;
+  const last = f?.lastRefreshAt;
+  const observed = f?.lastObservationAt;
+  const stale = f?.stale;
+  const age = f?.ageHours;
+  if (last) {
+    node.textContent = `Last completed refresh: ${timeLabel(last)}.${stale ? ` No completed scheduled refresh for ${age} h — prices may be out of date.` : ''}`;
+  } else if (observed) {
+    node.textContent = `Last offer observation: ${timeLabel(observed)}. No refresh has completed on this deployment yet${stale ? ` — offer data is ${age} h old` : ''}.`;
+  } else {
+    node.textContent = stale
       ? 'No scheduled refresh has completed yet — prices may be missing or out of date.'
-      : 'No completed refresh yet; the first scheduled run will populate the board.');
+      : 'No completed refresh yet; the first scheduled run will populate the board.';
+  }
 }
 
 function renderControls() {
@@ -482,16 +488,20 @@ function renderUnknownSection(board) {
 function renderFooterStatus(board) {
   const vendors = board.freshness?.vendors ?? [];
   const failing = vendors.filter(vendor => (vendor.consecutiveFailures ?? 0) > 0);
+  const freshness = board.freshness ?? {};
+  const dataAsOf = freshness.dataAsOf ?? freshness.lastRefreshAt ?? freshness.lastObservationAt ?? null;
   const wrap = el('div', { class: 'meta-line' });
-  wrap.append(el('div', { text: `Board refreshed: ${timeLabel(board.freshness?.lastRefreshAt)} · Offers observed for this variant: ${board.counts.observed} · Ranked: ${board.counts.ranked}` }));
-  if (board.freshness?.stale) {
-    const age = board.freshness.ageHours;
-    wrap.append(el('div', { class: 'status status--stale', text: board.freshness.lastRefreshAt
+  wrap.append(el('div', { text: `Board data as of: ${timeLabel(dataAsOf)} · Offers observed for this variant: ${board.counts.observed} · Ranked: ${board.counts.ranked}` }));
+  if (freshness.stale) {
+    const age = freshness.ageHours;
+    wrap.append(el('div', { class: 'status status--stale', text: freshness.lastRefreshAt
       ? `Scheduled refresh overdue by ${age} h — prices may be out of date.`
-      : 'No scheduled refresh has completed yet — prices may be missing or out of date.' }));
+      : freshness.lastObservationAt
+        ? `No completed scheduled refresh; the newest offer observation is ${age} h old — prices may be out of date.`
+        : 'No scheduled refresh has completed yet — prices may be missing or out of date.' }));
   }
-  if (board.freshness?.fx) {
-    wrap.append(el('div', { text: `Exchange rates: ${board.freshness.fx.source ?? 'Bank of Israel'} published ${board.freshness.fx.asOf ?? 'unknown'} · fetched ${timeLabel(board.freshness.fx.fetchedAt)}` }));
+  if (freshness.fx) {
+    wrap.append(el('div', { text: `Exchange rates: ${freshness.fx.source ?? 'Bank of Israel'} published ${freshness.fx.asOf ?? 'unknown'} · fetched ${timeLabel(freshness.fx.fetchedAt)}` }));
   } else {
     wrap.append(el('div', { text: 'Exchange rates: no official rate table stored yet, so foreign-currency offers cannot be ranked.' }));
   }

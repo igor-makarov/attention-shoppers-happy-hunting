@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { runRefresh, maybeInitialRefresh, backoffMs, refreshFreshness, REFRESH_INTERVAL_MS, REFRESH_STALE_MS, BACKOFF_BASE_MS } from '../src/refresh.js';
+import { runRefresh, maybeInitialRefresh, backoffMs, refreshFreshness, newestObservationAt, REFRESH_INTERVAL_MS, REFRESH_STALE_MS, BACKOFF_BASE_MS } from '../src/refresh.js';
 import { quoteBoard, findDestination } from '../src/lib/quote.js';
 import { createMemoryStore } from '../src/store.js';
 import { registeredVendors } from '../src/vendors/index.js';
@@ -260,6 +260,37 @@ test('board freshness turns stale when the scheduled refresh stops completing', 
   const never = refreshFreshness(null, Date.parse('2026-10-12T12:00:00.000Z'));
   assert.equal(never.stale, true, 'a board that never refreshed is stale, not silently fresh');
   assert.equal(never.ageHours, null);
+});
+
+test('an interrupted refresh with saved observations is not reported as never refreshed', () => {
+  const now = Date.parse('2026-10-12T12:00:00.000Z');
+  const interrupted = refreshFreshness(null, now, '2026-10-12T11:30:00.000Z');
+  assert.equal(interrupted.stale, false, 'fresh saved observations keep the board honest-fresh');
+  assert.equal(interrupted.ageHours, 0.5);
+  assert.equal(interrupted.lastRefreshAt, null, 'the missing completion marker stays visible');
+  assert.equal(interrupted.lastObservationAt, '2026-10-12T11:30:00.000Z');
+  assert.equal(interrupted.dataAsOf, '2026-10-12T11:30:00.000Z');
+
+  const old = refreshFreshness(null, now, '2026-10-12T03:00:00.000Z');
+  assert.equal(old.stale, true, 'observations older than the threshold are still stale');
+  assert.equal(old.ageHours, 9);
+
+  const stoppedPipeline = refreshFreshness('2026-10-12T03:00:00.000Z', now, '2026-10-12T11:30:00.000Z');
+  assert.equal(stoppedPipeline.stale, true, 'a recorded but old completed refresh keeps the pipeline-stopped warning');
+  assert.equal(stoppedPipeline.ageHours, 9, 'age stays anchored to the completed refresh when one exists');
+  assert.equal(stoppedPipeline.dataAsOf, '2026-10-12T11:30:00.000Z', 'dataAsOf reports the newest evidence');
+});
+
+test('newestObservationAt ignores attempt markers and picks the newest success', () => {
+  const rows = [
+    { key: 'a', observedAt: '2026-10-12T10:00:00.000Z' },
+    { key: 'b', attemptedAt: '2026-10-12T11:00:00.000Z', lastError: 'timeout' },
+    { key: 'c', observedAt: '2026-10-12T09:00:00.000Z' },
+    { key: 'd', observedAt: null }
+  ];
+  assert.equal(newestObservationAt(rows), '2026-10-12T10:00:00.000Z');
+  assert.equal(newestObservationAt([]), null);
+  assert.equal(newestObservationAt([{ key: 'x', attemptedAt: '2026-10-12T11:00:00.000Z' }]), null, 'a failed attempt is not an observation');
 });
 
 test('registered vendors are within their own allowlists', async () => {

@@ -6,7 +6,7 @@
 
 import { products, resolveProductRequest, variantCatalog, resolveVariantId } from './catalog.js';
 import { quoteBoard, findDestination, DESTINATIONS } from './lib/quote.js';
-import { runRefresh, maybeInitialRefresh, refreshFreshness } from './refresh.js';
+import { runRefresh, maybeInitialRefresh, refreshFreshness, newestObservationAt } from './refresh.js';
 import { durableStore, storeClient } from './store.js';
 import { registeredVendors } from './vendors/index.js';
 
@@ -55,17 +55,19 @@ function json(body, status = 200, headers = {}) {
 
 async function handleHealth(env) {
   let refresh = null;
+  let lastObservationAt = null;
   let error = null;
   try {
     if (env.BOARD) {
       const store = storeClient(durableStore(env));
-      const meta = await store.getMeta('lastRefreshAt');
-      refresh = meta?.value ?? null;
+      const snapshot = await store.snapshot();
+      refresh = snapshot.meta?.lastRefreshAt?.value ?? null;
+      lastObservationAt = newestObservationAt(snapshot.observations);
     }
   } catch (cause) {
     error = 'storage unavailable';
   }
-  return json({ status: 'ok', stage: 'live', lastRefreshAt: refresh, storageError: error });
+  return json({ status: 'ok', stage: 'live', lastRefreshAt: refresh, lastObservationAt, storageError: error });
 }
 
 async function handleBoard(request, env, ctx, url) {
@@ -90,6 +92,7 @@ async function handleBoard(request, env, ctx, url) {
   const grams = url.searchParams.get('grams') ?? '500';
   const destination = findDestination(url.searchParams.get('dest'));
   const snapshot = await store.snapshot();
+  const lastObservationAt = newestObservationAt(snapshot.observations);
   const board = quoteBoard({
     observations: snapshot.observations,
     productId,
@@ -105,7 +108,7 @@ async function handleBoard(request, env, ctx, url) {
     product: publicProduct(product),
     requestedRetiredProduct: retired ? { id: retired.id, line: retired.line } : null,
     freshness: {
-      ...refreshFreshness(snapshot.meta?.lastRefreshAt?.value ?? null, Date.now()),
+      ...refreshFreshness(snapshot.meta?.lastRefreshAt?.value ?? null, Date.now(), lastObservationAt),
       fx: snapshot.meta?.fx ? { asOf: snapshot.meta.fx.asOf, fetchedAt: snapshot.meta.fx.fetchedAt, source: snapshot.meta.fx.source?.name ?? null } : null,
       vendors: Object.values(vendors).map(state => ({
         vendorId: state.vendorId,
@@ -129,9 +132,11 @@ async function handleStatus(env) {
   if (!env.BOARD) return json({ status: 'storage not configured', vendors: [], runs: [] });
   const store = storeClient(durableStore(env));
   const snapshot = await store.snapshot();
+  const lastObservationAt = newestObservationAt(snapshot.observations);
   return json({
     lastRefreshAt: snapshot.meta?.lastRefreshAt?.value ?? null,
-    freshness: refreshFreshness(snapshot.meta?.lastRefreshAt?.value ?? null, Date.now()),
+    lastObservationAt,
+    freshness: refreshFreshness(snapshot.meta?.lastRefreshAt?.value ?? null, Date.now(), lastObservationAt),
     fx: snapshot.meta?.fx ? { asOf: snapshot.meta.fx.asOf, fetchedAt: snapshot.meta.fx.fetchedAt } : null,
     vendors: Object.values(snapshot.vendors ?? {}).map(state => ({
       vendorId: state.vendorId,

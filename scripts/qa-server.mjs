@@ -21,7 +21,7 @@ import { coffee4u } from '../src/vendors/coffee4u.js';
 import { products, resolveVariantId, resolveProductRequest } from '../src/catalog.js';
 import { quoteBoard, findDestination, DESTINATIONS } from '../src/lib/quote.js';
 import { createObservation, registeredVendors } from '../src/vendors/index.js';
-import { refreshFreshness } from '../src/refresh.js';
+import { refreshFreshness, newestObservationAt } from '../src/refresh.js';
 import { publicProducts, publicVendors } from '../src/index.js';
 import { readFixtureForUrl } from '../tests/fixtures/vendor-fixtures.mjs';
 
@@ -125,14 +125,16 @@ export function termsDemoObservation(now = Date.now()) {
  * Start a local HTTP server that behaves like the deployed read-only board.
  * Returns { url, port, observations, close }.
  */
-export async function startQaServer({ port = 0, now = Date.now(), withTermsDemo = false, staleRefresh = false } = {}) {
+export async function startQaServer({ port = 0, now = Date.now(), withTermsDemo = false, staleRefresh = false, interruptedRefresh = false } = {}) {
   const observations = await fixtureObservations(now);
   if (withTermsDemo) observations.push(termsDemoObservation(now));
   // `staleRefresh` simulates a board whose scheduled refresh has stopped running: the
   // offers are still as fresh as the fixture timestamps say, but the refresh is old.
-  const lastRefreshAt = new Date(staleRefresh ? now - 30 * 60 * 60 * 1000 : now).toISOString();
+  // `interruptedRefresh` simulates a run that saved observations but was stopped before
+  // writing the completion marker (for example a redeploy killed the background job).
+  const lastRefreshAt = interruptedRefresh ? null : new Date(staleRefresh ? now - 30 * 60 * 60 * 1000 : now).toISOString();
   const server = createServer((request, response) => {
-    handle(request, response, { observations, now, withTermsDemo, lastRefreshAt, staleRefresh }).catch(error => {
+    handle(request, response, { observations, now, withTermsDemo, lastRefreshAt, staleRefresh, interruptedRefresh }).catch(error => {
       response.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
       response.end(`qa server error: ${error?.message ?? error}`);
     });
@@ -150,7 +152,7 @@ export async function startQaServer({ port = 0, now = Date.now(), withTermsDemo 
   };
 }
 
-async function handle(request, response, { observations, now, withTermsDemo, lastRefreshAt, staleRefresh }) {
+async function handle(request, response, { observations, now, withTermsDemo, lastRefreshAt, staleRefresh, interruptedRefresh }) {
   const url = new URL(request.url, 'http://127.0.0.1');
   if (url.pathname === '/api/catalog') {
     return json(response, {
@@ -170,7 +172,7 @@ async function handle(request, response, { observations, now, withTermsDemo, las
       product: publicProducts().find(item => item.id === product.id) ?? null,
       requestedRetiredProduct: retired ? { id: retired.id, line: retired.line } : null,
       freshness: {
-        ...refreshFreshness(lastRefreshAt, now),
+        ...refreshFreshness(lastRefreshAt, now, newestObservationAt(observations)),
         fx: null,
         vendors: registeredVendors().map(vendor => ({
           vendorId: vendor.id,
@@ -190,6 +192,7 @@ async function handle(request, response, { observations, now, withTermsDemo, las
         mode: 'fixtures',
         demoOffers: withTermsDemo ? 1 : 0,
         staleRefresh,
+        interruptedRefresh,
         previousCheckMetadata: 1,
         note: withTermsDemo
           ? 'Offline browser QA server. Recorded fixtures plus one clearly labelled QA-only terms demo offer (not a real vendor) and one synthetic previous-check price for change rendering.'

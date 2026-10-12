@@ -68,6 +68,7 @@ test('health route reports live stage and last refresh', async () => {
   assert.equal(body.status, 'ok');
   assert.equal(body.stage, 'live');
   assert.ok(body.lastRefreshAt);
+  assert.ok(body.lastObservationAt, 'health exposes the newest saved observation for interrupted-refresh diagnosis');
 });
 
 test('catalog route lists the product, destinations and vendor allowlist without offers', async () => {
@@ -169,6 +170,29 @@ test('board freshness reports a stopped scheduled refresh as stale', async () =>
   const fresh = await (await worker.fetch(new Request('https://example.test/api/board?grams=500&dest=tel-aviv'), envWith(store), {})).json();
   assert.equal(fresh.freshness.stale, false);
   assert.ok(fresh.freshness.ageHours <= 1.1);
+});
+
+test('board freshness falls back to the newest observation when no refresh completed', async () => {
+  const store = await seededStore();
+  const recent = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  for (const row of await store.listObservations()) {
+    if (row.observedAt) await store.putObservation({ ...row, observedAt: recent });
+  }
+  await store.setMeta('lastRefreshAt', null);
+  const board = await (await worker.fetch(new Request('https://example.test/api/board?grams=500&dest=tel-aviv'), envWith(store), {})).json();
+  assert.equal(board.freshness.lastRefreshAt, null, 'no completion marker is claimed');
+  assert.equal(board.freshness.lastObservationAt, recent, 'the newest saved observation is reported');
+  assert.equal(board.freshness.dataAsOf, recent);
+  assert.equal(board.freshness.stale, false, 'an interrupted refresh with fresh saved offers is not labelled never-refreshed');
+  assert.ok(board.freshness.ageHours <= 1.1, `ageHours=${board.freshness.ageHours}`);
+
+  const old = new Date(Date.now() - 20 * 3600 * 1000).toISOString();
+  for (const row of await store.listObservations()) {
+    if (row.observedAt) await store.putObservation({ ...row, observedAt: old });
+  }
+  const stale = await (await worker.fetch(new Request('https://example.test/api/board?grams=500&dest=tel-aviv'), envWith(store), {})).json();
+  assert.equal(stale.freshness.stale, true, 'old observations without a completed refresh are still stale');
+  assert.ok(stale.freshness.ageHours >= 19.9, `ageHours=${stale.freshness.ageHours}`);
 });
 
 test('website requests fall through to static assets', async () => {

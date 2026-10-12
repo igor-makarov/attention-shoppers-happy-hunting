@@ -427,6 +427,28 @@ try {
     await termsServer.close();
   }
 
+  // Interrupted-refresh scenario: the store holds fresh saved observations but the
+  // background run never wrote a completion marker (for example a redeploy stopped it).
+  // The footer must report the observation time instead of claiming "never refreshed".
+  const interruptedServer = await startQaServer({ port: 0, interruptedRefresh: true });
+  try {
+    const interruptedBoard = await fetchBoard(interruptedServer.url, 500, 'tel-aviv');
+    check('freshness: an interrupted refresh keeps fresh observations out of the stale state',
+      interruptedBoard.freshness?.lastRefreshAt === null
+        && interruptedBoard.freshness?.lastObservationAt != null
+        && interruptedBoard.freshness?.stale === false,
+      JSON.stringify(interruptedBoard.freshness));
+    await wd('POST', '/url', { url: `${interruptedServer.url}/?grams=500&dest=tel-aviv` });
+    await waitForBoard(wd);
+    const interruptedFooter = await evaluate(wd, `document.getElementById('footer-status')?.textContent ?? null`);
+    check('freshness: the footer names the last offer observation instead of a never-refreshed message',
+      /Last offer observation:/.test(interruptedFooter ?? '')
+        && !/No scheduled refresh has completed|No completed scheduled refresh/.test(interruptedFooter ?? ''),
+      interruptedFooter);
+  } finally {
+    await interruptedServer.close();
+  }
+
   // Close the session, then remove the driver's child processes before exiting.
   await wd('DELETE', '');
   report.sessionClosed = true;
