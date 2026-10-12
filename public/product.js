@@ -164,10 +164,11 @@ function renderDecision(board) {
 /** Best eligible offer: vendor, pack/grams, the three money values and a short warning. */
 function renderBestOffer(quote, board) {
   const card = el('article', { class: 'offer offer--best', attrs: { id: 'best-offer' } });
+  // One compact identity row: the best-offer label, the vendor and its stock
+  // label. The full comparison values follow immediately below so the money is
+  // in the first mobile viewport instead of below a second heading row.
   card.append(el('div', { class: 'offer__top' },
     el('span', { class: 'tag tag--best', text: 'Best known delivered total' }),
-    el('div', { class: 'offer__delta', text: 'Cheapest delivered total for this selection' })));
-  card.append(el('div', { class: 'offer__top' },
     el('div', { class: 'offer__vendor' }, bidi(quote.vendor.name), ' ', statusBadge(quote.availability, quote.availabilityLabel))));
   card.append(el('p', { class: 'offer__pack', text: packLine(quote) }));
   card.append(totalsBlock(quote));
@@ -343,7 +344,7 @@ function renderControls() {
     const excluded = state.board?.counts?.excludedByVariant ?? 0;
     const labels = (state.board?.counts?.excludedVariants ?? []).map(id => VARIANT_LABELS[id] ?? id).join(', ');
     hint.textContent = excluded > 0
-      ? `${excluded} offer(s) for another variant (${labels || 'unspecified'}) stay out so variants are never merged; choose that variant to compare it.`
+      ? `${excluded} offer(s) for another variant (${labels || 'unspecified'}) stay separate — choose that variant to compare it.`
       : '';
     hint.hidden = excluded === 0;
   }

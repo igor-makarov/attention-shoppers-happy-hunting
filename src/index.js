@@ -6,6 +6,7 @@
 
 import { products, resolveProductRequest, variantCatalog, resolveVariantId } from './catalog.js';
 import { quoteBoard, findDestination, DESTINATIONS } from './lib/quote.js';
+import { policySummary } from './lib/policies.js';
 import { runRefresh, maybeInitialRefresh, refreshFreshness, newestObservationAt } from './refresh.js';
 import { durableStore, storeClient } from './store.js';
 import { registeredVendors } from './vendors/index.js';
@@ -149,6 +150,10 @@ async function handleStatus(env) {
     lastObservationAt,
     freshness: refreshFreshness(snapshot.meta?.lastRefreshAt?.value ?? null, Date.now(), lastObservationAt),
     fx: snapshot.meta?.fx ? { asOf: snapshot.meta.fx.asOf, fetchedAt: snapshot.meta.fx.fetchedAt } : null,
+    // Versioned shipping policies applied at read time: which rule version is in
+    // force, when it was observed and when it must be re-checked. An expired
+    // policy stops enriching offers until browser research renews it.
+    shippingPolicies: policySummary(Date.now()),
     vendors: Object.values(snapshot.vendors ?? {}).map(state => ({
       vendorId: state.vendorId,
       lastAttemptAt: state.lastAttemptAt,

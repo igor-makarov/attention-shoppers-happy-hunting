@@ -6,6 +6,7 @@
 // Pickup options are kept separate from delivered offers.
 
 import { toIls } from './fx.js';
+import { enrichObservationShipping, policySummary, SHIPPING_POLICIES } from './policies.js';
 
 export const DEFAULT_STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 export const CLOCK_SKEW_MS = 5 * 60 * 1000;
@@ -77,7 +78,10 @@ export function quoteBoard({
   destination = DESTINATIONS[0],
   fx = null,
   now = Date.now(),
-  staleAfterMs = DEFAULT_STALE_AFTER_MS
+  staleAfterMs = DEFAULT_STALE_AFTER_MS,
+  // Validated shipping policies enrich observations whose own shipping is
+  // unknown. Pass null to disable (tests of the raw stored evidence).
+  policies = SHIPPING_POLICIES
 } = {}) {
   const grams = clampGrams(targetGrams);
   const quotes = [];
@@ -95,7 +99,13 @@ export function quoteBoard({
       excludedVariants.add(observation?.product?.variantId ?? 'unspecified');
       continue;
     }
-    quotes.push(quoteOffer(observation, { grams, destination, fx, now, staleAfterMs }));
+    // Read-time policy enrichment: an old stored row whose shipping was unknown
+    // gains a validated rule without waiting for the next vendor refresh. The
+    // observation's own price, stock and observedAt are never touched.
+    const enriched = policies === null
+      ? observation
+      : enrichObservationShipping(observation, { policies, now }).observation;
+    quotes.push(quoteOffer(enriched, { grams, destination, fx, now, staleAfterMs }));
   }
   const ranked = quotes.filter(quote => quote.rankable).sort(compareQuotes);
   // The cheapest delivered total is not always the cheapest bulk value. Keep the
@@ -121,6 +131,7 @@ export function quoteBoard({
     destination,
     generatedAt: new Date(now).toISOString(),
     fx: fx ? { asOf: fx.asOf ?? null, source: fx.source?.name ?? null } : null,
+    shippingPolicies: policies === null ? [] : policySummary(now, policies),
     best: ranked[0] ?? null,
     bestPerKg: bestPerKgQuote
       ? {
@@ -223,6 +234,7 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
         };
       }),
       note: shipping.note ?? null,
+      policy: shipping.policy ?? null,
       evidence: shipping.evidence ?? null
     },
     mandatoryFees: [],

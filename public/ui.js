@@ -230,6 +230,10 @@ export function diagnosticsDisclosure(quote) {
   if (stockChange) rows.push(stockChange);
   rows.push(`Last successful check: ${timeLabel(quote.observedAt)}`);
   if (quote.lastAttemptFailed) rows.push(`Last attempt failed ${timeLabel(quote.attemptedAt)}${quote.lastError ? ` — ${truncate(quote.lastError)}` : ''}`);
+  const policy = quote.shipping?.policy;
+  if (policy) {
+    rows.push(`Shipping rule: ${policy.id} v${policy.version} (${policy.origin === 'observed_cart' ? 'observed anonymous cart quote' : 'published rule'}, observed ${timeLabel(policy.retrievedAt)}, re-check by ${timeLabel(policy.reviewBy)})`);
+  }
   if (quote.shipping?.note) rows.push(`Shipping terms: ${quote.shipping.note}`);
   const evidence = quote.shipping?.evidence;
   if (evidence?.url) {

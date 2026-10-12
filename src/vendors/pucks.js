@@ -12,6 +12,7 @@
 
 import { classifyListing } from '../catalog.js';
 import { findJsonLd, textOf } from '../lib/text.js';
+import { pucksHomeDeliveryPolicy } from '../lib/policies.js';
 import { createObservation, parseError } from './index.js';
 
 const PRODUCT_URL = 'https://pucks.co.il/product/lavazza-crema-e-gusto-ground-coffee-250g';
@@ -25,18 +26,21 @@ const AVAILABILITY = {
 
 /**
  * Browser-researched checkout quote (2026-10-12, 18:08-18:10 UTC).
+ * The researched rule lives in src/lib/policies.js as a versioned policy so the
+ * adapter, the read-time evaluator and the tests share one representation;
+ * this constant is the adapter-facing view of that policy.
  * Evidence: docs/evidence/browser-research/2026-10-12-vendor-shipping-quotes.json
  * and the pucks-checkout-*.png screenshots in the same directory. The public
  * estimator exposed home delivery only; no street address or personal detail
  * was entered and no order was submitted.
  */
 export const PUCKS_CHECKOUT_SHIPPING = {
-  amountIls: 30,
-  freeThresholdIls: 100,
-  currency: 'ILS',
-  retrievedAt: '2026-10-12T18:10:10Z',
-  sourceUrl: 'https://pucks.co.il/payment/request',
-  note: 'Home delivery quoted by the anonymous checkout estimator on 2026-10-12: ₪30 flat, free above ₪100. Observed for 1, 2 and 4 × 250 g carts to Tel Aviv / 6100000; the estimator offers home delivery only.'
+  amountIls: pucksHomeDeliveryPolicy.rule.amount.amount,
+  freeThresholdIls: pucksHomeDeliveryPolicy.rule.freeThreshold.amount,
+  currency: pucksHomeDeliveryPolicy.rule.amount.currency,
+  retrievedAt: pucksHomeDeliveryPolicy.evidence.retrievedAt,
+  sourceUrl: pucksHomeDeliveryPolicy.evidence.url,
+  note: pucksHomeDeliveryPolicy.evidence.note
 };
 
 export const pucks = {
@@ -44,7 +48,7 @@ export const pucks = {
   name: 'Pucks (פאקס)',
   homepage: 'https://pucks.co.il',
   allowedHosts: ['pucks.co.il', 'www.pucks.co.il'],
-  parserVersion: 'pucks/6',
+  parserVersion: 'pucks/7',
   offers: [
     { id: 'classico-250g', url: PRODUCT_URL, kind: 'delivery', productId: 'lavazza-crema-e-gusto-vacuum-ground' }
   ],
@@ -114,28 +118,29 @@ export function parsePucksProduct(html, { now, url = PRODUCT_URL, productId = nu
       mode: 'delivery',
       // The estimator offered home delivery only; the method is named separately
       // from the certainty of the rate.
-      service: 'home_delivery',
+      service: pucksHomeDeliveryPolicy.service,
       // The browser-researched estimator quote is a verified observed rate for
       // the quantities and destination recorded in the evidence; it is not a
       // nationwide guarantee, it was never published on the product page, and
       // it is never used as a zero default.
-      certainty: 'checkout_quote',
-      amount: { amount: PUCKS_CHECKOUT_SHIPPING.amountIls, currency: PUCKS_CHECKOUT_SHIPPING.currency },
-      freeThreshold: { amount: PUCKS_CHECKOUT_SHIPPING.freeThresholdIls, currency: PUCKS_CHECKOUT_SHIPPING.currency },
-      destination: {
-        scope: 'country',
-        country: 'IL',
-        caveat: 'The ₪30 rate was observed in the anonymous checkout estimator for Tel Aviv and Eilat carts; the fee did not change with locality and no restriction was displayed, but coverage for every locality was not individually verified.',
-        caveatSource: PUCKS_CHECKOUT_SHIPPING.sourceUrl
-      },
+      certainty: pucksHomeDeliveryPolicy.certainty,
+      amount: { ...pucksHomeDeliveryPolicy.rule.amount },
+      freeThreshold: { ...pucksHomeDeliveryPolicy.rule.freeThreshold },
+      destination: { ...pucksHomeDeliveryPolicy.destination },
       note: shippingNote === 'Shipping is calculated at checkout'
         ? `${PUCKS_CHECKOUT_SHIPPING.note} The product page still says shipping is calculated at checkout.`
         : PUCKS_CHECKOUT_SHIPPING.note,
-      evidence: {
-        url: PUCKS_CHECKOUT_SHIPPING.sourceUrl,
-        retrievedAt: PUCKS_CHECKOUT_SHIPPING.retrievedAt,
-        note: 'Anonymous checkout estimator quote recorded by interactive browser research; see docs/evidence/browser-research/2026-10-12-vendor-shipping-quotes.json.'
-      }
+      // Stamp the validated policy on the parsed observation too, so the offer
+      // detail can name the rule version and its review date.
+      policy: {
+        id: pucksHomeDeliveryPolicy.id,
+        version: pucksHomeDeliveryPolicy.version,
+        origin: pucksHomeDeliveryPolicy.origin,
+        retrievedAt: pucksHomeDeliveryPolicy.evidence.retrievedAt,
+        reviewBy: pucksHomeDeliveryPolicy.reviewBy,
+        thresholdSemantics: pucksHomeDeliveryPolicy.rule.thresholdSemantics
+      },
+      evidence: { ...pucksHomeDeliveryPolicy.evidence }
     },
     now
   });
