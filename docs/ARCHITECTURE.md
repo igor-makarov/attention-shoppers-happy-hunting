@@ -38,6 +38,21 @@ vendor check does not erase the last known good row: the attempt time and reason
 offer's existing observation row (or a marker is kept when the offer never succeeded), so the board still
 ranks the last successful price and stock while saying the most recent attempt failed, and a later
 successful check clears the mark.
+
+`src/lib/policies.js` is the shared, versioned shipping-evidence model. A policy states the vendor,
+product/SKU scope, service, destination scope, the amount or free-shipping threshold rule (with the
+vendor's `above`/`at_least` wording preserved), the evidence URL and retrieval time, and a `reviewBy`
+date. `quoteBoard()` applies the evaluator at read time: an observation whose own shipping is unknown
+is enriched with a matching validated policy, while an observation that already carries a fresher
+amount, threshold or destination is never overwritten. The evaluator is deterministic and refuses to
+guess: conflicting policies for the same scope stay `inconsistent`, a malformed policy is `invalid`,
+and a policy past its review date is `expired`, so the offer falls back to explicit unknown shipping
+instead of a stale unconditional rate. Enrichment never touches the observation's price, stock,
+`observedAt` or the refresh completion marker, so applying a newer shipping rule cannot claim a fresh
+vendor price/stock check; `policySummary()` exposes the rule version, observation time and review date
+through `/api/status`. Pucks' ₪30/free-above-₪100 home-delivery rule is the first validated policy and
+is also the adapter's single source for that rate.
+
 `src/refresh.js` is the deterministic scheduled pipeline (leases, bounded concurrency, per-vendor
 backoff, last-known-good retention) and the same function runs in the Worker's `scheduled` handler, the
 local cron simulation and tests. Successful vendors count as due up to fifteen minutes before their
@@ -47,11 +62,20 @@ strict due time. `src/store.js` defines the SQLite-backed `BoardStore` Durable O
 in-memory and file-backed stores with the same interface. Public routes in `src/index.js` are read-only
 snapshots of that storage and never fetch visitor-supplied URLs.
 
-Verification is layered: `tests/*.test.js` covers parsers, quote edge cases, the refresh pipeline and the
-Worker routes against recorded fixtures; `scripts/check-sources.mjs` re-checks the live vendor pages;
-`scripts/simulate-cron.mjs` runs the full refresh offline or live; `scripts/qa-server.mjs` serves the
+Verification is layered: `tests/*.test.js` covers parsers, quote edge cases, the shipping-policy
+evaluator (including an old persisted Pucks row gaining the evidenced rule after a policy update), the
+refresh pipeline and the Worker routes against recorded fixtures; `scripts/check-sources.mjs` re-checks
+the live vendor pages; `scripts/simulate-cron.mjs` runs the full refresh offline or live;
+`scripts/research-workflow.mjs` defines the vendor navigation recipes and the common, sanitized
+evidence schema, and `scripts/browser-research.mjs` (`npm run research:browser -- recipe <vendor>`)
+executes a recipe in the real Chrome session and writes one evidence record whether the run quoted, hit
+a public-flow blocker or failed; `scripts/qa-server.mjs` serves the
 production front-end against fixture-backed API data so `npm run qa:browser` drives headless Chrome
-offline and derives its expectations from the API; `scripts/probe-production.mjs`
+offline and derives its expectations from the API. The front-end is two pages: the home route renders
+the catalog index from `/api/catalog` and links to `/product/<id>`, which the Worker serves as
+`product.html` for direct loads; the product page keeps the decision values in the first mobile
+viewport and puts comparison, pickup, delivery options and missing-information offers behind native
+`<details>` disclosures. `scripts/probe-production.mjs`
 (`npm run probe:production`) re-checks a deployed (or local) Worker from the outside with fixed public
 GETs only — one catalog product, no retired row in any board, the retired-URL fallback, freshness and the
 ranked totals — and writes a snapshot for the status docs. Browser QA also loads an old

@@ -41,13 +41,29 @@ conditional)` label so its quantity/destination condition stays visible.
   with a neutral system fallback (`system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif`).
 - Recommended font features `ss07`, `ss08`, `cv03`, `cv04`, `cv10` are enabled globally; prices and
   per-kilogram values use tabular numerals (`.num`).
-- Headings are left aligned and compact. The hero reads **"Attention shoppers"** with no trailing
-  period, keeps no sub-copy, and does not push the offers below the first screen: the best card top is
-  ≈452 px at 1440×857 and ≈829 px inside a 390×844 first screen (measured 2026-10-12, iteration 3-70).
-  The ranked-section intro carries the selected product/pack/quantity/destination once; the quantity
-  buttons stay on one 44 px row at 390 px.
+- Headings are left aligned and compact. The home title reads **"Attention shoppers"** with no trailing
+  period; the product page heading names the product (**"Lavazza Crema e Gusto"**) with compact
+  masthead branding and an "All products" link back to the index. There is no giant branding hero and
+  no repeated comparison explanation on both pages.
 - No emoji in the typography. Wayfinding uses plain text and monochrome glyphs; Hebrew vendor/product
   text is wrapped in isolated `dir="auto" lang="he"` spans.
+
+## Pages
+
+- **Home `/` — product index.** Renders one card per tracked catalog product (today exactly one:
+  Lavazza Crema e Gusto vacuum-packed ground coffee). A card carries identity, packaging, a concise
+  summary of the comparison and tracked vendors, and a link to `/product/<id>`. The full comparison
+  board is not rendered on the home route. A legacy board link that still carries
+  `product`/`grams`/`dest`/`variant` state is forwarded to the product page with that state intact.
+- **Product `/product/<id>` — decision page.** Directly loadable and shareable; the path plus
+  `?grams=&dest=&variant=` query restores quantity, locality and variant (a retired-line or unknown id
+  falls back to the tracked product with a written notice). Default view: compact product identity and
+  the three controls, then the best eligible offer with vendor, stock, accurate pack/grams, the three
+  money values and a one-line conditional warning. Everything else is progressively disclosed:
+  `Delivery options and conditions` and `Offer details and check history` per offer, one
+  `Compare other offers (n)` disclosure for the rest of the ranking, one collapsed
+  `Self-pickup options (n)` disclosure, and an `Offers with missing information (n)` disclosure that is
+  only rendered when something is actually missing.
 
 ## Layout and components
 
@@ -57,19 +73,23 @@ conditional)` label so its quantity/destination condition stays visible.
   blue rule, the written tag "Best known delivered total" and its selection context; other ranked
   offers state their difference (`+₪x vs best delivered total`).
 - Each card keeps the decision values together in one `.totals` row: **item subtotal**, **shipping
-  charge and service** (with the written certainty label) and the **delivered total** plus per-kilogram
-  normalization. On mobile the three cells stack but remain in the same card, inside the viewport.
+  charge, named delivery method and written certainty label** and the **delivered total** plus
+  per-kilogram normalization. The method (`Home delivery`, `Pickup-point delivery`,
+  `Distribution-center delivery`, `Self-pickup`, or `Delivery method not stated`) is rendered separately
+  from the certainty label, so a shopper can tell what the charge buys. On mobile the three cells stack
+  but remain in the same card, inside the first viewport.
 - Conditions are one short list per offer (free-shipping threshold, minimum order, delivery area,
-  alternative services, self-pickup, delivery time, cart-size limit). A coverage caveat is written once
-  on its card; pickup-only offers live in their own section and never compete in the delivered ranking.
-  Pickup-only entries are one compact row each (vendor, pack/quantity, item subtotal, pickup fee and the
-  written "Delivered total: Not applicable"), with the repeated pickup terms behind a `Pickup terms`
-  disclosure, so three pickup offers cost about half the vertical space they used to.
-- Debug/provenance metadata (previous checks, failed attempts, the adapter's shipping terms,
-  shipping evidence, FX, per-vendor refresh state, next source check) lives behind
-  `Check history and evidence` / `Refresh diagnostics` disclosures instead of the first screen.
-  A cart-observed alternative (for example CoffeeMan's distribution-center delivery) carries its
-  cart condition in the short label and its full observation in the disclosure.
+  alternative services, self-pickup, delivery time, cart-size limit) inside that offer's
+  `Delivery options and conditions` disclosure. A coverage caveat is written once inside the same
+  disclosure; the card face keeps only a one-line amber qualification. Pickup-only offers live in their
+  own collapsed disclosure and never compete in the delivered ranking; each is one compact row (vendor,
+  pack/quantity, item subtotal, pickup fee and the written "Self-pickup, not delivery"), with the
+  repeated pickup terms behind a `Pickup terms` disclosure.
+- Debug/provenance metadata (previous checks, failed attempts, the applied shipping-policy version, the
+  adapter's shipping terms, shipping evidence, FX, per-vendor refresh state, next source check) lives
+  behind `Offer details and check history` / `Refresh diagnostics` disclosures instead of the first
+  screen. A cart-observed alternative (for example CoffeeMan's distribution-center delivery) carries
+  its cart condition in the short label and its full observation in the disclosure.
 - Unknown shipping says **"Shipping not published"** with the exact reason and is never shown as zero;
   a published rate with unconfirmed destination coverage is labelled as such, not as a guaranteed
   checkout total.
@@ -79,15 +99,19 @@ conditional)` label so its quantity/destination condition stays visible.
 - Token contrast (computed): black/white 21.0:1, secondary/white 5.74:1, secondary/surface 5.36:1,
   Blau/white 5.28:1, white/Blau 5.28:1, Blau/Softblau 4.79:1, amber/amber-soft 6.26:1,
   green/green-soft 4.61:1, red/white 4.55:1, cyan/white 3.01:1 (non-text only).
-- Rendered contrast: `scripts/browser-qa.mjs` walks visible text in the offer cards, controls, hero,
-  footer, pickup and unknown sections and compares the computed text color with the effective
-  background; the check passes with no violations (82/82 offline checks, 2026-10-12 iteration 3-71).
-- Keyboard: Tab reaches the quantity controls, the focus outline is 3 px `rgb(0, 112, 180)` and Enter
-  activates the focused quantity; the total recalculates. Skip link and `main` landmark are present.
-- Layout: production (read-only GET) at 1440 px has no table, no horizontal overflow and the delivered
-  total cell ends at x=1290; at 390 px there is no horizontal overflow, quantity buttons keep a 44 px
-  tap target and pickup rows are grouped. Measurements and screenshots:
-  `docs/evidence/visual-review/2026-10-12-production-layout.json`.
-- The available file-read tool rejects PNG input, so screenshots were not machine-inspected by the
-  model; the visual review above is based on rendered layout/DOM measurements, with screenshots kept
-  as artifacts for a human reviewer.
+- Rendered contrast and interaction: `scripts/browser-qa.mjs` walks visible text in the offer cards,
+  controls, footer, masthead and disclosures and compares the computed text color with the effective
+  background; the redesigned suite passes **78/78** offline checks (2026-10-12, iteration 3-73) with no
+  contrast violations, no horizontal overflow, no emoji, no `[object HTML…]` artifacts and 3 px
+  `rgb(0, 112, 180)` focus outlines.
+- First mobile screen (390×844 window; measured viewport 390×701 in headless Chrome): the best card
+  starts at y≈389, item subtotal and shipping end at y≈629, the named method ends at y≈565 and the
+  delivered total ends at y≈678 — all inside the viewport before scrolling. The product page is
+  ≈1,589 px tall at 390 px (five offers + disclosures) versus ≈5,491 px before the redesign.
+- Home page: the single product card is visible on the first mobile screen, the home route renders no
+  offer cards or totals, and the card link navigates to the directly loadable product URL. Screenshots:
+  `docs/evidence/ui-review/{home,product}-{desktop-1440x1000,mobile-390x844}-20261012.png`.
+- The available file-read tool rejects PNG input ('reading images is not supported'), so screenshots
+  were not machine-inspected by the model; the visual review above is based on rendered layout/DOM
+  measurements, with screenshots kept as artifacts for a human reviewer. No image-based visual review
+  is claimed.
