@@ -24,7 +24,10 @@ created by the coding loop.
   attempt, parser version and shipping certainty.
 - **Self-updating runtime**: `wrangler.jsonc` triggers `17 */6 * * *` (about every six hours); the first
   `/health` or `/api/board` after deployment starts one throttled initial refresh. Observations, vendor
-  state, FX rates, run history and leases persist in the SQLite-backed `BoardStore` Durable Object.
+  state, FX rates, run history and leases persist in the SQLite-backed `BoardStore` Durable Object. The
+  board API and footer report a board-level fresh/stale freshness field, and the footer warns in plain
+  language when no scheduled refresh has completed for more than eight hours, so a broken cron cannot
+  silently serve old numbers.
 - **Bounded fetching**: host allowlists per adapter, 12 s timeout, 1.5 MB response cap, max two vendors
   in flight, one attempt per offer per run, 30 min→12 h backoff per vendor. Public routes never fetch a
   visitor-supplied URL and never start unbounded scraping. Responses are cacheable
@@ -58,14 +61,15 @@ the Classico ranking. FX reference table from the Bank of Israel dated 2026-10-0
 ## Verification performed (2026-10-12, all local)
 
 1. `npm ci --ignore-scripts` — clean install from the pinned lockfile, 0 vulnerabilities.
-2. `npm run verify` — 52/52 `node:test` cases pass, then `wrangler deploy --dry-run` builds the Worker
-   bundle with no Cloudflare credential (63.03 KiB, gzip 16.13 KiB; bindings `BOARD` + `ASSETS` shown).
+2. `npm run verify` — 54/54 `node:test` cases pass, then `wrangler deploy --dry-run` builds the Worker
+   bundle with no Cloudflare credential (63.59 KiB, gzip 16.27 KiB; bindings `BOARD` + `ASSETS` shown).
    Covered acceptance cases include: shipping changes the winner; unknown shipping cannot win;
    stale/out-of-stock/unknown availability stay unranked; variants and multipacks stay separate;
    quantity rounding, minimum order and free-shipping thresholds; missing FX is not zero; destination
    coverage; pickup separated; shipping alternatives are converted but never replace the ranked amount;
-   the variant filter reports excluded offers; leases; backoff; allowlist; and the fixture-backed QA
-   server keeping the browser harness aligned with the production quote engine.
+   the variant filter reports excluded offers; a board whose scheduled refresh stopped is reported as
+   stale (and a fresh one is not); leases; backoff; allowlist; and the fixture-backed QA server keeping
+   the browser harness aligned with the production quote engine.
 3. `npm run check:sources` (live) — CoffeeMan (all three listings), Pucks and Coffee4U PASS against the
    real pages at 12:09 UTC: prices ₪33 / ₪124 / ₪240 / ₪30 / ₪38, all listed in stock, verified ₪25
    courier on the first two CoffeeMan pages, verified ₪30 door-to-door plus a ₪15 pickup-point
@@ -81,7 +85,7 @@ the Classico ranking. FX reference table from the Bank of Israel dated 2026-10-0
    served the ranked Classico board (4 observed, 2 ranked, 1 excluded for another variant) and the
    unstated-variant board (Coffee4U ₪106.00 for 500 g with its shipping alternative). This is the
    refresh-while-no-browser-open path.
-7. `npm run qa:browser` — headless Chrome (chromedriver 154) QA, **40/40 checks pass offline, exit 0**,
+7. `npm run qa:browser` — headless Chrome (chromedriver 154) QA, **41/41 checks pass offline, exit 0**,
    desktop 1440 px and mobile 390 px, screenshots and JSON report in `.shurik-local/qa/`. The command is
    self-contained: it starts `scripts/qa-server.mjs` on an ephemeral port, which serves `public/` plus the
    read-only API computed from `tests/fixtures/` by the production quote engine, so no Worker, network or
@@ -95,10 +99,11 @@ the Classico ranking. FX reference table from the Bank of Israel dated 2026-10-0
    its own, the published door-to-door rate as the ranked shipping amount, and the ₪15 pickup-point
    delivery rendered as a labelled alternative. Seven more checks run against a second fixture server
    with one clearly labelled QA-only demo offer to verify minimum order, free-shipping threshold,
-   free-shipping-met labelling and a locality delivery restriction. The comparison table is checked
+   free-shipping-met labelling and a locality delivery restriction, plus one check that a board whose
+   scheduled refresh stopped for 30 hours is labelled in the footer. The comparison table is checked
    against every ranked offer from the API. Live mode
-   (`npm run qa:browser -- http://127.0.0.1:8789`) passed **38/38** against a real `wrangler dev` Worker
-   on 2026-10-12 12:16 UTC (fixture-only checks are skipped in live mode); the run also re-verified the
+   (`npm run qa:browser -- http://127.0.0.1:8789`) passed **39/39** against a real `wrangler dev` Worker
+   on 2026-10-12 12:22 UTC (fixture-only checks are skipped in live mode); the run also re-verified the
    no-browser refresh path described in item 6. One earlier browser QA attempt aborted on a transient
    WebDriver timeout before any UI check ran; a manual WebDriver session then confirmed the page renders
    (`boardState=ready`, no page errors besides a 404 favicon) and the repeat runs passed cleanly.
@@ -122,9 +127,27 @@ self-pickup. The parser refuses the page if the courier rate disappears instead 
 the cheap pickup-point service as a labelled alternative, and records the unstated blend variant as
 *Variant not stated* so it is never merged into Classico. The quote engine now passes converted shipping
 alternatives through to the UI and reports `counts.excludedByVariant`, and the board shows a plain-language
-notice when offers for another variant were withheld. New fixtures, parser/quote/refresh/worker/QAServer
-tests and five new browser checks cover all of that; the vendor research that found Coffee4U (and the
-sources that were probed and rejected) is recorded in docs/SOURCES.md.
+notice when offers for another variant were withheld. The same iteration added board-level freshness:
+`refreshFreshness()` reports `stale` when the last completed refresh is missing or older than eight hours,
+`/api/board` and `/api/status` expose it, and the site footer warns in plain language instead of silently
+serving old numbers. New fixtures, parser/quote/refresh/worker/QAServer tests and six new browser checks
+cover all of that; the vendor research that found Coffee4U (and the sources that were probed and rejected)
+is recorded in docs/SOURCES.md.
+
+## Committed evidence snapshots
+
+Historical evidence snapshots are committed for review and are not live data:
+
+- `docs/evidence/source-check-2026-10-12T1209Z.json` — live adapter observations for all five offers from
+  CoffeeMan, Pucks and Coffee4U (12:09 UTC).
+- `docs/evidence/browser-qa-fixtures-2026-10-12T1224Z.json` — 41 offline browser checks, including the
+  unstated-variant ranking, the labelled shipping alternative and the stale-refresh footer warning.
+- `docs/evidence/browser-qa-live-2026-10-12T1222Z.json` — 39 live browser checks against a local
+  `wrangler dev` Worker with real observations.
+- `docs/evidence/worker-runtime-status-2026-10-12T1222Z.json` — `/health`, `/api/status` and both board
+  variants from the local Worker after its no-browser initial refresh (three vendors, 5 observations,
+  fresh, `nextAttemptAt` +6 h).
+- Earlier snapshots from iterations 3-49 and 3-50 remain in `docs/evidence/` as history.
 
 ## Repository and security checks
 
