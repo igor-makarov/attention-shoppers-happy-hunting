@@ -118,7 +118,12 @@ export function parsePucksProduct(html, { now, url = PRODUCT_URL, productId = nu
       certainty: 'verified',
       amount: { amount: PUCKS_CHECKOUT_SHIPPING.amountIls, currency: PUCKS_CHECKOUT_SHIPPING.currency },
       freeThreshold: { amount: PUCKS_CHECKOUT_SHIPPING.freeThresholdIls, currency: PUCKS_CHECKOUT_SHIPPING.currency },
-      destination: { scope: 'country', country: 'IL' },
+      destination: {
+        scope: 'country',
+        country: 'IL',
+        caveat: 'The ₪30 rate was observed in the anonymous checkout estimator for Tel Aviv and Eilat carts; the fee did not change with locality and no restriction was displayed, but coverage for every locality was not individually verified.',
+        caveatSource: PUCKS_CHECKOUT_SHIPPING.sourceUrl
+      },
       note: shippingNote === 'Shipping is calculated at checkout'
         ? `${PUCKS_CHECKOUT_SHIPPING.note} The product page still says shipping is calculated at checkout.`
         : PUCKS_CHECKOUT_SHIPPING.note,

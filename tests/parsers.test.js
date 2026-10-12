@@ -65,24 +65,28 @@ test('coffeeman 4-pack and 8-pack fixtures keep pack count, price and shipping s
   assert.equal(eight.product.totalGrams, 2000);
   assert.equal(eight.product.sku, '930335');
   assert.equal(eight.price.amount, 240);
-  assert.equal(eight.shipping.certainty, 'unknown', 'the 8-pack page publishes no courier price');
-  assert.equal(eight.shipping.amount, null);
+  assert.equal(eight.shipping.certainty, 'verified', 'the anonymous checkout quote resolves the 8-pack rate');
+  assert.equal(eight.shipping.amount.amount, 20);
+  assert.equal(eight.shipping.maxTotalGrams, 2000, 'the observed rate is limited to the 2 kg cart it was quoted on');
+  assert.match(eight.shipping.note, /checkout quote/i);
+  assert.equal(eight.shipping.evidence.retrievedAt, '2026-10-12T18:16:00Z', 'shipping evidence keeps the research retrieval time');
   assert.equal(eight.availability, 'in_stock');
   assert.match(eight.shipping.destination.caveat, /home-delivery list/, 'even an unrankable offer keeps the documented coverage caveat');
 });
 
-test('pucks parser reads the product JSON-LD and leaves shipping unknown', () => {
+test('pucks parser reads the product JSON-LD and keeps the researched checkout rate conditional', () => {
   const observation = parsePucksProduct(read('pucks-product.html').toString('utf8'), { now });
   assert.equal(observation.product.variantId, 'classico');
   assert.equal(observation.product.packGrams, 250);
   assert.equal(observation.price.amount, 30);
   assert.equal(observation.price.currency, 'ILS');
   assert.equal(observation.availability, 'in_stock');
-  assert.equal(observation.shipping.certainty, 'unknown');
-  assert.equal(observation.shipping.amount, null);
-  assert.match(observation.shipping.note, /checkout/);
-  assert.equal(observation.shipping.destination.caveat, undefined, 'no coverage caveat is invented for a vendor that publishes no rate');
-  assert.equal(observation.shipping.evidence.retrievedAt, observation.observedAt, 'unknown shipping evidence still records when it was checked');
+  assert.equal(observation.shipping.certainty, 'verified');
+  assert.equal(observation.shipping.amount.amount, 30);
+  assert.equal(observation.shipping.freeThreshold.amount, 100);
+  assert.match(observation.shipping.note, /checkout/i);
+  assert.match(observation.shipping.destination.caveat, /not individually verified/, 'the observed rate keeps its coverage caveat');
+  assert.equal(observation.shipping.evidence.retrievedAt, '2026-10-12T18:10:10Z', 'shipping evidence keeps the research retrieval time, not the fetch time');
 });
 
 test('pucks derived fixtures map out-of-stock and unlisted availability honestly', () => {

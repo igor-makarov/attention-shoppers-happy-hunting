@@ -19,9 +19,13 @@ test('fixture observations parse through the production adapters', async () => {
   const fourPack = observations.find(item => item.vendor.id === 'coffeeman' && item.product.packCount === 4);
   assert.equal(fourPack.price.amount, 124);
   const eightPack = observations.find(item => item.vendor.id === 'coffeeman' && item.product.packCount === 8);
-  assert.equal(eightPack.shipping.certainty, 'unknown', 'the 8-pack page publishes no courier price');
+  assert.equal(eightPack.shipping.certainty, 'verified', 'the researched 2 kg checkout quote resolves the 8-pack rate');
+  assert.equal(eightPack.shipping.amount.amount, 20);
+  assert.equal(eightPack.shipping.maxTotalGrams, 2000);
   const pucks = observations.find(item => item.vendor.id === 'pucks');
-  assert.equal(pucks.shipping.certainty, 'unknown');
+  assert.equal(pucks.shipping.certainty, 'verified', 'the researched checkout rate resolves the Pucks offer');
+  assert.equal(pucks.shipping.amount.amount, 30);
+  assert.equal(pucks.shipping.freeThreshold.amount, 100);
   assert.equal(pucks.product.packGrams, 250);
   const coffee4u = observations.find(item => item.vendor.id === 'coffee4u');
   assert.equal(coffee4u.product.form, 'ground');
@@ -40,7 +44,8 @@ test('QA fixture server can add the labelled terms-demo offer without touching t
   try {
     const plainBoard = await (await fetch(`${plain.url}/api/board?grams=2000&dest=tel-aviv&variant=classico`)).json();
     assert.equal(plainBoard.qa.demoOffers, 0);
-    assert.equal(plainBoard.best.vendor.id, 'coffeeman');
+    assert.equal(plainBoard.best.vendor.id, 'pucks', 'the researched Pucks rate with the ₪100 threshold is the fixture best at 2 kg');
+    assert.equal(plainBoard.best.totalIls, 240);
 
     const termsBoard = await (await fetch(`${terms.url}/api/board?grams=2000&dest=tel-aviv&variant=classico`)).json();
     assert.equal(termsBoard.qa.demoOffers, 1);
@@ -69,17 +74,20 @@ test('QA fixture server can simulate a failed last attempt without erasing the l
   try {
     const plainBoard = await (await fetch(`${plain.url}/api/board?grams=500&dest=tel-aviv&variant=classico`)).json();
     assert.equal(plainBoard.qa.failedAttempt, false);
+    assert.equal(plainBoard.best.vendor.id, 'pucks');
+    assert.equal(plainBoard.best.totalIls, 90);
     assert.equal(plainBoard.best.lastAttemptFailed, false);
 
     const failedBoard = await (await fetch(`${failed.url}/api/board?grams=500&dest=tel-aviv&variant=classico`)).json();
     assert.equal(failedBoard.qa.failedAttempt, true);
-    assert.equal(failedBoard.best.vendor.id, 'coffeeman', 'the last known good offer still ranks');
-    assert.equal(failedBoard.best.totalIls, 91, 'the preserved price is unchanged');
+    assert.equal(failedBoard.best.vendor.id, 'pucks', 'the last known good observation still ranks');
+    assert.equal(failedBoard.best.totalIls, 90, 'the preserved price is unchanged');
     assert.equal(failedBoard.best.lastAttemptFailed, true, 'the quote says the most recent attempt failed');
     assert.match(failedBoard.best.lastError, /HTTP 503/);
     assert.notEqual(failedBoard.best.attemptedAt, failedBoard.best.observedAt, 'the failed attempt is stamped separately from the last success');
-    const pucks = failedBoard.unrankable.find(quote => quote.vendor.id === 'pucks');
-    assert.equal(pucks.lastAttemptFailed, true, 'the unrankable offer also carries its failed attempt');
+    const failedCoffeeman = failedBoard.ranked.find(quote => quote.vendor.id === 'coffeeman' && quote.product.packCount === 1);
+    assert.equal(failedCoffeeman.totalIls, 91, 'the failed CoffeeMan single still ranks from its last good check');
+    assert.equal(failedCoffeeman.lastAttemptFailed, true, 'the other failed offer also carries its failed attempt');
     const coffeemanState = failedBoard.freshness.vendors.find(vendor => vendor.vendorId === 'coffeeman');
     assert.equal(coffeemanState.consecutiveFailures, 1);
     assert.ok(coffeemanState.lastErrors.some(error => /HTTP 503/.test(error)));
@@ -99,11 +107,11 @@ test('QA fixture server serves the board API and static assets offline', async (
     assert.match(boardResponse.headers.get('cache-control'), /max-age=300/);
     const board = await boardResponse.json();
     assert.equal(board.qa.mode, 'fixtures');
-    assert.equal(board.best.vendor.id, 'coffeeman');
-    assert.equal(board.best.totalIls, 91);
-    assert.equal(board.best.ilsPerKg, 182);
-    assert.equal(board.ranked.length, 2);
-    assert.match(board.unrankable[0].reasons.join(' '), /unknown, not free/);
+    assert.equal(board.best.vendor.id, 'pucks');
+    assert.equal(board.best.totalIls, 90);
+    assert.equal(board.best.ilsPerKg, 180);
+    assert.equal(board.ranked.length, 4, 'all three vendors and the three CoffeeMan pack sizes rank with evidenced shipping');
+    assert.equal(board.unrankable.length, 0, 'no tracked offer is missing a shipping rate any more');
     assert.equal(board.counts.excludedByVariant, 1, 'the unstated-variant listing is not merged into the Classico ranking');
     assert.deepEqual(board.counts.excludedVariants, ['unspecified']);
 
@@ -122,7 +130,7 @@ test('QA fixture server serves the board API and static assets offline', async (
     assert.equal(retiredBoard.product.id, "lavazza-crema-e-gusto-vacuum-ground");
     assert.deepEqual(retiredBoard.requestedRetiredProduct, { id: "lavazza-qualita-oro-vacuum-ground", line: "Qualità Oro" });
     assert.equal(retiredBoard.variantId, "classico", "the fallback uses the tracked product's own default variant");
-    assert.equal(retiredBoard.best.totalIls, 149, "₪124 four-pack + ₪25 verified courier");
+    assert.equal(retiredBoard.best.totalIls, 120, '₪120 of Pucks packs with the ₪100 free-shipping threshold met');
     assert.ok(!JSON.stringify(retiredBoard.ranked).match(/Qualità Oro|Qualità Rossa|Suerte/), "no retired line is compared");
     assert.equal(board.freshness.stale, false, 'a server whose refresh just completed is fresh');
 

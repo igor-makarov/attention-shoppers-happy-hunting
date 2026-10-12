@@ -181,6 +181,21 @@ test('free-shipping threshold and minimum order are calculated, not guessed', ()
   assert.match(board.unrankable[0].reasons.join(' '), /minimum order/);
 });
 
+test('a checkout rate observed on a smaller cart never stretches to a larger one', () => {
+  const quoted = observation({
+    key: 'quoted:8pack',
+    price: { amount: 240 },
+    product: { sku: 'q8', packCount: 8, totalGrams: 2000 },
+    shipping: { certainty: 'verified', amount: { amount: 20, currency: 'ILS' }, maxTotalGrams: 2000 }
+  });
+  const small = quote([quoted], { targetGrams: 1000 });
+  assert.equal(small.best.totalIls, 260, 'one 2 kg multipack covers the 1 kg target');
+  const big = quote([quoted], { targetGrams: 3000 });
+  assert.equal(big.ranked.length, 0, 'two multipacks exceed the quoted 2 kg cart');
+  assert.match(big.unrankable[0].reasons.join(' '), /quoted only for carts up to 2000 g/);
+  assert.equal(big.unrankable[0].shipping.amountIls, null, 'the rate is never stretched or zeroed');
+});
+
 test('missing FX never becomes zero and cannot be ranked', () => {
   const usd = observation({
     key: 'usd:1',

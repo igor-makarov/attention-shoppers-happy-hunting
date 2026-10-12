@@ -84,32 +84,38 @@ test('catalog route lists the product, destinations and vendor allowlist without
   assert.match(body.vendors[0].offers[0].url, /^https:\/\//);
 });
 
-test('board ranks the offer with a verified delivered total and labels the unknown-shipping offer', async () => {
+test('board ranks all three vendors with their evidenced shipping conditions', async () => {
   const store = await seededStore();
   const response = await worker.fetch(new Request('https://example.test/api/board?grams=500&dest=tel-aviv'), envWith(store), {});
   assert.equal(response.status, 200);
   const board = await response.json();
   assert.equal(board.targetGrams, 500);
-  assert.equal(board.best.vendor.id, 'coffeeman');
-  // 2 packs × ₪33 + ₪25 courier shipping
-  assert.equal(board.best.totalIls, 91);
-  assert.equal(board.best.ilsPerKg, 182);
+  // 2 × ₪30 + ₪30 researched checkout rate: the ₪100 threshold is not met at ₪60.
+  assert.equal(board.best.vendor.id, 'pucks');
+  assert.equal(board.best.totalIls, 90);
+  assert.equal(board.best.ilsPerKg, 180);
   assert.equal(board.best.availabilityLabel, 'In stock (observed)');
   assert.equal(board.best.shipping.certaintyLabel, 'Published rate (verified)', 'the API carries a written shipping-certainty label');
-  assert.equal(board.ranked.length, 2, 'the single pack and the 4-pack are both rankable');
+  assert.equal(board.best.shipping.freeThreshold, 100, 'the researched free-shipping threshold is structured');
+  assert.match(board.best.shipping.coverageCaveat, /not individually verified/, 'the researched rate keeps its coverage caveat');
+  assert.equal(board.ranked.length, 4, 'the single pack, 4-pack, 8-pack and Pucks are all rankable now');
   const fourPack = board.ranked.find(quote => quote.product.packCount === 4);
   assert.equal(fourPack.totalIls, 149, '₪124 + ₪25 courier');
   assert.equal(fourPack.ilsPerKg, 149);
-  const unknown = board.unknown.find(quote => quote.vendor.id === 'pucks');
-  assert.equal(unknown.totalIls, null);
-  assert.match(unknown.reasons.join(' '), /unknown, not free/);
-  assert.equal(unknown.shipping.certaintyLabel, 'Not published before checkout', 'unknown rates keep an honest written label too');
-  const eightPack = board.unknown.find(quote => quote.product.packCount === 8);
-  assert.equal(eightPack.totalIls, null, 'the 8-pack page publishes no courier price');
+  const eightPack = board.ranked.find(quote => quote.product.packCount === 8);
+  assert.equal(eightPack.totalIls, 260, '₪240 + the researched ₪20 checkout rate for the 2 kg cart');
+  assert.equal(eightPack.shipping.maxTotalGrams, 2000, 'the checkout rate is limited to the cart it was observed on');
   assert.match(board.freshness.vendors.map(v => v.vendorId).join(','), /coffeeman/);
   assert.ok(board.freshness.vendors.every(vendor => vendor.nextAttemptAt), 'every vendor state exposes its next due time for the footer');
   assert.equal(board.counts.excludedByVariant, 1, 'the Coffee4U listing states no blend variant, so it is not merged into Classico');
   assert.deepEqual(board.counts.excludedVariants, ['unspecified']);
+
+  // The researched 8-pack rate must not be stretched to a larger cart: at 3 kg the
+  // offer stays visible but unrankable with the exact quote-limit reason.
+  const big = await (await worker.fetch(new Request('https://example.test/api/board?grams=3000&dest=tel-aviv'), envWith(store), {})).json();
+  const blocked = big.unrankable.find(quote => quote.product.packCount === 8);
+  assert.ok(blocked, 'the 8-pack cannot rank with a 2 kg quote on a 4 kg cart');
+  assert.match(blocked.reasons.join(' '), /quoted only for carts up to 2000 g/);
 });
 
 test('a listing without a stated blend variant is compared separately and keeps its shipping alternatives', async () => {
@@ -138,16 +144,19 @@ test('board response is public-cacheable and reflects quantity and destination',
   assert.equal(board.best.totalIls, 58);
 });
 
-test('bulk CoffeeMan packs win at larger quantities with the same verified shipping', async () => {
+test('the researched Pucks free-shipping threshold beats the CoffeeMan 4-pack at 1 kg', async () => {
   const store = await seededStore();
   const response = await worker.fetch(new Request('https://example.test/api/board?grams=1000&dest=tel-aviv'), envWith(store), {});
   const board = await response.json();
-  assert.equal(board.best.product.packCount, 4, 'the recorded 4-pack beats four single packs once shipping is counted');
-  assert.equal(board.best.units, 1);
-  assert.equal(board.best.totalIls, 149);
-  const single = board.ranked.find(quote => quote.product.packCount === 1);
+  assert.equal(board.best.vendor.id, 'pucks', 'the researched flat rate plus the ₪100 threshold wins at 1 kg');
+  assert.equal(board.best.units, 4);
+  assert.equal(board.best.totalIls, 120, '4 × ₪30 with free shipping above ₪100');
+  const fourPack = board.ranked.find(quote => quote.product.packCount === 4);
+  assert.equal(fourPack.totalIls, 149, 'the CoffeeMan 4-pack still beats four single packs once shipping is counted');
+  const single = board.ranked.find(quote => quote.vendor.id === 'coffeeman' && quote.product.packCount === 1);
   assert.equal(single.totalIls, 157, '4 × ₪33 + ₪25');
-  assert.ok(board.best.totalIls < single.totalIls);
+  assert.ok(board.best.totalIls < fourPack.totalIls);
+  assert.ok(fourPack.totalIls < single.totalIls);
 });
 
 test('unknown API paths are JSON 404s and non-GET methods are rejected', async () => {
@@ -263,7 +272,7 @@ test('an old product URL for a retired line falls back to Crema e Gusto and says
   const suerte = await (await worker.fetch(new Request('https://example.test/api/board?product=lavazza-suerte-ground&grams=500&dest=tel-aviv'), envWith(store), {})).json();
   assert.equal(suerte.product.id, 'lavazza-crema-e-gusto-vacuum-ground');
   assert.equal(suerte.requestedRetiredProduct.line, 'Suerte');
-  assert.equal(suerte.best.totalIls, 91, 'the Crema e Gusto board still ranks normally');
+  assert.equal(suerte.best.totalIls, 90, 'the Crema e Gusto board still ranks normally with the researched Pucks rate');
 
   // A normal request reports no retired product.
   const plain = await (await worker.fetch(new Request('https://example.test/api/board?product=lavazza-crema-e-gusto-vacuum-ground&grams=500&dest=tel-aviv'), envWith(store), {})).json();

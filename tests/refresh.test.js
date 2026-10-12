@@ -281,13 +281,15 @@ test('a vendor failure inside the cron sequence keeps its previous good offer an
     fx: snapshot.meta.fx,
     now: simMs
   });
-  assert.equal(board.best.vendor.id, 'coffeeman', 'the last known good observation still ranks');
-  assert.equal(board.best.totalIls, 91);
+  assert.equal(board.best.vendor.id, 'pucks', 'the researched Pucks rate is the best known delivered total');
+  assert.equal(board.best.totalIls, 90);
   assert.equal(board.best.freshness, 'fresh');
-  assert.equal(board.best.lastAttemptFailed, true, 'the quote says the most recent attempt failed');
-  assert.ok(board.best.lastError, 'the quote carries the failure reason');
-  assert.equal(board.best.observedAt, goodCoffeeman.observedAt, 'the quote keeps the last successful check time');
-  assert.equal(board.best.attemptedAt, '2026-10-12T18:00:00.000Z', 'the quote carries the failed attempt time');
+  const failedCoffeeman = board.ranked.find(quote => quote.vendor.id === 'coffeeman' && quote.product.packCount === 1);
+  assert.equal(failedCoffeeman.totalIls, 91, 'the last known good CoffeeMan observation still ranks');
+  assert.equal(failedCoffeeman.lastAttemptFailed, true, 'the quote says the most recent attempt failed');
+  assert.ok(failedCoffeeman.lastError, 'the quote carries the failure reason');
+  assert.equal(failedCoffeeman.observedAt, goodCoffeeman.observedAt, 'the quote keeps the last successful check time');
+  assert.equal(failedCoffeeman.attemptedAt, '2026-10-12T18:00:00.000Z', 'the quote carries the failed attempt time');
 
   // The next cron tick is six hours later, past the 30-minute backoff, so the
   // recovered vendor saves again and resets its failure count.
