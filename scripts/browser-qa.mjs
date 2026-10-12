@@ -208,6 +208,48 @@ try {
   check('mobile: quantity buttons keep a 44px touch target', mobile.minTap >= 44, String(mobile.minTap));
   await screenshot(wd, 'mobile-390.png');
 
+  // Shipping-terms scenario: a second fixture server adds one clearly labelled QA-only demo
+  // offer that publishes a minimum order, a free-shipping threshold and a locality restriction,
+  // so the UI rendering of those terms is verified too. It never runs in production.
+  const termsServer = await startQaServer({ port: 0, withTermsDemo: true });
+  try {
+    report.termsDataSource = 'QA-only demo offer added to the recorded fixtures (not a vendor)';
+    const terms2000 = await fetchBoard(termsServer.url, 2000, 'tel-aviv');
+    const expectedTermsTotal = ils(terms2000.best?.totalIls);
+    await wd('POST', '/url', { url: `${termsServer.url}/?grams=2000&dest=tel-aviv` });
+    await waitForBoard(wd);
+    const terms = await evaluate(wd, `(() => {
+      const dl = document.querySelector('.best__side dl');
+      const dts = dl ? [...dl.querySelectorAll('dt')] : [];
+      const dds = dl ? [...dl.querySelectorAll('dd')] : [];
+      return {
+        rows: dts.map((dt, index) => [dt.textContent.trim(), (dds[index]?.textContent ?? '').trim()]),
+        total: document.querySelector('.best__total')?.textContent ?? null,
+        labels: [...document.querySelectorAll('.best__side .unknown__reason')].map(node => node.textContent.trim())
+      };
+    })()`);
+    check('terms: demo offer is the ranked best for 2 kg', terms2000.best?.vendor.id === 'qa-terms-demo' && terms.total === expectedTermsTotal, `${terms.total} vs ${expectedTermsTotal} (${terms2000.best?.vendor.id})`);
+    check('terms: minimum order is displayed', terms.rows.some(([term, value]) => term === 'Minimum order' && value === '₪30.00 ILS'), JSON.stringify(terms.rows));
+    check('terms: free-shipping threshold is displayed', terms.rows.some(([term, value]) => term === 'Free shipping' && value === 'from ₪100.00 ILS'), JSON.stringify(terms.rows));
+    check('terms: locality-restricted delivery area is displayed', terms.rows.some(([term, value]) => term === 'Delivery area' && value === 'Only: tel-aviv, eilat'), JSON.stringify(terms.rows));
+    check('terms: met free-shipping threshold shows Free and a written label',
+      terms.rows.some(([term, value]) => term === 'Shipping' && value === 'Free') && terms.labels.some(text => text.includes('Free shipping threshold met')),
+      JSON.stringify(terms.labels));
+
+    // The locality restriction must actually exclude the offer for Jerusalem.
+    await wd('POST', '/url', { url: `${termsServer.url}/?grams=2000&dest=jerusalem` });
+    await waitForBoard(wd);
+    const restricted = await evaluate(wd, `(() => ({
+      bestVendor: document.querySelector('.best__vendor')?.textContent ?? null,
+      reasons: [...document.querySelectorAll('.unknown__reason')].map(node => node.textContent.trim())
+    }))()`);
+    check('terms: locality restriction moves the demo offer to the unknown list for Jerusalem',
+      restricted.reasons.some(text => text.includes('does not include')),
+      JSON.stringify(restricted.reasons));
+  } finally {
+    await termsServer.close();
+  }
+
   // Close the session, then remove the driver's child processes before exiting.
   await wd('DELETE', '');
   report.sessionClosed = true;

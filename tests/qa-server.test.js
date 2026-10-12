@@ -20,6 +20,34 @@ test('fixture observations parse through the production adapters', async () => {
   assert.equal(pucks.product.packGrams, 250);
 });
 
+test('QA fixture server can add the labelled terms-demo offer without touching the default board', async () => {
+  const plain = await startQaServer({ port: 0, now: Date.parse('2026-10-12T11:00:00.000Z') });
+  const terms = await startQaServer({ port: 0, now: Date.parse('2026-10-12T11:00:00.000Z'), withTermsDemo: true });
+  try {
+    const plainBoard = await (await fetch(`${plain.url}/api/board?grams=2000&dest=tel-aviv&variant=classico`)).json();
+    assert.equal(plainBoard.qa.demoOffers, 0);
+    assert.equal(plainBoard.best.vendor.id, 'coffeeman');
+
+    const termsBoard = await (await fetch(`${terms.url}/api/board?grams=2000&dest=tel-aviv&variant=classico`)).json();
+    assert.equal(termsBoard.qa.demoOffers, 1);
+    assert.equal(termsBoard.best.vendor.id, 'qa-terms-demo');
+    assert.equal(termsBoard.best.totalIls, 160, '8 × ₪20 with the free-shipping threshold met');
+    assert.equal(termsBoard.best.shipping.amountIls, 0);
+    assert.equal(termsBoard.best.shipping.minOrder, 30);
+    assert.equal(termsBoard.best.shipping.freeThreshold, 100);
+    assert.equal(termsBoard.best.shipping.destination.scope, 'localities');
+    assert.ok(termsBoard.best.labels.some(label => /Free shipping threshold met/.test(label)));
+
+    const restricted = await (await fetch(`${terms.url}/api/board?grams=2000&dest=jerusalem&variant=classico`)).json();
+    const demo = restricted.unrankable.find(quote => quote.vendor.id === 'qa-terms-demo');
+    assert.ok(demo, 'the locality-restricted demo offer is unrankable for Jerusalem');
+    assert.match(demo.reasons.join(' '), /does not include Jerusalem/);
+  } finally {
+    await plain.close();
+    await terms.close();
+  }
+});
+
 test('QA fixture server serves the board API and static assets offline', async () => {
   const server = await startQaServer({ port: 0, now: Date.parse('2026-10-12T11:00:00.000Z') });
   try {

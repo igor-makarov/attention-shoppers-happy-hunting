@@ -191,6 +191,10 @@ function renderRankedSection(board) {
     ['Stock', statusBadge(best.availability, best.availabilityLabel)],
     ['Checked', timeLabel(best.observedAt)]
   ];
+  if (best.shipping.minOrder != null) rows.push(['Minimum order', `${money(best.shipping.minOrder)} ${best.shipping.minOrderCurrency ?? ''}`.trim()]);
+  if (best.shipping.freeThreshold != null) rows.push(['Free shipping', `from ${money(best.shipping.freeThreshold)} ${best.shipping.freeThresholdCurrency ?? ''}`.trim()]);
+  if (best.shipping.destination?.scope === 'localities') rows.push(['Delivery area', `Only: ${(best.shipping.destination.localities ?? []).join(', ')}`]);
+  for (const fee of best.mandatoryFees ?? []) rows.push([fee.label, money(fee.amountIls)]);
   if (best.shipping.deliveryTime) rows.push(['Delivery time', best.shipping.deliveryTime]);
   if (best.shipping.pickup?.available) rows.push(['Pickup', 'Free self-pickup is available and shown separately']);
   const side = el('div', { class: 'best__side' });
@@ -201,6 +205,7 @@ function renderRankedSection(board) {
   }
   side.append(dl);
   if (best.shipping.note) side.append(el('p', { class: 'unknown__reason', text: best.shipping.note }));
+  if (best.labels.length) side.append(el('p', { class: 'unknown__reason', text: best.labels.join(' · ') }));
   if (best.estimate) side.append(el('p', {}, el('span', { class: 'status status--estimate', text: 'Estimate' }), el('span', { class: 'estimate-note', text: 'includes a converted or estimated component' })));
 
   section.append(el('div', { class: 'best' }, main, side));
@@ -226,7 +231,11 @@ function renderCompareTable(quotes, board) {
     row.append(el('td', {}, el('span', { class: 'vendor-name' }, bidi(quote.vendor.name)), el('br'), offerLink(quote, 'Vendor page')));
     row.append(el('td', { class: 'num', text: `${quote.units} × ${quote.product.packGrams} g = ${quote.orderedGrams} g` }));
     row.append(el('td', { class: 'num' , text: `${money(quote.itemPrice.amount)} ${quote.itemPrice.currency}` }));
-    row.append(el('td', { class: 'num', text: quote.shipping.amountIls === 0 ? 'Free' : money(quote.shipping.amountIls) }));
+    row.append(el('td', { class: 'num' },
+      quote.shipping.amountIls === 0 ? 'Free' : money(quote.shipping.amountIls),
+      quote.shipping.minOrder != null || quote.shipping.freeThreshold != null
+        ? el('div', { class: 'unknown__meta', text: [quote.shipping.minOrder != null ? `min ${money(quote.shipping.minOrder)}` : null, quote.shipping.freeThreshold != null ? `free from ${money(quote.shipping.freeThreshold)}` : null].filter(Boolean).join(' · ') })
+        : null));
     row.append(el('td', { class: 'num' }, el('strong', { text: money(quote.totalIls) }), quote.estimate ? el('span', { class: 'estimate-note', text: ' est.' }) : null));
     row.append(el('td', { class: 'num', text: money(quote.ilsPerKg) }));
     row.append(el('td', {}, statusBadge(quote.availability, quote.availabilityLabel)));

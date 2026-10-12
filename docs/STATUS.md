@@ -9,7 +9,8 @@ No Cloudflare deployment, credential or remote resource was created by the codin
 - **Comparison board** (`/`, `/api/board`): ranks delivered offers for Lavazza Crema e Gusto vacuum-packed
   ground coffee by item price + shipping + mandatory fees in ILS, normalized to delivered ILS/kg and to
   the packs a shopper actually buys. Destination (six Israeli locality/postcode areas), target grams and
-  variant are selectable; no street address is collected.
+  variant are selectable; no street address is collected. Ranked offers also show minimum order,
+  free-shipping threshold, locality restrictions and offset labels.
 - **Honest unknowns**: unknown shipping, unknown FX, unknown availability, stale observations and
   out-of-stock offers remain visible with plain-language reasons. Missing data never becomes zero and
   never wins. Pickup is shown separately and never competes with delivery.
@@ -44,8 +45,8 @@ so it is treated as unknown, not free". FX reference table from the Bank of Isra
 ## Verification performed (2026-10-12, all local)
 
 1. `npm ci --ignore-scripts` — clean install from the pinned lockfile, 0 vulnerabilities.
-2. `npm run verify` — 40/40 `node:test` cases pass, then `wrangler deploy --dry-run` builds the Worker
-   bundle with no Cloudflare credential (54.60 KiB, gzip 14.89 KiB; bindings `BOARD` + `ASSETS` shown).
+2. `npm run verify` — 41/41 `node:test` cases pass, then `wrangler deploy --dry-run` builds the Worker
+   bundle with no Cloudflare credential (54.85 KiB, gzip 14.90 KiB; bindings `BOARD` + `ASSETS` shown).
    Covered acceptance cases include: shipping changes the winner; unknown shipping cannot win;
    stale/out-of-stock/unknown availability stay unranked; variants and multipacks stay separate;
    quantity rounding, minimum order and free-shipping thresholds; missing FX is not zero; destination
@@ -62,7 +63,7 @@ so it is treated as unknown, not free". FX reference table from the Bank of Isra
    3 bounded requests, both vendors saved, `nextAttemptAt` +6 h, and persisted `lastRefreshAt`. A second
    scheduled trigger made 0 requests and skipped both vendors on backoff. `/api/board` then served the
    ranked board from storage. This is the refresh-while-no-browser-open path.
-7. `npm run qa:browser` — headless Chrome (chromedriver 154) QA: **27/27 checks pass offline, exit 0**,
+7. `npm run qa:browser` — headless Chrome (chromedriver 154) QA: **33/33 checks pass offline, exit 0**,
    desktop 1440 px and mobile 390 px, screenshots and JSON report in `.shurik-local/qa/`. The command is
    self-contained: it starts `scripts/qa-server.mjs` on an ephemeral port, which serves `public/` plus the
    read-only API computed from `tests/fixtures/` by the production quote engine, so no Worker, network or
@@ -70,11 +71,14 @@ so it is treated as unknown, not free". FX reference table from the Bank of Isra
    include: best delivered total and per-kg math, written stock labels, unknown-shipping reason, pickup
    shown separately, destination and quantity controls, shareable URL updates, keyboard Tab focus with a
    visible 3 px focus outline and Enter activation, Hebrew text isolated with `dir="auto"`, no emoji
-   anywhere in the visible text, no horizontal overflow, and 44 px touch targets on mobile.
-   Live mode (`npm run qa:browser -- http://127.0.0.1:8789`) passed **25/25** against a real
-   `wrangler dev` Worker on 2026-10-12 11:32 UTC (fixture-only checks are skipped in live mode). That run
-   also re-verified the no-browser refresh path: `/health` started the initial refresh (3 bounded requests,
-   both vendors saved, `nextAttemptAt` +6 h, FX fetched), and a following
+   anywhere in the visible text, no horizontal overflow, and 44 px touch targets on mobile. Six more
+   checks run against a second fixture server with one clearly labelled QA-only demo offer to verify that
+   minimum order, free-shipping threshold, free-shipping-met labelling and a locality delivery restriction
+   are rendered, and that the restriction moves the offer to the unknown list for an excluded destination.
+   Live mode (`npm run qa:browser -- http://127.0.0.1:8789`) passed **31/31** against a real
+   `wrangler dev` Worker on 2026-10-12 11:41 UTC (fixture-only checks are skipped in live mode). An earlier
+   live run at 11:32 UTC also re-verified the no-browser refresh path: `/health` started the initial
+   refresh (3 bounded requests, both vendors saved, `nextAttemptAt` +6 h, FX fetched), and a following
    `/cdn-cgi/local/scheduled` made 0 requests and skipped both vendors on backoff.
 
 This iteration (3-49) fixed three real defects found by the new QA: quantity buttons were dead because
@@ -92,9 +96,15 @@ and corrected the stale scaffold note in docs/ARCHITECTURE.md. The refresh lease
 read-check-write in the Durable Object SQL and memory store, so two runs started in the same tick cannot
 both acquire it; a new concurrency test covers that.
 
-Static evidence snapshots are committed for review: `docs/evidence/source-check-2026-10-12T1104Z.json`
-(live adapter observations), `docs/evidence/browser-qa-fixtures-2026-10-12T1135Z.json` (27 offline browser
-checks), `docs/evidence/browser-qa-live-2026-10-12T1133Z.json` (25 live browser checks) and
+The same iteration closed a visible-terms gap: ranked offers now show minimum order, free-shipping
+threshold, locality delivery restrictions and mandatory fees, plus their offset labels (for example
+"Free shipping threshold met"). The QA-only demo offer described above verifies those rows in a real
+browser without pretending it is a vendor.
+
+Static evidence snapshots are committed for review: `docs/evidence/source-check-2026-10-12T1129Z.json`
+(live adapter observations), `docs/evidence/browser-qa-fixtures-2026-10-12T1142Z.json` (33 offline browser
+checks), `docs/evidence/browser-qa-live-2026-10-12T1141Z.json` (31 live browser checks),
+`docs/evidence/worker-runtime-status-2026-10-12T1141Z.json` and
 `docs/evidence/worker-runtime-status-2026-10-12T1133Z.json` (initial-refresh and backoff run records from
 the local Worker). They are historical evidence, not live data.
 

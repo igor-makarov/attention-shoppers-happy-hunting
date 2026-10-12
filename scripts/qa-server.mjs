@@ -19,7 +19,7 @@ import { coffeeman } from '../src/vendors/coffeeman.js';
 import { pucks } from '../src/vendors/pucks.js';
 import { products } from '../src/catalog.js';
 import { quoteBoard, findDestination, DESTINATIONS } from '../src/lib/quote.js';
-import { registeredVendors } from '../src/vendors/index.js';
+import { createObservation, registeredVendors } from '../src/vendors/index.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PUBLIC_DIR = resolve(ROOT, 'public');
@@ -65,13 +65,56 @@ export async function fixtureObservations(now = Date.now()) {
 }
 
 /**
+ * QA-only synthetic offer. It exists to exercise how the UI renders shipping
+ * terms (minimum order, free-shipping threshold, locality restriction) that the
+ * two recorded vendors do not currently publish. It is never part of the
+ * production board and is clearly labelled as a fixture in the UI and API.
+ */
+export function termsDemoObservation(now = Date.now()) {
+  return createObservation({
+    vendor: { id: 'qa-terms-demo', name: 'QA fixture offer (terms demo, not a vendor)', homepage: null },
+    itemUrl: 'https://example.invalid/qa-terms-demo',
+    product: {
+      productId: products[0].id,
+      name: 'QA fixture: Lavazza Crema e Gusto Classico 250 g vacuum ground',
+      sku: 'QA-DEMO',
+      variantId: 'classico',
+      variantLabel: 'Classico',
+      form: 'ground',
+      packGrams: 250,
+      packCount: 1,
+      totalGrams: 250,
+      category: 'QA fixture'
+    },
+    price: { amount: 20, currency: 'ILS' },
+    availability: 'in_stock',
+    availabilityEvidence: {
+      url: 'https://example.invalid/qa-terms-demo',
+      value: 'fixture',
+      note: 'Synthetic QA-only record: not an observation of any real vendor.'
+    },
+    shipping: {
+      mode: 'delivery',
+      certainty: 'verified',
+      amount: { amount: 15, currency: 'ILS' },
+      destination: { scope: 'localities', localities: ['tel-aviv', 'eilat'] },
+      minOrder: { amount: 30, currency: 'ILS' },
+      freeThreshold: { amount: 100, currency: 'ILS' },
+      note: 'QA-only demo offer for shipping-term rendering. Not a real vendor listing.'
+    },
+    now
+  });
+}
+
+/**
  * Start a local HTTP server that behaves like the deployed read-only board.
  * Returns { url, port, observations, close }.
  */
-export async function startQaServer({ port = 0, now = Date.now() } = {}) {
+export async function startQaServer({ port = 0, now = Date.now(), withTermsDemo = false } = {}) {
   const observations = await fixtureObservations(now);
+  if (withTermsDemo) observations.push(termsDemoObservation(now));
   const server = createServer((request, response) => {
-    handle(request, response, { observations, now }).catch(error => {
+    handle(request, response, { observations, now, withTermsDemo }).catch(error => {
       response.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
       response.end(`qa server error: ${error?.message ?? error}`);
     });
@@ -89,7 +132,7 @@ export async function startQaServer({ port = 0, now = Date.now() } = {}) {
   };
 }
 
-async function handle(request, response, { observations, now }) {
+async function handle(request, response, { observations, now, withTermsDemo }) {
   const url = new URL(request.url, 'http://127.0.0.1');
   if (url.pathname === '/api/catalog') {
     return json(response, {
@@ -127,7 +170,13 @@ async function handle(request, response, { observations, now }) {
       status: board.ranked.length > 0
         ? 'Delivered totals ranked from verified observations.'
         : 'No offer currently has enough verified information to rank. Unknowns are listed below.',
-      qa: { mode: 'fixtures', note: 'Offline browser QA server. Data comes from tests/fixtures, not a live refresh.' }
+      qa: {
+        mode: 'fixtures',
+        demoOffers: withTermsDemo ? 1 : 0,
+        note: withTermsDemo
+          ? 'Offline browser QA server. Recorded fixtures plus one clearly labelled QA-only terms demo offer (not a real vendor).'
+          : 'Offline browser QA server. Data comes from tests/fixtures, not a live refresh.'
+      }
     });
   }
   if (url.pathname.startsWith('/api/')) {
