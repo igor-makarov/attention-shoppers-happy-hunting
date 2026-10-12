@@ -9,6 +9,7 @@
 // instead of assuming the six-hour interval is enough.
 
 import { classifyListing } from '../catalog.js';
+import { coffee4uHomeDeliveryPolicy } from '../lib/policies.js';
 import { decodeHtml, parseDecimal, stripTags, collapse } from '../lib/text.js';
 import { createObservation, parseError } from './index.js';
 
@@ -18,15 +19,16 @@ const PRODUCT_URL = 'https://www.coffee4u.co.il/product/lavazza-crema-e-gusto-25
 // order or personal details). The checkout's own destination lists are closed:
 // door-to-door requires an exact match from its locality list, and the cheaper
 // pickup-point service lists only the localities that have an actual pickup spot.
+// The researched coverage and the pickup-point alternative live in the shared,
+// validated policy (src/lib/policies.js); these helpers are the adapter-facing
+// view of that one representation.
+const COFFEE4U_POLICY = coffee4uHomeDeliveryPolicy;
 const CHECKOUT_COVERAGE = {
-  courierLocalities: 1269,
-  pickupPointLocalities: 420,
-  verifiedLocalities: ['תל אביב - יפו', 'אילת'],
-  observedAt: '2026-10-12T20:25:00Z',
-  entryUrl: 'https://www.coffee4u.co.il/cart.asp',
-  evidence: 'docs/evidence/browser-research/2026-10-12-coffee4u-coverage.json',
-  note: 'Rendered anonymous checkout (2026-10-12): the door-to-door method quotes ₪30.00 with the destination chosen from a closed list of 1,269 Israeli localities (Tel Aviv - Yafo and Eilat selected, fee unchanged); the ₪15 pickup-point method lists 420 localities with pickup spots.'
+  ...COFFEE4U_POLICY.destination.observed,
+  entryUrl: COFFEE4U_POLICY.destination.observed.entryUrl,
+  evidence: COFFEE4U_POLICY.destination.observed.evidence
 };
+const PICKUP_POINT_ALTERNATIVE = COFFEE4U_POLICY.alternatives.find(alternative => alternative.id === 'pickup-point');
 
 const AVAILABILITY = {
   InStock: 'in_stock',
@@ -119,17 +121,10 @@ export function parseCoffee4uProduct(html, { now, url = PRODUCT_URL, productId =
       // The rendered anonymous checkout showed that list is closed and exact-match,
       // so the caveat names the observed shape and keeps the checkout confirmation.
       destination: {
-        scope: 'country',
-        country: 'IL',
-        caveat: 'Door-to-door delivery is limited to the localities on Coffee4U’s home-delivery list, which the product page does not publish. The rendered anonymous checkout requires the destination from a closed list of 1,269 Israeli localities (Tel Aviv - Yafo and Eilat verified 2026-10-12); the ₪15 pickup-point service lists 420 localities with pickup spots. Confirm the destination at checkout.',
-        caveatSource: 'https://www.coffee4u.co.il/page/%D7%AA%D7%A7%D7%A0%D7%95%D7%9F-0',
+        ...COFFEE4U_POLICY.destination,
         observed: {
-          courierLocalities: CHECKOUT_COVERAGE.courierLocalities,
-          pickupPointLocalities: CHECKOUT_COVERAGE.pickupPointLocalities,
-          verifiedLocalities: CHECKOUT_COVERAGE.verifiedLocalities,
-          observedAt: CHECKOUT_COVERAGE.observedAt,
-          entryUrl: CHECKOUT_COVERAGE.entryUrl,
-          evidence: CHECKOUT_COVERAGE.evidence
+          ...CHECKOUT_COVERAGE,
+          verifiedLocalities: [...CHECKOUT_COVERAGE.verifiedLocalities]
         }
       },
       minOrder: null,
@@ -141,13 +136,22 @@ export function parseCoffee4uProduct(html, { now, url = PRODUCT_URL, productId =
         note: shipping.selfPickup ? 'Free self-pickup at the shop, listed on the product page.' : null
       },
       alternatives: shipping.pickupPointAmount == null ? [] : [{
-        id: 'pickup-point',
-        label: "Delivery to a צ'יטה שופס pickup point",
+        id: PICKUP_POINT_ALTERNATIVE.id,
+        label: PICKUP_POINT_ALTERNATIVE.label,
         amount: { amount: shipping.pickupPointAmount, currency },
-        note: 'Published on the same product page for up to 5 kg; a different service from door-to-door courier delivery. The rendered checkout lists 420 localities with pickup spots (observed 2026-10-12).'
+        maxTotalGrams: PICKUP_POINT_ALTERNATIVE.maxTotalGrams ?? null,
+        note: PICKUP_POINT_ALTERNATIVE.note
       }],
-      note: `${shipping.note} ${CHECKOUT_COVERAGE.note}`,
-      evidence: { url, retrievedAt: null, note: `Delivery options are listed next to the product on the product page. Checkout coverage observed in the rendered anonymous checkout; see ${CHECKOUT_COVERAGE.evidence}.` }
+      note: `${shipping.note} Rendered anonymous checkout (${CHECKOUT_COVERAGE.observedAt}): the door-to-door method requires an exact match from a closed list of ${new Intl.NumberFormat('en-US').format(CHECKOUT_COVERAGE.courierLocalities)} Israeli localities (Tel Aviv - Yafo and Eilat selected, fee unchanged); the ₪15 pickup-point method lists ${CHECKOUT_COVERAGE.pickupPointLocalities} localities with pickup spots.`,
+      evidence: { url, retrievedAt: null, note: `Delivery options are listed next to the product on the product page. Checkout coverage observed in the rendered anonymous checkout; see ${CHECKOUT_COVERAGE.evidence}.` },
+      policy: {
+        id: COFFEE4U_POLICY.id,
+        version: COFFEE4U_POLICY.version,
+        origin: COFFEE4U_POLICY.origin,
+        retrievedAt: COFFEE4U_POLICY.evidence.retrievedAt,
+        reviewBy: COFFEE4U_POLICY.reviewBy,
+        thresholdSemantics: COFFEE4U_POLICY.rule?.thresholdSemantics ?? null
+      }
     },
     now
   });

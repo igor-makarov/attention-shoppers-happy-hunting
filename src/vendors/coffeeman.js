@@ -223,20 +223,18 @@ export function parseCoffeemanProduct(html, { now, url = PRODUCT_URL, productId 
             note: 'Anonymous checkout estimator quote recorded by interactive browser research; see docs/evidence/browser-research/2026-10-12-vendor-shipping-quotes.json.'
           }
         : { url, retrievedAt: null, note: 'Delivery options are listed on the product page.' },
-      // Stamp the validated policy the checkout-quoted rate came from, so the
-      // offer detail can name the rule version and its review date instead of
-      // an unexplained adapter constant. The adapter and the read-time
-      // evaluator therefore share one researched rule.
-      policy: checkoutQuote
-        ? {
-            id: coffeemanEightPackPolicy.id,
-            version: coffeemanEightPackPolicy.version,
-            origin: coffeemanEightPackPolicy.origin,
-            retrievedAt: coffeemanEightPackPolicy.evidence.retrievedAt,
-            reviewBy: coffeemanEightPackPolicy.reviewBy,
-            thresholdSemantics: coffeemanEightPackPolicy.rule.thresholdSemantics ?? null
-          }
-        : null
+      // Stamp the validated policy the parsed row's coverage and alternatives
+      // come from, so the offer detail can name the rule version and its review
+      // date instead of an unexplained adapter constant. The adapter and the
+      // read-time evaluator therefore share one researched representation.
+      policy: {
+        id: coveragePolicy.id,
+        version: coveragePolicy.version,
+        origin: coveragePolicy.origin,
+        retrievedAt: coveragePolicy.evidence.retrievedAt,
+        reviewBy: coveragePolicy.reviewBy,
+        thresholdSemantics: coveragePolicy.rule?.thresholdSemantics ?? null
+      }
     },
     now
   });

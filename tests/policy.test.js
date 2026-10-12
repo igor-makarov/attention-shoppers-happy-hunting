@@ -6,6 +6,8 @@ import {
   SHIPPING_POLICIES,
   pucksHomeDeliveryPolicy,
   coffeemanEightPackPolicy,
+  coffeemanSingleFourPackPolicy,
+  coffee4uHomeDeliveryPolicy,
   validatePolicy,
   validatePolicies,
   resolveShippingPolicy,
@@ -65,6 +67,77 @@ const quote = (observations, options = {}) => quoteBoard({
 
 const COFFEEMAN_EIGHT_PACK_URL = 'https://www.coffeeman.co.il/product/8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico';
 const COFFEEMAN_SINGLE_URL = 'https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico';
+const COFFEE4U_URL = 'https://www.coffee4u.co.il/product/lavazza-crema-e-gusto-250-gr-%D7%98%D7%97%D7%95%D7%9F';
+
+/**
+ * An old persisted CoffeeMan single-pack row as the pre-cart-observation parser
+ * stored it: price and stock observed, shipping unknown, generic destination.
+ */
+function oldPersistedCoffeemanSingleObservation(overrides = {}) {
+  return {
+    key: 'coffeeman:930333:classico:ground:250g:x1',
+    vendor: { id: 'coffeeman', name: 'CoffeeMan (אמיגו)', homepage: 'https://www.coffeeman.co.il' },
+    itemUrl: COFFEEMAN_SINGLE_URL,
+    product: {
+      productId: 'lavazza-crema-e-gusto-vacuum-ground',
+      name: '250 גרם קפה טחון lavazza Crema e Gusto Classico',
+      variantId: 'classico',
+      variantLabel: 'Classico',
+      form: 'ground',
+      packGrams: 250,
+      packCount: 1,
+      totalGrams: 250,
+      sku: '930333'
+    },
+    price: { amount: 33, currency: 'ILS' },
+    availability: 'in_stock',
+    shipping: {
+      mode: 'delivery',
+      service: 'home_delivery',
+      certainty: 'unknown',
+      amount: null,
+      destination: { scope: 'country', country: 'IL' },
+      note: 'No published courier rate found; delivery cost is unknown before checkout.'
+    },
+    observedAt: FRESH,
+    ...overrides
+  };
+}
+
+/**
+ * An old persisted Coffee4U row exactly as earlier parser versions stored it:
+ * price and stock observed, shipping unknown, generic destination.
+ */
+function oldPersistedCoffee4uObservation(overrides = {}) {
+  return {
+    key: 'coffee4u:2010561:unspecified:ground:250g:x1',
+    vendor: { id: 'coffee4u', name: 'Coffee4U (קופי פור יו)', homepage: 'https://www.coffee4u.co.il' },
+    itemUrl: COFFEE4U_URL,
+    product: {
+      productId: 'lavazza-crema-e-gusto-vacuum-ground',
+      name: 'Lavazza Crema e gusto 250 גר׳ טחון',
+      variantId: 'unspecified',
+      variantLabel: 'Variant not stated',
+      form: 'ground',
+      packGrams: 250,
+      packCount: 1,
+      totalGrams: 250,
+      sku: '2010561'
+    },
+    price: { amount: 38, currency: 'ILS' },
+    availability: 'in_stock',
+    shipping: {
+      mode: 'delivery',
+      service: 'home_delivery',
+      certainty: 'unknown',
+      amount: null,
+      destination: { scope: 'country', country: 'IL' },
+      note: 'No published courier rate found on the product page; delivery cost is unknown before checkout.'
+    },
+    observedAt: FRESH,
+    ...overrides
+  };
+}
 
 /**
  * An old persisted CoffeeMan 8-pack row exactly as the pre-cart-quote parser
@@ -110,7 +183,7 @@ function oldPersistedCoffeemanEightPackObservation(overrides = {}) {
 test('the checked-in shipping policies are structurally valid', () => {
   const result = validatePolicies(SHIPPING_POLICIES);
   assert.equal(result.ok, true, JSON.stringify(result.results));
-  assert.equal(SHIPPING_POLICIES.length >= 2, true);
+  assert.equal(SHIPPING_POLICIES.length, 4);
   const pucks = SHIPPING_POLICIES.find(policy => policy.id === pucksHomeDeliveryPolicy.id);
   assert.ok(pucks, 'the evidenced Pucks rule is a checked-in policy');
   assert.equal(pucks.origin, 'observed_cart', 'a cart-observed rule is never relabelled as published');
@@ -123,6 +196,93 @@ test('the checked-in shipping policies are structurally valid', () => {
   assert.equal(coffeeman.rule.maxTotalGrams, 2000, 'the cart quote is scoped to the 2 kg cart it was observed on');
   assert.equal(coffeeman.rule.freeThreshold, null, 'no free threshold is invented from unobserved larger carts');
   assert.equal(coffeeman.service, 'home_delivery');
+  assert.equal(coffeeman.alternatives[0].amount.amount, 20, 'the observed distribution-center alternative is part of the policy');
+  const singleFour = SHIPPING_POLICIES.find(policy => policy.id === coffeemanSingleFourPackPolicy.id);
+  assert.ok(singleFour, 'the published single/4-pack rule is a checked-in policy');
+  assert.equal(singleFour.origin, 'published', 'the published ₪25 rate is not relabelled as a cart quote');
+  assert.equal(singleFour.certainty, 'verified');
+  assert.equal(singleFour.rule.amount.amount, 25);
+  assert.equal(singleFour.rule.freeThreshold, null, 'the cart-dependent free delivery is not turned into a published threshold');
+  assert.equal(singleFour.alternatives[0].amount.amount, 15, 'the cart-observed ₪15 distribution-center rate lives in the policy');
+  const coffee4u = SHIPPING_POLICIES.find(policy => policy.id === coffee4uHomeDeliveryPolicy.id);
+  assert.ok(coffee4u, 'the Coffee4U published rule with its coverage shape is a checked-in policy');
+  assert.equal(coffee4u.origin, 'published');
+  assert.equal(coffee4u.rule.amount.amount, 30);
+  assert.equal(coffee4u.alternatives[0].amount.amount, 15);
+  assert.equal(coffee4u.destination.observed.courierLocalities, 1269, 'the observed closed locality list stays structured');
+});
+
+test('an old persisted CoffeeMan single-pack offer gains the published rule and its cart-observed alternative', () => {
+  const stored = oldPersistedCoffeemanSingleObservation();
+  const storedSnapshot = JSON.parse(JSON.stringify(stored));
+  const board = quote([stored]);
+  assert.equal(board.best.vendor.id, 'coffeeman');
+  assert.equal(board.best.shipping.certainty, 'verified', 'the published ₪25 rate keeps the published certainty');
+  assert.equal(board.best.shipping.amountIls, 25);
+  assert.equal(board.best.shipping.serviceLabel, 'Home delivery');
+  assert.equal(board.best.shipping.alternatives[0].amountIls, 15, 'the cart-observed distribution-center alternative is added to the old row');
+  assert.equal(board.best.shipping.alternatives[0].id, 'distribution-center');
+  assert.match(board.best.shipping.alternatives[0].label, /cart-observed for 0\.5–1 kg carts/);
+  assert.match(board.best.shipping.alternatives[0].note, /no free-shipping rule is published/i);
+  assert.match(board.best.shipping.coverageCaveat, /home-delivery list/);
+  assert.equal(board.best.shipping.policy.id, 'coffeeman-single-4pack-il-home-delivery');
+  assert.equal(board.best.totalIls, 91, '2 × ₪33 item + the published ₪25 courier rate');
+  assert.equal(board.best.ilsPerKg, 182);
+  assert.match(board.best.shipping.note, /validated policy coffeeman-single-4pack-il-home-delivery v1/);
+  assert.deepEqual(stored, storedSnapshot, 'the stored observation is never mutated');
+});
+
+test('an old persisted Coffee4U offer gains the published rate, coverage and pickup-point alternative at read time', () => {
+  const stored = oldPersistedCoffee4uObservation();
+  const storedSnapshot = JSON.parse(JSON.stringify(stored));
+  const board = quote([stored]);
+  assert.equal(board.best.vendor.id, 'coffee4u');
+  assert.equal(board.best.shipping.certainty, 'verified');
+  assert.equal(board.best.shipping.amountIls, 30);
+  assert.equal(board.best.shipping.alternatives[0].amountIls, 15, 'the pickup-point service stays an alternative, never the ranked rate');
+  assert.equal(board.best.shipping.alternatives[0].id, 'pickup-point');
+  assert.match(board.best.shipping.coverageCaveat, /closed list of 1,269/, 'the enriched rate keeps the observed closed-locality-list caveat');
+  assert.equal(board.best.shipping.destination.observed.courierLocalities, 1269);
+  assert.equal(board.best.shipping.destination.observed.pickupPointLocalities, 420);
+  assert.deepEqual(board.best.shipping.destination.observed.verifiedLocalities, ['תל אביב - יפו', 'אילת']);
+  assert.equal(board.best.shipping.policy.id, 'coffee4u-il-home-delivery');
+  assert.equal(board.best.totalIls, 106, '2 × ₪38 item + ₪30 published courier rate');
+  assert.equal(board.best.ilsPerKg, 212);
+  assert.match(board.best.shipping.note, /validated policy coffee4u-il-home-delivery v1/);
+  assert.deepEqual(stored, storedSnapshot, 'the stored observation is never mutated');
+});
+
+test('enrichment never rewrites a parsed rate, alternatives or destination that the row already has', () => {
+  const parsed = oldPersistedCoffee4uObservation({
+    shipping: {
+      mode: 'delivery',
+      service: 'home_delivery',
+      certainty: 'verified',
+      amount: { amount: 30, currency: 'ILS' },
+      alternatives: [{ id: 'pickup-point', label: 'Parsed pickup point', amount: { amount: 15, currency: 'ILS' }, note: 'parsed on the page' }],
+      destination: { scope: 'country', country: 'IL', caveat: 'The row already knows its coverage caveat.' },
+      note: 'Parsed published rate'
+    }
+  });
+  const enriched = enrichObservationShipping(parsed, { policies: [coffee4uHomeDeliveryPolicy], now: NOW });
+  assert.equal(enriched.status, 'already-known');
+  assert.equal(enriched.observation.shipping.amount.amount, 30);
+  assert.equal(enriched.observation.shipping.alternatives[0].label, 'Parsed pickup point');
+  assert.equal(enriched.observation.shipping.destination.caveat, 'The row already knows its coverage caveat.');
+  assert.equal(enriched.observation.shipping.policy, undefined, 'a fully known row gets no policy stamp');
+});
+
+test('a malformed alternative invalidates the policy instead of applying a partial rule', () => {
+  const bad = {
+    ...coffeemanSingleFourPackPolicy,
+    id: 'bad-alternative',
+    alternatives: [{ id: 'distribution-center', label: 'No amount', amount: { amount: 'fifteen', currency: 'ILS' } }]
+  };
+  const check = validatePolicy(bad);
+  assert.equal(check.ok, false);
+  assert.match(check.errors.join(' '), /alternatives\[0\]\.amount/);
+  const resolved = resolveShippingPolicy({ observation: oldPersistedCoffeemanSingleObservation(), policies: [bad], now: NOW });
+  assert.equal(resolved.status, 'invalid');
 });
 
 test('an old persisted CoffeeMan 8-pack offer gains the researched cart quote at read time', () => {
@@ -151,17 +311,17 @@ test('an old persisted CoffeeMan 8-pack offer gains the researched cart quote at
   assert.match(twoPacks.unrankable[0].reasons.join(' '), /quoted only for carts up to 2000 g/);
   assert.equal(twoPacks.unrankable[0].shipping.amountIls, null, 'an out-of-scope cart never becomes a ranked total');
 
-  // The policy is scoped to the 8-pack offer URL: the single-pack listing keeps
-  // its own evidence and is never given the multipack cart rate.
+  // The 8-pack policy is scoped to the 8-pack offer URL: the single-pack listing
+  // keeps its own evidence and is never given the multipack cart rate.
   const single = oldPersistedCoffeemanEightPackObservation({
     key: 'coffeeman:930333:classico:ground:250g:x1',
     itemUrl: COFFEEMAN_SINGLE_URL,
     product: { ...oldPersistedCoffeemanEightPackObservation().product, packCount: 1, totalGrams: 250, sku: '930333' }
   });
   const singleBoard = quote([single]);
-  assert.equal(singleBoard.unrankable.length, 1);
-  assert.equal(singleBoard.unrankable[0].shipping.policy, null, 'the 8-pack cart quote is not applied to the single pack');
-  assert.match(singleBoard.unrankable[0].reasons.join(' '), /not published before checkout/);
+  assert.equal(singleBoard.best.shipping.policy.id, 'coffeeman-single-4pack-il-home-delivery', 'the single pack gains its own published rule, not the 8-pack cart quote');
+  assert.equal(singleBoard.best.shipping.amountIls, 25, 'the single pack keeps the published ₪25 rate');
+  assert.notEqual(singleBoard.best.shipping.policy.id, coffeemanEightPackPolicy.id);
 });
 
 test('a malformed policy is rejected instead of applied', () => {

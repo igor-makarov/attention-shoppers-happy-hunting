@@ -6,7 +6,7 @@ import { parseCoffeemanProduct, parseShippingOptions } from '../src/vendors/coff
 import { parsePucksProduct } from '../src/vendors/pucks.js';
 import { parseCoffee4uProduct, parseCoffee4uShipping } from '../src/vendors/coffee4u.js';
 import { classifyListing, isRetiredProductId, resolveProductRequest } from '../src/catalog.js';
-import { coffeemanEightPackPolicy } from '../src/lib/policies.js';
+import { coffeemanEightPackPolicy, coffeemanSingleFourPackPolicy, coffee4uHomeDeliveryPolicy } from '../src/lib/policies.js';
 
 const fixtures = new URL('./fixtures/', import.meta.url);
 const read = name => readFileSync(new URL(name, fixtures));
@@ -88,11 +88,15 @@ test('coffeeman cart research adds the distribution-center alternative without c
   assert.match(single.shipping.alternatives[0].label, /cart-observed for 0\.5–1 kg carts/);
   assert.match(single.shipping.alternatives[0].note, /no free-shipping rule is published/i);
   assert.match(single.shipping.note, /distribution-center/);
+  assert.equal(single.shipping.policy.id, coffeemanSingleFourPackPolicy.id, 'the parsed row names the validated single/4-pack policy');
+  assert.equal(single.shipping.policy.version, coffeemanSingleFourPackPolicy.version);
+  assert.equal(single.shipping.policy.origin, 'published');
 
   const four = parseCoffeemanProduct(decodeHtml(read('coffeeman-4pack-product.windows-1255.html')), { now, url: 'https://example.test/4pack' });
   assert.equal(four.shipping.amount.amount, 25, 'the 4-pack ranked rate is unchanged');
   assert.equal(four.shipping.alternatives[0].amount.amount, 15, 'the 4-pack cart observation resolves by pack shape too');
-  assert.match(four.shipping.alternatives[0].label, /the 1 kg cart/);
+  assert.match(four.shipping.alternatives[0].label, /cart-observed for 0\.5–1 kg carts/);
+  assert.equal(four.shipping.policy.id, coffeemanSingleFourPackPolicy.id, 'the 4-pack row names the same validated policy');
 
   const eight = parseCoffeemanProduct(decodeHtml(read('coffeeman-8pack-product.windows-1255.html')), { now, url: 'https://example.test/8pack' });
   assert.equal(eight.shipping.amount.amount, 20, 'the 8-pack cart quote is unchanged');
@@ -162,6 +166,10 @@ test('coffee4u fixture decodes windows-1255 and parses price, stock, SKU and del
   assert.equal(observation.shipping.certainty, 'verified');
   assert.equal(observation.shipping.amount.amount, 30, 'ranked shipping is the published door-to-door courier rate');
   assert.equal(observation.shipping.alternatives[0].amount.amount, 15, 'the pickup-point delivery is an alternative, never the ranked rate');
+  assert.equal(observation.shipping.alternatives[0].id, 'pickup-point');
+  assert.equal(observation.shipping.alternatives[0].maxTotalGrams, 5000);
+  assert.equal(observation.shipping.policy.id, coffee4uHomeDeliveryPolicy.id, 'the parsed row names the validated Coffee4U policy');
+  assert.equal(observation.shipping.policy.origin, 'published');
   assert.equal(observation.shipping.pickup.available, true);
   assert.equal(observation.shipping.pickup.amount.amount, 0);
   assert.match(observation.shipping.note, /₪30\.00/);
