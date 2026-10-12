@@ -71,7 +71,9 @@ Tracked listings (three separate offers, never merged):
 | super-pharm.co.il | HTTP 247 with a JavaScript bot-detection challenge (`kramericaindustries.ac_v2.lib.js`) on both the main and shop hosts | Anti-bot protection; not bypassed, so the chain cannot be used as a third vendor from the runner. |
 | espresso-club.co.il | 2026-10-12: reachable, but the root document is an Angular single-page shell (`<base href="/">`, Material icons) and `/catalogsearch/result/?q=lavazza` returned no usable response; `robots.txt` served the same SPA shell | No stable server-rendered product page or published structured data, so no adapter. |
 | 365mashbir.co.il | 2026-10-12: Shopify storefront reachable; product sitemaps (29 files) contain no Lavazza Crema e Gusto listing | Not a source for the tracked product. |
-| zap.co.il | 2026-10-12: reachable price-comparison aggregator; its model page for the exact ground 250 g product lists only CoffeeMan | Aggregator prices are not a vendor listing, carry no shipping terms and are used for research only, never as an adapter. |
+| zap.co.il | 2026-10-12: reachable price-comparison aggregator; its model page for the exact ground 250 g product lists only CoffeeMan, and its Lavazza ground category lists capsule/cleaning stores (Caffe Vero, CaffeNU, Pure) | Aggregator prices are not a vendor listing, carry no shipping terms and are used for research only, never as an adapter. |
+| coffeeclub.co.il (PAUZA) | 2026-10-12: WooCommerce site reachable, but a product search for "lavazza crema e gusto" returns no product pages | Not a source for the tracked product. |
+| caffenu.co.il / caffenu.com / caffevero.co.il | 2026-10-12: Caffenu is a capsule/cleaning brand; caffevero.co.il does not resolve | No ground-coffee listing. |
 | mojeek.com / Bing HTML / DuckDuckGo | 2026-10-12: mojeek returned HTTP 403, Bing HTML had no extractable result links, DuckDuckGo returned an anti-bot challenge | Search engines were used only for research; no viable new source was found through them. |
 
 Three independent adapters (CoffeeMan, Pucks and Coffee4U) meet and exceed the "at least two" requirement
