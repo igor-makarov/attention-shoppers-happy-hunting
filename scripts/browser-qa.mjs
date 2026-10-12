@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Browser QA for the board using the installed headless Chrome via WebDriver.
+// Browser QA for the redesigned Canton Zürich board using the installed headless
+// Chrome via WebDriver.
 //
 //   npm run qa:browser                       # offline: fixture-backed local server, no network
 //   node scripts/browser-qa.mjs <baseUrl>    # live: run against a server you started (wrangler dev)
@@ -9,6 +10,11 @@
 // from the recorded fixtures in tests/fixtures/. Expectations are derived from
 // that API response, so the checks test the UI wiring and math rather than
 // hard-coded prices. The report records which data source was used.
+//
+// The board is a set of offer cards: each ranked offer keeps item subtotal,
+// shipping service/charge and delivered total in one `.totals` row, with
+// conditions and provenance in short lists/disclosures. The old wide
+// comparison table is gone; these checks assert the card behavior instead.
 //
 // The script is dependency-free: it speaks the W3C WebDriver protocol over HTTP
 // and writes screenshots and a JSON report to .shurik-local/qa/.
@@ -25,6 +31,73 @@ const PORT = 9515;
 const EMOJI = /[\u{1F300}-\u{1FAFF}\u{1F000}-\u{1F2FF}\u{2600}-\u{27BF}\u{FE0F}]/u;
 const ILS = new Intl.NumberFormat('en-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 2 });
 const ils = amount => (amount == null ? null : ILS.format(amount));
+const BEST_TOTAL_EXPR = `document.querySelector('#ranked .offer--best .totals__cell--total .totals__value')?.textContent ?? null`;
+const BEST_VENDOR_EXPR = `document.querySelector('#ranked .offer--best .offer__vendor')?.innerText ?? null`;
+
+// The expectations below mirror the rendering helpers in public/app.js so the
+// browser checks compare rendered text with the same rules the UI uses.
+
+function packDescription(quote) {
+  const product = quote.product ?? {};
+  const per = product.packGrams != null ? `${product.packGrams} g` : 'weight not stated';
+  if ((product.packCount ?? 1) > 1) {
+    return `${product.packCount} × ${per} multipack${product.totalGrams != null ? ` (${product.totalGrams} g)` : ''}`;
+  }
+  return `${per} pack`;
+}
+
+function quantityDescription(quote) {
+  const product = quote.product ?? {};
+  const units = quote.units ?? 1;
+  if ((product.packCount ?? 1) > 1) {
+    return `${units} multipack${units === 1 ? '' : 's'} (${product.packCount} × ${product.packGrams} g) = ${quote.orderedGrams} g`;
+  }
+  return `${units} × ${product.packGrams ?? '?'} g pack${units === 1 ? '' : 's'} = ${quote.orderedGrams} g`;
+}
+
+const packLine = quote => `${packDescription(quote)} · ${quantityDescription(quote)} · ${quote.product.variantLabel}`;
+
+function shippingValueText(quote) {
+  const shipping = quote.shipping ?? {};
+  if (shipping.amountIls != null) {
+    if (shipping.amountIls === 0) return shipping.freeThreshold != null ? 'Free (threshold met)' : 'Free';
+    return ils(shipping.amountIls);
+  }
+  if (shipping.amount != null) return `${ils(shipping.amount)} ${shipping.currency ?? ''} (not converted)`.trim();
+  return 'Shipping not published';
+}
+
+function conditionsFor(quote, destinationLabels) {
+  const shipping = quote.shipping ?? {};
+  const items = [];
+  if (shipping.freeThreshold != null) {
+    items.push(quote.itemTotalIls != null && quote.itemTotalIls >= shipping.freeThreshold
+      ? `Free-shipping threshold met (from ${ils(shipping.freeThreshold)})`
+      : `Free shipping from ${ils(shipping.freeThreshold)} item subtotal`);
+  }
+  if (shipping.minOrder != null) items.push(`Minimum order ${ils(shipping.minOrder)}`);
+  if (shipping.destination?.scope === 'localities') {
+    const names = (shipping.destination.localities ?? []).map(id => destinationLabels.get(id) ?? id);
+    items.push(names.length ? `Delivery area: only ${names.join(', ')}` : 'Delivery area: restricted locality list not published');
+  }
+  for (const alternative of shipping.alternatives ?? []) {
+    items.push(`${alternative.label}: ${alternative.amountIls != null ? ils(alternative.amountIls) : 'rate not published'}`);
+  }
+  if (shipping.pickup?.available) items.push(shipping.pickup.note ? `Self-pickup: ${shipping.pickup.note}` : 'Free self-pickup available (kept separate from delivery)');
+  if (shipping.deliveryTime) items.push(`Delivery time: ${shipping.deliveryTime}`);
+  if (shipping.maxTotalGrams != null) items.push(`Rate quoted for carts up to ${shipping.maxTotalGrams} g`);
+  return items;
+}
+
+function offerDeltaText(quote, board) {
+  if (quote.key === board.best?.key) return 'Cheapest delivered total for this selection';
+  const delta = board.best && Number.isFinite(quote.totalIls) && Number.isFinite(board.best.totalIls)
+    ? Math.round((quote.totalIls - board.best.totalIls) * 100) / 100
+    : null;
+  if (delta == null) return '';
+  if (delta === 0) return 'Same delivered total as the best offer';
+  return `+${ils(delta)} vs best delivered total`;
+}
 
 const report = {
   mode: LIVE_BASE ? 'live' : 'fixtures',
@@ -63,10 +136,12 @@ try {
     : null;
 
   const catalog = await fetchJson(`${base}/api/catalog`);
+  const destinationLabels = new Map((catalog.destinations ?? []).map(item => [item.id, item.label]));
   const api500 = await fetchBoard(base, 500, 'tel-aviv');
   const api1000 = await fetchBoard(base, 1000, 'tel-aviv');
   const api1000Eilat = await fetchBoard(base, 1000, 'eilat');
   const api500Eilat = await fetchBoard(base, 500, 'eilat');
+  const apiUnstated = await fetchBoard(base, 500, 'tel-aviv', 'unspecified');
   const best = api500.best;
   if (!best) throw new Error('the board API has no ranked offer, so UI comparison checks cannot run');
   const expected500 = ils(best.totalIls);
@@ -74,17 +149,23 @@ try {
   const expected1000 = ils(api1000.best?.totalIls);
   const expected1000Eilat = ils(api1000Eilat.best?.totalIls);
   const expected500Eilat = ils(api500Eilat.best?.totalIls);
-  const unknownReasons = [...api500.unrankable, ...api500.staleOrUnavailable].map(quote => quote.reasons.join(' ')).join(' | ');
   const eilatLabel = catalog.destinations.find(item => item.id === 'eilat')?.label ?? 'Eilat';
   report.expectations = { expected500, expectedPerKg, expected1000, expected1000Eilat, expected500Eilat, bestVendor: best.vendor.name };
 
   if (fixtureServer) {
-    check('fixtures: CoffeeMan is the ranked fixture offer at ₪91.00 for 500 g',
-      best.vendor.name.includes('CoffeeMan') && best.totalIls === 91 && expected500 === '₪91.00',
-      `${best.vendor.name} ${expected500}`);
-    check('fixtures: Pucks stays unranked with unknown shipping',
-      api500.unrankable.some(quote => quote.vendor.name.includes('Pucks')) && /Shipping is not published before checkout/.test(unknownReasons),
-      unknownReasons);
+    const eightPack = api500.ranked.find(quote => quote.key.endsWith('x8')) ?? null;
+    check('fixtures: the researched Pucks checkout rate makes Pucks the 500 g fixture winner at ₪90.00',
+      best.vendor.id === 'pucks' && best.totalIls === 90 && best.shipping.certainty === 'verified' && expected500 === '₪90.00',
+      `${best.vendor.name} ${expected500} shipping=${best.shipping.certainty}`);
+    check('fixtures: the CoffeeMan 8-pack (2 kg) carries the ₪20 checkout quote and its 2000 g cart limit',
+      eightPack?.shipping?.amountIls === 20 && eightPack?.shipping?.maxTotalGrams === 2000 && eightPack?.units === 1,
+      JSON.stringify(eightPack ? { amountIls: eightPack.shipping.amountIls, maxTotalGrams: eightPack.shipping.maxTotalGrams, units: eightPack.units } : null));
+    check('fixtures: every recorded fixture offer is rankable now that all three vendors carry rates',
+      api500.unrankable.length === 0 && api500.staleOrUnavailable.length === 0,
+      `unrankable=${api500.unrankable.length} stale=${api500.staleOrUnavailable.length}`);
+    check('fixtures: the per-kilogram winner differs from the delivered winner at 500 g',
+      api500.bestPerKg?.key != null && api500.bestPerKg.key !== best.key,
+      `perKg=${api500.bestPerKg?.key} best=${best.key}`);
   }
   check('api: ranked offer exists with a verified delivered total', Number.isFinite(best.totalIls) && best.shipping.certainty !== 'unknown', `${expected500} shipping=${best.shipping.certainty}`);
 
@@ -111,40 +192,127 @@ try {
   await wd('POST', '/window/rect', { width: 1440, height: 1000, x: 0, y: 0 });
   await wd('POST', '/url', { url: `${base}/?grams=500&dest=tel-aviv` });
   await waitForBoard(wd);
-  const desktop = await evaluate(wd, `(() => ({
-    bestVendor: document.querySelector('.best__vendor')?.textContent ?? null,
-    bestTotal: document.querySelector('.best__total')?.textContent ?? null,
-    perKg: document.querySelector('.best__perkg')?.textContent ?? null,
-    statuses: [...document.querySelectorAll('.status')].map(n => n.textContent.trim()),
-    bestLink: document.querySelector('.best a')?.href ?? null,
-    unknownVendors: [...document.querySelectorAll('.unknown__vendor')].map(n => n.textContent.trim()),
-    unknownReasons: [...document.querySelectorAll('.unknown__reason')].map(n => n.textContent.trim()),
-    pickupRows: document.querySelectorAll('.pickup-row').length,
-    rankedRows: document.querySelectorAll('table.compare tbody tr').length,
-    bestTerms: [...document.querySelectorAll('.best__side dt')].map(n => n.textContent),
-    bestValues: [...document.querySelectorAll('.best__side dd')].map(n => n.textContent),
-    compareItemCells: [...document.querySelectorAll('table.compare tbody tr td:nth-child(3)')].map(n => n.innerText),
-    compareShippingCells: [...document.querySelectorAll('table.compare tbody tr td:nth-child(4)')].map(n => n.innerText),
-    compareTotalCells: [...document.querySelectorAll('table.compare tbody tr td:nth-child(5)')].map(n => n.innerText),
-    comparePerKgCells: [...document.querySelectorAll('table.compare tbody tr td:nth-child(6)')].map(n => n.innerText),
-    visibleText: document.body.innerText,
-    bidiFragments: document.querySelectorAll('[dir="auto"][lang="he"]').length,
-    hasSkipLink: !!document.querySelector('.skip'),
-    hasMain: !!document.querySelector('main'),
-    quantityPressed: [...document.querySelectorAll('#quantity-group button')].map(b => [b.textContent.trim(), b.getAttribute('aria-pressed')]),
-    destinationOptions: [...document.querySelectorAll('#destination option')].map(o => o.textContent.trim()),
-    footerStatus: document.getElementById('footer-status')?.textContent ?? null
-  }))()`);
-  check('desktop: best vendor matches the API ranking', desktop.bestVendor === best.vendor.name, `${desktop.bestVendor} vs ${best.vendor.name}`);
-  check(`desktop: delivered total for 500 g is ${expected500}`, desktop.bestTotal === expected500, desktop.bestTotal);
-  check(`desktop: per-kilogram normalization shows ${expectedPerKg}`, (desktop.perKg ?? '').includes(`${expectedPerKg} per kilogram`), desktop.perKg);
-  check('desktop: stock status has a written label', desktop.statuses.includes(best.availabilityLabel), `${best.availabilityLabel} in [${desktop.statuses.join(' | ')}]`);
-  check('desktop: vendor link points at the API product page', desktop.bestLink === best.itemUrl, `${desktop.bestLink} vs ${best.itemUrl}`);
-  check('desktop: comparison table lists every ranked offer', desktop.rankedRows === api500.ranked.length && api500.ranked.length >= 2, `rows=${desktop.rankedRows} ranked=${api500.ranked.length}`);
-  check('desktop: unknown-shipping offer stays visible with a plain-language reason',
-    /Shipping is not published before checkout/.test(desktop.unknownReasons.join(' ')) && desktop.unknownVendors.length === api500.unrankable.length + api500.staleOrUnavailable.length,
-    desktop.unknownReasons[0]);
-  check('desktop: pickup is displayed separately from delivery', desktop.pickupRows === api500.pickup.length && api500.pickup.length >= 1, `rows=${desktop.pickupRows} api=${api500.pickup.length}`);
+  const desktop = await evaluate(wd, `(() => {
+    const text = node => node ? node.textContent.trim() : null;
+    const cardShape = node => ({
+      best: node.classList.contains('offer--best'),
+      vendor: node.querySelector('.offer__vendor')?.innerText.trim() ?? null,
+      delta: text(node.querySelector('.offer__delta')),
+      pack: text(node.querySelector('.offer__pack')),
+      product: text(node.querySelector('.offer__product')),
+      totals: [...node.querySelectorAll('.totals__cell')].map(cell => ({
+        label: text(cell.querySelector('.totals__label')),
+        value: text(cell.querySelector('.totals__value')),
+        meta: text(cell.querySelector('.totals__meta')),
+        rect: (() => { const r = cell.getBoundingClientRect(); return { left: Math.round(r.left), right: Math.round(r.right), top: Math.round(r.top) }; })()
+      })),
+      conditions: [...node.querySelectorAll('.conditions li')].map(n => n.textContent),
+      caveats: [...node.querySelectorAll('.caveat')].map(n => n.textContent),
+      disclosure: text(node.querySelector('.disclosure')),
+      link: node.querySelector('.offer__links a')?.href ?? null
+    });
+    const cards = [...document.querySelectorAll('#ranked .offer')].map(cardShape);
+    const bestCard = document.querySelector('#ranked .offer--best');
+    const footerDetails = document.querySelector('.site-footer details');
+    return {
+      cards,
+      bestTop: bestCard ? Math.round(bestCard.getBoundingClientRect().top) : null,
+      bestTag: text(document.querySelector('.offer--best .tag--best')),
+      metaLines: [...document.querySelectorAll('#ranked .meta-line')].map(n => n.innerText),
+      unknownSection: !!document.getElementById('unknown'),
+      unknownText: text(document.getElementById('unknown')),
+      unknownCards: [...document.querySelectorAll('#unknown .unknown')].map(n => n.textContent),
+      pickupRows: [...document.querySelectorAll('#pickup .pickup-row')].map(n => n.textContent),
+      pickupHeader: text(document.querySelector('#pickup h2')),
+      footerStatus: text(document.getElementById('footer-status')),
+      footerDetails: footerDetails ? footerDetails.textContent : null,
+      visibleText: document.body.innerText,
+      tableCount: document.querySelectorAll('table').length,
+      bidiFragments: document.querySelectorAll('[dir="auto"][lang="he"]').length,
+      hasSkipLink: !!document.querySelector('.skip'),
+      hasMain: !!document.querySelector('main'),
+      hero: text(document.querySelector('#page-title')),
+      productStatic: text(document.getElementById('product-static')),
+      productSelectHidden: document.getElementById('product')?.hidden ?? null,
+      productOptions: [...document.querySelectorAll('#product option')].map(o => o.textContent.trim()),
+      variantOptions: [...document.querySelectorAll('#variant option')].map(o => o.textContent.trim()),
+      quantityPressed: [...document.querySelectorAll('#quantity-group button')].map(b => [b.textContent.trim(), b.getAttribute('aria-pressed')]),
+      destinationOptions: [...document.querySelectorAll('#destination option')].map(o => o.textContent.trim()),
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      pageOverflow: document.documentElement.scrollWidth > window.innerWidth + 1
+    };
+  })()`);
+  report.desktop = { bestTop: desktop.bestTop, cardCount: desktop.cards.length, metaLines: desktop.metaLines };
+
+  const bestCard = desktop.cards[0];
+  check('desktop: the best card is the API-ranked best offer', bestCard?.best === true && (bestCard.vendor ?? '').includes(best.vendor.name), `${bestCard?.vendor} vs ${best.vendor.name}`);
+  check(`desktop: delivered total for 500 g is ${expected500}`, bestCard?.totals?.[2]?.value === expected500, bestCard?.totals?.[2]?.value);
+  check('desktop: item subtotal is shown next to shipping and the delivered total', bestCard?.totals?.[0]?.value === ils(best.itemTotalIls), bestCard?.totals?.[0]?.value);
+  check(`desktop: shipping shows ${ils(best.shipping.amountIls)} with the written certainty label`,
+    bestCard?.totals?.[1]?.value === ils(best.shipping.amountIls) && bestCard?.totals?.[1]?.meta === best.shipping.certaintyLabel,
+    `${bestCard?.totals?.[1]?.value} :: ${bestCard?.totals?.[1]?.meta}`);
+  check(`desktop: per-kilogram normalization shows ${expectedPerKg}`, (bestCard?.totals?.[2]?.meta ?? '').includes(`${expectedPerKg} per kg`), bestCard?.totals?.[2]?.meta);
+  const totalsTogether = bestCard?.totals?.length === 3
+    && bestCard.totals.every(cell => cell.rect.left >= 0 && cell.rect.right <= desktop.viewportWidth + 1)
+    && bestCard.totals.every(cell => Math.abs(cell.rect.top - bestCard.totals[0].rect.top) <= 1)
+    && desktop.pageOverflow === false;
+  check('desktop: the three decision values sit in one visible row without horizontal scrolling', totalsTogether,
+    JSON.stringify({ rects: bestCard?.totals?.map(cell => cell.rect), viewportWidth: desktop.viewportWidth, pageOverflow: desktop.pageOverflow }));
+  check('desktop: the best card carries the written best-total label and selection context',
+    desktop.bestTag === 'Best known delivered total' && bestCard?.delta === 'Cheapest delivered total for this selection',
+    `${desktop.bestTag} :: ${bestCard?.delta}`);
+  check('desktop: the hero is "Attention shoppers" without a trailing period', desktop.hero === 'Attention shoppers', desktop.hero);
+  check('desktop: the best offer is visible on the first screen', desktop.bestTop != null && desktop.bestTop < desktop.viewportHeight, `top=${desktop.bestTop} viewport=${desktop.viewportHeight}`);
+  check('desktop: every ranked offer is rendered as an offer card', desktop.cards.length === api500.ranked.length, `cards=${desktop.cards.length} ranked=${api500.ranked.length}`);
+  check('desktop: the wide comparison table was removed in favor of offer cards', desktop.tableCount === 0, `tables=${desktop.tableCount}`);
+  check('desktop: stock status has a written label', (bestCard?.vendor ?? '').includes(best.availabilityLabel), `${best.availabilityLabel} in [${bestCard?.vendor}]`);
+  check('desktop: vendor link points at the API product page', bestCard?.link === best.itemUrl, `${bestCard?.link} vs ${best.itemUrl}`);
+  const packLabelsOk = desktop.cards.length === api500.ranked.length
+    && desktop.cards.every((card, index) => card.pack === packLine(api500.ranked[index]));
+  check('desktop: pack and quantity labels match the API (multipacks never read as a single 250 g pack)', packLabelsOk,
+    desktop.cards.map((card, index) => `${card.pack} vs ${packLine(api500.ranked[index])}`).join(' | '));
+  const eightPackCard = desktop.cards.find((card, index) => (api500.ranked[index].product.packCount ?? 1) > 1) ?? null;
+  check('desktop: a multipack card spells out its contents and purchased grams',
+    eightPackCard != null && /8 × 250 g multipack \(2000 g\)/.test(eightPackCard.pack) && /1 multipack \(8 × 250 g\) = 2000 g/.test(eightPackCard.pack),
+    eightPackCard?.pack);
+  const deltasOk = desktop.cards.slice(1).every((card, index) => card.delta === offerDeltaText(api500.ranked[index + 1], api500));
+  check('desktop: every other ranked offer states its difference from the best delivered total', deltasOk,
+    desktop.cards.slice(1).map(card => card.delta).join(' | '));
+  const conditionsOk = desktop.cards.length === api500.ranked.length
+    && desktop.cards.every((card, index) => JSON.stringify(card.conditions) === JSON.stringify(conditionsFor(api500.ranked[index], destinationLabels)));
+  check('desktop: each offer shows exactly its API conditions (thresholds, alternatives, pickup, limits)', conditionsOk,
+    desktop.cards.map((card, index) => `${card.conditions.join(' / ')} vs ${conditionsFor(api500.ranked[index], destinationLabels).join(' / ')}`).join(' || '));
+  const caveatsOk = desktop.cards.length === api500.ranked.length
+    && desktop.cards.every((card, index) => {
+      const caveat = api500.ranked[index].shipping?.coverageCaveat;
+      const expected = caveat ? [`Coverage: ${caveat}`] : [];
+      return card.caveats.length <= 1 && JSON.stringify(card.caveats) === JSON.stringify(expected);
+    });
+  check('desktop: an unconfirmed coverage caveat is disclosed once on its own card', caveatsOk,
+    desktop.cards.map(card => card.caveats.join(' / ')).join(' || '));
+  const perKgWinner = api500.bestPerKg;
+  const perKgCalledOut = !perKgWinner || perKgWinner.key === best.key
+    || desktop.metaLines.some(line => line.includes('Cheapest per kilogram')
+      && line.includes(perKgWinner.vendor.name)
+      && line.includes(`${ils(perKgWinner.ilsPerKg)} per kg`)
+      && line.includes(`${perKgWinner.product.packCount} × ${perKgWinner.product.packGrams} g multipack`)
+      && line.includes(`delivered ${ils(perKgWinner.totalIls)}`));
+  check('desktop: the cheapest per-kilogram offer is called out with its real pack contents when it differs from the cheapest total', perKgCalledOut,
+    perKgWinner ? `perKg=${perKgWinner.key} ${ils(perKgWinner.ilsPerKg)} best=${best.key}` : 'no separate per-kg winner');
+  check('desktop: offers for another variant are reported as excluded, not merged',
+    Number(api500.counts?.excludedByVariant) >= 1
+      && desktop.metaLines.some(line => line.includes(`${api500.counts.excludedByVariant} observed offer(s) for another blend variant`) && line.includes('Switch the variant control')),
+    `excluded=${api500.counts?.excludedByVariant}`);
+  check('desktop: unknown-shipping offers are absent from the fixture board but the section explains that nothing is missing',
+    desktop.unknownSection === true && desktop.unknownCards.length === 0 && /Nothing is missing right now/.test(desktop.unknownText ?? ''),
+    desktop.unknownText);
+  check('desktop: pickup-only offers stay in their own section, out of the delivered ranking',
+    desktop.pickupRows.length === api500.pickup.length && api500.pickup.length >= 1 && desktop.pickupHeader === 'Pickup-only offers',
+    `rows=${desktop.pickupRows.length} api=${api500.pickup.length} header=${desktop.pickupHeader}`);
+  const pickupShowsFee = desktop.pickupRows.every(text => /Pickup fee/.test(text) && /Not applicable/.test(text) && /Self-pickup, not delivery/.test(text));
+  check('desktop: pickup rows show the pickup fee and say a delivered total does not apply', pickupShowsFee,
+    desktop.pickupRows[0]?.slice(0, 240));
   check('desktop: destination selector lists Israeli localities', desktop.destinationOptions.length >= 5, desktop.destinationOptions.join(' | '));
   check('desktop: quantity control marks 500 g pressed', desktop.quantityPressed.some(([label, pressed]) => label === '500 g' && pressed === 'true'), desktop.quantityPressed.join(' | '));
   check('desktop: no emoji in visible text', !EMOJI.test(desktop.visibleText), 'emoji scan');
@@ -153,112 +321,67 @@ try {
   check('desktop: footer reports the last completed refresh instead of a static waiting message',
     /Last completed refresh:/.test(desktop.footerStatus ?? '') && !/Waiting for the first refresh/.test(desktop.footerStatus ?? ''),
     desktop.footerStatus);
-  const coverageCaveat = best.shipping?.coverageCaveat ?? null;
-  check('desktop: a published rate without a published locality list is disclosed as a coverage caveat',
-    coverageCaveat
-      ? desktop.bestTerms.includes('Delivery coverage')
-        && (desktop.bestValues[desktop.bestTerms.indexOf('Delivery coverage')] ?? '').includes('localities')
-      : true,
-    coverageCaveat ? `${desktop.bestTerms.join(' | ')} :: ${desktop.bestValues.join(' | ')}` : 'no caveat in the API payload');
-  const itemMathOk = api500.ranked.length >= 2 && api500.ranked.every((quote, index) => {
-    const cell = desktop.compareItemCells[index] ?? '';
-    return cell.includes(`${ils(quote.itemPrice.amount)} ${quote.itemPrice.currency} × ${quote.units} = ${ils(quote.itemTotalIls)}`);
-  });
-  check('desktop: item-price cells show unit price × packs bought = ILS line total', itemMathOk, desktop.compareItemCells.join(' | '));
-  check('desktop: shipping certainty is written as text next to the rate',
-    desktop.bestTerms.includes('Shipping certainty')
-      && (desktop.bestValues[desktop.bestTerms.indexOf('Shipping certainty')] ?? '').includes(best.shipping.certaintyLabel ?? '')
-      && api500.ranked.every((quote, index) => (desktop.compareShippingCells[index] ?? '').includes(quote.shipping.certaintyLabel ?? '')),
-    `${desktop.bestTerms.join(' | ')} :: ${desktop.bestValues.join(' | ')} :: ${desktop.compareShippingCells.join(' | ')}`);
-  const deltaTextOk = api500.ranked.length < 2 || (desktop.compareTotalCells.length === api500.ranked.length
-    && desktop.compareTotalCells[0].includes('Cheapest delivered total')
-    && desktop.compareTotalCells.slice(1).every(cell => /\+₪[\d.,]+ vs best|Same delivered total as best/.test(cell)));
-  check('desktop: comparison rows state the difference from the best delivered total', deltaTextOk, desktop.compareTotalCells.join(' | '));
   check('desktop: footer reports when the next source check is due',
-    /Next source check due \(approximate/.test(desktop.visibleText ?? ''),
-    (desktop.visibleText ?? '').split('\n').find(line => /Next source check due/.test(line)) ?? 'not found');
+    /Next source check due \(approximate/.test(desktop.footerDetails ?? ''),
+    (desktop.footerDetails ?? '').split('\n').find(line => /Next source check due/.test(line)) ?? 'not found');
 
-  // Comparison quality: when the stored observation carries the previous successful
-  // check, the UI must show the unit-price change in ILS with its timestamp. The
-  // offline fixture server attaches one clearly synthetic previous check; live runs
-  // only assert consistency when the API actually has previous evidence.
-  const bestChange = best.priceChange ?? null;
-  if (fixtureServer) {
-    check('fixtures: the CoffeeMan single pack carries synthetic previous-check metadata',
-      bestChange?.comparable === true && bestChange.direction === 'down' && bestChange.deltaIls === 2,
-      JSON.stringify(bestChange));
-  }
-  const expectedChangeText = !bestChange
-    ? null
-    : !bestChange.comparable
-      ? 'Previous price not compared:'
-      : bestChange.direction === 'same'
-        ? 'Unit price unchanged since the previous check'
-        : `Unit price ${bestChange.direction} ${ils(bestChange.deltaIls)} since the previous check`;
-  const bestChangeShown = expectedChangeText == null
-    || (desktop.bestTerms.includes('Price change')
-      && (desktop.bestValues[desktop.bestTerms.indexOf('Price change')] ?? '').includes(expectedChangeText));
-  check('desktop: price change since the previous check is shown when previous evidence exists', bestChangeShown,
-    expectedChangeText == null ? 'no previous evidence in the API payload' : `${desktop.bestTerms.join(' | ')} :: ${desktop.bestValues.join(' | ')}`);
-  const tableChangeShown = expectedChangeText == null || !bestChange.comparable
-    || (desktop.compareItemCells[0] ?? '').includes(expectedChangeText);
-  check('desktop: the comparison table repeats the previous-check price line for the best offer', tableChangeShown,
-    desktop.compareItemCells[0] ?? '');
+  // The synthetic previous check in the offline fixtures belongs to the CoffeeMan
+  // single pack, so the price change must appear in that offer's own disclosure
+  // (not on the best card, which has no previous evidence).
+  const changeTextOk = api500.ranked.every((quote, index) => {
+    const disclosure = desktop.cards[index]?.disclosure ?? '';
+    if (!quote.priceChange) return !/Unit price (up|down|unchanged)/.test(disclosure);
+    if (!quote.priceChange.comparable) return disclosure.includes('Previous price not compared:');
+    if (quote.priceChange.direction === 'same') return disclosure.includes('Unit price unchanged since the previous check');
+    return new RegExp(`Unit price ${quote.priceChange.direction} ${ils(quote.priceChange.deltaIls).replace('.', '\\.')} since the previous check`).test(disclosure);
+  });
+  check('desktop: a price change is shown in the owning offer disclosure when previous evidence exists', changeTextOk,
+    desktop.cards.map(card => card.disclosure?.slice(0, 160)).join(' || '));
+  check('desktop: every offer disclosure states its last successful check',
+    desktop.cards.every(card => /Last successful check:/.test(card.disclosure ?? '')),
+    desktop.cards.map(card => card.disclosure?.split('\n')[0]).join(' | '));
 
-  // Comparison quality: when the cheapest delivered total is not the cheapest
-  // per-kilogram offer, the board calls the bulk winner out separately without
-  // changing the ranking.
-  const perKgWinner = api500.bestPerKg ?? null;
-  const perKgIndex = perKgWinner ? api500.ranked.findIndex(quote => quote.key === perKgWinner.key) : -1;
-  if (fixtureServer) {
-    check('fixtures: the per-kilogram winner differs from the delivered winner at 500 g',
-      perKgWinner?.key != null && perKgWinner.key !== best.key,
-      `perKg=${perKgWinner?.key} best=${best.key}`);
-  }
-  const perKgCalledOut = !perKgWinner || perKgWinner.key === best.key
-    || (desktop.bestTerms.includes('Cheapest per kilogram')
-      && (desktop.bestValues[desktop.bestTerms.indexOf('Cheapest per kilogram')] ?? '').includes(`${ils(perKgWinner.ilsPerKg)} per kg`)
-      && (desktop.comparePerKgCells[perKgIndex] ?? '').includes('Cheapest per kilogram'));
-  check('desktop: the cheapest per-kilogram offer is called out when it differs from the cheapest total', perKgCalledOut,
-    perKgWinner ? `perKg=${perKgWinner.key} ${ils(perKgWinner.ilsPerKg)} best=${best.key} rows=${desktop.comparePerKgCells.join(' | ')}` : 'no separate per-kg winner');
-
-  // Unstated variant: the Coffee4U listing is never merged into the Classico
-  // ranking. It is selectable on its own, ranked with the published door-to-door
-  // rate, and the cheaper pickup-point delivery stays labelled as an alternative.
-  const apiUnstated = await fetchBoard(base, 500, 'tel-aviv', 'unspecified');
-  check('desktop: offers for another variant are reported as excluded, not merged',
-    Number(api500.counts?.excludedByVariant) >= 1 && /another blend variant/.test(desktop.visibleText),
-    `excluded=${api500.counts?.excludedByVariant}`);
+  // Variant scenario: the Coffee4U listing has no stated blend variant, so it is
+  // compared on its own instead of being merged into Classico. Its published
+  // pickup-point alternative and free self-pickup must be discoverable on the card.
   await evaluate(wd, `(() => { const select = document.getElementById('variant'); select.value = 'unspecified'; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
-  await waitForPage(wd, `document.querySelector('.best__vendor')?.textContent.includes('Coffee4U')`, 15_000, 'unstated-variant ranking', `({vendor: document.querySelector('.best__vendor')?.textContent ?? null, total: document.querySelector('.best__total')?.textContent ?? null})`);
+  await waitForPage(wd, `${BEST_VENDOR_EXPR}?.includes('Coffee4U')`, 15_000, 'unstated-variant ranking', `({vendor: ${BEST_VENDOR_EXPR}, total: ${BEST_TOTAL_EXPR}})`;
   const unstated = await evaluate(wd, `(() => {
-    const terms = [...document.querySelectorAll('.best__side dt')].map(node => node.textContent);
-    const values = [...document.querySelectorAll('.best__side dd')].map(node => node.textContent);
+    const card = document.querySelector('#ranked .offer--best');
     return {
-      vendor: document.querySelector('.best__vendor')?.textContent ?? null,
-      total: document.querySelector('.best__total')?.textContent ?? null,
-      variant: document.querySelector('.best__variant')?.textContent ?? null,
-      terms,
-      values,
-      links: [...document.querySelectorAll('.best a')].map(node => node.href),
-      rowText: [...document.querySelectorAll('table.compare tbody tr')].map(node => node.innerText)
+      vendor: card?.querySelector('.offer__vendor')?.innerText.trim() ?? null,
+      total: card?.querySelector('.totals__cell--total .totals__value')?.textContent ?? null,
+      pack: card?.querySelector('.offer__pack')?.textContent ?? null,
+      shipping: card?.querySelectorAll('.totals__cell')[1]?.querySelector('.totals__value')?.textContent ?? null,
+      conditions: [...(card?.querySelectorAll('.conditions li') ?? [])].map(n => n.textContent),
+      caveats: [...(card?.querySelectorAll('.caveat') ?? [])].map(n => n.textContent),
+      link: card?.querySelector('.offer__links a')?.href ?? null,
+      variantOptions: [...document.querySelectorAll('#variant option')].map(n => n.textContent.trim()),
+      excludedLine: [...document.querySelectorAll('#ranked .meta-line')].map(n => n.innerText).find(line => /another blend variant/.test(line)) ?? null
     };
   })()`);
   const expectedUnstated = ils(apiUnstated.best?.totalIls);
   check(`variant: the unstated-variant listing ranks on its own at ${expectedUnstated}`,
-    unstated.vendor?.includes('Coffee4U') && unstated.total === expectedUnstated && /Variant not stated/.test(unstated.variant ?? ''),
-    `${unstated.vendor} ${unstated.total} vs ${expectedUnstated} (${unstated.variant})`);
+    (unstated.vendor ?? '').includes('Coffee4U') && unstated.total === expectedUnstated && (unstated.pack ?? '').includes('Variant not stated'),
+    `${unstated.vendor} ${unstated.total} vs ${expectedUnstated} (${unstated.pack})`);
   check('variant: the published door-to-door rate is the ranked shipping amount',
-    unstated.terms.includes('Shipping') && unstated.values[unstated.terms.indexOf('Shipping')] === ils(apiUnstated.best?.shipping?.amountIls),
-    `${unstated.terms.join(' | ')} :: ${unstated.values.join(' | ')}`);
-  check('variant: the cheaper pickup-point delivery is labelled as an alternative shipping service',
-    unstated.terms.some(term => /pickup point/i.test(term)) && unstated.values.some(value => /published alternative shipping service/.test(value)),
-    unstated.terms.join(' | '));
+    unstated.shipping === ils(apiUnstated.best?.shipping?.amountIls), `${unstated.shipping} vs ${ils(apiUnstated.best?.shipping?.amountIls)}`);
+  check('variant: the published pickup-point alternative and free self-pickup are on the card',
+    unstated.conditions.some(text => /pickup point/i.test(text) && text.includes(ils(15)))
+      && unstated.conditions.some(text => /Self-pickup: .*Free self-pickup at the shop/.test(text)),
+    unstated.conditions.join(' | '));
+  check('variant: the unstated-variant coverage caveat is disclosed on the card',
+    unstated.caveats.some(text => text.includes(apiUnstated.best?.shipping?.coverageCaveat ?? 'never')),
+    unstated.caveats.join(' | '));
+  check('variant: the variant control offers "Variant not stated" without a hidden reveal',
+    unstated.variantOptions.some(text => text.startsWith('Variant not stated')), unstated.variantOptions.join(' | '));
+  check('variant: the excluded Classico offers are named in the comparison note',
+    /1 observed offer\(s\) for another blend variant \(Classico\)/.test(unstated.excludedLine ?? ''), unstated.excludedLine);
   check('variant: the ranked offer keeps its vendor page link',
-    (unstated.links ?? []).some(href => href === apiUnstated.best?.itemUrl), (unstated.links ?? []).join(' '));
+    unstated.link === apiUnstated.best?.itemUrl, `${unstated.link} vs ${apiUnstated.best?.itemUrl}`);
   await screenshot(wd, 'desktop-1440-unstated-variant.png');
   await evaluate(wd, `(() => { const select = document.getElementById('variant'); select.value = 'classico'; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
-  await waitForPage(wd, `document.querySelector('.best__vendor')?.textContent.includes('CoffeeMan')`, 15_000, 'restore classico ranking', `({vendor: document.querySelector('.best__vendor')?.textContent ?? null})`);
+  await waitForPage(wd, `${BEST_VENDOR_EXPR}?.includes('Pucks')`, 15_000, 'restore classico ranking', `({vendor: ${BEST_VENDOR_EXPR}})`;
   await screenshot(wd, 'desktop-1440.png');
 
   // Owner correction 2026-10-12: exactly one product line is tracked. The UI must not
@@ -267,18 +390,10 @@ try {
   check('product: the catalog exposes only the tracked Crema e Gusto line',
     catalog.products.length === 1 && catalog.products[0].id === 'lavazza-crema-e-gusto-vacuum-ground',
     catalog.products.map(item => item.id).join(' | '));
-  const productControls = await evaluate(wd, `({
-    selectorHidden: document.getElementById('product')?.hidden ?? null,
-    staticLabel: document.getElementById('product-static')?.textContent ?? null,
-    staticHidden: document.getElementById('product-static')?.hidden ?? null,
-    options: [...document.querySelectorAll('#product option')].map(node => node.textContent.trim()),
-    intro: document.querySelector('.section__intro')?.textContent ?? null
-  })`);
   check('product: the selector is a static tracked-product label, not a retired-line picker',
-    productControls.selectorHidden === true && productControls.options.length === 1
-      && /Lavazza Crema e Gusto/.test(productControls.staticLabel ?? '') && productControls.staticHidden === false
-      && /Crema e Gusto/.test(productControls.intro ?? ''),
-    JSON.stringify(productControls));
+    desktop.productSelectHidden === true && desktop.productOptions.length === 1
+      && /Lavazza Crema e Gusto/.test(desktop.productStatic ?? ''),
+    JSON.stringify({ hidden: desktop.productSelectHidden, options: desktop.productOptions, label: desktop.productStatic }));
   await screenshot(wd, 'desktop-1440-product-scope.png');
 
   // An old product query URL naming a retired line falls back to the tracked product
@@ -287,16 +402,15 @@ try {
   await waitForBoard(wd);
   const retiredUrl = await evaluate(wd, `(() => ({
     notice: document.getElementById('retired-product-notice')?.innerText ?? null,
-    intro: document.querySelector('.section__intro')?.textContent ?? null,
-    bestVendor: document.querySelector('.best__vendor')?.textContent ?? null,
-    bestTotal: document.querySelector('.best__total')?.textContent ?? null,
+    bestVendor: ${BEST_VENDOR_EXPR},
+    bestTotal: ${BEST_TOTAL_EXPR},
     bodyText: document.body.innerText,
     staticLabel: document.getElementById('product-static')?.textContent ?? null
   }))()`);
   check('product: a retired-line query URL falls back to Crema e Gusto with a written notice',
     /retired product line/i.test(retiredUrl.notice ?? '') && /Qualità Oro/.test(retiredUrl.notice ?? '')
-      && /Crema e Gusto/.test(retiredUrl.intro ?? '') && /Lavazza Crema e Gusto/.test(retiredUrl.staticLabel ?? '')
-      && retiredUrl.bestVendor === best.vendor.name && retiredUrl.bestTotal === expected500
+      && /Lavazza Crema e Gusto/.test(retiredUrl.staticLabel ?? '')
+      && (retiredUrl.bestVendor ?? '').includes(best.vendor.name) && retiredUrl.bestTotal === expected500
       && !/Qualità Rossa|Lavazza Suerte/.test(retiredUrl.bodyText ?? ''),
     retiredUrl.notice);
   await screenshot(wd, 'desktop-1440-retired-url.png');
@@ -308,8 +422,8 @@ try {
   await wd('POST', '/url', { url: `${base}/?grams=500&dest=tel-aviv&variant=nope` });
   await waitForBoard(wd);
   const fallbackVariant = await evaluate(wd, `({
-    vendor: document.querySelector('.best__vendor')?.textContent ?? null,
-    total: document.querySelector('.best__total')?.textContent ?? null,
+    vendor: ${BEST_VENDOR_EXPR},
+    total: ${BEST_TOTAL_EXPR},
     variantValue: document.getElementById('variant')?.value ?? null
   })`);
   check('variant: a URL with an untracked variant id falls back to the product default',
@@ -319,10 +433,10 @@ try {
   // Quantity interaction: click "1 kg".
   const kgButton = await wd('POST', '/element', { using: 'css selector', value: '#quantity-group button[data-grams="1000"]' });
   await wd('POST', `/element/${elementId(kgButton)}/click`, {});
-  await waitForPage(wd, `document.querySelector('.best__total')?.textContent === ${JSON.stringify(expected1000)}`, 15_000, `quantity update to 1 kg (${expected1000})`, `({total: document.querySelector('.best__total')?.textContent ?? null, search: location.search, pressed: [...document.querySelectorAll('#quantity-group button')].map(b => b.getAttribute('aria-pressed'))})`);
+  await waitForPage(wd, `${BEST_TOTAL_EXPR} === ${JSON.stringify(expected1000)}`, 15_000, `quantity update to 1 kg (${expected1000})`, `({total: ${BEST_TOTAL_EXPR}, search: location.search, pressed: [...document.querySelectorAll('#quantity-group button')].map(b => b.getAttribute('aria-pressed'))})`);
   const kgState = await evaluate(wd, `({
-    total: document.querySelector('.best__total')?.textContent,
-    perKg: document.querySelector('.best__perkg')?.textContent,
+    total: ${BEST_TOTAL_EXPR},
+    perKg: document.querySelector('#ranked .offer--best .totals__cell--total .totals__meta')?.textContent ?? null,
     url: location.search
   })`);
   check(`interaction: 1 kg updates the delivered total to ${expected1000}`, kgState.total === expected1000, JSON.stringify(kgState));
@@ -332,16 +446,8 @@ try {
   // Destination change.
   await evaluate(wd, `(() => { const select = document.getElementById('destination'); select.value = 'eilat'; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
   await waitForPage(wd, `document.querySelector('.section__intro')?.textContent.includes(${JSON.stringify(eilatLabel)})`, 15_000, 'destination update');
-  const eilat = await evaluate(wd, `({ intro: document.querySelector('.section__intro')?.textContent, total: document.querySelector('.best__total')?.textContent })`);
+  const eilat = await evaluate(wd, `({ intro: document.querySelector('.section__intro')?.textContent, total: ${BEST_TOTAL_EXPR} })`);
   check(`interaction: destination change recalculates for ${eilatLabel}`, /Eilat/.test(eilat.intro ?? '') && eilat.total === expected1000Eilat, `${eilat.intro} · ${eilat.total} vs ${expected1000Eilat}`);
-
-  // Unknown toggle.
-  await evaluate(wd, `(() => { const box = document.getElementById('show-unknown'); box.checked = false; box.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
-  await waitForPage(wd, `!document.getElementById('unknown')`, 15_000, 'unknown section hidden');
-  const hiddenUnknown = await evaluate(wd, `document.getElementById('unknown') === null`);
-  check('interaction: unrankable offers can be hidden but are visible by default', hiddenUnknown === true);
-  await evaluate(wd, `(() => { const box = document.getElementById('show-unknown'); box.checked = true; box.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
-  await waitForPage(wd, `!!document.getElementById('unknown')`, 15_000, 'unknown section restored');
 
   // Keyboard: focus the first quantity button, Tab to the next, then activate it with Enter.
   await evaluate(wd, `(() => { document.querySelector('#quantity-group button[data-grams="250"]').focus(); return true; })()`);
@@ -354,7 +460,7 @@ try {
   check('keyboard: Tab moves focus to the next quantity button', keyboard.tag === 'BUTTON' && keyboard.label === '500 g', JSON.stringify(keyboard));
   check('keyboard: focused control shows a visible outline', keyboard.outlineStyle !== 'none' && parseFloat(keyboard.outlineWidth) >= 2, `${keyboard.outlineStyle} ${keyboard.outlineWidth}`);
   await wd('POST', '/actions', { actions: [{ type: 'key', id: 'keyboard', actions: [{ type: 'keyDown', value: '\uE007' }, { type: 'keyUp', value: '\uE007' }] }] });
-  await waitForPage(wd, `document.querySelector('.best__total')?.textContent === ${JSON.stringify(expected500Eilat)}`, 15_000, `keyboard activation of the 500 g quantity (${expected500Eilat} to ${eilatLabel})`, `({total: document.querySelector('.best__total')?.textContent ?? null, search: location.search})`);
+  await waitForPage(wd, `${BEST_TOTAL_EXPR} === ${JSON.stringify(expected500Eilat)}`, 15_000, `keyboard activation of the 500 g quantity (${expected500Eilat} to ${eilatLabel})`, `({total: ${BEST_TOTAL_EXPR}, search: location.search})`);
   check('keyboard: Enter activates the focused quantity and updates the total', true, `total ${expected500Eilat}`);
   await wd('DELETE', '/actions');
 
@@ -363,22 +469,31 @@ try {
   await wd('POST', '/url', { url: `${base}/?grams=500&dest=tel-aviv` });
   await waitForBoard(wd);
   const mobile = await evaluate(wd, `(() => {
-    const rect = document.querySelector('.best').getBoundingClientRect();
+    const bestCard = document.querySelector('#ranked .offer--best');
+    const rect = bestCard.getBoundingClientRect();
     const controls = getComputedStyle(document.querySelector('.controls')).gridTemplateColumns;
-    const table = document.querySelector('table.compare');
-    const bodyOverflow = document.documentElement.scrollWidth > window.innerWidth + 1;
+    const cells = [...document.querySelectorAll('#ranked .offer--best .totals__cell')].map(cell => {
+      const r = cell.getBoundingClientRect();
+      return { left: Math.round(r.left), right: Math.round(r.right) };
+    });
     return {
       bestFits: rect.width <= window.innerWidth + 1,
+      bestTop: Math.round(rect.top),
+      cells,
       controlColumns: controls,
-      tableScrolls: table ? table.closest('.table-wrap').scrollWidth > table.closest('.table-wrap').clientWidth : 'no table',
-      bodyOverflow,
-      minTap: Math.min(...[...document.querySelectorAll('#quantity-group button')].map(b => b.getBoundingClientRect().height))
+      bodyOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+      minTap: Math.min(...[...document.querySelectorAll('#quantity-group button')].map(b => b.getBoundingClientRect().height)),
+      pickupRows: document.querySelectorAll('#pickup .pickup-row').length
     };
   })()`);
-  check('mobile: best-choice panel fits the viewport', mobile.bestFits === true, JSON.stringify(mobile));
+  report.mobile = mobile;
+  check('mobile: best-choice card fits the viewport', mobile.bestFits === true, JSON.stringify(mobile));
+  check('mobile: the decision values stay inside the viewport', mobile.cells.every(cell => cell.left >= 0 && cell.right <= 390 + 1), JSON.stringify(mobile.cells));
   check('mobile: controls reflow to a single column', !mobile.controlColumns.includes(' '), mobile.controlColumns);
   check('mobile: page does not scroll horizontally', mobile.bodyOverflow === false, JSON.stringify(mobile));
   check('mobile: quantity buttons keep a 44px touch target', mobile.minTap >= 44, String(mobile.minTap));
+  check('mobile: the best offer is not pushed far below the first screen', mobile.bestTop < 2 * 844, `top=${mobile.bestTop}`);
+  check('mobile: pickup-only offers remain visible in their own section', mobile.pickupRows === api500.pickup.length, `rows=${mobile.pickupRows}`);
   await screenshot(wd, 'mobile-390.png');
 
   // Shipping-terms scenario: a second fixture server adds one clearly labelled QA-only demo
@@ -392,23 +507,22 @@ try {
     await wd('POST', '/url', { url: `${termsServer.url}/?grams=2000&dest=tel-aviv` });
     await waitForBoard(wd);
     const terms = await evaluate(wd, `(() => {
-      const dl = document.querySelector('.best__side dl');
-      const dts = dl ? [...dl.querySelectorAll('dt')] : [];
-      const dds = dl ? [...dl.querySelectorAll('dd')] : [];
+      const card = document.querySelector('#ranked .offer--best');
       return {
-        rows: dts.map((dt, index) => [dt.textContent.trim(), (dds[index]?.textContent ?? '').trim()]),
-        total: document.querySelector('.best__total')?.textContent ?? null,
-        labels: [...document.querySelectorAll('.best__side .unknown__reason')].map(node => node.textContent.trim()),
+        vendor: card?.querySelector('.offer__vendor')?.innerText.trim() ?? null,
+        total: card?.querySelector('.totals__cell--total .totals__value')?.textContent ?? null,
+        shipping: card?.querySelectorAll('.totals__cell')[1]?.querySelector('.totals__value')?.textContent ?? null,
+        conditions: [...(card?.querySelectorAll('.conditions li') ?? [])].map(n => n.textContent),
         footer: document.getElementById('footer-status')?.textContent ?? null
       };
     })()`);
     check('terms: demo offer is the ranked best for 2 kg', terms2000.best?.vendor.id === 'qa-terms-demo' && terms.total === expectedTermsTotal, `${terms.total} vs ${expectedTermsTotal} (${terms2000.best?.vendor.id})`);
-    check('terms: minimum order is displayed', terms.rows.some(([term, value]) => term === 'Minimum order' && value === '₪30.00 ILS'), JSON.stringify(terms.rows));
-    check('terms: free-shipping threshold is displayed', terms.rows.some(([term, value]) => term === 'Free shipping' && value === 'from ₪100.00 ILS'), JSON.stringify(terms.rows));
-    check('terms: locality-restricted delivery area is displayed', terms.rows.some(([term, value]) => term === 'Delivery area' && value === 'Only: tel-aviv, eilat'), JSON.stringify(terms.rows));
+    check('terms: minimum order is displayed', terms.conditions.includes('Minimum order ₪30.00'), terms.conditions.join(' | '));
     check('terms: met free-shipping threshold shows Free and a written label',
-      terms.rows.some(([term, value]) => term === 'Shipping' && value === 'Free') && terms.labels.some(text => text.includes('Free shipping threshold met')),
-      JSON.stringify(terms.labels));
+      terms.conditions.includes('Free-shipping threshold met (from ₪100.00)') && terms.shipping === 'Free (threshold met)',
+      `${terms.shipping} :: ${terms.conditions.join(' | ')}`);
+    check('terms: locality-restricted delivery area is displayed with locality labels',
+      terms.conditions.includes('Delivery area: only Tel Aviv–Yafo, Eilat'), terms.conditions.join(' | '));
     check('freshness: a stopped scheduled refresh is labelled in the footer',
       /No completed scheduled refresh for 30 h/.test(terms.footer ?? ''),
       terms.footer);
@@ -417,14 +531,56 @@ try {
     await wd('POST', '/url', { url: `${termsServer.url}/?grams=2000&dest=jerusalem` });
     await waitForBoard(wd);
     const restricted = await evaluate(wd, `(() => ({
-      bestVendor: document.querySelector('.best__vendor')?.textContent ?? null,
-      reasons: [...document.querySelectorAll('.unknown__reason')].map(node => node.textContent.trim())
+      bestVendor: ${BEST_VENDOR_EXPR},
+      reasons: [...document.querySelectorAll('#unknown .unknown__reason')].map(node => node.textContent.trim())
     }))()`);
     check('terms: locality restriction moves the demo offer to the unknown list for Jerusalem',
       restricted.reasons.some(text => text.includes('does not include')),
       JSON.stringify(restricted.reasons));
   } finally {
     await termsServer.close();
+  }
+
+  // Unknown-shipping scenario: a QA-only offer with no published rate must stay
+  // visible with the exact reason and must never be counted as free or ranked.
+  const unknownServer = await startQaServer({ port: 0, withUnknownDemo: true });
+  try {
+    report.unknownDataSource = 'QA-only offer without a shipping rate added to the recorded fixtures (not a vendor)';
+    const unknownBoard = await fetchBoard(unknownServer.url, 500, 'tel-aviv');
+    const demoQuote = unknownBoard.unrankable.find(quote => quote.vendor.id === 'qa-unknown-demo') ?? null;
+    check('unknown: the QA-only no-rate offer is unrankable with a plain-language reason',
+      demoQuote != null && demoQuote.reasons.some(reason => /treated as unknown, not free/.test(reason)),
+      JSON.stringify(demoQuote?.reasons));
+    check('unknown: the no-rate offer never appears in the ranked delivered totals',
+      unknownBoard.ranked.every(quote => quote.vendor.id !== 'qa-unknown-demo') && unknownBoard.best?.vendor.id !== 'qa-unknown-demo',
+      `ranked=${unknownBoard.ranked.map(quote => quote.vendor.id).join(',')}`);
+    await wd('POST', '/url', { url: `${unknownServer.url}/?grams=500&dest=tel-aviv` });
+    await waitForBoard(wd);
+    const unknownUi = await evaluate(wd, `(() => ({
+      rankedVendors: [...document.querySelectorAll('#ranked .offer__vendor')].map(n => n.innerText),
+      cards: [...document.querySelectorAll('#unknown .unknown')].map(node => node.textContent),
+      bodyText: document.body.innerText
+    }))()`);
+    const demoCard = unknownUi.cards.find(text => text.includes('no shipping rate')) ?? null;
+    check('unknown: the no-rate offer is rendered with "Shipping not published" and the missing-rate explanation',
+      demoCard != null
+        && demoCard.includes('Shipping not published')
+        && demoCard.includes('A missing rate is never counted as free')
+        && demoCard.includes('Item subtotal: ₪48.00'),
+      demoCard?.slice(0, 320));
+    check('unknown: the no-rate offer stays out of the ranked cards',
+      unknownUi.rankedVendors.every(text => !text.includes('no shipping rate')),
+      unknownUi.rankedVendors.join(' | '));
+
+    // The "Show offers that cannot be ranked" toggle hides and restores the section.
+    await evaluate(wd, `(() => { const box = document.getElementById('show-unknown'); box.checked = false; box.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+    await waitForPage(wd, `!document.getElementById('unknown')`, 15_000, 'unknown section hidden');
+    check('unknown: unrankable offers can be hidden but are visible by default', await evaluate(wd, `document.getElementById('unknown') === null`) === true);
+    await evaluate(wd, `(() => { const box = document.getElementById('show-unknown'); box.checked = true; box.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+    await waitForPage(wd, `!!document.getElementById('unknown')`, 15_000, 'unknown section restored');
+    await screenshot(wd, 'desktop-1440-unknown-shipping.png');
+  } finally {
+    await unknownServer.close();
   }
 
   // Interrupted-refresh scenario: the store holds fresh saved observations but the
@@ -463,39 +619,35 @@ try {
         && failedBest?.attemptedAt != null
         && failedBest.attemptedAt !== failedBest.observedAt,
       JSON.stringify({ observedAt: failedBest?.observedAt, attemptedAt: failedBest?.attemptedAt, lastError: failedBest?.lastError }));
-    const failedUnrankable = failedBoard.unrankable.find(quote => quote.vendor.id === 'pucks') ?? null;
-    check('failure: the unrankable fixture offer also carries its failed attempt',
-      failedUnrankable?.lastAttemptFailed === true,
-      JSON.stringify({ lastAttemptFailed: failedUnrankable?.lastAttemptFailed, lastError: failedUnrankable?.lastError }));
+    const failedSingle = failedBoard.ranked.find(quote => quote.vendor.id === 'coffeeman' && (quote.product.packCount ?? 1) === 1) ?? null;
+    const cleanFourPack = failedBoard.ranked.find(quote => quote.vendor.id === 'coffeeman' && (quote.product.packCount ?? 1) === 4) ?? null;
+    check('failure: only the failed vendor rows carry the failed attempt',
+      failedSingle?.lastAttemptFailed === true && cleanFourPack?.lastAttemptFailed === false,
+      JSON.stringify({ single: failedSingle?.lastAttemptFailed, fourPack: cleanFourPack?.lastAttemptFailed }));
     await wd('POST', '/url', { url: `${failedServer.url}/?grams=500&dest=tel-aviv` });
     await waitForBoard(wd);
-    const failedUi = await evaluate(wd, `(() => {
-      const dl = document.querySelector('.best__side dl');
-      const dts = dl ? [...dl.querySelectorAll('dt')] : [];
-      const dds = dl ? [...dl.querySelectorAll('dd')] : [];
-      return {
-        rows: dts.map((dt, index) => [dt.textContent.trim(), (dds[index]?.textContent ?? '').trim()]),
-        compareCheckedCells: [...document.querySelectorAll('table.compare tbody tr td:nth-child(8)')].map(n => n.innerText),
-        unknownText: [...document.querySelectorAll('.unknown__grid span, .unknown__reason, .unknown__meta')].map(n => n.textContent.trim()).join(' | '),
-        visibleText: document.body.innerText,
-        footer: document.getElementById('footer-status')?.textContent ?? null
-      };
-    })()`);
-    const lastAttemptRow = failedUi.rows.find(([term]) => term === 'Last attempt') ?? null;
-    check('failure: best-offer card says the last attempt failed and names the last successful observation',
-      lastAttemptRow != null && /^Failed /.test(lastAttemptRow[1]) && /showing the last successful observation/.test(lastAttemptRow[1]),
-      JSON.stringify(lastAttemptRow));
-    check('failure: comparison row repeats the failed last attempt next to the checked time',
-      failedUi.compareCheckedCells.some(cell => /Last attempt failed/.test(cell)),
-      failedUi.compareCheckedCells.join(' | '));
-    check('failure: unknown-list offer shows the failed attempt with its reason',
-      /Last attempt: .*failed: HTTP 503/.test(failedUi.unknownText),
-      failedUi.unknownText.slice(0, 300));
-    check('failure: footer names the failing source, its consecutive failures and next attempt',
+    const failedUi = await evaluate(wd, `(() => ({
+      cards: [...document.querySelectorAll('#ranked .offer')].map(node => ({
+        vendor: node.querySelector('.offer__vendor')?.innerText ?? null,
+        pack: node.querySelector('.offer__pack')?.textContent ?? null,
+        disclosure: node.querySelector('.disclosure')?.textContent ?? null
+      })),
+      visibleText: document.body.innerText,
+      footerDetails: document.querySelector('.site-footer details')?.textContent ?? null
+    }))()`);
+    const failedBestCard = failedUi.cards[0] ?? null;
+    const failedSingleCard = failedUi.cards.find(card => /CoffeeMan/.test(card.vendor ?? '') && /^250 g pack · 1 × 250 g pack/.test(card.pack ?? '')) ?? null;
+    check('failure: best-offer disclosure says the last attempt failed and names the last successful check',
+      /Last successful check:/.test(failedBestCard?.disclosure ?? '') && /Last attempt failed /.test(failedBestCard?.disclosure ?? '') && /HTTP 503/.test(failedBestCard?.disclosure ?? ''),
+      failedBestCard?.disclosure?.slice(0, 240));
+    check('failure: the affected other offer repeats the failed attempt in its own disclosure',
+      /Last attempt failed /.test(failedSingleCard?.disclosure ?? ''),
+      failedSingleCard?.disclosure?.slice(0, 240));
+    check('failure: footer names the failing sources, their consecutive failures and next attempt',
       /source\(s\) failing/i.test(failedUi.visibleText ?? '')
-        && /consecutive failure\(s\)/i.test(failedUi.visibleText ?? '')
-        && /last error: HTTP 503/i.test(failedUi.visibleText ?? ''),
-      (failedUi.visibleText ?? '').split('\n').filter(line => /failing|consecutive|last error/i.test(line)).join(' | '));
+        && /consecutive failure\(s\)/i.test(failedUi.footerDetails ?? '')
+        && /last error: HTTP 503/i.test(failedUi.footerDetails ?? ''),
+      (failedUi.footerDetails ?? '').split('\n').filter(line => /failing|consecutive|last error/i.test(line)).join(' | '));
   } finally {
     await failedServer.close();
   }
@@ -588,7 +740,7 @@ async function waitForPage(wd, expression, timeoutMs, label, probe) {
 }
 
 async function waitForBoard(wd) {
-  await waitFor(async () => evaluate(wd, `document.body.dataset.boardState === 'ready' && !!document.querySelector('.best, .empty')`), 20_000, 'board render');
+  await waitFor(async () => evaluate(wd, `document.body.dataset.boardState === 'ready' && !!document.querySelector('#ranked .offer, .empty')`), 20_000, 'board render');
 }
 
 async function screenshot(wd, name) {

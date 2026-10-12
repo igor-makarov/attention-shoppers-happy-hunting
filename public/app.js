@@ -477,20 +477,33 @@ function offerDeltaText(quote, board, best) {
   return `+${money(delta)} vs best delivered total`;
 }
 
-function renderPickupSection(pickup) {
-  const only = pickup.filter(quote => quote.shipping?.mode === 'pickup');
-  if (!only.length) return null;
+function renderPickupSection(pickup = []) {
+  if (!pickup.length) return null;
   const section = el('section', { class: 'section', attrs: { id: 'pickup', 'aria-labelledby': 'pickup-title' } });
   section.append(el('div', { class: 'section__head' },
     el('div', { class: 'section__kicker', text: '02 / Pickup only' }),
     el('h2', { attrs: { id: 'pickup-title' }, text: 'Pickup-only offers' }),
     el('p', { class: 'section__intro', text: 'Pickup is not a delivered price and never competes in the delivered ranking. Pickup that accompanies a delivered offer is shown on that offer card.' })));
-  for (const quote of only) {
+  for (const quote of pickup) {
+    // Pickup entries keep the delivery observation but carry their own pickup
+    // terms: show the pickup fee and say plainly that no delivered total applies.
+    const pickupFee = quote.pickup?.amount?.amount;
     section.append(el('div', { class: 'pickup-row' },
       el('div', { class: 'unknown__vendor' }, bidi(quote.vendor.name)),
       el('div', { class: 'unknown__meta' }, bidi(quote.product.name ?? '')),
       el('div', { class: 'unknown__meta', text: `${packDescription(quote)} · ${quantityDescription(quote)}` }),
-      totalsBlock(quote, { perKg: false }),
+      el('div', { class: 'totals' },
+        el('div', { class: 'totals__cell' },
+          el('span', { class: 'totals__label', text: 'Item subtotal' }),
+          el('span', { class: 'totals__value num', text: itemSubtotalText(quote) })),
+        el('div', { class: 'totals__cell' },
+          el('span', { class: 'totals__label', text: 'Pickup fee' }),
+          el('span', { class: 'totals__value num', text: pickupFee === 0 ? 'Free' : pickupFee != null ? money(pickupFee) : 'See vendor policy' }),
+          el('span', { class: 'totals__meta', text: 'Self-pickup, not delivery' })),
+        el('div', { class: 'totals__cell totals__cell--total' },
+          el('span', { class: 'totals__label', text: 'Delivered total' }),
+          el('span', { class: 'totals__value', text: 'Not applicable' }),
+          el('span', { class: 'totals__meta', text: 'Pickup only — no delivery' }))),
       el('p', { class: 'unknown__reason', text: [quote.pickup?.note, quote.labels.join('. ')].filter(Boolean).join(' ') }),
       el('p', {}, offerLink(quote))));
   }

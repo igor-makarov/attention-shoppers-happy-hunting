@@ -130,12 +130,52 @@ export function termsDemoObservation(now = Date.now()) {
 }
 
 /**
+ * QA-only synthetic offer with no published shipping rate. It exists because
+ * every recorded vendor now carries a researched rate, so the "Shipping not
+ * published" path would otherwise be untested in the browser. It is never part
+ * of the production board and is clearly labelled as a fixture.
+ */
+export function unknownShippingDemoObservation(now = Date.now()) {
+  return createObservation({
+    vendor: { id: 'qa-unknown-demo', name: 'QA fixture offer (no shipping rate, not a vendor)', homepage: null },
+    itemUrl: 'https://example.invalid/qa-unknown-demo',
+    product: {
+      productId: products[0].id,
+      name: 'QA fixture: Lavazza Crema e Gusto Classico 250 g vacuum ground',
+      sku: 'QA-UNKNOWN',
+      variantId: 'classico',
+      variantLabel: 'Classico',
+      form: 'ground',
+      packGrams: 250,
+      packCount: 1,
+      totalGrams: 250,
+      category: 'QA fixture'
+    },
+    price: { amount: 24, currency: 'ILS' },
+    availability: 'in_stock',
+    availabilityEvidence: {
+      url: 'https://example.invalid/qa-unknown-demo',
+      value: 'fixture',
+      note: 'Synthetic QA-only record: not an observation of any real vendor.'
+    },
+    shipping: {
+      mode: 'delivery',
+      certainty: 'unknown',
+      destination: { scope: 'country', country: 'IL' },
+      note: 'QA-only demo: no public shipping rate. Not a real vendor listing.'
+    },
+    now
+  });
+}
+
+/**
  * Start a local HTTP server that behaves like the deployed read-only board.
  * Returns { url, port, observations, close }.
  */
-export async function startQaServer({ port = 0, now = Date.now(), withTermsDemo = false, staleRefresh = false, interruptedRefresh = false, failedAttempt = false } = {}) {
+export async function startQaServer({ port = 0, now = Date.now(), withTermsDemo = false, withUnknownDemo = false, staleRefresh = false, interruptedRefresh = false, failedAttempt = false } = {}) {
   const observations = await fixtureObservations(failedAttempt ? now - 30 * 60 * 1000 : now);
   if (withTermsDemo) observations.push(termsDemoObservation(now));
+  if (withUnknownDemo) observations.push(unknownShippingDemoObservation(now));
   // `failedAttempt` simulates the most recent vendor check failing while the last
   // successful observation is preserved: the fixture pages are parsed 30 minutes
   // before the server's reference time, then the ranked CoffeeMan offer and the
@@ -157,7 +197,7 @@ export async function startQaServer({ port = 0, now = Date.now(), withTermsDemo 
   // writing the completion marker (for example a redeploy killed the background job).
   const lastRefreshAt = interruptedRefresh ? null : new Date(staleRefresh ? now - 30 * 60 * 60 * 1000 : now).toISOString();
   const server = createServer((request, response) => {
-    handle(request, response, { observations, now, withTermsDemo, lastRefreshAt, staleRefresh, interruptedRefresh, failedAttempt }).catch(error => {
+    handle(request, response, { observations, now, withTermsDemo, withUnknownDemo, lastRefreshAt, staleRefresh, interruptedRefresh, failedAttempt }).catch(error => {
       response.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
       response.end(`qa server error: ${error?.message ?? error}`);
     });
@@ -175,7 +215,7 @@ export async function startQaServer({ port = 0, now = Date.now(), withTermsDemo 
   };
 }
 
-async function handle(request, response, { observations, now, withTermsDemo, lastRefreshAt, staleRefresh, interruptedRefresh, failedAttempt }) {
+async function handle(request, response, { observations, now, withTermsDemo, withUnknownDemo, lastRefreshAt, staleRefresh, interruptedRefresh, failedAttempt }) {
   const url = new URL(request.url, 'http://127.0.0.1');
   if (url.pathname === '/api/catalog') {
     return json(response, {
@@ -219,14 +259,16 @@ async function handle(request, response, { observations, now, withTermsDemo, las
         : 'No offer currently has enough verified information to rank. Unknowns are listed below.',
       qa: {
         mode: 'fixtures',
-        demoOffers: withTermsDemo ? 1 : 0,
+        demoOffers: (withTermsDemo ? 1 : 0) + (withUnknownDemo ? 1 : 0),
         staleRefresh,
         interruptedRefresh,
         failedAttempt,
         previousCheckMetadata: 1,
         note: withTermsDemo
           ? 'Offline browser QA server. Recorded fixtures plus one clearly labelled QA-only terms demo offer (not a real vendor) and one synthetic previous-check price for change rendering.'
-          : 'Offline browser QA server. Data comes from tests/fixtures, not a live refresh; one offer carries synthetic previous-check metadata for change rendering.'
+          : withUnknownDemo
+            ? 'Offline browser QA server. Recorded fixtures plus one clearly labelled QA-only offer without a shipping rate (not a real vendor).'
+            : 'Offline browser QA server. Data comes from tests/fixtures, not a live refresh; one offer carries synthetic previous-check metadata for change rendering.'
       }
     });
   }
