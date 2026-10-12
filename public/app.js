@@ -424,10 +424,13 @@ function renderRankedSection(board) {
   }
   const perKgWinner = board.bestPerKg && board.best && board.bestPerKg.key !== board.best.key ? board.bestPerKg : null;
   if (perKgWinner) {
+    const pack = (perKgWinner.packCount ?? 1) > 1
+      ? `${perKgWinner.packCount} × ${perKgWinner.packGrams} g multipack`
+      : `${perKgWinner.packGrams} g pack`;
     section.append(el('p', { class: 'meta-line' },
       'Cheapest per kilogram: ',
       bidi(perKgWinner.vendor?.name ?? ''),
-      ` — ${money(perKgWinner.ilsPerKg)} per kg (${perKgWinner.units} × ${perKgWinner.packGrams} g, delivered ${money(perKgWinner.totalIls)})`));
+      ` — ${money(perKgWinner.ilsPerKg)} per kg (${perKgWinner.units} × ${pack}, delivered ${money(perKgWinner.totalIls)})`));
   }
   section.append(el('p', { class: 'meta-line', text: 'Comparison total = item subtotal + shipping + mandatory fees, converted to ILS where a stored Bank of Israel reference rate is needed. This is not a personalized checkout quote.' }));
   return section;
