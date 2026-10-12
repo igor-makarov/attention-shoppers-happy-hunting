@@ -14,6 +14,12 @@ const state = {
 
 const GRAMS_OPTIONS = [250, 500, 750, 1000, 2000];
 
+// Monotonic request token: board requests can overlap when a shopper changes the
+// quantity, destination or variant while a previous request is still in flight.
+// Only the newest request may write state, so a slow earlier response can never
+// overwrite the latest selection with a stale board.
+let loadToken = 0;
+
 const VARIANT_LABELS = { classico: 'Classico (strength 7)', forte: 'Forte', ricco: 'Ricco', risveglio: 'Risveglio', decaf: 'Decaffeinated', unspecified: 'Variant not stated' };
 
 const ILS = new Intl.NumberFormat('en-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 2 });
@@ -225,8 +231,10 @@ function offerLink(quote, label = 'Open the vendor page') {
 }
 
 async function load() {
+  const token = ++loadToken;
   try {
     const catalogResponse = await fetch('/api/catalog').then(response => response.json());
+    if (token !== loadToken) return;
     state.catalog = catalogResponse;
     applyProductDefaults();
     // A product id from the URL is sent as requested, even when it names a
@@ -234,11 +242,14 @@ async function load() {
     const requestedProduct = state.requestedProduct ?? state.product;
     const params = new URLSearchParams({ product: requestedProduct, grams: String(state.grams), dest: state.destination, variant: state.variant });
     const board = await fetch(`/api/board?${params}`).then(response => response.json());
+    if (token !== loadToken) return;
     state.board = board;
     state.error = null;
   } catch (error) {
+    if (token !== loadToken) return;
     state.error = error?.message ?? String(error);
   }
+  if (token !== loadToken) return;
   document.body.dataset.boardState = state.error ? 'error' : 'ready';
   render();
 }
