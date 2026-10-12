@@ -71,8 +71,9 @@ Observed board results (local Worker, 13:01 UTC):
 - Selecting *Variant not stated* on the crema board ranks the Coffee4U offer at ₪106.00 for 500 g
   (₪212.00/kg) with the ₪15 pickup-point delivery shown as an alternative service; it is never merged
   into the Classico ranking.
-- FX: the 12:57 live check fetched the official Bank of Israel table dated 2026-10-12 (USD 3.078);
-  earlier checks on 2026-10-12 saw the 2026-10-09 table (USD 3.055).
+- FX: the live refresh at 12:59 UTC fetched the official Bank of Israel table dated 2026-10-12
+  (USD 3.078); the 12:57 UTC adapter check does not fetch FX, and earlier checks on 2026-10-12 saw the
+  2026-10-09 table (USD 3.055).
 
 ## Verification performed (2026-10-12, all local)
 
