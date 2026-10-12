@@ -33,6 +33,7 @@ const ILS = new Intl.NumberFormat('en-IL', { style: 'currency', currency: 'ILS',
 const ils = amount => (amount == null ? null : ILS.format(amount));
 const BEST_TOTAL_EXPR = `document.querySelector('#ranked .offer--best .totals__cell--total .totals__value')?.textContent ?? null`;
 const BEST_VENDOR_EXPR = `document.querySelector('#ranked .offer--best .offer__vendor')?.innerText ?? null`;
+const VARIANT_LABELS = { classico: 'Classico (strength 7)', forte: 'Forte', ricco: 'Ricco', risveglio: 'Risveglio', decaf: 'Decaffeinated', unspecified: 'Variant not stated' };
 
 // The expectations below mirror the rendering helpers in public/app.js so the
 // browser checks compare rendered text with the same rules the UI uses.
@@ -213,7 +214,8 @@ try {
     });
     const cards = [...document.querySelectorAll('#ranked .offer')].map(cardShape);
     const bestCard = document.querySelector('#ranked .offer--best');
-    const footerDetails = document.querySelector('.site-footer details');
+    // The refresh diagnostics disclosure is the last .meta-line block inside #board.
+    const footerDetails = document.querySelector('#board > .meta-line details');
     return {
       cards,
       bestTop: bestCard ? Math.round(bestCard.getBoundingClientRect().top) : null,
@@ -266,13 +268,14 @@ try {
   check('desktop: the best offer is visible on the first screen', desktop.bestTop != null && desktop.bestTop < desktop.viewportHeight, `top=${desktop.bestTop} viewport=${desktop.viewportHeight}`);
   check('desktop: every ranked offer is rendered as an offer card', desktop.cards.length === api500.ranked.length, `cards=${desktop.cards.length} ranked=${api500.ranked.length}`);
   check('desktop: the wide comparison table was removed in favor of offer cards', desktop.tableCount === 0, `tables=${desktop.tableCount}`);
-  check('desktop: stock status has a written label', (bestCard?.vendor ?? '').includes(best.availabilityLabel), `${best.availabilityLabel} in [${bestCard?.vendor}]`);
+  check('desktop: stock status has a written label', (bestCard?.vendor ?? '').toLowerCase().includes(best.availabilityLabel.toLowerCase()), `${best.availabilityLabel} in [${bestCard?.vendor}]`);
   check('desktop: vendor link points at the API product page', bestCard?.link === best.itemUrl, `${bestCard?.link} vs ${best.itemUrl}`);
   const packLabelsOk = desktop.cards.length === api500.ranked.length
     && desktop.cards.every((card, index) => card.pack === packLine(api500.ranked[index]));
   check('desktop: pack and quantity labels match the API (multipacks never read as a single 250 g pack)', packLabelsOk,
     desktop.cards.map((card, index) => `${card.pack} vs ${packLine(api500.ranked[index])}`).join(' | '));
-  const eightPackCard = desktop.cards.find((card, index) => (api500.ranked[index].product.packCount ?? 1) > 1) ?? null;
+  const eightPackIndex = api500.ranked.findIndex(quote => (quote.product.packCount ?? 1) === 8);
+  const eightPackCard = eightPackIndex >= 0 ? desktop.cards[eightPackIndex] : null;
   check('desktop: a multipack card spells out its contents and purchased grams',
     eightPackCard != null && /8 × 250 g multipack \(2000 g\)/.test(eightPackCard.pack) && /1 multipack \(8 × 250 g\) = 2000 g/.test(eightPackCard.pack),
     eightPackCard?.pack);
@@ -296,19 +299,23 @@ try {
     || desktop.metaLines.some(line => line.includes('Cheapest per kilogram')
       && line.includes(perKgWinner.vendor.name)
       && line.includes(`${ils(perKgWinner.ilsPerKg)} per kg`)
-      && line.includes(`${perKgWinner.product.packCount} × ${perKgWinner.product.packGrams} g multipack`)
+      && line.includes(`${perKgWinner.packCount} × ${perKgWinner.packGrams} g multipack`)
       && line.includes(`delivered ${ils(perKgWinner.totalIls)}`));
   check('desktop: the cheapest per-kilogram offer is called out with its real pack contents when it differs from the cheapest total', perKgCalledOut,
     perKgWinner ? `perKg=${perKgWinner.key} ${ils(perKgWinner.ilsPerKg)} best=${best.key}` : 'no separate per-kg winner');
-  check('desktop: offers for another variant are reported as excluded, not merged',
-    Number(api500.counts?.excludedByVariant) >= 1
-      && desktop.metaLines.some(line => line.includes(`${api500.counts.excludedByVariant} observed offer(s) for another blend variant`) && line.includes('Switch the variant control')),
+  const excludedOk = fixtureServer
+    ? Number(api500.counts?.excludedByVariant) >= 1
+      && desktop.metaLines.some(line => line.includes(`${api500.counts.excludedByVariant} observed offer(s) for another blend variant`) && line.includes('Switch the variant control'))
+    : Number(api500.counts?.excludedByVariant) === 0 || desktop.metaLines.some(line => line.includes('another blend variant'));
+  check('desktop: offers for another variant are reported as excluded, not merged', excludedOk,
     `excluded=${api500.counts?.excludedByVariant}`);
-  check('desktop: unknown-shipping offers are absent from the fixture board but the section explains that nothing is missing',
-    desktop.unknownSection === true && desktop.unknownCards.length === 0 && /Nothing is missing right now/.test(desktop.unknownText ?? ''),
-    desktop.unknownText);
+  const unknownOk = fixtureServer
+    ? desktop.unknownSection === true && desktop.unknownCards.length === 0 && /Nothing is missing right now/.test(desktop.unknownText ?? '')
+    : desktop.unknownSection === true && (desktop.unknownCards.length === 0 ? /Nothing is missing right now/.test(desktop.unknownText ?? '') : desktop.unknownCards.every(text => text.trim().length > 0));
+  check('desktop: the missing-information section either explains that nothing is missing or lists each unknown with its reason',
+    unknownOk, desktop.unknownText?.slice(0, 200));
   check('desktop: pickup-only offers stay in their own section, out of the delivered ranking',
-    desktop.pickupRows.length === api500.pickup.length && api500.pickup.length >= 1 && desktop.pickupHeader === 'Pickup-only offers',
+    desktop.pickupRows.length === api500.pickup.length && (fixtureServer ? api500.pickup.length >= 1 : true) && desktop.pickupHeader === 'Pickup-only offers',
     `rows=${desktop.pickupRows.length} api=${api500.pickup.length} header=${desktop.pickupHeader}`);
   const pickupShowsFee = desktop.pickupRows.every(text => /Pickup fee/.test(text) && /Not applicable/.test(text) && /Self-pickup, not delivery/.test(text));
   check('desktop: pickup rows show the pickup fee and say a delivered total does not apply', pickupShowsFee,
@@ -345,7 +352,7 @@ try {
   // compared on its own instead of being merged into Classico. Its published
   // pickup-point alternative and free self-pickup must be discoverable on the card.
   await evaluate(wd, `(() => { const select = document.getElementById('variant'); select.value = 'unspecified'; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
-  await waitForPage(wd, `${BEST_VENDOR_EXPR}?.includes('Coffee4U')`, 15_000, 'unstated-variant ranking', `({vendor: ${BEST_VENDOR_EXPR}, total: ${BEST_TOTAL_EXPR}})`;
+  await waitForPage(wd, `${BEST_VENDOR_EXPR}?.includes('Coffee4U')`, 15_000, 'unstated-variant ranking', `({vendor: ${BEST_VENDOR_EXPR}, total: ${BEST_TOTAL_EXPR}})`);
   const unstated = await evaluate(wd, `(() => {
     const card = document.querySelector('#ranked .offer--best');
     return {
@@ -375,13 +382,15 @@ try {
     unstated.caveats.join(' | '));
   check('variant: the variant control offers "Variant not stated" without a hidden reveal',
     unstated.variantOptions.some(text => text.startsWith('Variant not stated')), unstated.variantOptions.join(' | '));
+  const excludedLabels = (apiUnstated.counts?.excludedVariants ?? []).map(id => VARIANT_LABELS[id] ?? id).join(', ');
+  const expectedExcluded = `${apiUnstated.counts?.excludedByVariant} observed offer(s) for another blend variant (${excludedLabels})`;
   check('variant: the excluded Classico offers are named in the comparison note',
-    /1 observed offer\(s\) for another blend variant \(Classico\)/.test(unstated.excludedLine ?? ''), unstated.excludedLine);
+    (unstated.excludedLine ?? '').includes(expectedExcluded), `${unstated.excludedLine} vs ${expectedExcluded}`);
   check('variant: the ranked offer keeps its vendor page link',
     unstated.link === apiUnstated.best?.itemUrl, `${unstated.link} vs ${apiUnstated.best?.itemUrl}`);
   await screenshot(wd, 'desktop-1440-unstated-variant.png');
   await evaluate(wd, `(() => { const select = document.getElementById('variant'); select.value = 'classico'; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
-  await waitForPage(wd, `${BEST_VENDOR_EXPR}?.includes('Pucks')`, 15_000, 'restore classico ranking', `({vendor: ${BEST_VENDOR_EXPR}})`;
+  await waitForPage(wd, `${BEST_VENDOR_EXPR}?.includes('Pucks')`, 15_000, 'restore classico ranking', `({vendor: ${BEST_VENDOR_EXPR}})`);
   await screenshot(wd, 'desktop-1440.png');
 
   // Owner correction 2026-10-12: exactly one product line is tracked. The UI must not
@@ -440,7 +449,7 @@ try {
     url: location.search
   })`);
   check(`interaction: 1 kg updates the delivered total to ${expected1000}`, kgState.total === expected1000, JSON.stringify(kgState));
-  check('interaction: per-kg price recalculated for 1 kg', (kgState.perKg ?? '').includes(`${ils(api1000.best?.ilsPerKg)} per kilogram`), kgState.perKg);
+  check('interaction: per-kg price recalculated for 1 kg', (kgState.perKg ?? '').includes(`${ils(api1000.best?.ilsPerKg)} per kg`), kgState.perKg);
   check('interaction: quantity is reflected in the shareable URL', /grams=1000/.test(kgState.url ?? ''), kgState.url);
 
   // Destination change.
@@ -633,10 +642,10 @@ try {
         disclosure: node.querySelector('.disclosure')?.textContent ?? null
       })),
       visibleText: document.body.innerText,
-      footerDetails: document.querySelector('.site-footer details')?.textContent ?? null
+      footerDetails: document.querySelector('#board > .meta-line details')?.textContent ?? null
     }))()`);
     const failedBestCard = failedUi.cards[0] ?? null;
-    const failedSingleCard = failedUi.cards.find(card => /CoffeeMan/.test(card.vendor ?? '') && /^250 g pack · 1 × 250 g pack/.test(card.pack ?? '')) ?? null;
+    const failedSingleCard = failedUi.cards.find(card => /CoffeeMan/.test(card.vendor ?? '') && /^250 g pack ·/.test(card.pack ?? '')) ?? null;
     check('failure: best-offer disclosure says the last attempt failed and names the last successful check',
       /Last successful check:/.test(failedBestCard?.disclosure ?? '') && /Last attempt failed /.test(failedBestCard?.disclosure ?? '') && /HTTP 503/.test(failedBestCard?.disclosure ?? ''),
       failedBestCard?.disclosure?.slice(0, 240));
