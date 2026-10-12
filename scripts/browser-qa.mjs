@@ -156,7 +156,7 @@ try {
   if (fixtureServer) {
     const eightPack = api500.ranked.find(quote => quote.key.endsWith('x8')) ?? null;
     check('fixtures: the researched Pucks checkout rate makes Pucks the 500 g fixture winner at ₪90.00',
-      best.vendor.id === 'pucks' && best.totalIls === 90 && best.shipping.certainty === 'verified' && expected500 === '₪90.00',
+      best.vendor.id === 'pucks' && best.totalIls === 90 && best.shipping.certainty === 'checkout_quote' && expected500 === '₪90.00',
       `${best.vendor.name} ${expected500} shipping=${best.shipping.certainty}`);
     check('fixtures: the CoffeeMan 8-pack (2 kg) carries the ₪20 checkout quote and its 2000 g cart limit',
       eightPack?.shipping?.amountIls === 20 && eightPack?.shipping?.maxTotalGrams === 2000 && eightPack?.units === 1,

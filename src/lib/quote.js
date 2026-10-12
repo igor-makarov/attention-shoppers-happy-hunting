@@ -36,6 +36,11 @@ const AVAILABILITY_LABELS = {
  */
 const SHIPPING_CERTAINTY_LABELS = {
   verified: 'Published rate (verified)',
+  // A rate read from an anonymous public cart/checkout estimator is observed
+  // and usable for the recorded cart, but the vendor never published it on the
+  // product page, so the label keeps the condition visible instead of calling
+  // it a published or completed checkout price.
+  checkout_quote: 'Checkout rate (observed, conditional)',
   estimated: 'Estimated rate',
   unknown: 'Not published before checkout'
 };

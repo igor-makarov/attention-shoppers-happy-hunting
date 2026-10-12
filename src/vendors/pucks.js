@@ -114,8 +114,9 @@ export function parsePucksProduct(html, { now, url = PRODUCT_URL, productId = nu
       mode: 'delivery',
       // The browser-researched estimator quote is a verified observed rate for
       // the quantities and destination recorded in the evidence; it is not a
-      // nationwide guarantee and it is never used as a zero default.
-      certainty: 'verified',
+      // nationwide guarantee, it was never published on the product page, and
+      // it is never used as a zero default.
+      certainty: 'checkout_quote',
       amount: { amount: PUCKS_CHECKOUT_SHIPPING.amountIls, currency: PUCKS_CHECKOUT_SHIPPING.currency },
       freeThreshold: { amount: PUCKS_CHECKOUT_SHIPPING.freeThresholdIls, currency: PUCKS_CHECKOUT_SHIPPING.currency },
       destination: {

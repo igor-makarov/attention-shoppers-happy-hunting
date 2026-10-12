@@ -19,11 +19,11 @@ test('fixture observations parse through the production adapters', async () => {
   const fourPack = observations.find(item => item.vendor.id === 'coffeeman' && item.product.packCount === 4);
   assert.equal(fourPack.price.amount, 124);
   const eightPack = observations.find(item => item.vendor.id === 'coffeeman' && item.product.packCount === 8);
-  assert.equal(eightPack.shipping.certainty, 'verified', 'the researched 2 kg checkout quote resolves the 8-pack rate');
+  assert.equal(eightPack.shipping.certainty, 'checkout_quote', 'the researched 2 kg checkout quote resolves the 8-pack rate without calling it published');
   assert.equal(eightPack.shipping.amount.amount, 20);
   assert.equal(eightPack.shipping.maxTotalGrams, 2000);
   const pucks = observations.find(item => item.vendor.id === 'pucks');
-  assert.equal(pucks.shipping.certainty, 'verified', 'the researched checkout rate resolves the Pucks offer');
+  assert.equal(pucks.shipping.certainty, 'checkout_quote', 'the researched checkout rate resolves the Pucks offer and keeps its condition visible');
   assert.equal(pucks.shipping.amount.amount, 30);
   assert.equal(pucks.shipping.freeThreshold.amount, 100);
   assert.equal(pucks.product.packGrams, 250);

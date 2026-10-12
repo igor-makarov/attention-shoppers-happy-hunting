@@ -486,26 +486,25 @@ function renderPickupSection(pickup = []) {
     el('p', { class: 'section__intro', text: 'Pickup is not a delivered price and never competes in the delivered ranking. Pickup that accompanies a delivered offer is shown on that offer card.' })));
   for (const quote of pickup) {
     // Pickup entries keep the delivery observation but carry their own pickup
-    // terms: show the pickup fee and say plainly that no delivered total applies.
+    // terms. They are rendered as one compact row each: the repeated pickup
+    // caveats live in a shared disclosure instead of three near-identical
+    // three-cell cards.
     const pickupFee = quote.pickup?.amount?.amount;
+    const feeText = pickupFee === 0 ? 'Free' : pickupFee != null ? money(pickupFee) : 'See vendor policy';
+    const terms = [quote.pickup?.note, quote.labels.join('. ')].filter(Boolean).join(' ');
     section.append(el('div', { class: 'pickup-row' },
-      el('div', { class: 'unknown__vendor' }, bidi(quote.vendor.name)),
-      el('div', { class: 'unknown__meta' }, bidi(quote.product.name ?? '')),
-      el('div', { class: 'unknown__meta', text: `${packDescription(quote)} · ${quantityDescription(quote)}` }),
-      el('div', { class: 'totals' },
-        el('div', { class: 'totals__cell' },
-          el('span', { class: 'totals__label', text: 'Item subtotal' }),
-          el('span', { class: 'totals__value num', text: itemSubtotalText(quote) })),
-        el('div', { class: 'totals__cell' },
-          el('span', { class: 'totals__label', text: 'Pickup fee' }),
-          el('span', { class: 'totals__value num', text: pickupFee === 0 ? 'Free' : pickupFee != null ? money(pickupFee) : 'See vendor policy' }),
-          el('span', { class: 'totals__meta', text: 'Self-pickup, not delivery' })),
-        el('div', { class: 'totals__cell totals__cell--total' },
-          el('span', { class: 'totals__label', text: 'Delivered total' }),
-          el('span', { class: 'totals__value', text: 'Not applicable' }),
-          el('span', { class: 'totals__meta', text: 'Pickup only — no delivery' }))),
-      el('p', { class: 'unknown__reason', text: [quote.pickup?.note, quote.labels.join('. ')].filter(Boolean).join(' ') }),
-      el('p', {}, offerLink(quote))));
+      el('div', { class: 'pickup-row__head' },
+        el('strong', { text: bidi(quote.vendor.name) }),
+        el('span', { class: 'pickup-row__pack', text: `${packDescription(quote)} · ${quantityDescription(quote)}` })),
+      el('div', { class: 'pickup-row__facts' },
+        el('span', { text: `Item subtotal: ${itemSubtotalText(quote)}` }),
+        el('span', { text: `Pickup fee: ${feeText}` }),
+        el('span', { text: 'Self-pickup, not delivery' }),
+        el('span', { text: 'Delivered total: Not applicable' })),
+      terms ? el('details', { class: 'disclosure' },
+        el('summary', { text: 'Pickup terms' }),
+        el('p', { class: 'disclosure__body', text: terms })) : null,
+      el('p', { class: 'pickup-row__link' }, offerLink(quote, 'Open the vendor page'))));
   }
   return section;
 }
@@ -533,7 +532,7 @@ function renderUnknownSection(board) {
       el('span', { text: `Shipping: ${shippingValueText(quote)}` }),
       el('span', { text: `Last successful check: ${timeLabel(quote.observedAt)}` }),
       quote.lastAttemptFailed ? el('span', { text: `Last attempt failed ${timeLabel(quote.attemptedAt)}${quote.lastError ? ` — ${truncate(quote.lastError)}` : ''}` }) : null));
-    if (quote.shipping?.amountIls == null && quote.shipping?.certainty !== 'verified') {
+    if (quote.shipping?.certainty === 'unknown' || quote.shipping?.amount == null) {
       card.append(el('p', { class: 'unknown__reason', text: 'Shipping not published. Needed for a delivered total: a published rate or a public checkout-estimator quote for this quantity and locality. A missing rate is never counted as free.' }));
     }
     card.append(el('p', { class: 'unknown__reason', text: quote.reasons.join('. ') || quote.labels.join('. ') || 'Not enough verified information yet.' }));

@@ -65,7 +65,7 @@ test('coffeeman 4-pack and 8-pack fixtures keep pack count, price and shipping s
   assert.equal(eight.product.totalGrams, 2000);
   assert.equal(eight.product.sku, '930335');
   assert.equal(eight.price.amount, 240);
-  assert.equal(eight.shipping.certainty, 'verified', 'the anonymous checkout quote resolves the 8-pack rate');
+  assert.equal(eight.shipping.certainty, 'checkout_quote', 'the anonymous checkout quote resolves the 8-pack rate without calling it published');
   assert.equal(eight.shipping.amount.amount, 20);
   assert.equal(eight.shipping.maxTotalGrams, 2000, 'the observed rate is limited to the 2 kg cart it was quoted on');
   assert.match(eight.shipping.note, /checkout quote/i);
@@ -81,7 +81,7 @@ test('pucks parser reads the product JSON-LD and keeps the researched checkout r
   assert.equal(observation.price.amount, 30);
   assert.equal(observation.price.currency, 'ILS');
   assert.equal(observation.availability, 'in_stock');
-  assert.equal(observation.shipping.certainty, 'verified');
+  assert.equal(observation.shipping.certainty, 'checkout_quote', 'the estimator rate is recorded as a conditional checkout quote, not a published page rate');
   assert.equal(observation.shipping.amount.amount, 30);
   assert.equal(observation.shipping.freeThreshold.amount, 100);
   assert.match(observation.shipping.note, /checkout/i);

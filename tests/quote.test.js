@@ -86,6 +86,7 @@ test('unknown shipping cannot win and is never treated as zero', () => {
 
 test('shipping certainty is exposed as a written label, never as a bare flag', () => {
   assert.equal(shippingCertaintyLabel('verified'), 'Published rate (verified)');
+  assert.equal(shippingCertaintyLabel('checkout_quote'), 'Checkout rate (observed, conditional)');
   assert.equal(shippingCertaintyLabel('estimated'), 'Estimated rate');
   assert.equal(shippingCertaintyLabel('unknown'), 'Not published before checkout');
   assert.equal(shippingCertaintyLabel(undefined), 'Not published before checkout');
@@ -186,10 +187,11 @@ test('a checkout rate observed on a smaller cart never stretches to a larger one
     key: 'quoted:8pack',
     price: { amount: 240 },
     product: { sku: 'q8', packCount: 8, totalGrams: 2000 },
-    shipping: { certainty: 'verified', amount: { amount: 20, currency: 'ILS' }, maxTotalGrams: 2000 }
+    shipping: { certainty: 'checkout_quote', amount: { amount: 20, currency: 'ILS' }, maxTotalGrams: 2000 }
   });
   const small = quote([quoted], { targetGrams: 1000 });
   assert.equal(small.best.totalIls, 260, 'one 2 kg multipack covers the 1 kg target');
+  assert.equal(small.best.shipping.certaintyLabel, 'Checkout rate (observed, conditional)', 'a cart quote is never presented as a published rate');
   const big = quote([quoted], { targetGrams: 3000 });
   assert.equal(big.ranked.length, 0, 'two multipacks exceed the quoted 2 kg cart');
   assert.match(big.unrankable[0].reasons.join(' '), /quoted only for carts up to 2000 g/);

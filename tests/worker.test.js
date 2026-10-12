@@ -95,7 +95,7 @@ test('board ranks all three vendors with their evidenced shipping conditions', a
   assert.equal(board.best.totalIls, 90);
   assert.equal(board.best.ilsPerKg, 180);
   assert.equal(board.best.availabilityLabel, 'In stock (observed)');
-  assert.equal(board.best.shipping.certaintyLabel, 'Published rate (verified)', 'the API carries a written shipping-certainty label');
+  assert.equal(board.best.shipping.certaintyLabel, 'Checkout rate (observed, conditional)', 'the API carries a written shipping-certainty label and the researched cart quote is not called a published rate');
   assert.equal(board.best.shipping.freeThreshold, 100, 'the researched free-shipping threshold is structured');
   assert.match(board.best.shipping.coverageCaveat, /not individually verified/, 'the researched rate keeps its coverage caveat');
   assert.equal(board.ranked.length, 4, 'the single pack, 4-pack, 8-pack and Pucks are all rankable now');
