@@ -1496,8 +1496,16 @@ the researched shipping rates and coverage caveats unchanged. The Coffee4U row s
 `docs/evidence/source-check-20261012T2314Z.json`.
 
 **Verified locally.** `npm run verify` — 134/134 `node:test` cases pass and `wrangler deploy --dry-run`
-builds the bundle; `npm run qa:browser` (offline fixtures) **80/80**; production live QA **78/78**. The
-only code change after those runs is the probe script's two policy checks and documentation.
+builds the bundle (106.99 KiB / gzip 27.11 KiB, bindings `BOARD` + `ASSETS`); `npm run qa:browser`
+(offline fixtures) **80/80**. A fresh-store local `wrangler dev` Worker (23:20 UTC, no browser opened for
+the refresh) completed the initial refresh in **6 bounded requests** and persisted five observations; at
+500 g the one comparison ranks Pucks ₪90, CoffeeMan single ₪91, Coffee4U ₪106, CoffeeMan 4-pack ₪149 and
+CoffeeMan 8-pack ₪260, at 1 kg Pucks wins with free delivery (₪120), the obsolete `variant=unspecified`
+URL returns the identical ranked list and the retired Qualità Oro URL falls back with the written notice.
+Live browser QA against that local Worker passed **78/78** with zero console errors. Evidence:
+`docs/evidence/worker-runtime-status-2026-10-12T2321Z.json`,
+`docs/evidence/browser-qa-live-20261012T2321Z.json`. The only code change after those runs is the probe
+script's two policy checks and documentation.
 
 **Next step:** the **00:17 UTC cron tick on 2026-10-13** should replace the 15:52 production store
 snapshot (vendor due times 19:34/19:46/21:51 have passed; the 18:17 tick skipped under the phase lock).
