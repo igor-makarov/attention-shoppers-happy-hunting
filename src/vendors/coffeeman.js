@@ -15,6 +15,7 @@
 import { classifyListing } from '../catalog.js';
 import { decodeHtml, decodeEntities, parseDecimal, stripTags, collapse } from '../lib/text.js';
 import { coffeemanEightPackPolicy, coffeemanSingleFourPackPolicy, policyIsCurrent } from '../lib/policies.js';
+import { coffeemanGroundCoffeePercentPromotion } from '../lib/promotions.js';
 import { createObservation, parseError } from './index.js';
 
 const PRODUCT_URL = 'https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico';
@@ -92,7 +93,7 @@ export const coffeeman = {
   name: 'CoffeeMan (אמיגו)',
   homepage: 'https://www.coffeeman.co.il',
   allowedHosts: ['www.coffeeman.co.il', 'coffeeman.co.il'],
-  parserVersion: 'coffeeman/6',
+  parserVersion: 'coffeeman/7',
   crawlDelayMs: 7000,
   offers: [
     { id: 'classico-250g', url: PRODUCT_URL, kind: 'delivery', productId: CREMA_E_GUSTO },
@@ -145,6 +146,11 @@ export function parseCoffeemanProduct(html, { now, url = PRODUCT_URL, productId 
   const deliveryTime = collapse(/זמן\s*אספקה\s*:\s*([^<\n]+)/.exec(html)?.[1] ?? '');
 
   const shipping = parseShippingOptions(html);
+  // The vendor publishes the ground-coffee quantity promotion in its own
+  // promotion banner on the single-pack page. Parse it on every fetch so an
+  // ended promotion stops applying with the next observation.
+  const parsedPromotion = parseCoffeemanPromotion(html, { url });
+  const promotions = parsedPromotion ? [parsedPromotion] : [];
   const checkoutQuote = checkoutQuoteFor({ url, classification });
   const cartObservation = cartObservationFor({ url, classification });
   const coveragePolicy = checkoutQuote ? coffeemanEightPackPolicy : coffeemanSingleFourPackPolicy;
@@ -184,6 +190,7 @@ export function parseCoffeemanProduct(html, { now, url = PRODUCT_URL, productId 
     },
     price: { amount: priceAmount, currency, regularAmount: regularPrice },
     availability,
+    promotions,
     availabilityEvidence: {
       url,
       value: availabilityHref || 'not stated',
@@ -279,6 +286,41 @@ function cartObservationFor({ url, classification }) {
   if (classification.packCount === 4 && classification.totalGrams === 1000) return COFFEEMAN_CART_OBSERVATIONS[FOUR_PACK_URL];
   const quote = checkoutQuoteFor({ url, classification });
   return quote?.distributionCenterIls != null ? quote : null;
+}
+
+/**
+ * Parse the vendor's published promotion banner(s) into the validated promotion
+ * shape (src/lib/promotions.js). Only a ground-coffee percent-off rule with a
+ * stated ILS subtotal becomes a promotion: the ₪990 vacuum-container gift
+ * banner shown on the multipack pages states no discount and is ignored, so it
+ * can never be turned into a price reduction.
+ */
+export function parseCoffeemanPromotion(html, { url = PRODUCT_URL } = {}) {
+  const blocks = [...html.matchAll(/<h3[^>]*class="promotionName"[^>]*>([\s\S]*?)<\/h3>\s*<p[^>]*class="promotionDesc"[^>]*>([\s\S]*?)<\/p>/gi)];
+  for (const block of blocks) {
+    const name = decodeEntities(collapse(stripTags(block[1])));
+    const description = decodeEntities(collapse(stripTags(block[2])));
+    const text = `${name} ${description}`.trim();
+    if (!/הנחה/.test(text) || !/קפה טחון/.test(text)) continue;
+    const percent = Number(/(\d{1,2})\s*%/.exec(text)?.[1]);
+    const minItemSubtotal = parseDecimal(/ב-?\s*([\d.,]+)\s*ש["״]ח/.exec(text)?.[1]);
+    if (!Number.isFinite(percent) || percent <= 0 || percent > 90 || minItemSubtotal == null) continue;
+    return {
+      id: coffeemanGroundCoffeePercentPromotion.id,
+      vendorId: coffeeman.id,
+      productIds: [...coffeemanGroundCoffeePercentPromotion.productIds],
+      itemUrlPrefixes: [url],
+      percent,
+      minItemSubtotal: { amount: minItemSubtotal, currency: 'ILS' },
+      // The vendor's own wording decides the boundary: "ב-250 ש\"ח" is "at ₪250".
+      semantics: /(?:מעל\s*ל?|מעל\s|מעל-)/.test(description) ? 'above' : 'at_least',
+      excludesMultipacks: /לא כולל מארזים/.test(text),
+      origin: 'published',
+      wording: text,
+      evidence: { url, note: 'Promotion banner parsed from the product page HTML (promotionName/promotionDesc).' }
+    };
+  }
+  return null;
 }
 
 export function parseShippingOptions(html) {

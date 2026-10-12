@@ -7,6 +7,7 @@
 
 import { toIls } from './fx.js';
 import { enrichObservationShipping, policySummary, SHIPPING_POLICIES } from './policies.js';
+import { resolvePromotion, promotionSummary, PROMOTIONS } from './promotions.js';
 
 export const DEFAULT_STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 export const CLOCK_SKEW_MS = 5 * 60 * 1000;
@@ -80,7 +81,11 @@ export function quoteBoard({
   staleAfterMs = DEFAULT_STALE_AFTER_MS,
   // Validated shipping policies enrich observations whose own shipping is
   // unknown. Pass null to disable (tests of the raw stored evidence).
-  policies = SHIPPING_POLICIES
+  policies = SHIPPING_POLICIES,
+  // Published quantity promotions (item-price discounts). A parsed row's own
+  // `promotions` array wins; the checked-in fallback only covers rows stored
+  // before banner parsing. Pass null to disable.
+  promotions = PROMOTIONS
 } = {}) {
   const grams = clampGrams(targetGrams);
   const quotes = [];
@@ -96,7 +101,7 @@ export function quoteBoard({
     const enriched = policies === null
       ? observation
       : enrichObservationShipping(observation, { policies, now }).observation;
-    quotes.push(quoteOffer(enriched, { grams, destination, fx, now, staleAfterMs }));
+    quotes.push(quoteOffer(enriched, { grams, destination, fx, now, staleAfterMs, promotions }));
   }
   const ranked = quotes.filter(quote => quote.rankable).sort(compareQuotes);
   // The cheapest delivered total is not always the cheapest bulk value. Keep the
@@ -121,6 +126,7 @@ export function quoteBoard({
     generatedAt: new Date(now).toISOString(),
     fx: fx ? { asOf: fx.asOf ?? null, source: fx.source?.name ?? null } : null,
     shippingPolicies: policies === null ? [] : policySummary(now, policies),
+    promotions: promotions === null ? [] : promotionSummary(now, promotions),
     best: ranked[0] ?? null,
     bestPerKg: bestPerKgQuote
       ? {
@@ -148,7 +154,7 @@ export function quoteBoard({
   };
 }
 
-export function quoteOffer(observation, { grams, destination, fx, now, staleAfterMs }) {
+export function quoteOffer(observation, { grams, destination, fx, now, staleAfterMs, promotions = PROMOTIONS }) {
   const product = observation.product ?? {};
   const price = observation.price ?? {};
   const shipping = observation.shipping ?? {};
@@ -277,6 +283,39 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
   }
   base.itemTotalIls = round2(itemTotal.amount);
   if (itemTotal.converted) base.estimate = true;
+
+  // Published quantity promotions reduce the item subtotal of the offer they
+  // apply to (for example CoffeeMan's automatic 10% off ground coffee from a
+  // ₪250 subtotal). The discount is disclosed on the card and in the offer
+  // details; it never changes the base unit price or the observation time. A
+  // row parsed without any promotion banner carries `promotions: []` and is
+  // never re-enriched from the checked-in fallback.
+  const promotion = promotions === null
+    ? { status: 'none' }
+    : resolvePromotion({
+        observation,
+        itemSubtotalIls: base.itemTotalIls,
+        packCount: product.packCount ?? 1,
+        now,
+        promotions
+      });
+  if (promotion.status === 'applied') {
+    base.itemSubtotalBeforeDiscountIls = base.itemTotalIls;
+    base.itemDiscount = {
+      id: promotion.promotion.id,
+      percent: promotion.promotion.percent,
+      amountIls: promotion.discountIls,
+      minItemSubtotal: promotion.promotion.minItemSubtotal?.amount ?? null,
+      semantics: promotion.promotion.semantics ?? null,
+      excludesMultipacks: Boolean(promotion.promotion.excludesMultipacks),
+      wording: promotion.promotion.wording ?? null,
+      source: promotion.source,
+      evidence: promotion.promotion.evidence ?? null,
+      reviewBy: promotion.promotion.reviewBy ?? null
+    };
+    base.itemTotalIls = round2(base.itemTotalIls - promotion.discountIls);
+    base.labels.push(`Published promotion applied: ${promotion.promotion.percent}% off the item subtotal (was ${formatAmount(base.itemSubtotalBeforeDiscountIls, 'ILS')})`);
+  }
 
   // A rate observed on a smaller anonymous cart is not silently stretched to a
   // bigger one: the offer stays visible and unrankable with the exact reason.

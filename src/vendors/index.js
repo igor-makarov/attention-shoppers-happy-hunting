@@ -21,7 +21,7 @@ export function vendorHosts(vendors = registeredVendors()) {
   return [...new Set(vendors.flatMap(vendor => vendor.allowedHosts))];
 }
 
-export function createObservation({ vendor, itemUrl, product, price, availability, availabilityEvidence, shipping, mandatoryFees = [], now }) {
+export function createObservation({ vendor, itemUrl, product, price, availability, availabilityEvidence, shipping, promotions = [], mandatoryFees = [], now }) {
   const observedAt = new Date(now ?? Date.now()).toISOString();
   const key = [
     vendor.id,
@@ -47,6 +47,11 @@ export function createObservation({ vendor, itemUrl, product, price, availabilit
     shipping: shipping
       ? { ...shipping, evidence: stamp(shipping.evidence) }
       : shipping,
+    // A parsed row always carries the promotions array (possibly empty): an
+    // empty array means "the page was checked and no banner was found", which
+    // must never be re-enriched from the checked-in fallback. Only rows stored
+    // before banner parsing have no field at all and may use the fallback.
+    promotions: promotions.map(promotion => (promotion ? { ...promotion, evidence: stamp(promotion.evidence) } : promotion)),
     mandatoryFees,
     observedAt,
     evidence: [
