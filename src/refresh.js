@@ -111,8 +111,14 @@ export async function runRefresh({
   holderId = `refresh-${now}-${Math.random().toString(36).slice(2, 8)}`,
   logger = null,
   sleep = undefined,
-  clock = undefined
+  clock = undefined,
+  // Test seam for the completion timestamp. Production uses the real clock, so
+  // `finishedAt` is the true finish time; a simulation can pass a time source on
+  // the same timeline as `now`, which keeps stored freshness deterministic across
+  // a multi-tick cron sequence instead of mixing in the real wall clock.
+  timeSource = undefined
 } = {}) {
+  const currentTimeMs = () => (typeof timeSource === 'function' ? timeSource() : Date.now());
   const acquired = await store.acquireLease('refresh', holderId, LEASE_TTL_MS);
   if (!acquired) {
     return { skipped: true, reason: 'another refresh holds the lease', trigger };
@@ -158,7 +164,7 @@ export async function runRefresh({
       logger?.warn?.(`[refresh] retired-observation prune failed: ${error?.message ?? error}`);
     }
 
-    const finishedAt = new Date(Date.now()).toISOString();
+    const finishedAt = new Date(currentTimeMs()).toISOString();
     const summary = {
       trigger,
       startedAt,

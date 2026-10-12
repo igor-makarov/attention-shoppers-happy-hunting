@@ -152,6 +152,91 @@ test('a cron tick just before the six-hour mark refreshes instead of skipping ev
   assert.ok(Date.parse(after) >= Date.parse(refreshAt), 'lastRefreshAt never moves backwards');
 });
 
+test('the production cron sequence keeps a six-hour cadence and recovers from the off-phase start', async () => {
+  const store = createMemoryStore();
+  const fetchImpl = fixtureFetch();
+  let simMs = Date.parse('2026-10-12T15:52:12.000Z');
+  // The completion marker is written from the same simulated timeline as `now`,
+  // so the freshness checks below describe the simulated production sequence
+  // instead of mixing in the real wall clock.
+  const timeSource = () => simMs;
+  const tick = async startIso => {
+    simMs = Date.parse(startIso);
+    const summary = await run({ store, fetchImpl, now: simMs, trigger: 'cron', timeSource, clock: () => simMs });
+    const snapshot = await store.snapshot();
+    const lastRefreshAt = snapshot.meta?.lastRefreshAt?.value ?? null;
+    return {
+      startIso,
+      requests: summary.requests,
+      saved: summary.vendors.filter(vendor => (vendor.saved ?? 0) > 0).length,
+      skipped: summary.vendors.filter(vendor => vendor.skipped).length,
+      lastRefreshAt,
+      freshness: refreshFreshness(lastRefreshAt, simMs)
+    };
+  };
+
+  // The post-deployment initial refresh completed off-phase at 15:52:12 and left
+  // every vendor due at 21:52:12.
+  const initial = await run({ store, fetchImpl, now: simMs, trigger: 'initial', timeSource, clock: () => simMs });
+  assert.equal(initial.requests, 6);
+  assert.equal((await store.snapshot()).meta.lastRefreshAt.value, '2026-10-12T15:52:12.000Z');
+
+  // 18:17 UTC tick: every vendor is still inside its window, so the run is
+  // recorded with no fetches and must not advance lastRefreshAt.
+  const offPhase = await tick('2026-10-12T18:17:20.000Z');
+  assert.equal(offPhase.requests, 0, 'an off-phase tick makes no vendor request');
+  assert.equal(offPhase.saved, 0);
+  assert.equal(offPhase.skipped, 3);
+  assert.equal(offPhase.lastRefreshAt, '2026-10-12T15:52:12.000Z');
+  assert.equal(offPhase.freshness.stale, false, 'the board stays fresh through the off-phase tick');
+
+  // 00:17 UTC: the stored due times have passed, so every vendor refreshes. Just
+  // before that run the off-phase data is more than eight hours old, which the
+  // board honestly reports as stale; the tick then replaces it.
+  simMs = Date.parse('2026-10-13T00:17:20.000Z');
+  const beforeDue = refreshFreshness((await store.snapshot()).meta.lastRefreshAt.value, simMs);
+  assert.equal(beforeDue.stale, true, 'off-phase data past the eight-hour threshold reads as stale, not silently fresh');
+  assert.ok(beforeDue.ageHours > 8 && beforeDue.ageHours < 9);
+  const firstOnPhase = await tick('2026-10-13T00:17:20.000Z');
+  assert.equal(firstOnPhase.requests, 6);
+  assert.equal(firstOnPhase.saved, 3, 'the due tick refreshes every vendor');
+  assert.equal(firstOnPhase.skipped, 0);
+  assert.equal(firstOnPhase.freshness.stale, false);
+
+  // From here the ticks land seconds before the stored due times (production
+  // run-start jitter), so the early-due tolerance is what keeps the cadence at
+  // six hours instead of skipping to a twelve-hour drift.
+  const ticks = [
+    await tick('2026-10-13T06:17:05.000Z'),
+    await tick('2026-10-13T12:17:20.000Z'),
+    await tick('2026-10-13T18:17:20.000Z'),
+    await tick('2026-10-14T00:17:20.000Z')
+  ];
+  for (const entry of ticks) {
+    assert.equal(entry.skipped, 0, `${entry.startIso} refreshes instead of skipping every vendor`);
+    assert.equal(entry.requests, 6, `${entry.startIso} re-checks the five tracked offers and the rate table`);
+    assert.equal(entry.saved, 3, `${entry.startIso} saves an observation for every vendor`);
+    assert.equal(entry.freshness.stale, false, `${entry.startIso} keeps the board fresh`);
+  }
+
+  const completions = [firstOnPhase, ...ticks].map(entry => Date.parse(entry.lastRefreshAt));
+  for (let index = 1; index < completions.length; index += 1) {
+    const gap = completions[index] - completions[index - 1];
+    assert.ok(
+      Math.abs(gap - REFRESH_INTERVAL_MS) <= 60 * 1000,
+      `completed refreshes stay six hours apart (gap ${Math.round(gap / 60000)} min)`
+    );
+    assert.ok(gap < REFRESH_STALE_MS, 'no completion gap reaches the stale threshold');
+  }
+
+  // The skipped tick is still visible in the run history so the pipeline can be
+  // audited, and the runs that did save observations are the only ones that
+  // advanced the marker.
+  const runs = await store.listRuns(10);
+  assert.equal(runs.filter(runEntry => runEntry.requests === 0).length, 1);
+  assert.equal(runs.filter(runEntry => runEntry.requests === 6).length, 6, 'the initial run and the five on-phase ticks each fetched every offer');
+});
+
 test('a failing FX fetch keeps the previous rate table', async () => {
   const store = createMemoryStore();
   await run({ store, fetchImpl: fixtureFetch(), now: NOW });
