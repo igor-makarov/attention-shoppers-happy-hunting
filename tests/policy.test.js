@@ -5,6 +5,7 @@ import { quoteBoard, findDestination } from '../src/lib/quote.js';
 import {
   SHIPPING_POLICIES,
   pucksHomeDeliveryPolicy,
+  coffeemanEightPackPolicy,
   validatePolicy,
   validatePolicies,
   resolveShippingPolicy,
@@ -62,15 +63,105 @@ const quote = (observations, options = {}) => quoteBoard({
   ...options
 });
 
+const COFFEEMAN_EIGHT_PACK_URL = 'https://www.coffeeman.co.il/product/8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico';
+const COFFEEMAN_SINGLE_URL = 'https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico';
+
+/**
+ * An old persisted CoffeeMan 8-pack row exactly as the pre-cart-quote parser
+ * stored it: price and stock observed, shipping unknown because the product
+ * page publishes no courier price for this SKU. This is the second acceptance
+ * case for read-time policy enrichment, after the Pucks row below.
+ */
+function oldPersistedCoffeemanEightPackObservation(overrides = {}) {
+  return {
+    key: 'coffeeman:930335:classico:ground:2000g:x8',
+    vendor: { id: 'coffeeman', name: 'CoffeeMan (אמיגו)', homepage: 'https://www.coffeeman.co.il' },
+    itemUrl: COFFEEMAN_EIGHT_PACK_URL,
+    product: {
+      productId: 'lavazza-crema-e-gusto-vacuum-ground',
+      name: '8 אריזות 250 גרם קפה טחון lavazza Crema e Gusto Classico',
+      variantId: 'classico',
+      variantLabel: 'Classico',
+      form: 'ground',
+      packGrams: 250,
+      packCount: 8,
+      totalGrams: 2000,
+      sku: '930335'
+    },
+    price: { amount: 240, currency: 'ILS' },
+    availability: 'in_stock',
+    shipping: {
+      mode: 'delivery',
+      service: null,
+      certainty: 'unknown',
+      amount: null,
+      destination: {
+        scope: 'country',
+        country: 'IL',
+        caveat: 'Home delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout.'
+      },
+      note: 'No published courier rate found; delivery cost is unknown before checkout.'
+    },
+    observedAt: FRESH,
+    ...overrides
+  };
+}
+
 test('the checked-in shipping policies are structurally valid', () => {
   const result = validatePolicies(SHIPPING_POLICIES);
   assert.equal(result.ok, true, JSON.stringify(result.results));
-  assert.equal(SHIPPING_POLICIES.length >= 1, true);
+  assert.equal(SHIPPING_POLICIES.length >= 2, true);
   const pucks = SHIPPING_POLICIES.find(policy => policy.id === pucksHomeDeliveryPolicy.id);
   assert.ok(pucks, 'the evidenced Pucks rule is a checked-in policy');
   assert.equal(pucks.origin, 'observed_cart', 'a cart-observed rule is never relabelled as published');
   assert.equal(pucks.certainty, 'checkout_quote');
   assert.equal(pucks.rule.thresholdSemantics, 'above', 'the vendor wording "above ₪100" is preserved, not silently rewritten');
+  const coffeeman = SHIPPING_POLICIES.find(policy => policy.id === coffeemanEightPackPolicy.id);
+  assert.ok(coffeeman, 'the researched CoffeeMan 8-pack cart quote is a checked-in policy');
+  assert.equal(coffeeman.origin, 'observed_cart');
+  assert.equal(coffeeman.certainty, 'checkout_quote');
+  assert.equal(coffeeman.rule.maxTotalGrams, 2000, 'the cart quote is scoped to the 2 kg cart it was observed on');
+  assert.equal(coffeeman.rule.freeThreshold, null, 'no free threshold is invented from unobserved larger carts');
+  assert.equal(coffeeman.service, 'home_delivery');
+});
+
+test('an old persisted CoffeeMan 8-pack offer gains the researched cart quote at read time', () => {
+  const stored = oldPersistedCoffeemanEightPackObservation();
+  const storedSnapshot = JSON.parse(JSON.stringify(stored));
+  const board = quote([stored]);
+  assert.equal(board.best.vendor.id, 'coffeeman');
+  assert.equal(board.best.shipping.certainty, 'checkout_quote', 'the applied cart quote keeps its conditional certainty');
+  assert.equal(board.best.shipping.amountIls, 20, '₪20 home courier is applied to the old row');
+  assert.equal(board.best.shipping.serviceLabel, 'Home delivery');
+  assert.equal(board.best.shipping.maxTotalGrams, 2000, 'the quote stays limited to the 2 kg cart it was observed on');
+  assert.equal(board.best.shipping.policy.id, 'coffeeman-8pack-il-cart-quote');
+  assert.equal(board.best.shipping.policy.version, 1);
+  assert.match(board.best.shipping.coverageCaveat, /home-delivery list/, 'the enriched rate keeps the locality-list caveat');
+  assert.equal(board.best.labels.some(label => /Delivery coverage caveat/.test(label)), true);
+  assert.equal(board.best.totalIls, 260, '₪240 item + ₪20 observed courier quote for the one-8-pack cart');
+  assert.equal(board.best.ilsPerKg, 130);
+  assert.match(board.best.shipping.note, /validated policy coffeeman-8pack-il-cart-quote v1/);
+  assert.deepEqual(stored, storedSnapshot, 'the stored observation is never mutated');
+
+  // Two 8-packs (4 kg) is a cart the estimator never quoted: the offer stays
+  // visible and unrankable instead of stretching the ₪20 rate.
+  const twoPacks = quote([oldPersistedCoffeemanEightPackObservation()], { targetGrams: 3000 });
+  assert.equal(twoPacks.best, null);
+  assert.equal(twoPacks.unrankable.length, 1);
+  assert.match(twoPacks.unrankable[0].reasons.join(' '), /quoted only for carts up to 2000 g/);
+  assert.equal(twoPacks.unrankable[0].shipping.amountIls, null, 'an out-of-scope cart never becomes a ranked total');
+
+  // The policy is scoped to the 8-pack offer URL: the single-pack listing keeps
+  // its own evidence and is never given the multipack cart rate.
+  const single = oldPersistedCoffeemanEightPackObservation({
+    key: 'coffeeman:930333:classico:ground:250g:x1',
+    itemUrl: COFFEEMAN_SINGLE_URL,
+    product: { ...oldPersistedCoffeemanEightPackObservation().product, packCount: 1, totalGrams: 250, sku: '930333' }
+  });
+  const singleBoard = quote([single]);
+  assert.equal(singleBoard.unrankable.length, 1);
+  assert.equal(singleBoard.unrankable[0].shipping.policy, null, 'the 8-pack cart quote is not applied to the single pack');
+  assert.match(singleBoard.unrankable[0].reasons.join(' '), /not published before checkout/);
 });
 
 test('a malformed policy is rejected instead of applied', () => {

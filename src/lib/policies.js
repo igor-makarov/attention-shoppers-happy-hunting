@@ -73,8 +73,53 @@ export const pucksHomeDeliveryPolicy = {
   reviewBy: '2026-11-11T00:00:00.000Z'
 };
 
+/**
+ * CoffeeMan 8 × 250 g multipack (2 kg) cart quote, observed in the anonymous
+ * checkout on 2026-10-12 (18:16 UTC, re-checked in a fresh cart at 20:07 UTC).
+ * The product page publishes no courier price for this SKU; the checkout quoted
+ * ₪20 for home courier and ₪20 for distribution-center delivery on exactly the
+ * one-8-pack cart. A larger cart was never observed, so the rule carries
+ * `maxTotalGrams: 2000` and the quote engine refuses to stretch it to two
+ * 8-packs. The ₪240 8-pack cart did NOT receive the free delivery that some
+ * larger single-pack/two-4-pack carts showed, so no free threshold is recorded.
+ */
+export const coffeemanEightPackPolicy = {
+  id: 'coffeeman-8pack-il-cart-quote',
+  version: 1,
+  vendorId: 'coffeeman',
+  productIds: [PRODUCT_ID],
+  itemUrlPrefixes: ['https://www.coffeeman.co.il/product/8-'],
+  service: 'home_delivery',
+  origin: 'observed_cart',
+  certainty: 'checkout_quote',
+  rule: {
+    amount: { amount: 20, currency: 'ILS' },
+    freeThreshold: null,
+    thresholdSemantics: null,
+    minOrder: null,
+    maxTotalGrams: 2000
+  },
+  destination: {
+    scope: 'country',
+    country: 'IL',
+    caveat: 'Home delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout.',
+    caveatSource: 'https://www.coffeeman.co.il/page/%D7%AA%D7%A0%D7%90%D7%99-%D7%A9%D7%99%D7%9E%D7%95%D7%A9'
+  },
+  evidence: {
+    url: 'https://www.coffeeman.co.il/checkout.asp',
+    retrievedAt: '2026-10-12T20:07:00Z',
+    note: 'Anonymous checkout quote for one 8 × 250 g multipack (2 kg) on 2026-10-12, re-checked in a fresh cart at 20:07 UTC: ₪20 home courier and ₪20 distribution-center delivery up to 5 kg; self-pickup free. The product page publishes no courier price, and carts above 2 kg are not verified.'
+  },
+  observedFor: {
+    carts: ['1 × (8 × 250 g) = 2 kg'],
+    destinations: ['the anonymous checkout showed the method prices without asking for a locality'],
+    note: 'No street address or personal detail was entered and no order was submitted; the locality restriction in the terms page could not be tested without personal delivery details.'
+  },
+  reviewBy: '2026-11-11T00:00:00.000Z'
+};
+
 /** Every validated policy the shared evaluator may apply. */
-export const SHIPPING_POLICIES = [pucksHomeDeliveryPolicy];
+export const SHIPPING_POLICIES = [pucksHomeDeliveryPolicy, coffeemanEightPackPolicy];
 
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;
 

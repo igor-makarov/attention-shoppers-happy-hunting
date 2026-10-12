@@ -14,6 +14,7 @@
 
 import { classifyListing } from '../catalog.js';
 import { decodeHtml, decodeEntities, parseDecimal, stripTags, collapse } from '../lib/text.js';
+import { coffeemanEightPackPolicy } from '../lib/policies.js';
 import { createObservation, parseError } from './index.js';
 
 const PRODUCT_URL = 'https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico';
@@ -31,21 +32,26 @@ const AVAILABILITY = {
 const CREMA_E_GUSTO = 'lavazza-crema-e-gusto-vacuum-ground';
 
 /**
- * Browser-researched checkout quotes (2026-10-12, 18:16-18:17 UTC).
+ * Browser-researched checkout quote for the 8 × 250 g multipack (2026-10-12,
+ * 18:16 UTC, re-checked in a fresh cart at 20:07 UTC). The researched rule
+ * lives in src/lib/policies.js as a versioned policy so the adapter, the
+ * read-time evaluator and the tests share one representation; this constant is
+ * the adapter-facing view of that policy. The distribution-center alternative
+ * is a second cart-observed method that happened to cost the same ₪20.
  * Evidence: docs/evidence/browser-research/2026-10-12-vendor-shipping-quotes.json
  * and the coffeeman-checkout-8pack.png screenshot. No street address, personal
  * detail, login or order submission was involved.
  */
 export const COFFEEMAN_CHECKOUT_QUOTES = {
   [EIGHT_PACK_URL]: {
-    amountIls: 20,
-    currency: 'ILS',
-    maxTotalGrams: 2000,
+    amountIls: coffeemanEightPackPolicy.rule.amount.amount,
+    currency: coffeemanEightPackPolicy.rule.amount.currency,
+    maxTotalGrams: coffeemanEightPackPolicy.rule.maxTotalGrams,
     distributionCenterIls: 20,
     observedCarts: 'the 2 kg cart',
-    retrievedAt: '2026-10-12T20:07:00Z',
-    sourceUrl: 'https://www.coffeeman.co.il/checkout.asp',
-    note: 'Anonymous checkout quote for one 8 × 250 g multipack (2 kg) on 2026-10-12, re-checked in a fresh cart at 20:07 UTC: ₪20 home courier and ₪20 distribution-center delivery up to 5 kg; self-pickup free. The product page publishes no courier price, and carts above 2 kg are not verified.'
+    retrievedAt: coffeemanEightPackPolicy.evidence.retrievedAt,
+    sourceUrl: coffeemanEightPackPolicy.evidence.url,
+    note: coffeemanEightPackPolicy.evidence.note
   }
 };
 
@@ -208,7 +214,21 @@ export function parseCoffeemanProduct(html, { now, url = PRODUCT_URL, productId 
             retrievedAt: checkoutQuote.retrievedAt,
             note: 'Anonymous checkout estimator quote recorded by interactive browser research; see docs/evidence/browser-research/2026-10-12-vendor-shipping-quotes.json.'
           }
-        : { url, retrievedAt: null, note: 'Delivery options are listed on the product page.' }
+        : { url, retrievedAt: null, note: 'Delivery options are listed on the product page.' },
+      // Stamp the validated policy the checkout-quoted rate came from, so the
+      // offer detail can name the rule version and its review date instead of
+      // an unexplained adapter constant. The adapter and the read-time
+      // evaluator therefore share one researched rule.
+      policy: checkoutQuote
+        ? {
+            id: coffeemanEightPackPolicy.id,
+            version: coffeemanEightPackPolicy.version,
+            origin: coffeemanEightPackPolicy.origin,
+            retrievedAt: coffeemanEightPackPolicy.evidence.retrievedAt,
+            reviewBy: coffeemanEightPackPolicy.reviewBy,
+            thresholdSemantics: coffeemanEightPackPolicy.rule.thresholdSemantics ?? null
+          }
+        : null
     },
     now
   });
