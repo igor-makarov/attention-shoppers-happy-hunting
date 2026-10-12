@@ -1,0 +1,196 @@
+{
+  "note": "Static evidence snapshot recorded during Shurik iteration 3-49 on 2026-10-12. Not live data.",
+  "scheduledRuntimeProof": {
+    "capturedAt": "2026-10-12T11:26:11.512Z",
+    "localRuntime": "wrangler dev 4.149.0, fresh SQLite Durable Object state, no browser opened",
+    "trigger": "GET /cdn-cgi/local/scheduled",
+    "lastRefreshAt": "2026-10-12T11:23:07.510Z",
+    "runs": [
+      {
+        "trigger": "scheduled",
+        "startedAt": "2026-10-12T11:23:07.504Z",
+        "finishedAt": "2026-10-12T11:23:07.510Z",
+        "requests": 0,
+        "vendors": [
+          {
+            "vendorId": "coffeeman",
+            "skipped": true,
+            "reason": "backoff",
+            "nextAttemptAt": "2026-10-12T17:20:49.742Z"
+          },
+          {
+            "vendorId": "pucks",
+            "skipped": true,
+            "reason": "backoff",
+            "nextAttemptAt": "2026-10-12T17:20:49.742Z"
+          }
+        ]
+      },
+      {
+        "trigger": "scheduled",
+        "startedAt": "2026-10-12T11:23:07.474Z",
+        "finishedAt": "2026-10-12T11:23:07.489Z",
+        "requests": 0,
+        "vendors": [
+          {
+            "vendorId": "coffeeman",
+            "skipped": true,
+            "reason": "backoff",
+            "nextAttemptAt": "2026-10-12T17:20:49.742Z"
+          },
+          {
+            "vendorId": "pucks",
+            "skipped": true,
+            "reason": "backoff",
+            "nextAttemptAt": "2026-10-12T17:20:49.742Z"
+          }
+        ]
+      },
+      {
+        "trigger": "scheduled",
+        "startedAt": "2026-10-12T11:20:49.742Z",
+        "finishedAt": "2026-10-12T11:20:51.358Z",
+        "requests": 3,
+        "vendors": [
+          {
+            "vendorId": "coffeeman",
+            "ok": true,
+            "saved": 1,
+            "failures": [],
+            "nextAttemptAt": "2026-10-12T17:20:49.742Z"
+          },
+          {
+            "vendorId": "pucks",
+            "ok": true,
+            "saved": 1,
+            "failures": [],
+            "nextAttemptAt": "2026-10-12T17:20:49.742Z"
+          }
+        ]
+      }
+    ]
+  },
+  "browserQa": {
+    "base": "http://127.0.0.1:8789",
+    "startedAt": "2026-10-12T11:25:37.926Z",
+    "finishedAt": "2026-10-12T11:25:39.294Z",
+    "failed": false,
+    "checks": [
+      {
+        "name": "desktop: best vendor is CoffeeMan",
+        "ok": true,
+        "detail": "CoffeeMan (אמיגו)"
+      },
+      {
+        "name": "desktop: delivered total for 500 g is ₪91.00",
+        "ok": true,
+        "detail": "₪91.00"
+      },
+      {
+        "name": "desktop: per-kilogram normalization is shown",
+        "ok": true,
+        "detail": "₪182.00 per kilogram · buys 2 packs (500 g)"
+      },
+      {
+        "name": "desktop: stock status has a written label",
+        "ok": true,
+        "detail": "In stock (observed) | In stock (observed)"
+      },
+      {
+        "name": "desktop: vendor link points at the product page",
+        "ok": true,
+        "detail": "https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico"
+      },
+      {
+        "name": "desktop: unknown-shipping offer stays visible with a plain-language reason",
+        "ok": true,
+        "detail": "Published courier delivery rate: ₪25.00. A distribution-center delivery option exists, but its price is not published on the product page. Free self-pickup is available and is kept separate from delivery."
+      },
+      {
+        "name": "desktop: destination selector lists Israeli localities",
+        "ok": true,
+        "detail": "Tel Aviv–Yafo · 6100000 area | Jerusalem · 9100000 area | Haifa · 3100000 area | Be'er Sheva · 8400000 area | Eilat · 8800000 area | Elsewhere in Israel"
+      },
+      {
+        "name": "desktop: quantity control marks 500 g pressed",
+        "ok": true,
+        "detail": "250 g,false | 500 g,true | 750 g,false | 1 kg,false | 2 kg,false"
+      },
+      {
+        "name": "desktop: no emoji in visible text",
+        "ok": true,
+        "detail": "emoji scan"
+      },
+      {
+        "name": "desktop: Hebrew vendor text is direction-isolated",
+        "ok": true,
+        "detail": "6"
+      },
+      {
+        "name": "desktop: skip link and main landmark are present",
+        "ok": true,
+        "detail": "skip=true main=true"
+      },
+      {
+        "name": "interaction: 1 kg updates the delivered total to ₪157.00",
+        "ok": true,
+        "detail": "{\"perKg\":\"₪157.00 per kilogram · buys 4 packs (1000 g)\",\"total\":\"₪157.00\",\"url\":\"?grams=1000&dest=tel-aviv&variant=classico&unknown=1\"}"
+      },
+      {
+        "name": "interaction: per-kg price recalculated",
+        "ok": true,
+        "detail": "₪157.00 per kilogram · buys 4 packs (1000 g)"
+      },
+      {
+        "name": "interaction: quantity is reflected in the shareable URL",
+        "ok": true,
+        "detail": "?grams=1000&dest=tel-aviv&variant=classico&unknown=1"
+      },
+      {
+        "name": "interaction: destination change recalculates for Eilat",
+        "ok": true,
+        "detail": "For 1000 g to Eilat. Pack sizes are rounded up to whole packs; the board shows the packs you would actually buy."
+      },
+      {
+        "name": "interaction: unrankable offers can be hidden but are visible by default",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "name": "keyboard: Tab moves focus to the next quantity button",
+        "ok": true,
+        "detail": "{\"label\":\"500 g\",\"outlineStyle\":\"solid\",\"outlineWidth\":\"3px\",\"tag\":\"BUTTON\"}"
+      },
+      {
+        "name": "keyboard: focused control shows a visible outline",
+        "ok": true,
+        "detail": "solid 3px"
+      },
+      {
+        "name": "keyboard: Enter activates the focused quantity and updates the total",
+        "ok": true,
+        "detail": "total ₪91.00"
+      },
+      {
+        "name": "mobile: best-choice panel fits the viewport",
+        "ok": true,
+        "detail": "{\"bestFits\":true,\"bodyOverflow\":false,\"controlColumns\":\"343.812px\",\"minTap\":45.75,\"tableScrolls\":\"no table\"}"
+      },
+      {
+        "name": "mobile: controls reflow to a single column",
+        "ok": true,
+        "detail": "343.812px"
+      },
+      {
+        "name": "mobile: page does not scroll horizontally",
+        "ok": true,
+        "detail": "{\"bestFits\":true,\"bodyOverflow\":false,\"controlColumns\":\"343.812px\",\"minTap\":45.75,\"tableScrolls\":\"no table\"}"
+      },
+      {
+        "name": "mobile: quantity buttons keep a 44px touch target",
+        "ok": true,
+        "detail": "45.75"
+      }
+    ]
+  }
+}

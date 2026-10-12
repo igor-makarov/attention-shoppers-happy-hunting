@@ -73,6 +73,10 @@ W3C element id, never polled page conditions (`waitFor` misuse) and deleted the 
 Hebrew vendor/product names were not direction-isolated. Added `npm run check:sources` and
 `npm run qa:browser` for repeatable evidence.
 
+Static evidence snapshots are committed for review: `docs/evidence/source-check-2026-10-12T1104Z.json`
+(live adapter observations) and `docs/evidence/runtime-and-browser-qa-2026-10-12.json` (scheduled-run
+records and the 23 browser QA checks). They are historical evidence, not live data.
+
 ## Repository and security checks
 
 - No account IDs, API tokens, checkout sessions or addresses in source, docs or history (secret scan run).

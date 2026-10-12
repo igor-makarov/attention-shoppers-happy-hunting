@@ -4,7 +4,10 @@ A public online shopping board for delivery in Israel, starting with **Lavazza C
 
 Swiss signage design, meaningful status colors, no emoji typography. Unknown shipping is never silently treated as free.
 
-This initial commit is a deployable scaffold, not a completed price tracker. Shurik builds the remaining functionality from [PROMPT.md](PROMPT.md). See [current status](docs/STATUS.md), [design](docs/DESIGN.md) and [architecture](docs/ARCHITECTURE.md).
+The board is implemented and self-updating: deterministic vendor adapters observe real product pages, a
+pure quote engine ranks delivered ILS totals, and a scheduled Durable Object refresh keeps the data
+current without a browser or the coding loop. See [current status](docs/STATUS.md),
+[observed sources](docs/SOURCES.md), [design](docs/DESIGN.md) and [architecture](docs/ARCHITECTURE.md).
 
 ## Coding loop
 
@@ -14,7 +17,7 @@ DeepSeek V4.1 Flash is present in Shurik's pinned Pi AI catalog and supports low
 
 ## Deployment and refreshing
 
-The owner will enable auto-deploy on main pushes from **Cloudflare Workers Builds** at the second handoff. GitHub stores no CF credentials and has no deployment job. Once implemented, Worker Cron Triggers and native runtime storage will refresh the offer board independently of the coding loop.
+The owner will enable auto-deploy on main pushes from **Cloudflare Workers Builds** at the second handoff. GitHub stores no CF credentials and has no deployment job. Once connected, Cloudflare Cron Triggers run the Worker's scheduled handler about every six hours, and the SQLite-backed `BoardStore` Durable Object defined in `wrangler.jsonc` persists the last known observations, vendor refresh state, FX rates and run history.
 
 Follow [the two handoffs](docs/DEPLOYMENT.md). Agent-authored code can affect the CF build and production Worker once auto-deploy is enabled; keeping CF API credentials out of Shurik does not remove that authority.
 
@@ -24,10 +27,15 @@ Node 24.14.0, pinned dependencies:
 
 ```sh
 npm ci --ignore-scripts
-npm run verify
-npm run dev
+npm run verify          # node:test suite + wrangler deploy --dry-run
+npm run check:sources   # live fetch + parse of every tracked vendor page
+npm run cron:offline    # full refresh pipeline against recorded fixtures
+npm run cron:local      # full refresh pipeline against the live vendor pages
+npm run dev             # local Worker with a local SQLite Durable Object
 ```
 
-The verification build is Wrangler deploy --dry-run and does not publish to Cloudflare.
+With `npm run dev` running, `npm run qa:browser http://127.0.0.1:8789` drives headless Chrome through the
+desktop and mobile board. The verification build is Wrangler deploy --dry-run and does not publish to
+Cloudflare.
 
 For a reusable Codex workspace, follow the [Codex Cloud setup](docs/CODEX_CLOUD.md).
