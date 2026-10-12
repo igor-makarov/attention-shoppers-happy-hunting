@@ -86,7 +86,8 @@ Tracked listings (two offers, never merged):
 | Source | Observed | Why it is not an adapter |
 | --- | --- | --- |
 | amazon.com (`/dp/B00IIFU5ZE`) | Product page reachable 2026-10-12; listing "Lavazza Crema e Gusto Ground Coffee, 8.8-Ounce Bricks (Pack of 3)", in stock | Delivery of this specific listing to Israel (and import fees) is only shown after setting a delivery address at checkout. No public evidence of IL delivery, so it cannot rank and is excluded per the vendor rules. |
-| rami-levy.co.il | HTTP 403 from the runner for product/search API and pages | Anti-bot protection. Not bypassed; no permitted alternative path found. |
+| rami-levy.co.il | HTTP 403 from the runner for product/search API and pages (rechecked 2026-10-12) | Anti-bot protection. Not bypassed; no permitted alternative path found. |
+| shufersal.co.il | 2026-10-12: `/robots.txt` returned a 444-byte empty HTML object from S3/CloudFront instead of robots rules, with no product or shipping data | No stable server-rendered page from the runner; not bypassed, and nothing public to parse. |
 | tivtaam.co.il | HTTP 200 but an AngularJS/ZuZ single-page shell with no product data in the HTML | Product data only appears after client-side API calls; not a stable public product page or documented API. |
 | espresso-international.co.uk (Shopify suggest API) | Reachable 2026-10-12; does not carry Lavazza Crema e Gusto | No matching product. |
 | eBay / iHerb | HTTP 403 from the runner during earlier research | Anti-bot protection; not bypassed. |
