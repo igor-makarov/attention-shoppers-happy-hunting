@@ -39,7 +39,7 @@ live sources at 16:50-16:53 UTC. Iteration 3-64 finished and verified the **fail
 that session 3-63 saved just before its timeout: when a vendor check fails, the attempt time and reason
 are stamped on that offer's last successful observation row, so the board keeps ranking the last known
 good price and stock while saying the most recent attempt failed instead of presenting the row as freshly
-re-checked. Verified locally with **93/93** `node:test` cases, `wrangler deploy --dry-run` (80.12 KiB /
+re-checked. Verified locally with **94/94** `node:test` cases, `wrangler deploy --dry-run` (80.12 KiB /
 gzip 20.60 KiB), the fixture refresh (6 bounded requests, five offers), a live `check:sources` pass at
 17:22 UTC (five listings unchanged), a live `cron:local -- --fresh` pass at 17:24 UTC (6 requests, five
 offers, USD 3.078), **63/63** offline and **59/59** live browser checks including six new failed-attempt
@@ -548,8 +548,9 @@ Current iteration (3-64): completed and verified the **failed-attempt disclosure
 a detached marker, so `quoteOffer` exposes `lastAttemptFailed`/`lastError` while `observedAt`, price and
 stock stay at the last success; a later successful check clears the mark. The offline QA server gained a
 `failedAttempt` scenario (fixture pages parsed 30 minutes earlier, CoffeeMan single pack and Pucks marked
-as failed, vendor state with 1 consecutive failure and a 30-minute backoff), with a new `node:test` case
-(**93/93** total) and six new browser checks. Verified: `npm run verify` — **93/93** tests, bundle
+as failed, vendor state with 1 consecutive failure and a 30-minute backoff), with two new `node:test`
+cases — the QA-server scenario and a partial per-offer failure through the real refresh pipeline
+(**94/94** total) — and six new browser checks. Verified: `npm run verify` — **94/94** tests, bundle
 80.12 KiB / gzip 20.60 KiB; `npm run check:sources` (17:22 UTC) — five listings PASS with unchanged
 ₪33/₪124/₪240/₪30/₪38 prices, stock and shipping evidence; `npm run cron:offline` — 6 bounded requests,
 five offers, `pruned: 0`; `npm run cron:local -- --fresh` (17:24 UTC) — 6 requests, five offers, all three

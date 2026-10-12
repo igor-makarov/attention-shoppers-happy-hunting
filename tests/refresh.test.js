@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { runRefresh, maybeInitialRefresh, backoffMs, refreshFreshness, newestObservationAt, isVendorDue, REFRESH_INTERVAL_MS, REFRESH_STALE_MS, BACKOFF_BASE_MS, EARLY_DUE_TOLERANCE_MS } from '../src/refresh.js';
 import { quoteBoard, findDestination } from '../src/lib/quote.js';
 import { createMemoryStore } from '../src/store.js';
-import { registeredVendors } from '../src/vendors/index.js';
+import { registeredVendors, createObservation } from '../src/vendors/index.js';
 import { readFixtureForUrl, createFixtureFetch, trackedOffers } from './fixtures/vendor-fixtures.mjs';
 
 const fixtures = new URL('./fixtures/', import.meta.url);
@@ -300,6 +300,92 @@ test('a vendor failure inside the cron sequence keeps its previous good offer an
   const recoveredObservation = (await store.snapshot()).observations.find(observation => observation.vendor.id === 'coffeeman' && observation.product.packCount === 1);
   assert.equal(recoveredObservation.previous.price.amount, 33, 'the recovered check still compares with the pre-failure price');
   assert.equal(recoveredObservation.previous.observedAt, goodCoffeeman.observedAt);
+});
+
+test('a partial vendor failure stamps only the failed offer row and a later success clears it', async () => {
+  const store = createMemoryStore();
+  const offers = [
+    { id: 'a', url: 'https://partial-demo.example/product-a' },
+    { id: 'b', url: 'https://partial-demo.example/product-b' }
+  ];
+  const observationFor = (offer, now) => createObservation({
+    vendor: { id: 'partial-demo', name: 'Partial demo vendor', homepage: 'https://partial-demo.example' },
+    itemUrl: offer.url,
+    product: {
+      productId: 'lavazza-crema-e-gusto-vacuum-ground',
+      name: `Partial demo ${offer.id}`,
+      sku: `DEMO-${offer.id.toUpperCase()}`,
+      variantId: 'classico',
+      variantLabel: 'Classico',
+      form: 'ground',
+      packGrams: 250,
+      packCount: 1,
+      totalGrams: 250
+    },
+    price: { amount: offer.id === 'a' ? 33 : 40, currency: 'ILS' },
+    availability: 'in_stock',
+    availabilityEvidence: { url: offer.url, value: 'InStock', note: 'Synthetic partial-failure test record.' },
+    shipping: { mode: 'delivery', certainty: 'verified', amount: { amount: 25, currency: 'ILS' } },
+    now
+  });
+  let mode = 'all-ok';
+  const vendor = {
+    id: 'partial-demo',
+    name: 'Partial demo vendor',
+    homepage: 'https://partial-demo.example',
+    allowedHosts: ['partial-demo.example'],
+    parserVersion: 'partial-demo/1',
+    offers,
+    observe: async ({ now }) => (mode === 'partial-failure'
+      ? { observations: [observationFor(offers[0], now)], failures: [{ offerId: 'b', error: 'HTTP 404 for the second offer' }] }
+      : { observations: offers.map(offer => observationFor(offer, now)), failures: [] })
+  };
+
+  const t0 = Date.parse('2026-10-12T12:00:00.000Z');
+  const first = await run({ store, vendors: [vendor], includeFx: false, now: t0 });
+  assert.equal(first.vendors[0].saved, 2);
+
+  // One offer fails while the other still parses. The failed offer's existing row
+  // must keep its observedAt/price and carry the new attempt time and reason, and
+  // the healthy offer's row must not inherit the failure.
+  mode = 'partial-failure';
+  const t1 = t0 + REFRESH_INTERVAL_MS + 1000;
+  const second = await run({ store, vendors: [vendor], includeFx: false, now: t1 });
+  assert.equal(second.vendors[0].saved, 1, 'the healthy offer still saves');
+  assert.equal(second.vendors[0].failures.length, 1);
+  const snapshot = await store.snapshot();
+  const rowA = snapshot.observations.find(row => row.key.includes('DEMO-A'));
+  const rowB = snapshot.observations.find(row => row.key.includes('DEMO-B'));
+  assert.equal(rowA.observedAt, new Date(t1).toISOString(), 'the healthy offer is re-observed');
+  assert.equal(rowA.lastError, null);
+  assert.equal(rowB.observedAt, new Date(t0).toISOString(), 'the failed offer keeps its last successful check');
+  assert.equal(rowB.price.amount, 40, 'the failed offer keeps its last known price');
+  assert.equal(rowB.attemptedAt, new Date(t1).toISOString(), 'the failure is stamped on the existing row');
+  assert.equal(rowB.lastError, 'HTTP 404 for the second offer');
+
+  const board = quoteBoard({
+    observations: snapshot.observations,
+    productId: 'lavazza-crema-e-gusto-vacuum-ground',
+    variantId: 'classico',
+    targetGrams: 250,
+    destination: findDestination('tel-aviv'),
+    fx: null,
+    now: t1
+  });
+  const quoteB = board.ranked.find(quote => quote.key.includes('DEMO-B'));
+  assert.ok(quoteB, 'the failed offer still ranks with its last known good data');
+  assert.equal(quoteB.lastAttemptFailed, true);
+  assert.equal(quoteB.lastError, 'HTTP 404 for the second offer');
+  assert.equal(quoteB.observedAt, new Date(t0).toISOString());
+
+  // The next successful check clears the failure mark on the same row.
+  mode = 'all-ok';
+  const t2 = t1 + REFRESH_INTERVAL_MS + 1000;
+  await run({ store, vendors: [vendor], includeFx: false, now: t2 });
+  const recovered = (await store.snapshot()).observations.find(row => row.key.includes('DEMO-B'));
+  assert.equal(recovered.observedAt, new Date(t2).toISOString(), 'the next success re-observes the offer');
+  assert.equal(recovered.lastError, null, 'a successful check clears the failure mark');
+  assert.equal(recovered.attemptedAt, new Date(t2).toISOString());
 });
 
 test('a failing FX fetch keeps the previous rate table', async () => {
