@@ -51,7 +51,8 @@ so it is treated as unknown, not free". FX reference table from the Bank of Isra
    quantity rounding, minimum order and free-shipping thresholds; missing FX is not zero; destination
    coverage; pickup separated; leases; backoff; allowlist.
 3. `npm run check:sources` (live) — CoffeeMan and Pucks both PASS against the real pages at
-   11:04 UTC and 11:20 UTC.
+   11:04 UTC. The same adapters and bounded fetcher fetched both pages again during the local scheduled
+   refresh at 11:20 UTC and parsed identically.
 4. `npm run cron:offline` — full refresh pipeline against recorded Windows-1255/JSON-LD fixtures, both
    offers and the FX table persisted.
 5. `npm run cron:local` — live pipeline: both vendors refreshed, Bank of Israel rates fetched (USD 3.055).
