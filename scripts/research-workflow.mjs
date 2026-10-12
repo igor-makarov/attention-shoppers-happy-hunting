@@ -240,12 +240,19 @@ export function parseCoffeemanTotals(text) {
   };
 }
 
-/** Coffee4U summary: item total / delivery / final total. */
+/** Coffee4U summary: product-line total, delivery line and final total. */
 export function parseCoffee4uTotals(text) {
   const value = String(text ?? '');
-  const subtotal = /(?:סכום ביניים|סה"כ מוצרים)[^\d]{0,12}([\d.,]+)/.exec(value)?.[1] ?? null;
-  const shippingMatch = /(?:משלוח|דמי משלוח|הובלה)[^\S\n]*([\d.,]+|חינם|free)/i.exec(value);
-  const total = /(?:סה"כ לתשלום|סך הכל)[^\d]{0,12}([\d.,]+)/.exec(value)?.[1] ?? null;
+  // The item subtotal is the amount printed on the tracked product line
+  // ("Lavazza Crema e gusto 250 gr טחון ₪ 76"); the checkout has no separate
+  // "סכום ביניים" label.
+  const subtotal = /(?:Lavazza\s+)?Crema\s*e\s*gusto[^\n]*?₪\s*([\d.,]+)/i.exec(value)?.[1] ?? null;
+  // After a method is selected the summary shows "משלוח ₪30"; before that the
+  // method card shows option prices ("... - 15 ₪"), which must not be read as
+  // the applied charge. The shekel sign sits before the amount on this page.
+  const shippingMatch = /(?:משלוח|דמי משלוח|הובלה)[^\S\n]*₪\s*([\d.,]+)/i.exec(value)
+    ?? /(?:משלוח|דמי משלוח|הובלה)[^\S\n]*([\d.,]+|חינם|free)/i.exec(value);
+  const total = /(?:סה"כ לתשלום|סך הכל|סכום כולל מע["״]?מ)[^\d]{0,12}([\d.,]+)/.exec(value)?.[1] ?? null;
   const shipping = shippingMatch?.[1] ?? null;
   return {
     itemSubtotalIls: toAmount(subtotal),

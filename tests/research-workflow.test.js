@@ -296,14 +296,15 @@ test('a run blocks when the required destination fields cannot be set', async ()
   assert.equal(validateEvidence(record).ok, true);
 });
 
-test('a destination step that sets the wrong value is recorded as unverified, not trusted', async () => {
-  // The Coffee4U estimator also has a language <select>; if a generic select
-  // step matches it, the run must not claim the locality was set.
+test('a destination step that sets the wrong value blocks the run and is never trusted', async () => {
+  // The Coffee4U checkout renders one closed locality list (select#u_city). If a
+  // step sets something else (for example the language dropdown), the run must
+  // not claim the locality was set; the required destination step blocks it.
   const driver = {
     goto: async () => {},
     gotoUnlessText: async () => 'navigated',
     clickText: async () => {},
-    clickAnyText: async () => 'שליחות מדלת לדלת',
+    clickAnyText: async () => 'הוסף לסל',
     clickSelector: async () => 'a.slide_cart__btn-checkout',
     selectLabel: async () => 'עברית',
     fill: async (selector, value) => ({ selector, value }),
@@ -311,14 +312,27 @@ test('a destination step that sets the wrong value is recorded as unverified, no
     waitText: async () => true,
     sleep: async () => {},
     getText: async () => `סיכום הזמנה\nסה"כ מוצרים 38 ₪\nמשלוח 30 ₪\nסה"כ לתשלום 68 ₪`,
-    currentUrl: async () => 'https://www.coffee4u.co.il/cart.asp'
+    currentUrl: async () => 'https://www.coffee4u.co.il/Checkout.asp'
   };
   const record = await runRecipe({ recipe: RECIPES.coffee4u, driver, params: { grams: 250, locality: 'תל אביב', postcode: '6100000' } });
-  assert.equal(record.status, 'quoted');
+  assert.equal(record.status, 'blocked');
+  assert.match(record.blocker, /destination verification failed/);
   assert.equal(record.destinationVerified, false, 'a language dropdown is not a destination');
-  assert.match(record.qualification, /could not be verified/, 'the record says the destination was not verified');
   assert.equal(validateEvidence(record).ok, true);
-  const stripped = { ...record, qualification: null };
+
+  // Even if a quoted record did carry an unverified destination, the schema
+  // requires it to disclose that instead of presenting it as confirmed.
+  const quoted = buildEvidenceRecord({
+    recipe: RECIPES.coffee4u,
+    params: { grams: 250, locality: 'תל אביב', postcode: '6100000' },
+    status: 'quoted',
+    totals: { itemSubtotalIls: 38, shippingIls: 30, deliveredTotalIls: 68 },
+    destinationVerified: false,
+    now: Date.parse('2026-10-12T20:24:00Z')
+  });
+  assert.equal(validateEvidence(quoted).ok, true, 'the disclosure makes it valid');
+  assert.match(quoted.qualification, /could not be verified/);
+  const stripped = { ...quoted, qualification: null };
   assert.equal(validateEvidence(stripped).ok, false, 'an unverified destination must be disclosed');
 });
 
