@@ -414,3 +414,93 @@ test('the engine changes winner with quantity: a multipack beats singles once sh
   assert.equal(board1000.best.totalIls, 150, '₪125 + ₪25');
   assert.equal(board1000.ranked.find(item => item.key === 'other-single').totalIls, 173, '4 × ₪37 + ₪25');
 });
+
+test('a price change since the previous check is reported in ILS and keeps the delivered math unchanged', () => {
+  const dropped = observation({
+    key: 'dropped:1',
+    price: { amount: 36 },
+    previous: {
+      observedAt: '2026-10-12T06:00:00.000Z',
+      price: { amount: 40, currency: 'ILS' },
+      availability: 'in_stock',
+      totalGrams: 250
+    }
+  });
+  const board = quote([dropped]);
+  assert.equal(board.best.totalIls, 92, '2 × ₪36 + ₪20 shipping');
+  assert.equal(board.best.priceChange.comparable, true);
+  assert.equal(board.best.priceChange.direction, 'down');
+  assert.equal(board.best.priceChange.deltaIls, 4);
+  assert.equal(board.best.priceChange.previousObservedAt, '2026-10-12T06:00:00.000Z');
+  assert.equal(board.best.previous.priceAmount, 40);
+  assert.equal(board.best.previous.priceCurrency, 'ILS');
+  assert.equal(board.best.previous.availabilityLabel, 'In stock (observed)');
+});
+
+test('an unchanged or higher price is reported without inventing a discount', () => {
+  const previous = {
+    observedAt: '2026-10-12T06:00:00.000Z',
+    price: { amount: 40, currency: 'ILS' },
+    availability: 'in_stock',
+    totalGrams: 250
+  };
+  const same = quote([observation({ key: 'same:1', previous })]);
+  assert.equal(same.best.priceChange.comparable, true);
+  assert.equal(same.best.priceChange.direction, 'same');
+  assert.equal(same.best.priceChange.deltaIls, 0);
+
+  const higher = quote([observation({ key: 'higher:1', price: { amount: 44 }, previous })]);
+  assert.equal(higher.best.priceChange.direction, 'up');
+  assert.equal(higher.best.priceChange.deltaIls, 4);
+  assert.equal(higher.best.priceChange.previousIls, 40);
+});
+
+test('a previous price in another currency needs a stored rate and is never treated as no change', () => {
+  const previous = {
+    observedAt: '2026-10-12T06:00:00.000Z',
+    price: { amount: 9, currency: 'USD' },
+    availability: 'in_stock',
+    totalGrams: 250
+  };
+  const withoutFx = quote([observation({ key: 'usd:1', price: { amount: 10, currency: 'USD' }, previous })]);
+  const blocked = withoutFx.unrankable.find(item => item.key === 'usd:1');
+  assert.equal(blocked.priceChange.comparable, false);
+  assert.match(blocked.priceChange.reason, /exchange rate/);
+
+  const fx = { asOf: '2026-10-09', base: 'ILS', rates: { USD: { rate: 3, unit: 1 } }, source: { name: 'test' } };
+  const withFx = quote([observation({ key: 'usd:1', price: { amount: 10, currency: 'USD' }, previous })], { fx });
+  assert.equal(withFx.best.priceChange.comparable, true);
+  assert.equal(withFx.best.priceChange.direction, 'up');
+  assert.equal(withFx.best.priceChange.deltaIls, 3, 'US$1 × 3.00 reference rate');
+  assert.equal(withFx.best.totalIls, 80, '2 × US$10 × 3 + ₪20 shipping');
+});
+
+test('a pack-size change blocks the price comparison instead of showing a false delta', () => {
+  const board = quote([observation({
+    key: 'resized:1',
+    previous: {
+      observedAt: '2026-10-12T06:00:00.000Z',
+      price: { amount: 40, currency: 'ILS' },
+      availability: 'in_stock',
+      totalGrams: 500
+    }
+  })]);
+  assert.equal(board.best.priceChange.comparable, false);
+  assert.match(board.best.priceChange.reason, /pack size changed/);
+  assert.equal(board.best.priceChange.previousAmount, 40);
+});
+
+test('previous availability is exposed for stock-change labels', () => {
+  const board = quote([observation({
+    key: 'restocked:1',
+    previous: {
+      observedAt: '2026-10-12T06:00:00.000Z',
+      price: { amount: 40, currency: 'ILS' },
+      availability: 'out_of_stock',
+      totalGrams: 250
+    }
+  })]);
+  assert.equal(board.best.previous.availability, 'out_of_stock');
+  assert.equal(board.best.previous.availabilityLabel, 'Out of stock (observed)');
+  assert.equal(board.best.priceChange.comparable, true, 'the price is still comparable across a stock change');
+});

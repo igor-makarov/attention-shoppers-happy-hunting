@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runRefresh, maybeInitialRefresh, backoffMs, refreshFreshness, REFRESH_INTERVAL_MS, REFRESH_STALE_MS, BACKOFF_BASE_MS } from '../src/refresh.js';
+import { quoteBoard, findDestination } from '../src/lib/quote.js';
 import { createMemoryStore } from '../src/store.js';
 import { registeredVendors } from '../src/vendors/index.js';
 import { readFixtureForUrl, createFixtureFetch, trackedOffers } from './fixtures/vendor-fixtures.mjs';
@@ -404,4 +405,57 @@ test('retired product URLs have no fixture route, so offline tools cannot serve 
   const fixtureFetch = createFixtureFetch();
   const retiredResponse = await fixtureFetch(retiredUrls[0]);
   assert.equal(retiredResponse.status, 404, 'a retired URL is a fixture 404, never a vendor page');
+});
+
+test('a run that only refreshes the FX table does not claim a completed offer refresh', async () => {
+  const store = createMemoryStore();
+  await run({ store, fetchImpl: fixtureFetch(), now: NOW });
+  const refreshAt = (await store.snapshot()).meta.lastRefreshAt.value;
+
+  // Vendors are still inside their six-hour window, but the stored FX table is
+  // three hours old, so this run fetches only the rate table.
+  const fxOnly = await run({ store, fetchImpl: fixtureFetch(), now: NOW + 3 * 60 * 60 * 1000 + 1000 });
+  assert.equal(fxOnly.requests, 1, 'only the FX request is made');
+  assert.equal(fxOnly.vendors.filter(vendor => vendor.skipped).length, 3, 'every vendor is inside its backoff window');
+  const after = (await store.snapshot()).meta.lastRefreshAt.value;
+  assert.equal(after, refreshAt, 'refreshing only the rate table must not look like a fresh offer check');
+});
+
+test('a later successful check keeps the previous price as comparison evidence', async () => {
+  const store = createMemoryStore();
+  await run({ store, fetchImpl: fixtureFetch(), now: NOW });
+  const before = (await store.snapshot()).observations.find(o => o.vendor.id === 'coffeeman' && o.product.packCount === 1);
+  assert.equal(before.price.amount, 33);
+  assert.equal(before.previous, undefined, 'the first observation has nothing to compare with');
+
+  const cheaper = Buffer.from(
+    readFileSync(new URL('coffeeman-product.windows-1255.html', fixtures)).toString('latin1').split('price="33.00"').join('price="30.00"'),
+    'latin1'
+  );
+  await run({
+    store,
+    fetchImpl: fixtureFetch({ overrides: { 'coffeeman:classico-250g': cheaper } }),
+    now: NOW + REFRESH_INTERVAL_MS
+  });
+  const after = (await store.snapshot()).observations.find(o => o.vendor.id === 'coffeeman' && o.product.packCount === 1);
+  assert.equal(after.price.amount, 30);
+  assert.equal(after.previous.price.amount, 33);
+  assert.equal(after.previous.price.currency, 'ILS');
+  assert.equal(after.previous.observedAt, before.observedAt);
+  assert.equal(after.previous.availability, 'in_stock');
+  assert.equal(after.previous.totalGrams, 250);
+
+  const snapshot = await store.snapshot();
+  const board = quoteBoard({
+    observations: snapshot.observations,
+    productId: 'lavazza-crema-e-gusto-vacuum-ground',
+    variantId: 'classico',
+    targetGrams: 500,
+    destination: findDestination('tel-aviv'),
+    fx: snapshot.meta.fx,
+    now: NOW + REFRESH_INTERVAL_MS
+  });
+  assert.equal(board.best.key, after.key);
+  assert.equal(board.best.priceChange.direction, 'down');
+  assert.equal(board.best.priceChange.deltaIls, 3);
 });

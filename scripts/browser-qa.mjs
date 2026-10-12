@@ -56,6 +56,7 @@ try {
         key: observation.key,
         vendor: observation.vendor?.name,
         price: observation.price,
+        previousPrice: observation.previous?.price ?? null,
         availability: observation.availability,
         shipping: observation.shipping?.certainty
       }))
@@ -161,6 +162,33 @@ try {
     return cell.includes(`${ils(quote.itemPrice.amount)} ${quote.itemPrice.currency} × ${quote.units} = ${ils(quote.itemTotalIls)}`);
   });
   check('desktop: item-price cells show unit price × packs bought = ILS line total', itemMathOk, desktop.compareItemCells.join(' | '));
+
+  // Comparison quality: when the stored observation carries the previous successful
+  // check, the UI must show the unit-price change in ILS with its timestamp. The
+  // offline fixture server attaches one clearly synthetic previous check; live runs
+  // only assert consistency when the API actually has previous evidence.
+  const bestChange = best.priceChange ?? null;
+  if (fixtureServer) {
+    check('fixtures: the CoffeeMan single pack carries synthetic previous-check metadata',
+      bestChange?.comparable === true && bestChange.direction === 'down' && bestChange.deltaIls === 2,
+      JSON.stringify(bestChange));
+  }
+  const expectedChangeText = !bestChange
+    ? null
+    : !bestChange.comparable
+      ? 'Previous price not compared:'
+      : bestChange.direction === 'same'
+        ? 'Unit price unchanged since the previous check'
+        : `Unit price ${bestChange.direction} ${ils(bestChange.deltaIls)} since the previous check`;
+  const bestChangeShown = expectedChangeText == null
+    || (desktop.bestTerms.includes('Price change')
+      && (desktop.bestValues[desktop.bestTerms.indexOf('Price change')] ?? '').includes(expectedChangeText));
+  check('desktop: price change since the previous check is shown when previous evidence exists', bestChangeShown,
+    expectedChangeText == null ? 'no previous evidence in the API payload' : `${desktop.bestTerms.join(' | ')} :: ${desktop.bestValues.join(' | ')}`);
+  const tableChangeShown = expectedChangeText == null || !bestChange.comparable
+    || (desktop.compareItemCells[0] ?? '').includes(expectedChangeText);
+  check('desktop: the comparison table repeats the previous-check price line for the best offer', tableChangeShown,
+    desktop.compareItemCells[0] ?? '');
 
   // Unstated variant: the Coffee4U listing is never merged into the Classico
   // ranking. It is selectable on its own, ranked with the published door-to-door
