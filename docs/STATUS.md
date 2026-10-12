@@ -1,7 +1,7 @@
 # Project status
 
 Stage: **Crema e Gusto scope enforced; the Canton Zürich shopping board, the browser-researched
-shipping rates and the redesigned UI validated locally (99/99 tests, 82/82 offline and 77/77 live browser
+shipping rates and the redesigned UI validated locally (99/99 tests, 82/82 offline and 78/78 live browser
 checks); production serves the redesigned assets, the first production cron tick was observed at
 18:17:55 UTC (0 requests, exactly as expected) and its stored observations pick up the researched rates
 at the 00:17 UTC cron tick; a fresh 19:07-19:16 UTC browser session independently reproduced all three
