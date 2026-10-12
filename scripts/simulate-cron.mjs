@@ -44,6 +44,7 @@ if (offline) {
 }
 
 const fetchImpl = offline ? globalThis.__offlineFetch : globalThis.fetch;
+const logger = { info: message => process.stderr.write(`${message}\n`), warn: message => process.stderr.write(`${message}\n`) };
 
 try {
   const summary = await runRefresh({
@@ -52,7 +53,7 @@ try {
     fetchImpl,
     now,
     trigger: offline ? 'cron-simulation-offline' : 'cron-simulation',
-    logger: console
+    logger
   });
   await store.flush();
   const snapshot = await store.snapshot();

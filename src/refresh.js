@@ -67,7 +67,7 @@ export async function runRefresh({
     }
 
     let fx = null;
-    if (includeFx) fx = await refreshFx({ store, fetchImpl, now, counter, logger });
+    if (includeFx) fx = await refreshFxCached({ store, fetchImpl, now, counter, logger });
 
     const finishedAt = new Date(Date.now()).toISOString();
     const summary = {
@@ -132,6 +132,17 @@ async function refreshVendor({ store, vendor, state, fetchImpl, now, counter, lo
   await store.setVendorState(vendor.id, nextState);
   logger?.info?.(`[refresh] ${vendor.id}: saved=${saved} failures=${failures.length} next=${nextAttemptAt}`);
   return { vendorId: vendor.id, ok, saved, failures, nextAttemptAt };
+}
+
+export const FX_MIN_INTERVAL_MS = 3 * 60 * 60 * 1000;
+
+/** Skip the FX fetch when a recent official rate table is already stored. */
+export async function refreshFxCached({ store, fetchImpl, now, counter, logger }) {
+  const stored = await store.getMeta('fx');
+  if (stored?.fetchedAt && now - Date.parse(stored.fetchedAt) < FX_MIN_INTERVAL_MS) {
+    return { ok: true, fx: stored, cached: true };
+  }
+  return refreshFx({ store, fetchImpl, now, counter, logger });
 }
 
 export async function refreshFx({ store, fetchImpl, now, counter, logger }) {
