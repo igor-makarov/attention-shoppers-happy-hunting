@@ -39,12 +39,17 @@ export function backoffMs(consecutiveFailures) {
 /**
  * Newest successful observation time across stored rows. Attempt markers carry no
  * observedAt, so a failed refresh can never make the board look freshly checked.
+ * Pass `productIds` to ignore rows for any product line that is no longer tracked:
+ * a lingering historical row must not keep the Crema e Gusto board looking fresh.
  */
-export function newestObservationAt(observations = []) {
+export function newestObservationAt(observations = [], productIds = null) {
+  const allowed = productIds ? new Set(productIds) : null;
   let newestMs = null;
   let newest = null;
   for (const row of observations) {
     if (!row?.observedAt) continue;
+    const productId = row?.product?.productId ?? null;
+    if (allowed && productId != null && !allowed.has(productId)) continue;
     const parsed = Date.parse(row.observedAt);
     if (!Number.isFinite(parsed)) continue;
     if (newestMs == null || parsed > newestMs) {

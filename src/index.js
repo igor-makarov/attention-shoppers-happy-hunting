@@ -13,6 +13,9 @@ import { registeredVendors } from './vendors/index.js';
 export { BoardStore } from './store.js';
 
 const PUBLIC_CACHE = 'public, max-age=300, stale-while-revalidate=3600';
+// Freshness must only consider observations for product lines that are still tracked:
+// a lingering historical row must not keep the single-product board looking fresh.
+const TRACKED_PRODUCT_IDS = products.map(product => product.id);
 
 export default {
   async fetch(request, env, ctx) {
@@ -62,7 +65,7 @@ async function handleHealth(env) {
       const store = storeClient(durableStore(env));
       const snapshot = await store.snapshot();
       refresh = snapshot.meta?.lastRefreshAt?.value ?? null;
-      lastObservationAt = newestObservationAt(snapshot.observations);
+      lastObservationAt = newestObservationAt(snapshot.observations, TRACKED_PRODUCT_IDS);
     }
   } catch (cause) {
     error = 'storage unavailable';
@@ -92,7 +95,7 @@ async function handleBoard(request, env, ctx, url) {
   const grams = url.searchParams.get('grams') ?? '500';
   const destination = findDestination(url.searchParams.get('dest'));
   const snapshot = await store.snapshot();
-  const lastObservationAt = newestObservationAt(snapshot.observations);
+  const lastObservationAt = newestObservationAt(snapshot.observations, TRACKED_PRODUCT_IDS);
   const board = quoteBoard({
     observations: snapshot.observations,
     productId,
@@ -132,7 +135,7 @@ async function handleStatus(env) {
   if (!env.BOARD) return json({ status: 'storage not configured', vendors: [], runs: [] });
   const store = storeClient(durableStore(env));
   const snapshot = await store.snapshot();
-  const lastObservationAt = newestObservationAt(snapshot.observations);
+  const lastObservationAt = newestObservationAt(snapshot.observations, TRACKED_PRODUCT_IDS);
   return json({
     lastRefreshAt: snapshot.meta?.lastRefreshAt?.value ?? null,
     lastObservationAt,

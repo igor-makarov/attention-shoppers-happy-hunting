@@ -291,6 +291,10 @@ test('newestObservationAt ignores attempt markers and picks the newest success',
   assert.equal(newestObservationAt(rows), '2026-10-12T10:00:00.000Z');
   assert.equal(newestObservationAt([]), null);
   assert.equal(newestObservationAt([{ key: 'x', attemptedAt: '2026-10-12T11:00:00.000Z' }]), null, 'a failed attempt is not an observation');
+  assert.equal(newestObservationAt([
+    { key: 'tracked', observedAt: '2026-10-12T10:00:00.000Z', product: { productId: 'tracked-product' } },
+    { key: 'retired', observedAt: '2026-10-12T11:00:00.000Z', product: { productId: 'retired-product' } }
+  ], ['tracked-product']), '2026-10-12T10:00:00.000Z', 'rows for other product lines are ignored');
 });
 
 test('registered vendors are within their own allowlists', async () => {

@@ -195,6 +195,22 @@ test('board freshness falls back to the newest observation when no refresh compl
   assert.ok(stale.freshness.ageHours >= 19.9, `ageHours=${stale.freshness.ageHours}`);
 });
 
+test('a lingering retired observation cannot make the tracked board look fresh', async () => {
+  const store = createMemoryStore();
+  const old = new Date(Date.now() - 20 * 3600 * 1000).toISOString();
+  const recent = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  await store.putObservation({ key: 'retired:oro', product: { productId: 'lavazza-qualita-oro-vacuum-ground' }, observedAt: recent, price: { amount: 1, currency: 'ILS' }, availability: 'in_stock' });
+  await store.putObservation({ key: 'coffeeman:tracked', product: { productId: 'lavazza-crema-e-gusto-vacuum-ground' }, observedAt: old, price: { amount: 33, currency: 'ILS' }, availability: 'in_stock' });
+  // Throttle the initial-refresh trigger so this test never starts a background fetch.
+  await store.setMeta('initialRefreshAttemptAt', { value: new Date().toISOString() });
+  const env = envWith(store);
+  const health = await (await worker.fetch(new Request('https://example.test/health'), env, {})).json();
+  assert.equal(health.lastObservationAt, old, 'the retired row is ignored for freshness');
+  const status = await (await worker.fetch(new Request('https://example.test/api/status'), env, {})).json();
+  assert.equal(status.freshness.lastObservationAt, old);
+  assert.equal(status.freshness.stale, true, 'a fresh retired row cannot mask a stale tracked board');
+});
+
 test('website requests fall through to static assets', async () => {
   const response = await worker.fetch(new Request('https://example.test/'), envWith(createMemoryStore()), {});
   assert.equal(await response.text(), 'asset:/');
