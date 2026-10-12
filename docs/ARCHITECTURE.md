@@ -13,8 +13,8 @@ GitHub normally does not trigger another push workflow for a push using GITHUB_T
 
 ## Implemented runtime
 
-The target product exists: `src/catalog.js` holds the Lavazza Crema e Gusto vacuum-ground identity and the
-strict classification rules. Vendor-specific adapters under `src/vendors/` (CoffeeMan, Pucks, Coffee4U)
+The target products exist: `src/catalog.js` holds the tracked Lavazza vacuum-ground products (Crema e
+Gusto, Qualità Oro and Qualità Rossa) and the strict classification rules. Vendor-specific adapters under `src/vendors/` (CoffeeMan, Pucks, Coffee4U)
 fetch fixed allowlisted product URLs through the bounded fetcher in `src/lib/http.js` and return versioned
 observations. `src/lib/quote.js` is a pure, timestamp-aware ranking engine; `src/lib/fx.js` converts
 non-ILS amounts with Bank of Israel reference rates and refuses to guess when a rate is missing. It keeps

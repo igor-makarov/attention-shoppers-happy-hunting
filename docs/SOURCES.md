@@ -9,7 +9,7 @@ each run writes its evidence to `.shurik-local/sources/<timestamp>.json`; review
 
 ### CoffeeMan / Amigo — coffeeman.co.il (Israel)
 
-Tracked listings (six offers across the two tracked products, never merged):
+Tracked listings (seven offers across the three tracked products, never merged):
 
 - **250 g single pack** — `https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico`
   - Retrieved: 2026-10-12 11:04, 11:20, 11:29, 11:48 and 12:57 UTC (adapters `coffeeman/1` and `coffeeman/2`)
@@ -38,6 +38,10 @@ Tracked listings (six offers across the two tracked products, never merged):
   - Establishes: name "8 אריזות 250 גרם Lavazza Qualità Oro קפה טחון", SKU 930341, 8 × 250 g = 2000 g, price ₪239.00, schema.org availability `InStock`.
   - Shipping certainty: **unknown** — like the Crema e Gusto 8-pack, this page lists the courier option without a price, so the offer stays visible and unranked.
 
+- **Qualità Rossa 250 g single pack** — `https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-qualita-rossa`
+  - Retrieved: 2026-10-12 13:32 UTC (adapter `coffeeman/3` via live `npm run check:sources`)
+  - Establishes: name "250 גרם קפה טחון Lavazza Qualita Rossa- חוזק 5", SKU 930336, ground, 250 g single pack, price ₪33.00, schema.org availability `InStock`, and the same product-page delivery list: courier ₪25, free self-pickup, plus a distribution-center option whose price is not published.
+  - Shipping certainty: **verified** for the published courier rate (country-wide IL).
 - Parser: schema.org microdata in the legacy Windows-1255 pages; the adapter decodes the declared charset before parsing and uses the same parser for all six listings (Crema e Gusto and Qualità Oro).
 - Fixtures: `tests/fixtures/coffeeman-product.windows-1255.html` (single, plus derived out-of-stock variant),
   `coffeeman-4pack-product.windows-1255.html` and `coffeeman-8pack-product.windows-1255.html` for Crema e Gusto,
@@ -47,7 +51,7 @@ Tracked listings (six offers across the two tracked products, never merged):
 
 ### Pucks — pucks.co.il (Ramla, Israel)
 
-Tracked listings (two offers, never merged):
+Tracked listings (four offers, never merged):
 
 - **Crema e Gusto Classico 250 g** — `https://pucks.co.il/product/lavazza-crema-e-gusto-ground-coffee-250g`
   - Retrieved: 2026-10-12 11:04, 11:20, 11:29 and 12:57 UTC (adapters `pucks/1` and `pucks/2`)
@@ -59,6 +63,14 @@ Tracked listings (two offers, never merged):
   - Establishes: name "Lavazza Qualità Oro ground coffee -קפה טחון 250 גרם", SKU lav11, GTIN 8000070019911, ground coffee, 250 g single pack, price ₪35.00, schema.org JSON-LD availability `InStock`.
   - Variant: the page states no blend variant, so the listing is stored as *Variant not stated* and is only compared on the Qualità Oro board.
   - Shipping certainty: **unknown** — shipping is calculated at checkout; never treated as free. The 2026-10-12 terms-page check above applies to this listing too.
+- **Qualità Rossa 250 g (SKU Lav80)** — `https://pucks.co.il/product/lavazza-qualita-rossa-ground-coffee-250g`
+  - Retrieved: 2026-10-12 13:32 UTC (adapter `pucks/3`)
+  - Establishes: name "Lavazza Qualita Rossa-250 גרם קפה טחון", SKU Lav80, GTIN 8000070035980, ground, 250 g single pack, price ₪30.00, schema.org JSON-LD availability `InStock`.
+  - Shipping certainty: **unknown** — shipping is calculated at checkout, so the offer stays visible and unranked; it is never treated as free.
+- **Qualità Rossa 250 g (SKU Lav35) — observed out of stock** — `https://pucks.co.il/product/lavazza-qualita-rossa-ground-coffee-powder-250g`
+  - Retrieved: 2026-10-12 13:32 UTC (adapter `pucks/3`)
+  - Establishes: name "Lavazza Qualita Rossa- לווצה רוסה 250 גרם קפה טחון", SKU Lav35, GTIN 8000070035935, ground, 250 g single pack, price ₪35.00, schema.org JSON-LD availability `OutOfStock`.
+  - The price is still an observation; the listing is kept visible and unranked and is never reported as available. This is the board's real out-of-stock example, alongside the derived parser fixtures.
 - Parser: `application/ld+json` Product/Offer block on the public product pages.
 - Fixtures: `tests/fixtures/pucks-product.html` (plus a derived out-of-stock variant and a preorder variant) and `tests/fixtures/pucks-qualita-oro-product.html`, minimized excerpts of the pages retrieved on 2026-10-12.
 
@@ -103,14 +115,27 @@ Tracked listings (two offers, never merged):
 | caffenu.co.il / caffenu.com / caffevero.co.il | 2026-10-12: Caffenu is a capsule/cleaning brand; caffevero.co.il does not resolve | No ground-coffee listing. |
 | mojeek.com / Bing HTML / DuckDuckGo / Ecosia | 2026-10-12: mojeek returned HTTP 403, Bing HTML had no extractable result links, DuckDuckGo returned an anti-bot challenge; a later probe at 13:17 UTC saw lite.duckduckgo.com return HTTP 202 and ecosia.org HTTP 403 | Search engines were used only for research; no viable new source was found through them. |
 
+| roastmarket.com | 2026-10-12: storefront reachable; carries "Lavazza Qualità Oro ground coffee value pack 20x250g" (€132.99, InStock) in its public product sitemap | The public Delivery & Shipping page states "We deliver to mainland Spain and the Balearic Islands", handled by Correos. No evidence of delivery to Israel, so it is excluded rather than guessed. |
+| freshmarket.co.il | 2026-10-12: `/robots.txt` reachable (`Crawl-delay: 4`) but the public sitemap only lists static and page URLs; search/catalog responses are a small client shell with a bot-detection script and no product data | No stable server-rendered product page from the runner; not bypassed. |
+| carrefour.co.il / mega.co.il / victoryonline.co.il | 2026-10-12: carrefour.co.il and mega.co.il return HTTP 403 Cloudflare "Attention Required"; victoryonline.co.il returns a Cloudflare "Just a moment..." challenge for `/robots.txt` | Anti-bot protection; not bypassed. |
+| coffeedesk.com | 2026-10-12: `/robots.txt` reachable, but the public catalog search for "lavazza" returns HTTP 404 with no ground listing | Not a source for the tracked products. |
+| coffeeshop.co.il / ilcafe.co.il / coffeehen.co.il / yohananof.co.il | 2026-10-12 probes: coffeeshop.co.il timed out after 8 s, ilcafe.co.il and coffeehen.co.il did not resolve, yohananof.co.il failed at the network level | No reachable public product page from the runner. |
+| coffeetime.co.il | 2026-10-12: reachable but serves a SeedProd placeholder shell (no product data, no robots rules) | Not an e-commerce source. |
+| kaffeekontor.de | 2026-10-12: the domain redirects to a "domain for sale" page | Not an e-commerce source. |
+| coffeeitalia.co.uk | 2026-10-12: Cloudflare "Just a moment..." challenge on `/robots.txt` | Anti-bot protection; not bypassed. |
+
 Three independent adapters (CoffeeMan, Pucks and Coffee4U) meet and exceed the "at least two" requirement
-with nine real listings across two tracked products: six CoffeeMan offers (Crema e Gusto and Qualità Oro,
-single / 4 × 250 g / 8 × 250 g each) with observed prices and stock, four of them with a verified ₪25
-courier rate; two Pucks offers (Crema e Gusto ₪30, Qualità Oro ₪35) whose shipping stays unknown; and
-one Coffee4U offer with an observed price, listed stock and two published shipping services.
+with twelve real listings across three tracked products: seven CoffeeMan offers (Crema e Gusto and
+Qualità Oro single / 4 × 250 g / 8 × 250 g each, plus Qualità Rossa 250 g) with observed prices and
+stock, five of them with a verified ₪25 courier rate; four Pucks offers (Crema e Gusto ₪30, Qualità Oro
+₪35, Qualità Rossa ₪30 in stock and Qualità Rossa ₪35 observed out of stock) whose shipping stays
+unknown; and one Coffee4U offer with an observed price, listed stock and two published shipping
+services.
 Fixture-backed quote tests show that the CoffeeMan 4 × 250 g Crema e Gusto pack wins at 1 kg (₪149
-delivered) while two single packs win at 500 g (₪91 delivered), and that Qualità Oro behaves the same way
-on its own board (4-pack ₪150 at 1 kg versus four single packs at ₪173; two single packs ₪99 at 500 g) —
+delivered) while two single packs win at 500 g (₪91 delivered); that Qualità Oro behaves the same way
+on its own board (4-pack ₪150 at 1 kg versus four single packs at ₪173; two single packs ₪99 at 500 g);
+and that Qualità Rossa ranks its CoffeeMan single pack at ₪91 for 500 g while the cheaper Pucks ₪30
+item cannot win with unknown shipping and the Pucks Lav35 listing stays labelled out of stock —
 the comparison changes with the shopper's quantity using only observed prices. The Coffee4U listing is
 ranked separately from Classico because the vendor does not state the blend variant, with its ₪15
 pickup-point delivery labelled as an alternative rather than merged into the ranked total.
@@ -119,11 +144,11 @@ parser, registering it in `src/vendors/index.js`, and adding fixtures under `tes
 
 ## Product identity rules
 
-The board compares **Lavazza ground coffee in a vacuum brick**: Lavazza Crema e Gusto and Lavazza
-Qualità Oro are tracked as two separate products, and any listing whose name cannot be tied to one of
-them is rejected instead of being merged. Beans, capsules, pods and machines are rejected by
+The board compares **Lavazza ground coffee in a vacuum brick**: Lavazza Crema e Gusto, Lavazza
+Qualità Oro and Lavazza Qualità Rossa are tracked as three separate products, and any listing whose
+name cannot be tied to one of them is rejected instead of being merged. Beans, capsules, pods and machines are rejected by
 `classifyListing` in `src/catalog.js`, and blend variants (Classico, Forte, Ricco, Risveglio, decaf,
 unspecified) are kept as separate variants so they are never merged into one comparison. Qualità Oro
-listings carry *Variant not stated* because the line publishes no blend variant. Pack weight and pack
+and Qualità Rossa listings carry *Variant not stated* because those lines publish no blend variant. Pack weight and pack
 count are parsed per listing and normalized to delivered ILS per kilogram; multipacks are never merged
 with single packs into one offer.
