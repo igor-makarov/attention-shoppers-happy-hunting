@@ -219,6 +219,22 @@ test('the second tracked product has its own board and its own default variant',
   assert.equal(wrongVariant.ranked.length, 0, 'a variant of another line never matches Qualità Oro offers');
 });
 
+test('an unknown variant id falls back to the product default instead of an empty board', async () => {
+  const store = await seededStore();
+  const fallback = await (await worker.fetch(new Request('https://example.test/api/board?grams=500&dest=tel-aviv&variant=nope'), envWith(store), {})).json();
+  assert.equal(fallback.variantId, 'classico', 'a typo falls back to the default variant');
+  assert.ok(fallback.ranked.length > 0, 'the default variant is still ranked');
+  const defaultBoard = await (await worker.fetch(new Request('https://example.test/api/board?grams=500&dest=tel-aviv'), envWith(store), {})).json();
+  assert.deepEqual(fallback.ranked.map(quote => quote.key), defaultBoard.ranked.map(quote => quote.key));
+  const prototype = await (await worker.fetch(new Request('https://example.test/api/board?grams=500&dest=tel-aviv&variant=constructor'), envWith(store), {})).json();
+  assert.equal(prototype.variantId, 'classico', 'object prototype keys are never treated as variant ids');
+  // A real variant of another tracked line is not a typo: it stays strict and
+  // matches no offer rather than being silently rewritten.
+  const wrongLine = await (await worker.fetch(new Request('https://example.test/api/board?product=lavazza-qualita-oro-vacuum-ground&grams=500&dest=tel-aviv&variant=classico'), envWith(store), {})).json();
+  assert.equal(wrongLine.variantId, 'classico');
+  assert.equal(wrongLine.ranked.length, 0);
+});
+
 test('board without a storage binding explains the deployment requirement', async () => {
   const response = await worker.fetch(new Request('https://example.test/api/board'), { ASSETS: { fetch: async () => new Response('x') } }, {});
   const body = await response.json();

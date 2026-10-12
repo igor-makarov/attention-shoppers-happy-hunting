@@ -116,6 +116,12 @@ test('QA fixture server serves the board API and static assets offline', async (
     const apiMissing = await fetch(`${server.url}/api/nope`);
     assert.equal(apiMissing.status, 404);
     assert.deepEqual(await apiMissing.json(), { error: 'Not found' });
+
+    // The offline harness must resolve variants exactly like the Worker, or the
+    // browser QA would verify different behaviour from production.
+    const bogusVariant = await (await fetch(`${server.url}/api/board?grams=500&dest=tel-aviv&variant=nope`)).json();
+    assert.equal(bogusVariant.variantId, 'classico');
+    assert.ok(bogusVariant.ranked.length > 0, 'an unknown variant id falls back to the product default');
   } finally {
     await server.close();
   }

@@ -4,7 +4,7 @@
 // supplied by a visitor and never trigger unbounded scraping. The first request
 // after a deployment may start one throttled initial refresh.
 
-import { products, PRODUCTS, productById, variantCatalog } from './catalog.js';
+import { products, PRODUCTS, productById, variantCatalog, resolveVariantId } from './catalog.js';
 import { quoteBoard, findDestination, DESTINATIONS } from './lib/quote.js';
 import { runRefresh, maybeInitialRefresh, refreshFreshness } from './refresh.js';
 import { durableStore, storeClient } from './store.js';
@@ -79,7 +79,11 @@ async function handleBoard(request, env, ctx, url) {
   const store = storeClient(durableStore(env));
   const product = productById(url.searchParams.get('product')) ?? PRODUCTS[0];
   const productId = product.id;
-  const variantId = url.searchParams.get('variant') ?? product.defaultVariant;
+  const requestedVariant = url.searchParams.get('variant');
+  // A variant id that is not tracked at all (a typo or an old shared link) falls
+  // back to the product's default, like an unknown product or destination. A real
+  // variant of another line stays strict: it matches nothing on this board.
+  const variantId = resolveVariantId(product, requestedVariant);
   const grams = url.searchParams.get('grams') ?? '500';
   const destination = findDestination(url.searchParams.get('dest'));
   const snapshot = await store.snapshot();

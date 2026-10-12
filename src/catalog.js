@@ -80,6 +80,17 @@ export function variantById(id) {
   return VARIANTS[id] ?? VARIANTS.unspecified;
 }
 
+/**
+ * Resolve a requested variant id for a product. An id that is not a tracked
+ * variant at all (a typo or an old shared link) falls back to the product's
+ * default, exactly like an unknown product or destination. A real variant of
+ * another line is returned unchanged so it stays strict and matches no offer on
+ * this product's board instead of being silently rewritten.
+ */
+export function resolveVariantId(product, requested) {
+  return requested && Object.hasOwn(VARIANTS, requested) ? requested : product.defaultVariant;
+}
+
 /** Variants a product can be compared under, with their display labels. */
 export function variantCatalog(product = PRODUCTS[0]) {
   return (product?.variants ?? ['unspecified']).map(id => ({ id, label: variantById(id).label }));

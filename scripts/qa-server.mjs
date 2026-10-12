@@ -18,7 +18,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { coffeeman } from '../src/vendors/coffeeman.js';
 import { pucks } from '../src/vendors/pucks.js';
 import { coffee4u } from '../src/vendors/coffee4u.js';
-import { products } from '../src/catalog.js';
+import { products, resolveVariantId } from '../src/catalog.js';
 import { quoteBoard, findDestination, DESTINATIONS } from '../src/lib/quote.js';
 import { createObservation, registeredVendors } from '../src/vendors/index.js';
 import { refreshFreshness } from '../src/refresh.js';
@@ -148,7 +148,7 @@ async function handle(request, response, { observations, now, withTermsDemo, las
   }
   if (url.pathname === '/api/board') {
     const product = products.find(item => item.id === url.searchParams.get('product')) ?? products[0];
-    const variantId = url.searchParams.get('variant') ?? product.defaultVariant;
+    const variantId = resolveVariantId(product, url.searchParams.get('variant'));
     const grams = url.searchParams.get('grams') ?? '500';
     const destination = findDestination(url.searchParams.get('dest'));
     const board = quoteBoard({ observations, productId: product.id, variantId, targetGrams: grams, destination, fx: null, now });
