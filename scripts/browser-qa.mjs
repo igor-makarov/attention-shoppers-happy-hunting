@@ -75,8 +75,8 @@ try {
 
   // Quantity interaction: click "1 kg".
   const kgButton = await wd('POST', '/element', { using: 'css selector', value: '#quantity-group button[data-grams="1000"]' });
-  await wd('POST', `/element/${kgButton.value.ELEMENT}/click`, {});
-  await waitFor(wd, `document.querySelector('.best__total')?.textContent === '₪157.00'`, 15_000, 'quantity update to 1 kg');
+  await wd('POST', `/element/${elementId(kgButton)}/click`, {});
+  await waitForPage(wd, `document.querySelector('.best__total')?.textContent === '₪157.00'`, 15_000, 'quantity update to 1 kg', `({total: document.querySelector('.best__total')?.textContent ?? null, search: location.search, pressed: [...document.querySelectorAll('#quantity-group button')].map(b => b.getAttribute('aria-pressed'))})`);
   const kgState = await evaluate(wd, `({
     total: document.querySelector('.best__total')?.textContent,
     perKg: document.querySelector('.best__perkg')?.textContent,
@@ -88,17 +88,17 @@ try {
 
   // Destination change.
   await evaluate(wd, `(() => { const select = document.getElementById('destination'); select.value = 'eilat'; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
-  await waitFor(wd, `document.querySelector('.section__intro')?.textContent.includes('Eilat')`, 15_000, 'destination update');
+  await waitForPage(wd, `document.querySelector('.section__intro')?.textContent.includes('Eilat')`, 15_000, 'destination update');
   const eilat = await evaluate(wd, `({ intro: document.querySelector('.section__intro')?.textContent, total: document.querySelector('.best__total')?.textContent })`);
   check('interaction: destination change recalculates for Eilat', /Eilat/.test(eilat.intro ?? ''), eilat.intro);
 
   // Unknown toggle.
   await evaluate(wd, `(() => { const box = document.getElementById('show-unknown'); box.checked = false; box.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
-  await waitFor(wd, `!document.getElementById('unknown')`, 15_000, 'unknown section hidden');
+  await waitForPage(wd, `!document.getElementById('unknown')`, 15_000, 'unknown section hidden');
   const hiddenUnknown = await evaluate(wd, `document.getElementById('unknown') === null`);
   check('interaction: unrankable offers can be hidden but are visible by default', hiddenUnknown === true);
   await evaluate(wd, `(() => { const box = document.getElementById('show-unknown'); box.checked = true; box.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
-  await waitFor(wd, `!!document.getElementById('unknown')`, 15_000, 'unknown section restored');
+  await waitForPage(wd, `!!document.getElementById('unknown')`, 15_000, 'unknown section restored');
 
   // Keyboard: focus the second quantity button and activate it with Enter.
   const keyboard = await evaluate(wd, `(() => {
@@ -134,8 +134,8 @@ try {
   check('mobile: quantity buttons keep a 44px touch target', mobile.minTap >= 44, String(mobile.minTap));
   await screenshot(wd, 'mobile-390.png');
 
-  // Console errors.
-  await wd('DELETE', '/session');
+  // Close the session, then remove the driver's child processes before exiting.
+  await wd('DELETE', '');
   report.sessionClosed = true;
 } catch (error) {
   report.error = error?.stack ?? String(error);
@@ -147,18 +147,28 @@ try {
   await mkdir(OUT, { recursive: true });
   await writeFile(`${OUT}/report.json`, `${JSON.stringify(report, null, 2)}\n`);
   console.log(`\n${report.checks.filter(c => c.ok).length}/${report.checks.length} checks passed; report: ${OUT}/report.json`);
-  process.exitCode = report.failed ? 1 : 0;
+  // Explicit exit so a lingering browser/driver child handle cannot keep the runner busy.
+  process.exit(report.failed ? 1 : 0);
 }
 
 async function webdriver(method, path, body) {
   const response = await fetch(`http://127.0.0.1:${PORT}${path}`, {
     method,
     headers: body ? { 'content-type': 'application/json' } : {},
-    body: body ? JSON.stringify(body) : undefined
+    body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(30_000)
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(`${method} ${path} -> ${response.status} ${JSON.stringify(payload)}`);
   return payload;
+}
+
+/** W3C WebDriver returns the element key `element-6066-...`; legacy drivers use `ELEMENT`. */
+function elementId(found) {
+  const value = found?.value ?? {};
+  const id = value['element-6066-11e4-a52e-4f735466cecf'] ?? value.ELEMENT;
+  if (!id) throw new Error(`element not found: ${JSON.stringify(found).slice(0, 200)}`);
+  return id;
 }
 
 async function evaluate(wd, script) {
@@ -174,6 +184,28 @@ async function waitFor(predicate, timeoutMs, label) {
     await delay(250);
   }
   throw new Error(`timeout waiting for ${label}`);
+}
+
+/** Poll a page-side expression until it is truthy; report page state on timeout. */
+async function waitForPage(wd, expression, timeoutMs, label, probe) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      if (await evaluate(wd, expression)) return true;
+    } catch {
+      // Transient evaluate failures (for example during a re-render) are retried.
+    }
+    await delay(250);
+  }
+  let detail = '';
+  if (probe) {
+    try {
+      detail = `; page state: ${JSON.stringify(await evaluate(wd, probe))}`;
+    } catch (error) {
+      detail = `; page state unavailable: ${error?.message ?? error}`;
+    }
+  }
+  throw new Error(`timeout waiting for ${label}${detail}`);
 }
 
 async function waitForBoard(wd) {

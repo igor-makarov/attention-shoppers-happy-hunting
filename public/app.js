@@ -25,7 +25,7 @@ function el(tag, props = {}, ...children) {
     if (key === 'class') node.className = value;
     else if (key === 'text') node.textContent = value;
     else if (key === 'dataset') Object.assign(node.dataset, value);
-    else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
+    else if (key.startsWith('on')) node.addEventListener(key.slice(2).toLowerCase(), value);
     else if (key === 'attrs') for (const [a, v] of Object.entries(value)) node.setAttribute(a, v);
     else node[key] = value;
   }
