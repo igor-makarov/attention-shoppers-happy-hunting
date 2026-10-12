@@ -44,6 +44,27 @@ test('coffeeman out-of-stock fixture is not reported as available', () => {
   assert.equal(observation.availability, 'out_of_stock');
 });
 
+test('coffeeman 4-pack and 8-pack fixtures keep pack count, price and shipping separate', () => {
+  const four = parseCoffeemanProduct(decodeHtml(read('coffeeman-4pack-product.windows-1255.html')), { now, url: 'https://example.test/4pack' });
+  assert.equal(four.product.packCount, 4);
+  assert.equal(four.product.packGrams, 250);
+  assert.equal(four.product.totalGrams, 1000);
+  assert.equal(four.product.sku, '930334');
+  assert.equal(four.price.amount, 124);
+  assert.equal(four.shipping.certainty, 'verified');
+  assert.equal(four.shipping.amount.amount, 25);
+  assert.equal(four.itemUrl, 'https://example.test/4pack');
+
+  const eight = parseCoffeemanProduct(decodeHtml(read('coffeeman-8pack-product.windows-1255.html')), { now, url: 'https://example.test/8pack' });
+  assert.equal(eight.product.packCount, 8);
+  assert.equal(eight.product.totalGrams, 2000);
+  assert.equal(eight.product.sku, '930335');
+  assert.equal(eight.price.amount, 240);
+  assert.equal(eight.shipping.certainty, 'unknown', 'the 8-pack page publishes no courier price');
+  assert.equal(eight.shipping.amount, null);
+  assert.equal(eight.availability, 'in_stock');
+});
+
 test('pucks parser reads the product JSON-LD and leaves shipping unknown', () => {
   const observation = parsePucksProduct(read('pucks-product.html').toString('utf8'), { now });
   assert.equal(observation.product.variantId, 'classico');

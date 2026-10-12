@@ -1,13 +1,17 @@
-// CoffeeMan / Amigo (coffeeman.co.il), Israel — Lavazza Crema e Gusto Classico 250 g ground.
-// The page is a legacy Windows-1255 HTML document with schema.org microdata.
-// Price, listed availability, SKU and the published delivery options are parsed
-// from the product page. Free self-pickup is kept separate from home delivery.
+// CoffeeMan / Amigo (coffeeman.co.il), Israel — Lavazza Crema e Gusto Classico ground in a
+// vacuum brick: a single 250 g pack plus the 4 × 250 g (SKU 930334) and 8 × 250 g (SKU 930335)
+// multipacks. The pages are legacy Windows-1255 HTML documents with schema.org microdata.
+// Price, listed availability, SKU and the published delivery options are parsed from each
+// product page. Free self-pickup is kept separate from home delivery. The 8-pack page does not
+// publish a courier price, so that offer stays unrankable instead of being treated as free.
 
 import { classifyListing } from '../catalog.js';
 import { decodeHtml, parseDecimal, stripTags, collapse } from '../lib/text.js';
 import { createObservation, parseError } from './index.js';
 
 const PRODUCT_URL = 'https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico';
+const FOUR_PACK_URL = 'https://www.coffeeman.co.il/product/4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico';
+const EIGHT_PACK_URL = 'https://www.coffeeman.co.il/product/8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico';
 
 const AVAILABILITY = {
   InStock: 'in_stock',
@@ -23,7 +27,11 @@ export const coffeeman = {
   homepage: 'https://www.coffeeman.co.il',
   allowedHosts: ['www.coffeeman.co.il', 'coffeeman.co.il'],
   parserVersion: 'coffeeman/1',
-  offers: [{ id: 'classico-250g', url: PRODUCT_URL, kind: 'delivery' }],
+  offers: [
+    { id: 'classico-250g', url: PRODUCT_URL, kind: 'delivery' },
+    { id: 'classico-1000g-4pack', url: FOUR_PACK_URL, kind: 'delivery' },
+    { id: 'classico-2000g-8pack', url: EIGHT_PACK_URL, kind: 'delivery' }
+  ],
 
   async observe({ fetchText, now }) {
     const observations = [];
@@ -36,7 +44,7 @@ export const coffeeman = {
       }
       try {
         const html = response.buffer ? decodeHtml(response.buffer, response.text) : response.text;
-        observations.push(parseCoffeemanProduct(html, { now }));
+        observations.push(parseCoffeemanProduct(html, { now, url: offer.url }));
       } catch (error) {
         failures.push({ offerId: offer.id, url: offer.url, error: error.message, details: error.details ?? null });
       }
@@ -45,9 +53,9 @@ export const coffeeman = {
   }
 };
 
-export function parseCoffeemanProduct(html, { now } = {}) {
+export function parseCoffeemanProduct(html, { now, url = PRODUCT_URL } = {}) {
   const name = extractName(html);
-  if (!name) throw parseError('Product name not found', { url: PRODUCT_URL });
+  if (!name) throw parseError('Product name not found', { url });
   const classification = classifyListing(name);
   if (!classification.matched) {
     throw parseError('Listing does not match the tracked product', { name, reasons: classification.reasons });
@@ -72,7 +80,7 @@ export function parseCoffeemanProduct(html, { now } = {}) {
   const shipping = parseShippingOptions(html);
   const observation = createObservation({
     vendor: coffeeman,
-    itemUrl: PRODUCT_URL,
+    itemUrl: url,
     product: {
       productId: classification.productId,
       name,
@@ -89,7 +97,7 @@ export function parseCoffeemanProduct(html, { now } = {}) {
     price: { amount: priceAmount, currency, regularAmount: regularPrice },
     availability,
     availabilityEvidence: {
-      url: PRODUCT_URL,
+      url,
       value: availabilityHref || 'not stated',
       note: 'Availability comes from the product page offer microdata, not from a price-only scrape.'
     },
@@ -107,7 +115,7 @@ export function parseCoffeemanProduct(html, { now } = {}) {
         amount: shipping.pickupFree ? { amount: 0, currency } : null,
         note: shipping.pickupFree ? 'Free self-pickup, listed on the product page.' : null
       },
-      evidence: { url: PRODUCT_URL, retrievedAt: null, note: 'Delivery options are listed on the product page.' }
+      evidence: { url, retrievedAt: null, note: 'Delivery options are listed on the product page.' }
     },
     now
   });

@@ -24,7 +24,10 @@ const startedAt = new Date(now).toISOString();
 
 const fixtureFetch = async url => {
   if (url.includes('coffeeman.co.il')) {
-    const bytes = await readFile(new URL('../tests/fixtures/coffeeman-product.windows-1255.html', import.meta.url));
+    const name = url.includes('4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA') ? 'coffeeman-4pack-product.windows-1255.html'
+      : url.includes('8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA') ? 'coffeeman-8pack-product.windows-1255.html'
+      : 'coffeeman-product.windows-1255.html';
+    const bytes = await readFile(new URL(`../tests/fixtures/${name}`, import.meta.url));
     return new Response(bytes, { status: 200, headers: { 'content-type': 'text/html; charset=windows-1255' } });
   }
   if (url.includes('pucks.co.il')) {

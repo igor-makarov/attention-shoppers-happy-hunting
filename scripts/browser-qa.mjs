@@ -132,6 +132,7 @@ try {
   check(`desktop: per-kilogram normalization shows ${expectedPerKg}`, (desktop.perKg ?? '').includes(`${expectedPerKg} per kilogram`), desktop.perKg);
   check('desktop: stock status has a written label', desktop.statuses.includes(best.availabilityLabel), `${best.availabilityLabel} in [${desktop.statuses.join(' | ')}]`);
   check('desktop: vendor link points at the API product page', desktop.bestLink === best.itemUrl, `${desktop.bestLink} vs ${best.itemUrl}`);
+  check('desktop: comparison table lists every ranked offer', desktop.rankedRows === api500.ranked.length && api500.ranked.length >= 2, `rows=${desktop.rankedRows} ranked=${api500.ranked.length}`);
   check('desktop: unknown-shipping offer stays visible with a plain-language reason',
     /Shipping is not published before checkout/.test(desktop.unknownReasons.join(' ')) && desktop.unknownVendors.length === api500.unrankable.length + api500.staleOrUnavailable.length,
     desktop.unknownReasons[0]);

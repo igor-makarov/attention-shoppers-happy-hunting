@@ -7,7 +7,7 @@ import { startQaServer, fixtureObservations } from '../scripts/qa-server.mjs';
 
 test('fixture observations parse through the production adapters', async () => {
   const observations = await fixtureObservations(Date.parse('2026-10-12T11:00:00.000Z'));
-  assert.equal(observations.length, 2);
+  assert.equal(observations.length, 4);
   const coffeeman = observations.find(item => item.vendor.id === 'coffeeman');
   assert.equal(coffeeman.product.form, 'ground');
   assert.equal(coffeeman.product.variantId, 'classico');
@@ -59,7 +59,7 @@ test('QA fixture server serves the board API and static assets offline', async (
     assert.equal(board.best.vendor.id, 'coffeeman');
     assert.equal(board.best.totalIls, 91);
     assert.equal(board.best.ilsPerKg, 182);
-    assert.equal(board.ranked.length, 1);
+    assert.equal(board.ranked.length, 2);
     assert.match(board.unrankable[0].reasons.join(' '), /unknown, not free/);
 
     const catalog = await (await fetch(`${server.url}/api/catalog`)).json();

@@ -7,6 +7,8 @@ import { registeredVendors } from '../src/vendors/index.js';
 
 const fixtures = new URL('./fixtures/', import.meta.url);
 const coffeemanBytes = readFileSync(new URL('coffeeman-product.windows-1255.html', fixtures));
+const coffeeman4Bytes = readFileSync(new URL('coffeeman-4pack-product.windows-1255.html', fixtures));
+const coffeeman8Bytes = readFileSync(new URL('coffeeman-8pack-product.windows-1255.html', fixtures));
 const coffeemanOosBytes = readFileSync(new URL('coffeeman-product.outofstock.windows-1255.html', fixtures));
 const pucksHtml = readFileSync(new URL('pucks-product.html', fixtures), 'utf8');
 
@@ -17,12 +19,15 @@ const BOI = {
   ]
 };
 
-function fixtureFetch({ coffeeman = coffeemanBytes, failCoffeeman = false, failFx = false, calls = [] } = {}) {
+function fixtureFetch({ coffeeman = coffeemanBytes, fourPack = coffeeman4Bytes, eightPack = coffeeman8Bytes, failCoffeeman = false, failFx = false, calls = [] } = {}) {
   return async url => {
     calls.push(url);
     if (url.includes('coffeeman.co.il')) {
       if (failCoffeeman) return new Response('vendor down', { status: 503 });
-      return new Response(coffeeman, { status: 200, headers: { 'content-type': 'text/html; charset=windows-1255' } });
+      const bytes = url.includes('4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA') ? fourPack
+        : url.includes('8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA') ? eightPack
+        : coffeeman;
+      return new Response(bytes, { status: 200, headers: { 'content-type': 'text/html; charset=windows-1255' } });
     }
     if (url.includes('pucks.co.il')) {
       return new Response(pucksHtml, { status: 200, headers: { 'content-type': 'text/html' } });
@@ -43,9 +48,9 @@ test('scheduled refresh persists observations without a browser', async () => {
   const summary = await runRefresh({ store, fetchImpl: fixtureFetch({ calls }), now: NOW, trigger: 'cron' });
   assert.equal(summary.trigger, 'cron');
   assert.equal(summary.vendors.length, 2);
-  assert.equal(summary.requests, 3, 'two vendor pages plus one FX request');
+  assert.equal(summary.requests, 5, 'three CoffeeMan listings plus Pucks and one FX request');
   const snapshot = await store.snapshot();
-  assert.equal(snapshot.observations.length, 2);
+  assert.equal(snapshot.observations.length, 4);
   const coffeeman = snapshot.observations.find(o => o.vendor.id === 'coffeeman');
   assert.equal(coffeeman.price.amount, 33);
   assert.equal(coffeeman.attemptedAt, new Date(NOW).toISOString());
@@ -79,7 +84,7 @@ test('one failing vendor keeps its previous good observation and does not block 
   assert.equal(kept.observedAt, before.observedAt, 'last successful observation timestamp is unchanged');
   assert.ok(kept.attemptedAt, 'failed attempt timestamp is recorded');
   const attempts = await store.listRuns(5);
-  assert.equal(attempts[0].vendors.find(v => v.vendorId === 'coffeeman').failures.length, 1);
+  assert.equal(attempts[0].vendors.find(v => v.vendorId === 'coffeeman').failures.length, 3, 'all three CoffeeMan listings report the failure');
 });
 
 test('repeated failures back off and stop re-fetching the broken vendor', async () => {
@@ -145,8 +150,8 @@ test('refresh runs started in the same tick cannot both acquire the lease', asyn
   ]);
   const summaries = [first, second];
   assert.equal(summaries.filter(summary => summary.skipped).length, 1, 'exactly one run is skipped');
-  assert.equal(summaries.find(summary => !summary.skipped).requests, 3);
-  assert.equal(calls.length, 3, 'the losing run performs no vendor or FX requests');
+  assert.equal(summaries.find(summary => !summary.skipped).requests, 5);
+  assert.equal(calls.length, 5, 'the losing run performs no vendor or FX requests');
 });
 
 test('initial refresh runs once and is throttled afterwards', async () => {

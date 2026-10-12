@@ -41,10 +41,15 @@ const MIME = {
 /** Parse the recorded vendor pages with the production adapters (no network). */
 export async function fixtureObservations(now = Date.now()) {
   const coffeemanBytes = await readFile(new URL('coffeeman-product.windows-1255.html', FIXTURES));
+  const coffeeman4Bytes = await readFile(new URL('coffeeman-4pack-product.windows-1255.html', FIXTURES));
+  const coffeeman8Bytes = await readFile(new URL('coffeeman-8pack-product.windows-1255.html', FIXTURES));
   const pucksHtml = await readFile(new URL('pucks-product.html', FIXTURES), 'utf8');
   const fixtureFetch = async url => {
     if (String(url).includes('coffeeman.co.il')) {
-      const buffer = new Uint8Array(coffeemanBytes);
+      const bytes = String(url).includes('4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA') ? coffeeman4Bytes
+        : String(url).includes('8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA') ? coffeeman8Bytes
+        : coffeemanBytes;
+      const buffer = new Uint8Array(bytes);
       return { ok: true, status: 200, url, buffer, text: new TextDecoder('utf-8', { fatal: false }).decode(buffer) };
     }
     if (String(url).includes('pucks.co.il')) {

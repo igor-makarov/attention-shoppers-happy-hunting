@@ -6,6 +6,8 @@ import { createMemoryStore } from '../src/store.js';
 
 const fixtures = new URL('./fixtures/', import.meta.url);
 const coffeemanBytes = readFileSync(new URL('coffeeman-product.windows-1255.html', fixtures));
+const coffeeman4Bytes = readFileSync(new URL('coffeeman-4pack-product.windows-1255.html', fixtures));
+const coffeeman8Bytes = readFileSync(new URL('coffeeman-8pack-product.windows-1255.html', fixtures));
 const pucksHtml = readFileSync(new URL('pucks-product.html', fixtures), 'utf8');
 const BOI = {
   exchangeRates: [{ key: 'USD', currentExchangeRate: 3.05, unit: 1, lastUpdate: '2026-10-09T09:21:04.476265Z' }]
@@ -13,7 +15,10 @@ const BOI = {
 
 function fixtureFetch(url) {
   if (url.includes('coffeeman.co.il')) {
-    return new Response(coffeemanBytes, { status: 200, headers: { 'content-type': 'text/html; charset=windows-1255' } });
+    const bytes = url.includes('4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA') ? coffeeman4Bytes
+      : url.includes('8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA') ? coffeeman8Bytes
+      : coffeemanBytes;
+    return new Response(bytes, { status: 200, headers: { 'content-type': 'text/html; charset=windows-1255' } });
   }
   if (url.includes('pucks.co.il')) {
     return new Response(pucksHtml, { status: 200, headers: { 'content-type': 'text/html' } });
@@ -78,10 +83,15 @@ test('board ranks the offer with a verified delivered total and labels the unkno
   assert.equal(board.best.totalIls, 91);
   assert.equal(board.best.ilsPerKg, 182);
   assert.equal(board.best.availabilityLabel, 'In stock (observed)');
-  assert.equal(board.ranked.length, 1);
+  assert.equal(board.ranked.length, 2, 'the single pack and the 4-pack are both rankable');
+  const fourPack = board.ranked.find(quote => quote.product.packCount === 4);
+  assert.equal(fourPack.totalIls, 149, '₪124 + ₪25 courier');
+  assert.equal(fourPack.ilsPerKg, 149);
   const unknown = board.unknown.find(quote => quote.vendor.id === 'pucks');
   assert.equal(unknown.totalIls, null);
   assert.match(unknown.reasons.join(' '), /unknown, not free/);
+  const eightPack = board.unknown.find(quote => quote.product.packCount === 8);
+  assert.equal(eightPack.totalIls, null, 'the 8-pack page publishes no courier price');
   assert.match(board.freshness.vendors.map(v => v.vendorId).join(','), /coffeeman/);
 });
 
@@ -93,6 +103,18 @@ test('board response is public-cacheable and reflects quantity and destination',
   assert.equal(board.destination.id, 'eilat');
   assert.equal(board.best.units, 1);
   assert.equal(board.best.totalIls, 58);
+});
+
+test('bulk CoffeeMan packs win at larger quantities with the same verified shipping', async () => {
+  const store = await seededStore();
+  const response = await worker.fetch(new Request('https://example.test/api/board?grams=1000&dest=tel-aviv'), envWith(store), {});
+  const board = await response.json();
+  assert.equal(board.best.product.packCount, 4, 'the recorded 4-pack beats four single packs once shipping is counted');
+  assert.equal(board.best.units, 1);
+  assert.equal(board.best.totalIls, 149);
+  const single = board.ranked.find(quote => quote.product.packCount === 1);
+  assert.equal(single.totalIls, 157, '4 × ₪33 + ₪25');
+  assert.ok(board.best.totalIls < single.totalIls);
 });
 
 test('unknown API paths are JSON 404s and non-GET methods are rejected', async () => {
@@ -121,12 +143,12 @@ test('scheduled handler refreshes and persists through the BOARD binding', async
     globalThis.fetch = originalFetch;
   }
   const snapshot = await store.snapshot();
-  assert.equal(snapshot.observations.length, 2);
+  assert.equal(snapshot.observations.length, 4);
   assert.equal(snapshot.meta.lastRefreshAt.trigger, 'cron');
   assert.equal(snapshot.meta.fx.rates.USD.rate, 3.05);
   const run = snapshot.runs[0];
   assert.equal(run.trigger, 'cron');
-  assert.equal(run.requests, 3);
+  assert.equal(run.requests, 5);
 });
 
 test('board without a storage binding explains the deployment requirement', async () => {

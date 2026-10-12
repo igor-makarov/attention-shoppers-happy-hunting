@@ -22,6 +22,8 @@ const store = await createFileStore(storePath);
 if (offline) {
   const fixtures = new URL('../tests/fixtures/', import.meta.url);
   const coffeemanBytes = await readFile(new URL('coffeeman-product.windows-1255.html', fixtures));
+  const coffeeman4Bytes = await readFile(new URL('coffeeman-4pack-product.windows-1255.html', fixtures));
+  const coffeeman8Bytes = await readFile(new URL('coffeeman-8pack-product.windows-1255.html', fixtures));
   const pucksHtml = await readFile(new URL('pucks-product.html', fixtures), 'utf8');
   const boi = {
     exchangeRates: [
@@ -31,7 +33,10 @@ if (offline) {
   };
   globalThis.__offlineFetch = async url => {
     if (url.includes('coffeeman.co.il')) {
-      return new Response(coffeemanBytes, { status: 200, headers: { 'content-type': 'text/html; charset=windows-1255' } });
+      const bytes = url.includes('4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA') ? coffeeman4Bytes
+        : url.includes('8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA') ? coffeeman8Bytes
+        : coffeemanBytes;
+      return new Response(bytes, { status: 200, headers: { 'content-type': 'text/html; charset=windows-1255' } });
     }
     if (url.includes('pucks.co.il')) {
       return new Response(pucksHtml, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } });
