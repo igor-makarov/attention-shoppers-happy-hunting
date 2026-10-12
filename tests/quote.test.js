@@ -372,18 +372,18 @@ test('shipping alternatives are converted but never replace the ranked shipping 
   assert.equal(withoutFx.best.shipping.alternatives[0].amountIls, null, 'an unconvertible alternative is unknown, not zero');
 });
 
-test('the variant filter keeps variants separate and reports what it excluded', () => {
+test('one comparison includes every stated and unstated blend wording, with no exclusion count', () => {
   const classico = observation({ key: 'classico:1' });
+  const forte = observation({ key: 'forte:1', product: { variantId: 'forte', variantLabel: 'Forte' } });
   const unstated = observation({ key: 'unstated:1', product: { variantId: 'unspecified', variantLabel: 'Variant not stated' } });
-  const classicoOnly = quote([classico, unstated], { variantId: 'classico' });
-  assert.deepEqual(classicoOnly.ranked.map(q => q.key), ['classico:1']);
-  assert.equal(classicoOnly.counts.excludedByVariant, 1);
-  assert.deepEqual(classicoOnly.counts.excludedVariants, ['unspecified']);
-  assert.deepEqual(classicoOnly.variants, ['classico', 'unspecified'], 'the selector still knows both variants exist');
-
-  const unstatedOnly = quote([classico, unstated], { variantId: 'unspecified' });
-  assert.deepEqual(unstatedOnly.ranked.map(q => q.key), ['unstated:1']);
-  assert.equal(unstatedOnly.counts.excludedByVariant, 1);
+  const board = quote([classico, forte, unstated]);
+  assert.deepEqual(board.ranked.map(q => q.key).sort(), ['classico:1', 'forte:1', 'unstated:1'], 'every eligible listing is compared together');
+  assert.equal(board.counts.excludedByVariant, undefined, 'no variant filter or exclusion count exists');
+  assert.equal(board.variantId, undefined, 'the board carries no variant selection');
+  assert.equal(board.counts.observed, 3);
+  // Raw blend wording stays attached to each offer as provenance, never as a filter.
+  assert.equal(board.ranked.find(q => q.key === 'forte:1').product.variantLabel, 'Forte');
+  assert.equal(board.ranked.find(q => q.key === 'unstated:1').product.variantLabel, 'Variant not stated');
 });
 
 test('the quote engine compares one product id at a time and never mixes another product into it', () => {
@@ -413,11 +413,10 @@ test('the quote engine compares one product id at a time and never mixes another
   assert.equal(cremaBoard.best.key, 'crema:1');
   assert.ok(!cremaBoard.ranked.some(item => item.key === 'other:1'));
 
-  const otherBoard = quote([cremaOffer, otherOffer], { productId: otherProduct.productId, variantId: 'unspecified' });
+  const otherBoard = quote([cremaOffer, otherOffer], { productId: otherProduct.productId });
   assert.equal(otherBoard.counts.observed, 1);
   assert.equal(otherBoard.best.key, 'other:1');
   assert.equal(otherBoard.best.totalIls, 41, '₪20 × 2 packs + ₪1 shipping');
-  assert.deepEqual(otherBoard.variants, ['unspecified']);
 });
 
 test('the engine changes winner with quantity: a multipack beats singles once shipping is counted', () => {
@@ -453,13 +452,13 @@ test('the engine changes winner with quantity: a multipack beats singles once sh
     price: { amount: 35 },
     shipping: { certainty: 'unknown', amount: null, note: 'Calculated at checkout' }
   });
-  const board500 = quote([single, fourPack, unknownShipping], { productId: otherProduct.productId, variantId: 'unspecified', targetGrams: 500 });
+  const board500 = quote([single, fourPack, unknownShipping], { productId: otherProduct.productId, targetGrams: 500 });
   assert.equal(board500.best.key, 'other-single');
   assert.equal(board500.best.totalIls, 99, '2 × ₪37 + ₪25');
   assert.equal(board500.best.ilsPerKg, 198);
   assert.ok(board500.unknown.some(item => item.key === 'other-pucks'), 'cheaper item with unknown shipping cannot win');
 
-  const board1000 = quote([single, fourPack, unknownShipping], { productId: otherProduct.productId, variantId: 'unspecified', targetGrams: 1000 });
+  const board1000 = quote([single, fourPack, unknownShipping], { productId: otherProduct.productId, targetGrams: 1000 });
   assert.equal(board1000.best.key, 'other-4pack');
   assert.equal(board1000.best.totalIls, 150, '₪125 + ₪25');
   assert.equal(board1000.ranked.find(item => item.key === 'other-single').totalIls, 173, '4 × ₪37 + ₪25');

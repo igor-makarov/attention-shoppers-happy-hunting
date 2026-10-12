@@ -8,9 +8,15 @@
 // line requires an explicit new owner instruction.
 //
 // Classification stays conservative: a listing that cannot be tied to the
-// tracked product is rejected instead of being merged into the board. Blend
-// variants (Classico, Forte, ...) and pack sizes stay separate so different
-// products are never mixed into one comparison.
+// tracked product is rejected instead of being merged into the board. Pack
+// sizes and multipacks stay separate so different offers are never merged.
+//
+// Owner correction, 2026-10-12: there is no shopper-facing blend/variant
+// feature. Every tracked Crema e Gusto vacuum-packed ground listing —
+// including a listing that states no blend wording at all — takes part in one
+// comparison for the selected quantity, locality and delivery method. The
+// blend wording a vendor happens to print is kept only as raw listing identity
+// metadata for evidence/offer details, never as a filter, menu entry or badge.
 
 import { decodeEntities } from './lib/text.js';
 
@@ -68,16 +74,19 @@ export const PRODUCTS = [
     form: 'ground',
     packaging: 'vacuum brick',
     targetMarket: 'IL',
-    defaultVariant: 'classico',
-    variants: ['classico', 'forte', 'ricco', 'risveglio', 'decaf', 'unspecified'],
     linePatterns: LINE_PATTERNS['lavazza-crema-e-gusto'],
-    notes: 'The only tracked product line (owner correction, 2026-10-12). Ground coffee in a vacuum brick; Classico, Forte, Ricco, Risveglio and decaf remain separate variants, and pack sizes and multipacks stay separate. Beans, capsules, pods and every other Lavazza product line are rejected.'
+    notes: 'The only tracked product line (owner correction, 2026-10-12). Ground coffee in a vacuum brick. All eligible Crema e Gusto vacuum-packed ground listings share one comparison; pack sizes and multipacks stay distinct offers. Any blend wording a listing prints is raw listing identity metadata only — never a shopper-selectable variant. Beans, capsules, pods and every other Lavazza product line are rejected.'
   }
 ];
 
 export const products = PRODUCTS;
 
-export const VARIANTS = {
+/**
+ * Raw blend wording a vendor may print, kept only so an offer can show its own
+ * listing identity in evidence/details. These ids are never a filter, a menu
+ * entry, a ranking input or a shopper-facing selection.
+ */
+export const STATED_VARIANTS = {
   classico: { id: 'classico', label: 'Classico', aliases: ['classico', 'classic', 'קלאסיקו', 'קלאסי'] },
   forte: { id: 'forte', label: 'Forte', aliases: ['forte', 'פורטה'] },
   ricco: { id: 'ricco', label: 'Ricco', aliases: ['ricco', 'ריקו'] },
@@ -128,25 +137,18 @@ export function resolveProductRequest(id) {
   return { product: PRODUCTS[0], retired: retiredProductById(requested), known: false };
 }
 
-/** Look up a blend variant definition by id. */
-export function variantById(id) {
-  return VARIANTS[id] ?? VARIANTS.unspecified;
-}
-
 /**
- * Resolve a requested variant id for a product. An id that is not a tracked
- * variant at all (a typo or an old shared link) falls back to the product's
- * default, exactly like an unknown product or destination. A real variant of
- * another line is returned unchanged so it stays strict and matches no offer on
- * this product's board instead of being silently rewritten.
+ * Extract the blend wording a listing prints, for provenance only. An unstated
+ * listing returns the `unspecified` definition; it is never relabelled as
+ * Classico and never withheld from the comparison.
  */
-export function resolveVariantId(product, requested) {
-  return requested && Object.hasOwn(VARIANTS, requested) ? requested : product.defaultVariant;
-}
-
-/** Variants a product can be compared under, with their display labels. */
-export function variantCatalog(product = PRODUCTS[0]) {
-  return (product?.variants ?? ['unspecified']).map(id => ({ id, label: variantById(id).label }));
+export function variantOf(text) {
+  const value = String(text || '').toLowerCase();
+  for (const variant of Object.values(STATED_VARIANTS)) {
+    if (variant.id === 'unspecified') continue;
+    if (variant.aliases.some(alias => value.includes(alias))) return variant;
+  }
+  return STATED_VARIANTS.unspecified;
 }
 
 /**
@@ -203,15 +205,6 @@ export function classifyListing(text, { productId = null } = {}) {
       ? (pack.grams == null ? ['pack weight not stated; offer can be shown but not normalized'] : [])
       : reasons
   };
-}
-
-export function variantOf(text) {
-  const value = String(text || '').toLowerCase();
-  for (const variant of Object.values(VARIANTS)) {
-    if (variant.id === 'unspecified') continue;
-    if (variant.aliases.some(alias => value.includes(alias))) return variant;
-  }
-  return VARIANTS.unspecified;
 }
 
 const OZ_TO_GRAMS = 28.349523125;

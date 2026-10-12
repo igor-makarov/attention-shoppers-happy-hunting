@@ -110,15 +110,16 @@ test('QA fixture server serves the board API and static assets offline', async (
     assert.equal(board.best.vendor.id, 'pucks');
     assert.equal(board.best.totalIls, 90);
     assert.equal(board.best.ilsPerKg, 180);
-    assert.equal(board.ranked.length, 4, 'all three vendors and the three CoffeeMan pack sizes rank with evidenced shipping');
+    assert.equal(board.ranked.length, 5, 'all three vendors, the three CoffeeMan pack sizes and the Coffee4U listing rank in one comparison');
     assert.equal(board.unrankable.length, 0, 'no tracked offer is missing a shipping rate any more');
-    assert.equal(board.counts.excludedByVariant, 1, 'the unstated-variant listing is not merged into the Classico ranking');
-    assert.deepEqual(board.counts.excludedVariants, ['unspecified']);
+    assert.equal(board.counts.excludedByVariant, undefined, 'no variant filter exists in the offline harness');
 
     const unstatedVariant = await (await fetch(`${server.url}/api/board?grams=250&dest=tel-aviv&variant=unspecified`)).json();
-    assert.equal(unstatedVariant.best.vendor.id, 'coffee4u');
-    assert.equal(unstatedVariant.best.totalIls, 68);
-    assert.equal(unstatedVariant.best.shipping.alternatives[0].amountIls, 15, 'the pickup-point delivery shows as an alternative');
+    const coffee4u = unstatedVariant.ranked.find(quote => quote.vendor.id === 'coffee4u');
+    assert.ok(coffee4u, 'the obsolete variant parameter still resolves to the unified comparison');
+    assert.equal(coffee4u.totalIls, 68, '₪38 + ₪30 courier');
+    assert.equal(coffee4u.shipping.alternatives[0].amountIls, 15, 'the pickup-point delivery shows as an alternative');
+    assert.equal(unstatedVariant.best.vendor.id, 'coffeeman', 'the ranking compares every eligible offer');
 
     const catalog = await (await fetch(`${server.url}/api/catalog`)).json();
     assert.deepEqual(catalog.vendors.map(vendor => vendor.id).sort(), ["coffee4u", "coffeeman", "pucks"]);
@@ -129,7 +130,7 @@ test('QA fixture server serves the board API and static assets offline', async (
     const retiredBoard = await (await fetch(`${server.url}/api/board?product=lavazza-qualita-oro-vacuum-ground&grams=1000&dest=tel-aviv`)).json();
     assert.equal(retiredBoard.product.id, "lavazza-crema-e-gusto-vacuum-ground");
     assert.deepEqual(retiredBoard.requestedRetiredProduct, { id: "lavazza-qualita-oro-vacuum-ground", line: "Qualità Oro" });
-    assert.equal(retiredBoard.variantId, "classico", "the fallback uses the tracked product's own default variant");
+    assert.equal(retiredBoard.variantId, undefined, 'the fallback board has no variant selection');
     assert.equal(retiredBoard.best.totalIls, 120, '₪120 of Pucks packs with the ₪100 free-shipping threshold met');
     assert.ok(!JSON.stringify(retiredBoard.ranked).match(/Qualità Oro|Qualità Rossa|Suerte/), "no retired line is compared");
     assert.equal(board.freshness.stale, false, 'a server whose refresh just completed is fresh');
@@ -157,11 +158,11 @@ test('QA fixture server serves the board API and static assets offline', async (
     assert.equal(apiMissing.status, 404);
     assert.deepEqual(await apiMissing.json(), { error: 'Not found' });
 
-    // The offline harness must resolve variants exactly like the Worker, or the
-    // browser QA would verify different behaviour from production.
+    // The offline harness must ignore the obsolete variant parameter exactly like
+    // the Worker, or the browser QA would verify different behaviour from production.
     const bogusVariant = await (await fetch(`${server.url}/api/board?grams=500&dest=tel-aviv&variant=nope`)).json();
-    assert.equal(bogusVariant.variantId, 'classico');
-    assert.ok(bogusVariant.ranked.length > 0, 'an unknown variant id falls back to the product default');
+    assert.equal(bogusVariant.variantId, undefined, 'no variant selection exists');
+    assert.deepEqual(bogusVariant.ranked.map(quote => quote.key), board.ranked.map(quote => quote.key), 'the parameter does not create a second view');
   } finally {
     await server.close();
   }
@@ -197,8 +198,7 @@ test('a historical retired row cannot make the fixture board look fresh', async 
     const board = await (await fetch(`${server.url}/api/board?grams=500&dest=tel-aviv`)).json();
     assert.equal(board.freshness.lastObservationAt, new Date(now - 30 * 60 * 60 * 1000).toISOString());
     assert.equal(board.freshness.stale, true, 'the retired row cannot mask a stalled tracked board');
-    assert.equal(board.counts.observed, 4, 'only the tracked Classico rows are quoted');
-    assert.equal(board.counts.excludedByVariant, 1, 'the unstated-variant tracked row stays out of the Classico ranking');
+    assert.equal(board.counts.observed, 5, 'every tracked ground row is quoted, including the unstated wording');
     assert.ok(!JSON.stringify(board).includes('Retired historical listing'), 'the retired row never reaches the board payload');
   } finally {
     await server.close();

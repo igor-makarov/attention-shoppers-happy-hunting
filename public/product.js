@@ -1,8 +1,10 @@
 // Product-detail client for one tracked product.
 //
-// The page keeps the shopping decision compact: product identity, quantity,
-// locality and variant controls, then the best eligible offer with item
-// subtotal, named shipping method/charge and delivered total visible together.
+// The page keeps the shopping decision compact: product identity, quantity and
+// locality controls, then the best eligible offer with item subtotal, named
+// shipping method/charge and delivered total visible together. There is no
+// blend/variant selection: every eligible Crema e Gusto ground listing takes
+// part in one comparison, and an obsolete `variant=` URL parameter is ignored.
 // Everything else — other offers, delivery alternatives and conditions, pickup,
 // missing-information offers, check history and diagnostics — is progressively
 // disclosed in native <details> sections. All vendor text is inserted as text.
@@ -11,7 +13,7 @@ import {
   el, money, bidi, timeLabel, dueLabel, truncate,
   packDescription, quantityDescription, itemSubtotalText,
   totalsBlock, statusBadge, offerLink, conditionsList, caveatBlock,
-  coverageQualifier, diagnosticsDisclosure, VARIANT_LABELS
+  coverageQualifier, diagnosticsDisclosure
 } from './ui.js';
 
 const GRAMS_OPTIONS = [250, 500, 750, 1000, 2000];
@@ -24,19 +26,18 @@ const state = {
   destination: params.get('dest') || 'tel-aviv',
   product: pathProduct,
   requestedProduct: params.get('product') || pathProduct,
-  variant: params.get('variant') || null,
   catalog: null,
   board: null,
   error: null
 };
 
 // Monotonic request token: board requests can overlap when a shopper changes the
-// quantity, destination or variant while a previous request is still in flight.
-// Only the newest request may write state.
+// quantity or destination while a previous request is still in flight. Only the
+// newest request may write state.
 let loadToken = 0;
 
 function packLine(quote) {
-  return `${packDescription(quote)} · ${quantityDescription(quote)} · ${quote.product.variantLabel}`;
+  return `${packDescription(quote)} · ${quantityDescription(quote)}`;
 }
 
 function destinationLabel(id) {
@@ -54,7 +55,7 @@ async function load() {
     // The requested id (which may name a retired line) is sent as requested so
     // the API can report the fallback instead of hiding it.
     const requestedProduct = state.requestedProduct ?? state.product;
-    const query = new URLSearchParams({ product: requestedProduct, grams: String(state.grams), dest: state.destination, variant: state.variant });
+    const query = new URLSearchParams({ product: requestedProduct, grams: String(state.grams), dest: state.destination });
     const board = await fetch(`/api/board?${query}`).then(response => response.json());
     if (token !== loadToken) return;
     state.board = board;
@@ -68,14 +69,11 @@ async function load() {
   render();
 }
 
-/** Keep the selected product and variant valid for the tracked catalog. */
+/** Keep the selected product valid for the tracked catalog. */
 function applyProductDefaults() {
   const catalogProducts = state.catalog?.products ?? [];
   if (!catalogProducts.length) return;
   if (!catalogProducts.some(item => item.id === state.product)) state.product = catalogProducts[0].id;
-  const product = currentProduct();
-  const variants = (product?.variants ?? []).map(item => item.id);
-  if (!variants.includes(state.variant)) state.variant = product?.defaultVariant ?? variants[0] ?? 'unspecified';
 }
 
 function currentProduct() {
@@ -204,10 +202,6 @@ function renderCompareDisclosure(others, board) {
   const list = el('div', { class: 'offer-list offer-list--compact' });
   for (const quote of others) list.append(renderOtherOffer(quote, board));
   details.append(list);
-  if ((board.counts?.excludedByVariant ?? 0) > 0) {
-    const labels = (board.counts.excludedVariants ?? []).map(id => VARIANT_LABELS[id] ?? id).join(', ');
-    details.append(el('p', { class: 'meta-line', text: `${board.counts.excludedByVariant} observed offer(s) for another blend variant (${labels || 'unspecified'}) stay out of this comparison so variants are never merged. Switch the variant control to compare them.` }));
-  }
   return details;
 }
 
@@ -318,36 +312,6 @@ function renderControls() {
     destination.addEventListener('change', () => update({ destination: destination.value }));
   }
   destination.value = state.destination;
-
-  const variant = document.getElementById('variant');
-  const product = currentProduct();
-  const labels = new Map((product?.variants ?? []).map(item => [item.id, item.label]));
-  const observed = state.board?.variants ?? [];
-  const variants = (product?.variants ?? []).map(item => item.id);
-  for (const id of observed) if (!variants.includes(id)) variants.push(id);
-  const signature = `${product?.id ?? ''}|${variants.join(',')}`;
-  if (variant.dataset.signature !== signature) {
-    variant.replaceChildren();
-    for (const id of variants) {
-      const suffix = observed.includes(id) ? '' : ' — not observed yet';
-      variant.append(el('option', { value: id, text: `${labels.get(id) ?? VARIANT_LABELS[id] ?? id}${suffix}` }));
-    }
-    variant.dataset.signature = signature;
-    variant.addEventListener('change', () => update({ variant: variant.value }));
-  }
-  variant.value = state.variant ?? '';
-
-  // The unstated-variant Coffee4U listing stays discoverable: name it when the
-  // selected variant leaves it out, instead of silently merging it into Classico.
-  const hint = document.getElementById('variant-hint');
-  if (hint) {
-    const excluded = state.board?.counts?.excludedByVariant ?? 0;
-    const labels = (state.board?.counts?.excludedVariants ?? []).map(id => VARIANT_LABELS[id] ?? id).join(', ');
-    hint.textContent = excluded > 0
-      ? `${excluded} offer(s) for another variant (${labels || 'unspecified'}) stay separate — choose that variant to compare it.`
-      : '';
-    hint.hidden = excluded === 0;
-  }
 }
 
 function update(patch) {
@@ -355,15 +319,12 @@ function update(patch) {
   // Any user interaction replaces the URL's original product request with the
   // tracked product, so a retired-line link is not kept in the shareable URL.
   state.requestedProduct = null;
-  if (patch.product) {
-    const product = (state.catalog?.products ?? []).find(item => item.id === patch.product);
-    state.variant = product?.defaultVariant ?? null;
-  }
   applyProductDefaults();
+  // The obsolete `variant` parameter is deliberately not written back: one
+  // unified comparison is the only view.
   const query = new URLSearchParams({
     grams: String(state.grams),
-    dest: state.destination,
-    variant: state.variant ?? ''
+    dest: state.destination
   });
   history.replaceState(null, '', `/product/${encodeURIComponent(state.product)}?${query}`);
   renderControls();
@@ -400,7 +361,7 @@ function renderFooterStatus(board) {
   const freshness = board.freshness ?? {};
   const dataAsOf = freshness.dataAsOf ?? freshness.lastRefreshAt ?? freshness.lastObservationAt ?? null;
   const wrap = el('div', { class: 'meta-line' });
-  wrap.append(el('div', { text: `Board data as of: ${timeLabel(dataAsOf)} · Offers observed for this variant: ${board.counts.observed} · Ranked: ${board.counts.ranked}` }));
+  wrap.append(el('div', { text: `Board data as of: ${timeLabel(dataAsOf)} · Offers observed: ${board.counts.observed} · Ranked: ${board.counts.ranked}` }));
   if (freshness.stale) {
     const age = freshness.ageHours;
     wrap.append(el('div', { class: 'status status--stale', text: freshness.lastRefreshAt

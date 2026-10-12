@@ -98,7 +98,7 @@ test('board ranks all three vendors with their evidenced shipping conditions', a
   assert.equal(board.best.shipping.certaintyLabel, 'Checkout rate (observed, conditional)', 'the API carries a written shipping-certainty label and the researched cart quote is not called a published rate');
   assert.equal(board.best.shipping.freeThreshold, 100, 'the researched free-shipping threshold is structured');
   assert.match(board.best.shipping.coverageCaveat, /not individually verified/, 'the researched rate keeps its coverage caveat');
-  assert.equal(board.ranked.length, 4, 'the single pack, 4-pack, 8-pack and Pucks are all rankable now');
+  assert.equal(board.ranked.length, 5, 'every eligible Crema e Gusto ground listing ranks in one comparison');
   const fourPack = board.ranked.find(quote => quote.product.packCount === 4);
   assert.equal(fourPack.totalIls, 149, '₪124 + ₪25 courier');
   assert.equal(fourPack.ilsPerKg, 149);
@@ -107,8 +107,11 @@ test('board ranks all three vendors with their evidenced shipping conditions', a
   assert.equal(eightPack.shipping.maxTotalGrams, 2000, 'the checkout rate is limited to the cart it was observed on');
   assert.match(board.freshness.vendors.map(v => v.vendorId).join(','), /coffeeman/);
   assert.ok(board.freshness.vendors.every(vendor => vendor.nextAttemptAt), 'every vendor state exposes its next due time for the footer');
-  assert.equal(board.counts.excludedByVariant, 1, 'the Coffee4U listing states no blend variant, so it is not merged into Classico');
-  assert.deepEqual(board.counts.excludedVariants, ['unspecified']);
+  const coffee4u = board.ranked.find(quote => quote.vendor.id === 'coffee4u');
+  assert.ok(coffee4u, 'the Coffee4U listing that states no blend wording is part of the same comparison, not withheld');
+  assert.equal(coffee4u.product.variantId, 'unspecified', 'the raw listing identity is kept as provenance only');
+  assert.equal(board.counts.excludedByVariant, undefined, 'no variant filter or exclusion count exists in the API');
+  assert.equal(board.variantId, undefined, 'the board no longer carries a variant selection');
 
   // The researched 8-pack rate must not be stretched to a larger cart: at 3 kg the
   // offer stays visible but unrankable with the exact quote-limit reason.
@@ -118,20 +121,21 @@ test('board ranks all three vendors with their evidenced shipping conditions', a
   assert.match(blocked.reasons.join(' '), /quoted only for carts up to 2000 g/);
 });
 
-test('a listing without a stated blend variant is compared separately and keeps its shipping alternatives', async () => {
+test('an unstated blend wording is included in the one comparison and keeps its shipping alternatives', async () => {
   const store = await seededStore();
+  // The obsolete variant parameter is ignored: this is the same unified board.
   const response = await worker.fetch(new Request('https://example.test/api/board?grams=250&dest=tel-aviv&variant=unspecified'), envWith(store), {});
   const board = await response.json();
-  assert.equal(board.ranked.length, 1);
-  assert.equal(board.best.vendor.id, 'coffee4u');
-  assert.equal(board.best.product.variantLabel, 'Variant not stated');
-  assert.equal(board.best.totalIls, 68, '₪38 item + ₪30 published door-to-door courier');
-  assert.equal(board.best.ilsPerKg, 272);
-  assert.equal(board.best.shipping.alternatives[0].amountIls, 15);
-  assert.equal(board.best.shipping.pickup.available, true);
-  const classico = await (await worker.fetch(new Request('https://example.test/api/board?grams=250&dest=tel-aviv&variant=classico'), envWith(store), {})).json();
-  assert.equal(classico.best.vendor.id, 'coffeeman');
-  assert.ok(!classico.ranked.some(quote => quote.vendor.id === 'coffee4u'));
+  const coffee4u = board.ranked.find(quote => quote.vendor.id === 'coffee4u');
+  assert.ok(coffee4u, 'Coffee4U takes part in the same comparison');
+  assert.equal(coffee4u.product.variantLabel, 'Variant not stated', 'raw listing identity is preserved as evidence');
+  assert.equal(coffee4u.totalIls, 68, '₪38 item + ₪30 published door-to-door courier');
+  assert.equal(coffee4u.ilsPerKg, 272);
+  assert.equal(coffee4u.shipping.alternatives[0].amountIls, 15);
+  assert.equal(coffee4u.shipping.pickup.available, true);
+  assert.equal(board.best.vendor.id, 'coffeeman', 'the delivered ranking still compares all offers honestly');
+  const obsoleteClassico = await (await worker.fetch(new Request('https://example.test/api/board?grams=250&dest=tel-aviv&variant=classico'), envWith(store), {})).json();
+  assert.deepEqual(obsoleteClassico.ranked.map(quote => quote.key), board.ranked.map(quote => quote.key), 'an obsolete variant parameter resolves to the same unified comparison');
 });
 
 test('board response is public-cacheable and reflects quantity and destination', async () => {
@@ -245,7 +249,7 @@ test('scheduled handler refreshes and persists through the BOARD binding', async
   assert.equal(run.requests, 6);
 });
 
-test('the catalog lists only the tracked Crema e Gusto product and its own variants', async () => {
+test('the catalog lists only the tracked Crema e Gusto product with no variant selection', async () => {
   const catalog = await (await worker.fetch(new Request('https://example.test/api/catalog'), envWith(createMemoryStore()), {})).json();
   assert.equal(catalog.products.length, 1, 'no retired product line is selectable');
   const crema = catalog.products[0];
@@ -253,8 +257,9 @@ test('the catalog lists only the tracked Crema e Gusto product and its own varia
   assert.equal(crema.line, 'Crema e Gusto');
   assert.equal(crema.form, 'ground');
   assert.equal(crema.packaging, 'vacuum brick');
-  assert.equal(crema.defaultVariant, 'classico');
-  assert.deepEqual(crema.variants.map(item => item.id), ['classico', 'forte', 'ricco', 'risveglio', 'decaf', 'unspecified']);
+  assert.equal(crema.defaultVariant, undefined, 'there is no blend/variant selection');
+  assert.equal(crema.variants, undefined, 'the catalog exposes no variant menu');
+  assert.match(crema.notes, /one comparison/i, 'the catalog documents the unified comparison');
   assert.ok(!/oro|rossa|suerte/i.test(JSON.stringify(catalog.products)), 'no retired line appears in the catalog');
 });
 
@@ -263,7 +268,7 @@ test('an old product URL for a retired line falls back to Crema e Gusto and says
   const board = await (await worker.fetch(new Request('https://example.test/api/board?product=lavazza-qualita-oro-vacuum-ground&grams=500&dest=tel-aviv'), envWith(store), {})).json();
   assert.equal(board.product.id, 'lavazza-crema-e-gusto-vacuum-ground', 'the retired line is never displayed or compared');
   assert.deepEqual(board.requestedRetiredProduct, { id: 'lavazza-qualita-oro-vacuum-ground', line: 'Qualità Oro' });
-  assert.equal(board.counts.observed, 4, 'only Crema e Gusto Classico offers are compared; the unstated-variant listing is excluded, not merged');
+  assert.equal(board.counts.observed, 5, 'every eligible Crema e Gusto ground listing is compared together');
   const offers = [...board.ranked, ...board.unknown, ...board.pickup, ...board.unrankable, ...board.staleOrUnavailable];
   assert.ok(offers.length > 0, 'the fallback board still renders its own offers');
   assert.ok(offers.every(quote => quote.product.productId === 'lavazza-crema-e-gusto-vacuum-ground'), 'no retired observation is mixed into the comparison');
@@ -279,19 +284,19 @@ test('an old product URL for a retired line falls back to Crema e Gusto and says
   assert.equal(plain.requestedRetiredProduct, null);
 });
 
-test('an unknown variant id falls back to the product default instead of an empty board', async () => {
+test('an obsolete variant parameter is ignored instead of creating a second view', async () => {
   const store = await seededStore();
-  const fallback = await (await worker.fetch(new Request('https://example.test/api/board?grams=500&dest=tel-aviv&variant=nope'), envWith(store), {})).json();
-  assert.equal(fallback.variantId, 'classico', 'a typo falls back to the default variant');
-  assert.ok(fallback.ranked.length > 0, 'the default variant is still ranked');
+  const withParam = await (await worker.fetch(new Request('https://example.test/api/board?grams=500&dest=tel-aviv&variant=nope'), envWith(store), {})).json();
   const defaultBoard = await (await worker.fetch(new Request('https://example.test/api/board?grams=500&dest=tel-aviv'), envWith(store), {})).json();
-  assert.deepEqual(fallback.ranked.map(quote => quote.key), defaultBoard.ranked.map(quote => quote.key));
-  const prototype = await (await worker.fetch(new Request('https://example.test/api/board?grams=500&dest=tel-aviv&variant=constructor'), envWith(store), {})).json();
-  assert.equal(prototype.variantId, 'classico', 'object prototype keys are never treated as variant ids');
-  // A variant id that belongs to no tracked variant is still a fallback, not an error.
-  const unknownVariant = await (await worker.fetch(new Request('https://example.test/api/board?grams=500&dest=tel-aviv&variant=taglio-macina'), envWith(store), {})).json();
-  assert.equal(unknownVariant.variantId, 'classico');
-  assert.ok(unknownVariant.ranked.length > 0);
+  assert.equal(withParam.variantId, undefined, 'no variant selection exists in the API');
+  assert.equal(withParam.counts.excludedByVariant, undefined, 'the parameter never filters offers');
+  assert.deepEqual(withParam.ranked.map(quote => quote.key), defaultBoard.ranked.map(quote => quote.key));
+  // Even an object-prototype key or an old blend id is inert, not a second board.
+  for (const value of ['constructor', 'taglio-macina', 'unspecified', 'forte']) {
+    const board = await (await worker.fetch(new Request(`https://example.test/api/board?grams=500&dest=tel-aviv&variant=${value}`), envWith(store), {})).json();
+    assert.deepEqual(board.ranked.map(quote => quote.key), defaultBoard.ranked.map(quote => quote.key), `variant=${value} is ignored`);
+  }
+  assert.ok(defaultBoard.ranked.length > 0, 'the unified comparison is still ranked');
 });
 
 test('board without a storage binding explains the deployment requirement', async () => {

@@ -4,15 +4,9 @@
 // accepts a DOM node for `text` (used by `bidi()`, which wraps Hebrew runs in a
 // dir="auto" span) and appends it instead of stringifying it — a Node assigned
 // to textContent would render as "[object HTMLSpanElement]".
-
-export const VARIANT_LABELS = {
-  classico: 'Classico (strength 7)',
-  forte: 'Forte',
-  ricco: 'Ricco',
-  risveglio: 'Risveglio',
-  decaf: 'Decaffeinated',
-  unspecified: 'Variant not stated'
-};
+//
+// There is no blend/variant selector: raw vendor listing wording and any stated
+// blend wording are provenance shown inside offer details, never a filter.
 
 export const ILS = new Intl.NumberFormat('en-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 2 });
 export const IL_TIME = new Intl.DateTimeFormat('en-GB', {
@@ -233,6 +227,10 @@ export function diagnosticsDisclosure(quote) {
   const stockChange = stockChangeText(quote);
   if (stockChange) rows.push(stockChange);
   rows.push(`Last successful check: ${timeLabel(quote.observedAt)}`);
+  if (quote.product?.name) rows.push(`Vendor listing name: ${quote.product.name}`);
+  if (quote.product?.variantId && quote.product.variantId !== 'unspecified' && quote.product.variantLabel) {
+    rows.push(`Stated blend wording: ${quote.product.variantLabel}`);
+  }
   if (quote.lastAttemptFailed) rows.push(`Last attempt failed ${timeLabel(quote.attemptedAt)}${quote.lastError ? ` — ${truncate(quote.lastError)}` : ''}`);
   const policy = quote.shipping?.policy;
   if (policy) {

@@ -73,7 +73,6 @@ export function shippingServiceLabel(service, mode = 'delivery') {
 export function quoteBoard({
   observations = [],
   productId,
-  variantId = null,
   targetGrams = 500,
   destination = DESTINATIONS[0],
   fx = null,
@@ -85,20 +84,12 @@ export function quoteBoard({
 } = {}) {
   const grams = clampGrams(targetGrams);
   const quotes = [];
-  const variants = new Set();
-  const excludedVariants = new Set();
-  let excludedByVariant = 0;
   for (const observation of observations) {
     if (productId && observation?.product?.productId !== productId) continue;
     if (observation?.product?.form !== 'ground') continue;
-    variants.add(observation?.product?.variantId ?? 'unspecified');
-    if (variantId && (observation?.product?.variantId ?? 'unspecified') !== variantId) {
-      // Kept out of this ranking on purpose: variants are never merged. The
-      // count lets the UI tell the shopper that offers for another variant exist.
-      excludedByVariant += 1;
-      excludedVariants.add(observation?.product?.variantId ?? 'unspecified');
-      continue;
-    }
+    // Owner correction, 2026-10-12: every eligible Crema e Gusto ground listing
+    // is compared together. A vendor's blend wording (or the absence of one) is
+    // raw listing identity metadata, never a filter, so it is not read here.
     // Read-time policy enrichment: an old stored row whose shipping was unknown
     // gains a validated rule without waiting for the next vendor refresh. The
     // observation's own price, stock and observedAt are never touched.
@@ -125,8 +116,6 @@ export function quoteBoard({
   const unknown = [...unrankable, ...staleOrUnavailable];
   return {
     productId,
-    variantId,
-    variants: [...variants].sort(),
     targetGrams: grams,
     destination,
     generatedAt: new Date(now).toISOString(),
@@ -154,9 +143,7 @@ export function quoteBoard({
       observed: quotes.length,
       ranked: ranked.length,
       pickup: pickup.length,
-      unknown: unknown.length,
-      excludedByVariant,
-      excludedVariants: [...excludedVariants].sort()
+      unknown: unknown.length
     }
   };
 }

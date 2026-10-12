@@ -4,7 +4,7 @@
 // supplied by a visitor and never trigger unbounded scraping. The first request
 // after a deployment may start one throttled initial refresh.
 
-import { products, resolveProductRequest, variantCatalog, resolveVariantId } from './catalog.js';
+import { products, resolveProductRequest } from './catalog.js';
 import { quoteBoard, findDestination, DESTINATIONS } from './lib/quote.js';
 import { policySummary } from './lib/policies.js';
 import { runRefresh, maybeInitialRefresh, refreshFreshness, newestObservationAt } from './refresh.js';
@@ -96,11 +96,11 @@ async function handleBoard(request, env, ctx, url) {
   // falls back to the tracked product and says so instead of reviving it.
   const { product, retired } = resolveProductRequest(url.searchParams.get('product'));
   const productId = product.id;
-  const requestedVariant = url.searchParams.get('variant');
-  // A variant id that is not tracked at all (a typo or an old shared link) falls
-  // back to the product's default, like an unknown product or destination. A real
-  // variant of another line stays strict: it matches nothing on this board.
-  const variantId = resolveVariantId(product, requestedVariant);
+  // Owner correction, 2026-10-12: there is no blend/variant feature. An old
+  // shared URL may still carry `variant=classico/unspecified/...`; the obsolete
+  // parameter is ignored so the URL resolves to the one unified comparison and
+  // quantity/locality are preserved. It never creates a second view or filters
+  // any listing out.
   const grams = url.searchParams.get('grams') ?? '500';
   const destination = findDestination(url.searchParams.get('dest'));
   const snapshot = await store.snapshot();
@@ -108,7 +108,6 @@ async function handleBoard(request, env, ctx, url) {
   const board = quoteBoard({
     observations: snapshot.observations,
     productId,
-    variantId,
     targetGrams: grams,
     destination,
     fx: snapshot.meta?.fx ?? null,
@@ -182,7 +181,7 @@ export function publicVendors() {
   }));
 }
 
-/** Public product shape: identity, packaging and the selectable variants. */
+/** Public product shape: identity and packaging. No blend/variant selection exists. */
 export function publicProduct(product) {
   if (!product) return null;
   return {
@@ -192,8 +191,6 @@ export function publicProduct(product) {
     form: product.form,
     packaging: product.packaging,
     targetMarket: product.targetMarket,
-    defaultVariant: product.defaultVariant,
-    variants: variantCatalog(product),
     notes: product.notes
   };
 }

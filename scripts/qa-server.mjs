@@ -18,7 +18,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { coffeeman } from '../src/vendors/coffeeman.js';
 import { pucks } from '../src/vendors/pucks.js';
 import { coffee4u } from '../src/vendors/coffee4u.js';
-import { products, resolveVariantId, resolveProductRequest } from '../src/catalog.js';
+import { products, resolveProductRequest } from '../src/catalog.js';
 import { quoteBoard, findDestination, DESTINATIONS } from '../src/lib/quote.js';
 import { createObservation, registeredVendors } from '../src/vendors/index.js';
 import { refreshFreshness, newestObservationAt } from '../src/refresh.js';
@@ -227,10 +227,11 @@ async function handle(request, response, { observations, now, withTermsDemo, wit
   }
   if (url.pathname === '/api/board') {
     const { product, retired } = resolveProductRequest(url.searchParams.get('product'));
-    const variantId = resolveVariantId(product, url.searchParams.get('variant'));
+    // The obsolete `variant` query parameter is ignored, exactly like the Worker:
+    // old shared URLs resolve to the one unified comparison.
     const grams = url.searchParams.get('grams') ?? '500';
     const destination = findDestination(url.searchParams.get('dest'));
-    const board = quoteBoard({ observations, productId: product.id, variantId, targetGrams: grams, destination, fx: null, now });
+    const board = quoteBoard({ observations, productId: product.id, targetGrams: grams, destination, fx: null, now });
     return json(response, {
       ...board,
       product: publicProducts().find(item => item.id === product.id) ?? null,

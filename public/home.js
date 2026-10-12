@@ -3,9 +3,11 @@
 // The canonical home route shows the tracked catalog as cards, not the vendor
 // comparison board. Each card links to the product's own directly loadable page
 // (`/product/<id>`). A legacy board link that still carries product/quantity/
-// destination/variant query state is forwarded to the product page with that
-// state intact, so old shared URLs keep working and a retired product id can
-// still be reported as a fallback instead of being silently dropped.
+// destination query state — including an obsolete variant parameter — is
+// forwarded to the product page with that state intact, so old shared URLs keep
+// working and a retired product id can still be reported as a fallback instead
+// of being silently dropped. The product page ignores the obsolete variant
+// parameter and always shows the one unified comparison.
 
 import { el, timeLabel, bidi } from './ui.js';
 
@@ -54,7 +56,7 @@ function productCard(product, vendors) {
   const card = el('article', { class: 'product-card' },
     el('p', { class: 'product-card__brand', text: product.brand }),
     el('h2', { class: 'product-card__name' }, bidi(`${product.brand} ${product.line}`)),
-    el('p', { class: 'product-card__meta', text: `${product.form} coffee in a ${product.packaging} · sold as 250 g packs and multipacks · blend variants compared separately` }),
+    el('p', { class: 'product-card__meta', text: `${product.form} coffee in a ${product.packaging} · sold as 250 g packs and multipacks · one comparison for all tracked listings` }),
     el('p', { class: 'product-card__summary', text: `Compare item subtotal, named delivery method and charge, and the delivered total for a chosen quantity and Israeli locality. ${vendorCount} tracked vendor${vendorCount === 1 ? '' : 's'}${listingCount ? ` · ${listingCount} listing${listingCount === 1 ? '' : 's'}` : ''}${vendorNames.length ? `: ${vendorNames.join(', ')}` : ''}.` }),
     el('p', { class: 'product-card__action' },
       el('a', { class: 'product-card__link', href: `/product/${encodeURIComponent(product.id)}`, text: 'Compare delivered offers' })));
