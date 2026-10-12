@@ -50,8 +50,13 @@ export const RECIPES = {
       { action: 'gotoUnlessText', url: '{cartUrl}', text: 'דרכי משלוח', optional: true },
       { action: 'waitText', text: 'דרכי משלוח', timeout: 20000, optional: true },
       { action: 'setQuantity', target: '{grams}', optional: true },
-      { action: 'selectLabel', selector: 'select', label: '{locality}', optional: true },
-      { action: 'fill', selector: 'input[name*="zip" i], input[name*="postal" i], input[id*="zip" i], input[id*="postal" i]', value: '{postcode}', optional: true },
+      // The estimator's destination fields are text inputs (ישוב / מיקוד), not a
+      // select: the language dropdown is the only <select> on the page, so a
+      // generic select step would silently record a locality that was never
+      // set. Fill the named fields and require them, so a run that cannot set
+      // the destination is blocked instead of attributed to it.
+      { action: 'fill', selector: '#city', value: '{locality}', optional: false },
+      { action: 'fill', selector: '#zip', value: '{postcode}', optional: false },
       // The ₪30 home-delivery fee reaches the summary only after the delivery
       // card is selected, so the recipe must choose the actual method.
       { action: 'clickAnyText', texts: ['משלוח עד הבית'], optional: false },
@@ -477,6 +482,10 @@ function stepDetail(step, result) {
   if (step.action === 'clickSelector') return result ? `clicked: ${result}` : null;
   if (step.action === 'gotoUnlessText') return result === 'skipped' ? 'already on the estimator page' : 'navigated';
   if (step.action === 'setQuantity' && Number.isFinite(result)) return `${result} pack(s) in cart`;
+  // A fill step records the value the page actually holds after typing, so a
+  // locality/postcode in the evidence is a verified field value, not just the
+  // requested parameter.
+  if (step.action === 'fill' && result && typeof result === 'object') return `${result.selector}=${result.value ?? ''}`;
   if (step.action === 'selectLabel' && result) return `selected: ${result}`;
   return null;
 }

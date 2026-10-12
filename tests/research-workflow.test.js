@@ -55,8 +55,13 @@ test('recipe placeholders expand to the run parameters', () => {
   const steps = expandSteps(RECIPES.pucks, { productUrl: 'https://example.test/p', cartUrl: 'https://example.test/c', grams: 500, locality: 'תל אביב', postcode: '6100000' });
   assert.equal(steps[0].url, 'https://example.test/p');
   assert.equal(steps.find(step => step.action === 'gotoUnlessText').url, 'https://example.test/c');
-  assert.equal(steps.find(step => step.action === 'selectLabel').label, 'תל אביב');
-  assert.equal(steps.find(step => step.action === 'fill').value, '6100000');
+  const city = steps.find(step => step.action === 'fill' && step.selector === '#city');
+  const zip = steps.find(step => step.action === 'fill' && step.selector === '#zip');
+  assert.equal(city.value, 'תל אביב');
+  assert.equal(city.optional, false, 'a quote attributed to a locality must set it on the page');
+  assert.equal(zip.value, '6100000');
+  assert.equal(zip.optional, false, 'the postcode is required for a destination quote');
+  assert.equal(steps.some(step => step.action === 'selectLabel'), false, 'the only <select> on the Pucks estimator is the language dropdown, so the recipe never uses a generic select step');
   const method = steps.find(step => step.action === 'clickAnyText');
   assert.deepEqual(method.texts, ['משלוח עד הבית'], 'the recipe selects the actual delivery method');
   assert.equal(method.optional, false, 'a quote without a chosen method would not show the fee, so the step is required');
@@ -214,7 +219,7 @@ test('runRecipe records every step and stops at the first required blocker', asy
     clickAnyText: async texts => { calls.push(['clickAnyText', texts]); return 'משלוח עד הבית 30 ₪'; },
     clickSelector: async () => { calls.push(['clickSelector']); throw new Error('no element matched'); },
     selectLabel: async () => { calls.push(['selectLabel']); },
-    fill: async () => { calls.push(['fill']); },
+    fill: async (selector, value) => { calls.push(['fill', selector, value]); return { selector, value }; },
     setQuantity: async () => { calls.push(['setQuantity']); throw new Error('no quantity input found'); },
     waitText: async () => true,
     sleep: async () => {},
@@ -233,6 +238,8 @@ test('runRecipe records every step and stops at the first required blocker', asy
   const methodStep = record.steps.find(step => step.step === 'clickAnyText');
   assert.equal(methodStep.ok, true);
   assert.match(methodStep.detail, /clicked: משלוח עד הבית/, 'the evidence records the method that was selected');
+  const cityStep = record.steps.find(step => step.step === 'fill' && step.detail);
+  assert.match(cityStep.detail, /#city=תל אביב/, 'the evidence records the destination value the page actually holds');
   assert.equal(record.itemSubtotalIls, 60);
   assert.equal(record.shippingIls, 30);
   assert.equal(validateEvidence(record).ok, true);
@@ -257,6 +264,31 @@ test('a run blocks when the required delivery method cannot be selected', async 
   assert.equal(record.status, 'blocked');
   assert.match(record.blocker, /clickAnyText/);
   assert.equal(record.observedPacks, 2);
+  assert.equal(validateEvidence(record).ok, true);
+});
+
+test('a run blocks when the required destination fields cannot be set', async () => {
+  const driver = {
+    goto: async () => {},
+    gotoUnlessText: async () => 'navigated',
+    clickText: async () => {},
+    clickAnyText: async () => 'משלוח עד הבית',
+    clickSelector: async () => 'a.slide_cart__btn-checkout',
+    selectLabel: async () => {},
+    fill: async selector => {
+      if (selector === '#city') throw new Error('fill: no element matches #city');
+      return { selector, value: '9100000' };
+    },
+    setQuantity: async () => 4,
+    waitText: async () => true,
+    sleep: async () => {},
+    getText: async () => PUCKS_1KG_FREE,
+    currentUrl: async () => 'https://pucks.co.il/payment/request'
+  };
+  const record = await runRecipe({ recipe: RECIPES.pucks, driver, params: { grams: 1000, locality: 'ירושלים', postcode: '9100000' } });
+  assert.equal(record.status, 'blocked', 'a quote must not be attributed to a destination the recipe could not set');
+  assert.match(record.blocker, /Required step "fill" failed/);
+  assert.ok(record.steps.some(step => step.step === 'fill' && step.ok === false && step.optional === false));
   assert.equal(validateEvidence(record).ok, true);
 });
 

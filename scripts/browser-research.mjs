@@ -494,6 +494,10 @@ function createResearchDriver(session) {
       await wdValue(session, 'POST', `/element/${id}/clear`, {});
       await wdValue(session, 'POST', `/element/${id}/value`, { text: String(value) });
       await delay(500);
+      // Read the field back so the evidence record can show the value the page
+      // actually holds, not just the requested parameter.
+      const readback = await evalIn(`return document.querySelector(arguments[0])?.value ?? null`, [selector]);
+      return { selector, value: readback };
     },
     /**
      * Set a whole-pack quantity in the cart and return how many packs the page
