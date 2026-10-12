@@ -1,0 +1,49 @@
+{
+  "capturedAt": "2026-10-12T16:33:42.560Z",
+  "iteration": "3-62",
+  "defect": "Cron phase lock: a successful run stores nextAttemptAt = run start + 6 h, but the cron fires at fixed clock times (17 */6 * * *). A tick landing seconds before the due time skipped every vendor; the run saved no observations and did not advance lastRefreshAt, so the refresh cadence drifted from six to twelve hours and the board (stale after 8 h) reported stale for hours between runs.",
+  "scenario": {
+    "firstRunAt": "2026-10-12T00:17:20.000Z",
+    "storedDueAt": "2026-10-12T06:17:20.000Z",
+    "nextCronTick": "2026-10-12T06:17:00.000Z",
+    "secondsBetweenTickAndDue": 20,
+    "fixtureSource": "tests/fixtures via vendor-fixtures.mjs; Bank of Israel rate table stubbed for the offline run"
+  },
+  "preFixRun": {
+    "code": "refresh.js from commit 0f8ccae (before the tolerance)",
+    "expression": "Date.parse(nextAttemptAt) <= now",
+    "tickDue": false,
+    "dueAt": "2026-10-12T06:17:20.000Z",
+    "firstRequests": 6,
+    "tickRequests": 1,
+    "tickVendorsSkipped": 3,
+    "tickVendorsSaved": 0,
+    "tickAdvancesLastRefreshInProduction": false
+  },
+  "currentRun": {
+    "code": "working tree after the fix",
+    "expression": "due <= now + EARLY_DUE_TOLERANCE_MS for vendors with consecutiveFailures = 0; strict for backoff",
+    "earlyDueToleranceMs": 900000,
+    "tickDue": true,
+    "vendorThreeHoursEarlyIsNotDue": true,
+    "failingVendorKeepsStrictDueTime": true,
+    "dueAt": "2026-10-12T06:17:20.000Z",
+    "firstRequests": 6,
+    "tickRequests": 6,
+    "tickVendorsSkipped": 0,
+    "tickVendorsSaved": 3,
+    "tickAdvancesLastRefreshInProduction": true
+  },
+  "interpretation": "Under the pre-fix rule the fixed tick saved 0 observations, so production would not advance lastRefreshAt and the board would report stale for hours between the (now twelve-hourly) refreshes. Under the fixed rule the same tick saves all three vendors and advances the completion marker. The scenario injects past timestamps; the pipeline records finishedAt with the real clock, so lastRefreshAt wall-clock values are not compared here. The deterministic signal is whether any vendor saved an observation, which is exactly the production rule for advancing lastRefreshAt.",
+  "regressionCoverage": [
+    "tests/refresh.test.js: a successful vendor counts as due a little before its stored due time",
+    "tests/refresh.test.js: a cron tick just before the six-hour mark refreshes instead of skipping every vendor",
+    "tests/refresh.test.js: repeated failures back off and stop re-fetching the broken vendor (strict backoff unchanged)",
+    "tests/refresh.test.js: a run that only refreshes the FX table does not claim a completed offer refresh"
+  ],
+  "verification": {
+    "npm run verify": "89/89 node:test cases pass; wrangler deploy --dry-run builds the Worker bundle (79.00 KiB, gzip 20.17 KiB; bindings BOARD + ASSETS)",
+    "npm run cron:offline": "6 bounded requests, all three vendors saved (CoffeeMan 3, Pucks 1, Coffee4U 1), five offers persisted, pruned 0",
+    "npm run qa:browser": "57/57 offline browser checks pass"
+  }
+}

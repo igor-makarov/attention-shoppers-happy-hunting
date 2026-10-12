@@ -28,7 +28,12 @@ next to every ranked rate, a `+₪ vs best` line on each comparison row, an appr
 time in the board footer, and records the fresh vendor-coverage probes (Zap, FreshCafe, Brioso) that
 found no fourth vendor carrying the tracked ground listing. Iteration 3-61 adds a board-freshness fallback
 so an interrupted refresh with fresh saved observations is not reported as never refreshed, and records the
-first independently verified production refresh from the runner.
+first independently verified production refresh from the runner. Iteration 3-62 fixed a cron phase-lock in
+that runtime: because a vendor's stored due time is `run time + 6 h` while the cron fires at fixed clock
+times, a tick landing seconds early skipped every vendor and would silently drift the cadence to twelve
+hours (with the board reporting stale for hours between runs). Successful vendors now count as due up to
+15 minutes early; failure backoff stays strict. The fix is locally verified (**89/89** tests, fixture
+refresh, **57/57** offline browser checks) and waits for the next main-push deployment.
 
 The 2026-10-12 owner correction retired Qualità Oro, Qualità Rossa, Suerte and every other Lavazza
 product line. They are no longer catalog entries, fetch targets or UI options. Their names survive only
@@ -90,7 +95,11 @@ product line requires an explicit new owner instruction.
   `lastObservationAt`/`freshness.dataAsOf`, and names it in the footer instead of claiming no refresh ever
   happened; a recorded but old completion still reads as stale, because that is the scheduled pipeline
   having stopped. Only observations for product lines that are still tracked count toward freshness, so a
-  lingering historical row cannot mask a stale board. The board footer also names the earliest vendor `nextAttemptAt` as an approximate next source
+  lingering historical row cannot mask a stale board. A successful vendor is stored as due at `run time +
+  6 h`, and because the cron fires on fixed clock times a successful vendor also counts as due up to 15
+  minutes early (`EARLY_DUE_TOLERANCE_MS`); a tick landing seconds before the due time therefore still
+  refreshes instead of skipping every vendor and silently drifting to a twelve-hour cadence, while vendors
+  inside a failure backoff keep their strict due time. The board footer also names the earliest vendor `nextAttemptAt` as an approximate next source
   check time, so a shopper can see the board is scheduled to keep updating.
 - **Bounded fetching**: host allowlists per adapter, 12 s timeout, 1.5 MB response cap, max two vendors
   in flight, one attempt per offer per run, published crawl delays honoured (`Crawl-delay: 7` on
@@ -298,6 +307,23 @@ labels and the next-source-check footer line, recorded in
     keyboard focus, mobile reflow and the footer freshness/next-check lines. Evidence:
     `docs/evidence/production-verification-20261012T1618Z.json` and
     `docs/evidence/browser-qa-production-20261012T1620Z.json`.
+14. 3-62 fixed a self-updating-runtime defect found while reviewing the production cron phase. A
+    successful run stores each vendor as due at `run time + 6 h`, but the cron fires at fixed clock times
+    (`17 */6 * * *`); a tick landing even a few seconds before the due time skipped every vendor, made
+    only the rate-table request, saved no observation and left `lastRefreshAt` unchanged. In steady state
+    that alternates into a twelve-hour refresh cadence, and the board (stale after eight hours) would
+    report stale for hours between runs. `isVendorDue()` now counts a vendor with no consecutive failures
+    as due up to `EARLY_DUE_TOLERANCE_MS` (15 minutes) early; vendors inside a failure backoff keep their
+    strict due time, so backoff is not weakened. `npm run verify` — **89/89** `node:test` cases pass (two
+    new: the early-due rule, and a cron tick 30 seconds before the six-hour mark refreshing all three
+    vendors and saving observations), then `wrangler deploy --dry-run` builds the bundle (79.00 KiB,
+    gzip 20.17 KiB; bindings `BOARD` + `ASSETS`). `npm run cron:offline` — **6 bounded requests**, five
+    offers persisted, `pruned: 0`. `npm run qa:browser` — **57/57** offline checks pass. The reproduced
+    before/after pipeline scenario (successful run at 00:17:20Z, next tick at 06:17:00Z, 20 s before the
+    stored due times) is recorded in `docs/evidence/cron-phase-lock-20261012T163342Z.json`: the pre-fix
+    `refresh.js` from commit 0f8ccae makes **1** request, skips all three vendors and saves **0**
+    observations on the tick, while the fixed code makes **6** requests, skips none and saves all three.
+    The loop does not deploy: the fix reaches production with the next main push.
 
 ## Owner-reported deployment vs independently verified
 
@@ -319,12 +345,22 @@ dashboard and one tick should be observed (the loop has only observed request-tr
 main pushes should keep reaching Workers Builds. The other checks below were independently verified from
 the runner on 2026-10-12: `/health` reports a non-null `lastRefreshAt` and `lastObservationAt`,
 `/api/catalog` lists exactly one product, the board shows the five Crema e Gusto offers, and the 3-61
-build is live after the push. Report any Cloudflare error back to the loop without pasting credentials.
+build is live after the push. The 3-62 phase-lock fix reaches production with the next main push; after
+that, the first cron ticks are the place to confirm it: a tick that lands with all vendors inside their
+six-hour window is recorded but does not advance `lastRefreshAt` (expected), while the next tick should
+save observations and advance the marker, so consecutive ticks no longer alternate between refreshing and
+skipping. Report any Cloudflare error back to the loop without pasting credentials.
 
 ## Committed evidence snapshots
 
 Current-scope evidence (committed for review, not live data):
 
+- `docs/evidence/cron-phase-lock-20261012T163342Z.json` — the 3-62 cron phase-lock reproduction: the
+  pre-fix `refresh.js` (commit 0f8ccae) and the fixed code each run the real fixture pipeline through a
+  successful 00:17:20Z refresh and the 06:17:00Z cron tick 20 s before the stored due times. Pre-fix: 1
+  request, 3 vendors skipped, 0 observations saved, no production completion marker. Fixed: 6 requests,
+  0 skipped, all three vendors saved. This is the evidence that the fix prevents a silent drift from a
+  six-hour to a twelve-hour refresh cadence.
 - `docs/evidence/browser-qa-production-20261012T1620Z.json` — **53/53** live browser checks driven
 directly against https://attention-shoppers.igormaka.workers.dev on 2026-10-12 16:20 UTC with zero console
   errors: the strongest end-to-end evidence that the deployed 3-61 build serves the tracked board, the
@@ -561,15 +597,20 @@ any adapter.
   labels, the `+₪ vs best` comparison rows, the approximate next-source-check footer line and the fresh
   vendor-coverage probes; session 3-61 added the interrupted-refresh freshness fallback, verified the
   production deployment and its request-triggered initial refresh from the runner, and then verified the
-  pushed 3-61 build serving in production with 53/53 browser checks against the live URL.
+  pushed 3-61 build serving in production with 53/53 browser checks against the live URL; session 3-62
+  reproduced and fixed the cron phase-lock that would have drifted the production cadence to twelve hours
+  (successful vendors now count as due up to 15 minutes before their stored due time, failure backoff
+  stays strict), with pre-fix/fixed pipeline evidence in
+  `docs/evidence/cron-phase-lock-20261012T163342Z.json`.
 - Next useful task for the loop: improve only Crema e Gusto coverage, shipping evidence, freshness and
-  comparison quality. Candidates, in order: (a) observe a real 6-hour cron tick in production if the
-  owner reports the trigger is live, or keep the request-triggered refresh path verified; (b) re-check
-  whether Pucks or CoffeeMan starts publishing a rate for the currently unrankable
-  offers (the 3-60 probe found none); (c) another bounded re-probe of the recorded blocked vendors at a
-  later date for a fourth adapter. The 2026-10-12 probes (14:25, 14:39-14:58, 15:19 and 15:35-15:41 UTC,
-  the last via Zap and its FreshCafe/Brioso leads) found no viable new vendor, so candidate domains and
-  their blockers stay recorded in docs/SOURCES.md instead of guessed. Adding another product line requires
-  an explicit new owner instruction.
+  comparison quality. Candidates, in order: (a) once the 3-62 push is deployed, observe the production
+  cron ticks with read-only `/api/status` GETs and confirm a `cron`-triggered run saves observations and
+  keeps the six-hour cadence (the 18:17Z tick may legitimately skip while every vendor is inside its
+  window; the 00:17Z tick should refresh); (b) re-check whether Pucks or CoffeeMan starts publishing a
+  rate for the currently unrankable offers (the 3-60 probe found none); (c) another bounded re-probe of the
+  recorded blocked vendors at a later date for a fourth adapter. The 2026-10-12 probes (14:25,
+  14:39-14:58, 15:19 and 15:35-15:41 UTC, the last via Zap and its FreshCafe/Brioso leads) found no viable
+  new vendor, so candidate domains and their blockers stay recorded in docs/SOURCES.md instead of guessed.
+  Adding another product line requires an explicit new owner instruction.
 - Keep `npm run check:sources` green against live pages and re-run both `npm run qa:browser` modes after
   any UI change.
