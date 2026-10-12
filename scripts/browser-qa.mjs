@@ -186,6 +186,40 @@ try {
   await waitForPage(wd, `document.querySelector('.best__vendor')?.textContent.includes('CoffeeMan')`, 15_000, 'restore classico ranking', `({vendor: document.querySelector('.best__vendor')?.textContent ?? null})`);
   await screenshot(wd, 'desktop-1440.png');
 
+  // Product selector: the second tracked product (Lavazza Qualità Oro) has its own board,
+  // its own default variant and its own winner, and it never mixes with the first product.
+  // The UI is still on 500 g / Tel Aviv at this point, so the expectation is read at the same settings.
+  const apiOro = await fetchBoard(base, 500, 'tel-aviv', 'unspecified', 'lavazza-qualita-oro-vacuum-ground');
+  const expectedOro = ils(apiOro.best?.totalIls);
+  await evaluate(wd, `(() => { const select = document.getElementById('product'); select.value = 'lavazza-qualita-oro-vacuum-ground'; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+  await waitForPage(wd, `document.querySelector('.section__intro')?.textContent.includes('Qualità Oro')`, 15_000, 'product switch to Qualità Oro', `({intro: document.querySelector('.section__intro')?.textContent ?? null, product: document.getElementById('product')?.value ?? null})`);
+  const oro = await evaluate(wd, `({
+    intro: document.querySelector('.section__intro')?.textContent ?? null,
+    vendor: document.querySelector('.best__vendor')?.textContent ?? null,
+    total: document.querySelector('.best__total')?.textContent ?? null,
+    variantOptions: [...document.querySelectorAll('#variant option')].map(node => node.textContent.trim()),
+    variantValue: document.getElementById('variant')?.value ?? null,
+    productOptions: [...document.querySelectorAll('#product option')].map(node => node.textContent.trim()),
+    url: location.search,
+    tableRows: document.querySelectorAll('table.compare tbody tr').length
+  })`);
+  check(`product: switching to ${catalog.products[1].line} ranks its own best offer at ${expectedOro}`,
+    oro.vendor === apiOro.best?.vendor.name && oro.total === expectedOro && /Qualità Oro/.test(oro.intro ?? ''),
+    `${oro.vendor} ${oro.total} vs ${expectedOro} (${oro.intro})`);
+  check('product: the second product uses its own default variant, not the first product\'s',
+    oro.variantValue === 'unspecified' && oro.variantOptions.length === 1 && /Variant not stated/.test(oro.variantOptions[0] ?? ''),
+    `value=${oro.variantValue} options=${oro.variantOptions.join(' | ')}`);
+  check('product: the selector lists every tracked product',
+    oro.productOptions.length === catalog.products.length && catalog.products.every(item => oro.productOptions.some(label => label.includes(item.line))),
+    oro.productOptions.join(' | '));
+  check('product: the switch is reflected in the shareable URL',
+    /product=lavazza-qualita-oro-vacuum-ground/.test(oro.url ?? ''), oro.url);
+  check('product: only offers of the selected product are compared',
+    oro.tableRows === apiOro.ranked.length && apiOro.counts?.observed === 4, `rows=${oro.tableRows} ranked=${apiOro.ranked.length} observed=${apiOro.counts?.observed}`);
+  await screenshot(wd, 'desktop-1440-qualita-oro.png');
+  await evaluate(wd, `(() => { const select = document.getElementById('product'); select.value = 'lavazza-crema-e-gusto-vacuum-ground'; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+  await waitForPage(wd, `document.querySelector('.best__vendor')?.textContent.includes('CoffeeMan')`, 15_000, 'restore the first product', `({vendor: document.querySelector('.best__vendor')?.textContent ?? null})`);
+
   // Quantity interaction: click "1 kg".
   const kgButton = await wd('POST', '/element', { using: 'css selector', value: '#quantity-group button[data-grams="1000"]' });
   await wd('POST', `/element/${elementId(kgButton)}/click`, {});
@@ -321,8 +355,10 @@ async function fetchJson(url) {
   return response.json();
 }
 
-function fetchBoard(baseUrl, grams, dest, variant = 'classico') {
-  return fetchJson(`${baseUrl}/api/board?grams=${grams}&dest=${encodeURIComponent(dest)}&variant=${encodeURIComponent(variant)}`);
+function fetchBoard(baseUrl, grams, dest, variant = 'classico', product = null) {
+  const params = new URLSearchParams({ grams: String(grams), dest, variant });
+  if (product) params.set('product', product);
+  return fetchJson(`${baseUrl}/api/board?${params}`);
 }
 
 async function webdriver(method, path, body) {
