@@ -170,6 +170,9 @@ was a real board observation at the time but is historical now.
 | barista.co.il | 2026-10-12 14:57 UTC: Wix site with only a pages sitemap, no product store | Not an e-commerce source. |
 | mycafe.co.il | 2026-10-12 14:57 UTC: WooCommerce; the public product sitemap lists 23 products, none Lavazza | Not a source for the tracked product. |
 | shops.walla.co.il / coffee-room.co.il / ilovecoffee.co.il / coffeetown.co.il / cafeland.co.il / thecoffee.co.il / cafe24.co.il | 2026-10-12 14:57 UTC probes: the domains do not resolve from the runner | No reachable public product page. |
+| zap.co.il (exact-product search) | 2026-10-12 15:35 UTC: the public search returns 40 results; the only tracked ground listing is CoffeeMan's 250 g offer and its multipack model, and every other Crema e Gusto result is capsules or pods. Zap labels CoffeeMan courier at ₪15 and the ₪240 multipack as free shipping, while CoffeeMan's own product pages publish ₪25 and no courier price on the 8-pack | Aggregator data, not a vendor listing: it carries no product-page evidence and disagrees with the vendor's own pages, so it is research-only and is never used as board evidence. |
+| freshcafe.co.il (פרש קפה / FreshCafe) | 2026-10-12 15:37 UTC: reachable; `robots.txt` allows product pages and asks for `Crawl-delay: 7`; the public product search returns 40 Lavazza products, all beans, capsules or pods | Its twelve Crema e Gusto results are aluminium/Nespresso-compatible capsules; the ground-coffee and brand categories carry no vacuum-packed ground Crema e Gusto listing, so it cannot be an adapter for the tracked product. |
+| brioso.co.il (חנות קפה בריוסו) | 2026-10-12 15:36 UTC: the domain resolves, but `robots.txt`, the home page and sitemaps all return a 1,648-byte referer/JS gate (`page_no_referer`) to a non-referring client | No public robots rules or product page; the gate was not bypassed. Zap's index shows only Crema e Gusto capsules/pods there, so it cannot be validated as a permitted source for the tracked ground listing. |
 
 Three independent adapters (CoffeeMan, Pucks and Coffee4U) meet and exceed the "at least two" requirement
 with five real Crema e Gusto listings: three CoffeeMan offers (single 250 g ₪33, 4 × 250 g ₪124 and
@@ -181,7 +184,12 @@ listings: `docs/evidence/source-check-2026-10-12T1512Z.json` (prices and stock u
 A bounded 15:19 UTC re-probe of previously blocked or unreachable candidates found no new viable vendor:
 espressocoffeeshop.com's robots file allows only whitelisted crawlers (not bypassed), coffeecircle.com's
 1,535-URL sitemap has no Lavazza product, bringit.co.il is not a store, and the other re-probed hosts are
-still blocked or unreachable (`docs/evidence/vendor-probe-2026-10-12T1519Z.json`). The two ranked courier rates come with a
+still blocked or unreachable (`docs/evidence/vendor-probe-2026-10-12T1519Z.json`). The 15:35-15:41 UTC
+3-60 pass searched Zap.co.il for the exact product and followed its two new storefront leads: FreshCafe
+carries only Crema e Gusto capsules/pods (no ground listing), and Brioso serves a referer/JS gate instead
+of public robots rules, so neither was bypassed or added. The same pass re-checked the Pucks cart widget
+(still "shipping calculated at payment") and the CoffeeMan 8-pack page (still no courier price), so both
+unknown-shipping labels remain current vendor evidence (`docs/evidence/vendor-probe-2026-10-12T1536Z.json`). The two ranked courier rates come with a
 structured coverage caveat recorded from the vendors' terms pages (home delivery is subject to an
 unpublished locality list), so the board discloses the geographic restriction instead of claiming
 country-wide delivery.

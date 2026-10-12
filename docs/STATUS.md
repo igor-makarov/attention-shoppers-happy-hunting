@@ -12,7 +12,10 @@ comparison quality: the board's `lastRefreshAt` now advances only when at least 
 an observation (an FX-only or empty run can no longer look freshly checked), every offer stores one
 step of previous-check evidence so the UI shows the unit-price change since the last successful check in
 ILS (or explains why the comparison is impossible), and the cheapest per-kilogram offer is called out
-when it differs from the cheapest delivered total.
+when it differs from the cheapest delivered total. Iteration 3-60 adds written shipping-certainty labels
+next to every ranked rate, a `+₪ vs best` line on each comparison row, an approximate next-source-check
+time in the board footer, and records the fresh vendor-coverage probes (Zap, FreshCafe, Brioso) that
+found no fourth vendor carrying the tracked ground listing.
 
 The 2026-10-12 owner correction retired Qualità Oro, Qualità Rossa, Suerte and every other Lavazza
 product line. They are no longer catalog entries, fetch targets or UI options. Their names survive only
@@ -51,12 +54,17 @@ product line requires an explicit new owner instruction.
 - **Bulk-value callout**: when the cheapest delivered total is not the cheapest per-kilogram offer (for
   example, two single 250 g packs at 500 g versus the 4 × 250 g pack), the best-offer card and the
   comparison table name the per-kilogram winner without changing the delivered ranking.
+- **Readable comparison rows**: every ranked row states its difference from the cheapest delivered total
+  (`+₪58.00 vs best`; the best row says `Cheapest delivered total`, an equal total says
+  `Same delivered total as best`), so the ranking is auditable without recomputing the arithmetic.
 - **Shipping evidence, honestly framed**: both ranked courier rates carry a structured coverage caveat
   taken from the vendor's terms page — home delivery is subject to a locality list the product page does
   not publish — so the board discloses the geographic restriction instead of claiming country-wide
-  delivery. Availability and shipping evidence are stamped with the retrieval time of the page they came
-  from, and the best-offer card and comparison table show unit price × packs bought = ILS line total so
-  the delivered total is auditable. Pucks publishes no rate at all and keeps no invented caveat.
+  delivery. Every rate is also labelled in words: `Published rate (verified)`, `Estimated rate` or
+  `Not published before checkout`. Availability and shipping evidence are stamped with the retrieval time
+  of the page they came from, and the best-offer card and comparison table show unit price × packs bought
+  = ILS line total so the delivered total is auditable. Pucks publishes no rate at all and keeps no
+  invented caveat.
 - **Self-updating runtime**: `wrangler.jsonc` triggers `17 */6 * * *` (about every six hours); the first
   `/health` or `/api/board` after deployment starts one throttled initial refresh. Observations, vendor
   state, FX rates, run history and leases persist in the SQLite-backed `BoardStore` Durable Object. The
@@ -64,7 +72,8 @@ product line requires an explicit new owner instruction.
   completed refresh is recent. A run only advances `lastRefreshAt` when at least one vendor actually saved
   an observation, so neither an empty run (every vendor inside its backoff window) nor a run that fetched
   only the exchange-rate table can mask a stalled pipeline as fresh; both are still recorded in the run
-  history.
+  history. The board footer also names the earliest vendor `nextAttemptAt` as an approximate next source
+  check time, so a shopper can see the board is scheduled to keep updating.
 - **Bounded fetching**: host allowlists per adapter, 12 s timeout, 1.5 MB response cap, max two vendors
   in flight, one attempt per offer per run, published crawl delays honoured (`Crawl-delay: 7` on
   CoffeeMan and Coffee4U), 30 min→12 h backoff per vendor. Public routes never fetch a visitor-supplied
@@ -75,10 +84,12 @@ product line requires an explicit new owner instruction.
 
 ## Live observations (recorded evidence)
 
-Retrieved 2026-10-12 15:12 UTC with `npm run check:sources` (bounded fetcher + production parsers) and
+Retrieved 2026-10-12 15:39 UTC with `npm run check:sources` (bounded fetcher + production parsers) and
 stored under `.shurik-local/sources/`; review copy in
-`docs/evidence/source-check-2026-10-12T1512Z.json`. Full source record: docs/SOURCES.md. Exactly five
-listings are active; no retired line is fetched. Prices and stock were unchanged from the 14:50 UTC check.
+`docs/evidence/source-check-2026-10-12T1544Z.json`. Full source record: docs/SOURCES.md. Exactly five
+listings are active; no retired line is fetched. Prices and stock were unchanged from the 15:12 UTC check,
+and the 3-60 re-check of the CoffeeMan 8-pack page and the Pucks cart again found no published shipping
+rate (`docs/evidence/vendor-probe-2026-10-12T1536Z.json`).
 
 | Vendor | Listing | Price | Stock | Shipping | Certainty |
 | --- | --- | --- | --- | --- | --- |
@@ -97,7 +108,10 @@ for it; its offer stays unranked.
 Observed board results on the local Worker after the initial refresh on a fresh store (14:50 UTC, evidence
 `docs/evidence/worker-runtime-status-2026-10-12T1451Z.json`; the 3-59 re-run on a second fresh store at
 15:13-15:15 UTC reproduced the same results with the new code and is recorded in
-`docs/evidence/worker-runtime-status-2026-10-12T1515Z.json`):
+`docs/evidence/worker-runtime-status-2026-10-12T1515Z.json`; the 3-60 fresh-store run at 15:43 UTC
+reproduced the same delivered totals again and additionally exercised the written shipping-certainty
+labels and the next-source-check footer line, recorded in
+`docs/evidence/worker-runtime-status-2026-10-12T1543Z.json`):
 
 - **Crema e Gusto, 500 g to Tel Aviv**: best delivered total **₪91.00** = 2 × ₪33 + ₪25 shipping for
   CoffeeMan single packs (₪182.00/kg); the 4-pack is ranked second at ₪149.00. The Pucks ₪30 item and
@@ -112,15 +126,15 @@ Observed board results on the local Worker after the initial refresh on a fresh 
 - **Retired query URL** `?product=lavazza-qualita-oro-vacuum-ground`: the API falls back to Crema e
   Gusto, returns `requestedRetiredProduct: {id, line: "Qualità Oro"}`, and the page shows the retired-line
   notice plus the normal ₪91.00 Crema e Gusto board. No retired offer appears anywhere in the payload.
-- **FX**: the 15:12 `check:sources` run does not fetch FX; the 14:50:40 and 15:13:59 initial Worker
-  refreshes and the 14:53 live `cron:local` pipeline fetched the official Bank of Israel table dated
-  2026-10-12 (USD 3.078, asOf 12:23:04Z).
+- **FX**: the 15:39 `check:sources` run does not fetch FX; the 14:50:40, 15:13:59 and 15:43:04 initial
+  Worker refreshes and the 14:53 and 15:46 live `cron:local` pipelines fetched the official Bank of
+  Israel table dated 2026-10-12 (USD 3.078, asOf 12:23:04Z).
 
 ## Verification performed (2026-10-12, all local)
 
 1. `npm ci --ignore-scripts` — clean install from the pinned lockfile, 0 vulnerabilities.
-2. `npm run verify` — **82/82** `node:test` cases pass, then `wrangler deploy --dry-run` builds the
-   Worker bundle with no Cloudflare credential (76.82 KiB, gzip 19.72 KiB; bindings `BOARD` + `ASSETS`).
+2. `npm run verify` — **83/83** `node:test` cases pass, then `wrangler deploy --dry-run` builds the
+   Worker bundle with no Cloudflare credential (77.23 KiB, gzip 19.81 KiB; bindings `BOARD` + `ASSETS`).
    Covered acceptance cases include: shipping changes the winner; unknown shipping cannot win;
    stale/out-of-stock/unknown availability stay unranked; variants and multipacks stay separate;
    quantity rounding, minimum order and free-shipping thresholds; missing FX is not zero; destination
@@ -129,7 +143,7 @@ Observed board results on the local Worker after the initial refresh on a fresh 
    converted but never replace the ranked amount; the variant filter reports excluded offers; an empty or
    FX-only run does not claim a completed offer refresh; previous-check price capture across refresh runs
    and its ILS down/up/same, missing-FX, pack-size-change and stock-change handling; the separate
-   per-kilogram winner; leases; backoff;
+   per-kilogram winner; written shipping-certainty labels for verified/estimated/unknown rates; leases; backoff;
    allowlist; crawl-delay pacing;
    retired fixtures are refused by both adapters; retired ids fall back with an explicit reason; the
    catalog exposes exactly one product; a retired `?product=` URL falls back to Crema e Gusto and never
@@ -138,34 +152,37 @@ Observed board results on the local Worker after the initial refresh on a fresh 
    observations stamp availability and shipping evidence with the page retrieval time and keep the
    vendor's coverage caveat; the fixture-backed QA server keeps the browser harness aligned with the
    production quote engine.
-3. `npm run check:sources` (live, 15:12 UTC) — CoffeeMan (three listings), Pucks (one) and Coffee4U
+3. `npm run check:sources` (live, 15:39 UTC) — CoffeeMan (three listings), Pucks (one) and Coffee4U
    (one) PASS against the real pages: ₪33 / ₪124 / ₪240 / ₪30 / ₪38, all five observed **in stock**
-   (unchanged from the 14:50 UTC check). Verified ₪25 courier shipping on the CoffeeMan single and
+   (unchanged from the 15:12 UTC check). Verified ₪25 courier shipping on the CoffeeMan single and
    4-pack pages, unknown shipping on the 8-pack page and the Pucks page, and ₪30 door-to-door plus a
    ₪15 pickup-point alternative on the Coffee4U page. The check output also prints the structured
    coverage caveat for each offer: Amigo's and Coffee4U's terms pages make home delivery subject to an
-   unpublished locality list. Review copy: `docs/evidence/source-check-2026-10-12T1512Z.json`.
+   unpublished locality list. Review copy: `docs/evidence/source-check-2026-10-12T1544Z.json`.
 4. `npm run cron:offline` — full refresh pipeline against the recorded fixtures: **6 bounded requests**,
    five offers persisted (CoffeeMan 3, Pucks 1, Coffee4U 1) and the fixture FX table.
    `tests/simulate-cron.test.js` runs it twice in a temporary directory with identical results and
    asserts 6 requests, no backoff skips, five fresh offers and an FX reference rate, so the
    repeatability cannot regress. Offline runs use their own state file
    (`.shurik-local/board-offline.json`, reset per run) and never consume the live schedule.
-5. `npm run cron:local -- --fresh` (live CLI pipeline, file-backed store, 14:53 UTC): **6 bounded
+5. `npm run cron:local -- --fresh` (live CLI pipeline, file-backed store, 15:46 UTC): **6 bounded
    requests**, all three vendors saved (CoffeeMan 3, Pucks 1, Coffee4U 1), **five live offers**
-   persisted, `pruned: 0`, and the Bank of Israel table dated 2026-10-12 fetched (USD 3.078).
+   persisted, `pruned: 0`, and the Bank of Israel table dated 2026-10-12 fetched (USD 3.078, asOf
+   12:23:04Z). The 3-59 run at 14:53 UTC produced the same five offers and the same rate.
 6. Local Worker runtime (`npx wrangler dev --port 8789`, **fresh** SQLite Durable Object state, no
-   browser opened): the first `/health` request on the empty store started the **initial refresh after
-   deployment** path itself. It ran 14:50:40.494 → 14:50:58.103 UTC — **6 bounded requests**, all three
-   vendors saved, **five observations persisted**, the Bank of Israel table fetched and `nextAttemptAt`
-   +6 h; `/health` then reported a non-null `lastRefreshAt`. The documented scheduled endpoint
-   (`curl http://127.0.0.1:8789/cdn-cgi/local/scheduled`) was then triggered once at 14:51:07.058 UTC
-   and correctly made **0 requests** because every vendor was inside its six-hour window;
-   `lastRefreshAt` stayed at the initial run's value, so the empty run did not mask freshness. Both
-   runs are in the persisted run history, and `/api/board` served the results above. This is the
-   refresh-while-no-browser-open path plus the post-deployment initial refresh. Evidence:
-   `docs/evidence/worker-runtime-status-2026-10-12T1451Z.json`.
-7. `npm run qa:browser` — headless Chrome (chromedriver 154) QA, **52/52 checks pass offline, exit 0**,
+   browser opened, 15:42-15:44 UTC): the first `/health` request on the empty store started the
+   **initial refresh after deployment** path itself. It ran 15:43:04.260 → 15:43:21.907 UTC — **6 bounded
+   requests**, all three vendors saved, **five observations persisted**, the Bank of Israel table fetched
+   and `nextAttemptAt` +6 h; `/health` then reported a non-null `lastRefreshAt`. `/api/board` served
+   ₪91.00 at 500 g (2 × ₪33 + ₪25), ₪149.00 at 1 kg (4-pack), the unstated-variant board ₪106.00, and
+   the retired URL returned `requestedRetiredProduct` Qualità Oro with the Crema e Gusto board. The new
+   `shipping.certaintyLabel` field was present on every quote, and the footer's approximate next-source
+   check line rendered from the stored `nextAttemptAt`. This is the refresh-while-no-browser-open path
+   plus the post-deployment initial refresh. Evidence:
+   `docs/evidence/worker-runtime-status-2026-10-12T1543Z.json`. The 3-59 run additionally triggered the
+   documented scheduled endpoint (`/cdn-cgi/local/scheduled`) once and observed **0 requests** with
+   `lastRefreshAt` unchanged because every vendor was inside its six-hour window.
+7. `npm run qa:browser` — headless Chrome (chromedriver 154) QA, **55/55 checks pass offline, exit 0**,
    desktop 1440 px and mobile 390 px, screenshots and JSON report in `.shurik-local/qa/`. The command is
    self-contained: it starts `scripts/qa-server.mjs` on an ephemeral port, which serves `public/` plus
    the read-only API computed from `tests/fixtures/` by the production quote engine, so no Worker,
@@ -183,33 +200,43 @@ Observed board results on the local Worker after the initial refresh on a fresh 
    previous check makes the best-offer card show the API's unit-price change line, the comparison table
    repeats it for the best offer, the QA-only previous metadata itself is asserted, the fixture board's
    per-kilogram winner differs from its delivered winner, and that winner is called out in both the card
-   and the table. Seven extra checks run against a second fixture
+   and the table. Three 3-60 checks: every ranked rate carries a written shipping-certainty label in
+   both the best-offer card and the comparison table, every comparison row states `+₪… vs best` (or
+   `Cheapest delivered total` for the winner), and the board footer reports the approximate next source
+   check due from the stored vendor `nextAttemptAt`. Seven extra checks run against a second fixture
    server with one clearly labelled QA-only demo offer to verify minimum order, free-shipping threshold,
    free-shipping-met labelling and a locality delivery restriction, plus one check that a board whose
    scheduled refresh stopped for 30 hours is labelled in the footer. Evidence:
-   `docs/evidence/browser-qa-fixtures-2026-10-12T1524Z.json`.
-8. `npm run qa:browser -- http://127.0.0.1:8789` — live mode passed **48/48** against the local
-   `wrangler dev` Worker at 15:23 UTC with the real persisted observations, including the retired-URL
-   notice, the unstated-variant ranking, the disclosed coverage caveat, the item-price arithmetic and the
+   `docs/evidence/browser-qa-fixtures-2026-10-12T1544Z.json`.
+8. `npm run qa:browser -- http://127.0.0.1:8789` — live mode passed **51/51** against the local
+   `wrangler dev` Worker at 15:43 UTC with the real persisted observations, including the retired-URL
+   notice, the unstated-variant ranking, the disclosed coverage caveat, the written shipping-certainty
+   labels, the item-price arithmetic, the `+₪ vs best` rows, the next-check footer line and the
    per-kilogram callout (the fixture-only previous-check and demo-offer checks are skipped or conditional
-   in live mode). Evidence: `docs/evidence/browser-qa-live-2026-10-12T1523Z.json`.
-9. Local Worker runtime re-run with the 3-59 code (`npx wrangler dev --port 8789`, **fresh** SQLite
-   Durable Object state, no browser opened, 15:13-15:15 UTC): the first `/health` started the initial
-   refresh, which ran 15:13:59.987 → 15:14:17.855 UTC with **6 bounded requests**, five observations
-   saved and the Bank of Israel table fetched; `/health` then reported a non-null `lastRefreshAt`. The
-   documented scheduled trigger (`/cdn-cgi/local/scheduled`) made **0 requests** and left
-   `lastRefreshAt` unchanged. `/api/board` served ₪91.00 at 500 g and ₪149.00 at 1 kg, the
-   unstated-variant board ₪106.00, and the retired URL returned `requestedRetiredProduct` Qualità Oro
-   with the Crema e Gusto board. First observations correctly show `priceChange: null` (nothing to
-   compare with yet). Evidence: `docs/evidence/worker-runtime-status-2026-10-12T1515Z.json`.
-   A 15:23 UTC re-capture with the comparison-quality code recorded `bestPerKg` = the CoffeeMan
-   4 × 250 g pack at ₪149.00/kg while the 500 g delivered best stayed the single pack at ₪91.00; the
-   API keeps both values separate. Evidence: `docs/evidence/worker-runtime-status-2026-10-12T1523Z.json`.
-10. Bounded vendor-coverage re-probe (15:19 UTC, 8-second timeouts, no bypass): previously blocked or
-   unreachable hosts are still blocked (403/247/526/timeout); espressocoffeeshop.com's robots file
-   allows only whitelisted crawlers; coffeecircle.com's 1,535-URL sitemap has no Lavazza product;
-   bringit.co.il is not a store. No fourth vendor found, so the board stays with the three observed
-   adapters. Evidence: `docs/evidence/vendor-probe-2026-10-12T1519Z.json`.
+   in live mode). Evidence: `docs/evidence/browser-qa-live-2026-10-12T1544Z.json`.
+9. 3-59 record (kept as history): local Worker runtime re-run with the 3-59 code (`npx wrangler dev
+   --port 8789`, **fresh** SQLite Durable Object state, no browser opened, 15:13-15:15 UTC): the first
+   `/health` started the initial refresh, which ran 15:13:59.987 → 15:14:17.855 UTC with **6 bounded
+   requests**, five observations saved and the Bank of Israel table fetched; `/health` then reported a
+   non-null `lastRefreshAt`. The documented scheduled trigger (`/cdn-cgi/local/scheduled`) made **0
+   requests** and left `lastRefreshAt` unchanged, so an empty run cannot mask freshness. `/api/board`
+   served ₪91.00 at 500 g and ₪149.00 at 1 kg, the unstated-variant board ₪106.00, and the retired URL
+   returned `requestedRetiredProduct` Qualità Oro with the Crema e Gusto board. First observations
+   correctly show `priceChange: null` (nothing to compare with yet). Evidence:
+   `docs/evidence/worker-runtime-status-2026-10-12T1515Z.json`; a 15:23 UTC re-capture with the
+   comparison-quality code recorded `bestPerKg` = the CoffeeMan 4 × 250 g pack at ₪149.00/kg while the
+   500 g delivered best stayed the single pack at ₪91.00 (`worker-runtime-status-2026-10-12T1523Z.json`).
+10. Bounded vendor-coverage probes (15:19 and 15:35-15:41 UTC, 8-second timeouts, no bypass): the 15:19
+   pass found no new vendor (blocked hosts still 403/247/526/timeout; espressocoffeeshop.com allows only
+   whitelisted crawlers; coffeecircle.com's 1,535-URL sitemap has no Lavazza product; bringit.co.il is
+   not a store). The 3-60 pass searched Zap.co.il for the exact product and followed its two new
+   storefront leads: FreshCafe carries only Crema e Gusto capsules/pods and no ground listing, and
+   Brioso serves a referer/JS gate instead of public robots rules, so neither was bypassed or added.
+   The same pass re-checked the Pucks cart widget (still "shipping calculated at payment") and the
+   CoffeeMan 8-pack page (still no courier price), so both unknown-shipping labels remain current vendor
+   evidence. No fourth vendor found, so the board stays with the three observed adapters. Evidence:
+   `docs/evidence/vendor-probe-2026-10-12T1519Z.json` and
+   `docs/evidence/vendor-probe-2026-10-12T1536Z.json`.
 
 ## Owner-reported deployment vs independently verified
 
@@ -231,9 +258,25 @@ Workers Builds. Report any Cloudflare error back to the loop without pasting cre
 
 Current-scope evidence (committed for review, not live data):
 
-- `docs/evidence/source-check-2026-10-12T1512Z.json` — the 15:12 UTC live adapter check of the five
+- `docs/evidence/source-check-2026-10-12T1544Z.json` — the 15:39 UTC live adapter check of the five
   active Crema e Gusto offers (₪33 / ₪124 / ₪240 / ₪30 / ₪38, all in stock) with coverage caveats and
-  evidence timestamps, the evidence behind the table above.
+  evidence timestamps; this is the evidence behind the table above.
+- `docs/evidence/worker-runtime-status-2026-10-12T1543Z.json` — `/health`, `/api/status`, `/api/catalog`,
+  the 500 g / 1 kg / unstated-variant boards and the retired-URL fallback from the 3-60 local Worker run
+  on a fresh Durable Object store: a 6-request initial refresh, five observations, fresh, every quote
+  carrying `shipping.certaintyLabel`, and the board footer rendering the approximate next source check
+  from the stored vendor `nextAttemptAt`.
+- `docs/evidence/browser-qa-fixtures-2026-10-12T1544Z.json` — 55 offline browser checks with the final
+  3-60 code, including the three new checks for written shipping-certainty labels, `+₪ vs best`
+  comparison rows and the next-source-check footer line.
+- `docs/evidence/browser-qa-live-2026-10-12T1544Z.json` — 51 live browser checks against the 3-60 local
+  `wrangler dev` Worker with real observations, including the new certainty labels, comparison deltas
+  and next-check line.
+- `docs/evidence/vendor-probe-2026-10-12T1536Z.json` — the 15:35-15:41 UTC coverage probe (Zap exact
+  product search; FreshCafe capsules/pods only; Brioso referer gate not bypassed) plus the re-check of
+  the Pucks cart and CoffeeMan 8-pack shipping pages; no fourth vendor, no bypass.
+- `docs/evidence/source-check-2026-10-12T1512Z.json` — the previous 15:12 UTC live adapter check of the
+  same five offers, kept for comparison (prices and stock were unchanged at 15:39 UTC).
 - `docs/evidence/worker-runtime-status-2026-10-12T1515Z.json` — `/health`, `/api/status`, `/api/catalog`,
   the 500 g / 1 kg / unstated-variant boards and the retired-URL fallback from the 3-59 local Worker run
   on a fresh Durable Object store: a 6-request initial refresh, five observations, fresh,
@@ -293,7 +336,22 @@ Historical evidence (recorded before the owner correction; kept clearly labelled
 
 ## Iteration notes (historical unless marked current)
 
-Current iteration (3-59): improved freshness honesty and comparison quality inside the single-product
+Current iteration (3-60): improved Crema e Gusto shipping evidence, freshness and comparison quality
+inside the single-product scope, and ran a fresh bounded vendor-coverage hunt. The quote engine now
+exposes a written `shipping.certaintyLabel` (`Published rate (verified)` / `Estimated rate` /
+`Not published before checkout`), the best-offer card and every comparison row show it, each comparison
+row states `+₪… vs best` (or `Cheapest delivered total` / `Same delivered total as best`), and the board
+footer names the earliest stored vendor `nextAttemptAt` as an approximate next source check. One new
+quote test (83 total) and three new browser-QA checks (55 offline, 51 live) cover the labels and the
+deltas; `npm run verify`, the live source check (15:39 UTC, five offers unchanged), the offline fixture
+refresh, the live `cron:local` pipeline (15:46 UTC, 6 requests, USD 3.078), a fresh-store `wrangler dev`
+initial refresh (15:43 UTC) and both browser QA modes were re-run and recorded above. The 15:35-15:41 UTC
+probe searched Zap.co.il for the exact product and followed its two new storefront leads (FreshCafe:
+capsules/pods only; Brioso: referer-gated, not bypassed) and re-checked the Pucks cart and CoffeeMan
+8-pack pages; no fourth vendor carries the tracked ground listing, so the blockers are recorded in
+docs/SOURCES.md and `docs/evidence/vendor-probe-2026-10-12T1536Z.json` instead of being guessed.
+
+Iteration 3-59: improved freshness honesty and comparison quality inside the single-product
 scope. The scheduled pipeline now reads the stored observations before writing, attaches the previous
 successful price, stock and pack weight to each new observation, and the quote engine exposes a
 previous-check unit-price change in ILS (with explicit "not comparable" reasons for a missing exchange
@@ -380,13 +438,16 @@ any adapter.
   3-55 and 3-56 ended in timeout/interruption/model error; their committed checkpoints are preserved and
   the owner correction survived them. Session 3-57 completed the correction locally; session 3-58 added
   the shipping-evidence and comparison-quality improvements; session 3-59 added the previous-check price
-  comparison and the honest `lastRefreshAt` rule above.
+  comparison and the honest `lastRefreshAt` rule above; session 3-60 added the written shipping-certainty
+  labels, the `+₪ vs best` comparison rows, the approximate next-source-check footer line and the fresh
+  vendor-coverage probes.
 - Next useful task for the loop: improve only Crema e Gusto coverage, shipping evidence, freshness and
   comparison quality. A fourth vendor carrying this product is still the main candidate; the 2026-10-12
-  probes (14:25, 14:39-14:58 and 15:19 UTC) found no viable new one, so candidate domains and their
-  blockers stay recorded in docs/SOURCES.md instead of guessed. Re-checking whether Pucks or CoffeeMan
-  starts publishing a rate for the currently unrankable offers is another candidate, as is another
-  bounded re-probe of the recorded blocked vendors at a later date. Adding another product line requires
-  an explicit new owner instruction.
+  probes (14:25, 14:39-14:58, 15:19 and 15:35-15:41 UTC, the last via Zap and its FreshCafe/Brioso
+  leads) found no viable new one, so candidate domains and their blockers stay recorded in
+  docs/SOURCES.md instead of guessed. Re-checking whether Pucks or CoffeeMan starts publishing a rate for
+  the currently unrankable offers is another candidate, as is another bounded re-probe of the recorded
+  blocked vendors at a later date. Adding another product line requires an explicit new owner
+  instruction.
 - Keep `npm run check:sources` green against live pages and re-run both `npm run qa:browser` modes after
   any UI change.
