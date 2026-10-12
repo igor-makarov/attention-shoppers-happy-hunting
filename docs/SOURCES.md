@@ -138,6 +138,7 @@ was a real board observation at the time but is historical now.
 | coffeeclub.co.il (PAUZA) | 2026-10-12: WooCommerce site reachable, but a product search for "lavazza crema e gusto" returns no product pages | Not a source for the tracked product. |
 | caffenu.co.il / caffenu.com / caffevero.co.il | 2026-10-12: Caffenu is a capsule/cleaning brand; caffevero.co.il does not resolve | No ground-coffee listing. |
 | mojeek.com / Bing HTML / DuckDuckGo / Ecosia | 2026-10-12: mojeek returned HTTP 403, Bing HTML had no extractable result links, DuckDuckGo returned an anti-bot challenge; a later probe at 13:17 UTC saw lite.duckduckgo.com return HTTP 202 and ecosia.org HTTP 403 | Search engines were used only for research; no viable new source was found through them. |
+| searx.be / search.inetol.net / baresearch.org / opnxng.com / html.duckduckgo.com / lite.duckduckgo.com | 2026-10-12 17:04 UTC re-probe: searx.be served a "Verifying your browser…" anti-bot page for both queries, search.inetol.net a "Security check - Substation" page, baresearch.org a "Making sure you're not a bot!" page, opnxng.com HTTP 403, and the DuckDuckGo HTML/lite endpoints returned pages with no extractable result links | Anti-bot protections, not bypassed; search engines remain research-only and found no new viable source. |
 
 | roastmarket.com | 2026-10-12: storefront reachable; carries "Lavazza Qualità Oro ground coffee value pack 20x250g" (€132.99, InStock) in its public product sitemap | The public Delivery & Shipping page states "We deliver to mainland Spain and the Balearic Islands", handled by Correos. No evidence of delivery to Israel, so it is excluded rather than guessed. |
 | freshmarket.co.il | 2026-10-12: `/robots.txt` reachable (`Crawl-delay: 4`) but the public sitemap only lists static and page URLs; search/catalog responses are a small client shell with a bot-detection script and no product data | No stable server-rendered product page from the runner; not bypassed. |
@@ -210,7 +211,9 @@ candidate domains; it found no additional tracked ground listing and no new vend
 14:57-14:58 UTC checked pricez.co.il (two capsule results only), coffeebar.co.il (a café chain with no
 shop), coffeelab.co.il (22 own-brand products), barista.co.il and mycafe.co.il (23 products), plus seven
 non-resolving domains, with the same result. Every probe result is recorded in the table above instead of
-guessed.
+guessed. A final 17:04 UTC search-engine re-probe (searx.be, search.inetol.net, baresearch.org,
+opnxng.com and the DuckDuckGo HTML/lite endpoints) hit anti-bot pages on every endpoint, so no new vendor
+domain surfaced; that blocker row is in the table above.
 
 ## Product identity rules
 

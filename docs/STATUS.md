@@ -353,6 +353,14 @@ labels and the next-source-check footer line, recorded in
     `/health` started the initial refresh (16:55:51.383 → 16:56:09.733 UTC, 6 requests, five observations,
     all three vendors) and the probe passed against it. `npm run qa:browser` — **57/57** offline checks;
     `npm run qa:browser -- http://127.0.0.1:8789` — **53/53** live checks against the fresh-store Worker.
+    The 3-63 commits were then pushed to main, and a second read-only production probe at 17:04 UTC passed
+    **18/18** checks (the new `health reports ok with storage available` check included; evidence
+    `docs/evidence/production-probe-20261012T1704Z.json`), followed by
+    `npm run qa:browser -- https://attention-shoppers.igormaka.workers.dev` — **53/53** live checks with
+    zero console errors at 17:05 UTC (evidence `docs/evidence/browser-qa-production-20261012T1705Z.json`),
+    so the deployed site still serves the tracked board after the push. The 3-63 Worker change
+    (`timeSource`) has no public-API marker, so the build version itself is not distinguishable from the
+    outside; the deploy path was last verified with the 3-61 push.
 
 ## Owner-reported deployment vs independently verified
 
@@ -363,7 +371,7 @@ labels and the next-source-check footer line, recorded in
 | Production scope | **Independently verified**: `/api/catalog` listed exactly one product (`lavazza-crema-e-gusto-vacuum-ground`) and three vendors; no retired line appeared in any board payload, and the retired Qualità Oro URL returned `requestedRetiredProduct` with the Crema e Gusto board. Re-verified by the 3-63 probe at 16:53 UTC (17/17 scope checks; `docs/evidence/production-probe-20261012T1653Z.json`). |
 | Production refresh / persistence | **Independently verified**: the probe's first `/health` GET started the documented initial refresh (15:51:52.931Z → 15:52:12.546Z, 4 bounded requests, CoffeeMan saved 3; Pucks/Coffee4U inside their backoff window). `/api/status` then showed `lastRefreshAt` 15:52:12.546Z, fresh, five observations and the Bank of Israel table asOf 12:23:04.599Z. The post-deploy probe and the 16:53 probe found the same persisted store with the same timestamps (ageHours 1.0, stale false) and the same three vendor `nextAttemptAt` values (19:34/19:46/21:52 UTC). The 6-hour cron trigger itself has not been observed firing; the first tick after the store state was written is 18:17 UTC (expected to skip every vendor) and the 00:17 UTC tick should refresh. |
 | Production board values | **Independently verified**: 500 g best ₪91.00 (CoffeeMan 2 × ₪33 + ₪25), 1 kg best ₪149.00 (4-pack), unstated variant ₪106.00 (Coffee4U), matching the local runs and unchanged in the 16:53 probe. |
-| Production UI | **Independently verified**: the fixture-free live browser QA mode drove the deployed site in headless Chrome — **53/53** checks passed with zero console errors on 2026-10-12 16:20 UTC (evidence `docs/evidence/browser-qa-production-20261012T1620Z.json`). |
+| Production UI | **Independently verified**: the fixture-free live browser QA mode drove the deployed site in headless Chrome — **53/53** checks passed with zero console errors on 2026-10-12 16:20 UTC and again at 17:05 UTC after the 3-63 push (evidence `docs/evidence/browser-qa-production-20261012T1620Z.json`, `docs/evidence/browser-qa-production-20261012T1705Z.json`). |
 | Deployed build version | **The 3-61 build is live** (verified 16:17-16:18 UTC: `/health` carries `lastObservationAt`, a 3-61-only field; `/api/status` reports `freshness.dataAsOf`). The 3-62 phase-lock change has no public-API marker (it only changes vendor due-time evaluation), so the 16:53 probe cannot confirm which build serves it; the first observable difference is the **06:17 UTC tick on 2026-10-13**, which should refresh instead of skipping. |
 | Main-push auto-deploy | **Independently verified for the 3-61 push**: after the supervisor published the 3-61 commits to main, the serving production build changed to one that includes the 3-61 fields, with the Durable Object store persisting across the deploy. The 3-62 push is on main and is expected to deploy the same way, but its effect is only observable through a cron tick. The 6-hour cron trigger and future builds still need the owner's dashboard confirmation. |
 | Local refresh-while-no-browser-open | Verified locally through `wrangler dev` + the documented scheduled trigger (item 6 above) and again with the 3-61 fresh store (item 11). |
@@ -389,6 +397,13 @@ Cloudflare error back to the loop without pasting credentials.
 
 Current-scope evidence (committed for review, not live data):
 
+- `docs/evidence/browser-qa-production-20261012T1705Z.json` — **53/53** live browser checks against
+  https://attention-shoppers.igormaka.workers.dev at 17:05 UTC after the 3-63 push, with zero console
+  errors: the deployed site still serves the tracked board, the retired-URL fallback, the written
+  shipping-certainty labels, the comparison deltas and the freshness footer.
+- `docs/evidence/production-probe-20261012T1704Z.json` — the second 3-63 read-only production probe
+  (18/18 checks, including the `health reports ok with storage available` check) after the push; the
+  persisted store, vendor due times and board values were unchanged from the 16:53 probe.
 - `docs/evidence/production-probe-20261012T1653Z.json` — the 3-63 read-only production probe (17/17 checks)
   captured with `npm run probe:production`: `/health`/`/api/status` at 16:53:20 UTC still reported the
   persisted 15:52:12.546Z refresh with five observations, freshness ageHours 1.0 and stale false, the
@@ -528,7 +543,9 @@ unchanged; `npm run cron:offline` — 6 bounded requests, five offers, `pruned: 
 initial refresh (16:55:51 → 16:56:09 UTC, 6 requests, five observations, all three vendors) plus the
 probe; `npm run qa:browser` — **57/57** offline and **53/53** live against the local Worker. The 3-62 fix
 still has no public-API marker, so its production effect is expected at the 06:17 UTC tick on 2026-10-13
-(the expected 18:17/00:17/06:17 sequence is documented above). Evidence:
+(the expected 18:17/00:17/06:17 sequence is documented above). The commits were pushed to main and the
+site was re-checked read-only afterwards: 18/18 probe checks at 17:04 UTC and 53/53 live browser
+checks at 17:05 UTC with zero console errors. Evidence:
 `docs/evidence/production-probe-20261012T1653Z.json`, `docs/evidence/source-check-20261012T1650Z.json`.
 
 Iteration 3-62: fixed the cron **phase-lock** defect that would have silently drifted the production
