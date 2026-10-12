@@ -111,12 +111,13 @@ product line requires an explicit new owner instruction.
 
 ## Live observations (recorded evidence)
 
-Retrieved 2026-10-12 15:39 UTC with `npm run check:sources` (bounded fetcher + production parsers) and
-stored under `.shurik-local/sources/`; review copy in
-`docs/evidence/source-check-20261012T1544Z.json`. Full source record: docs/SOURCES.md. Exactly five
-listings are active; no retired line is fetched. Prices and stock were unchanged from the 15:12 UTC check,
-and the 3-60 re-check of the CoffeeMan 8-pack page and the Pucks cart again found no published shipping
-rate (`docs/evidence/vendor-probe-2026-10-12T1536Z.json`).
+Retrieved 2026-10-12 15:39 UTC and re-checked at 16:50 UTC with `npm run check:sources` (bounded fetcher +
+production parsers) and stored under `.shurik-local/sources/`; review copies in
+`docs/evidence/source-check-20261012T1544Z.json` and `docs/evidence/source-check-20261012T1650Z.json`.
+Full source record: docs/SOURCES.md. Exactly five listings are active; no retired line is fetched. Prices,
+stock and shipping were unchanged across the 15:12, 15:39 and 16:50 UTC checks, and the 3-60 re-check of
+the CoffeeMan 8-pack page and the Pucks cart again found no published shipping rate
+(`docs/evidence/vendor-probe-2026-10-12T1536Z.json`).
 
 | Vendor | Listing | Price | Stock | Shipping | Certainty |
 | --- | --- | --- | --- | --- | --- |
@@ -329,19 +330,42 @@ labels and the next-source-check footer line, recorded in
     16:35:16.549Z UTC with **6 bounded requests**, saved the same five Crema e Gusto offers (₪33 / ₪124 /
     ₪240 / ₪30 / ₪38, all in stock) and fetched the Bank of Israel table (USD 3.078, asOf
     12:23:04.599Z). The loop does not deploy: the fix reaches production with the next main push.
+15. 3-63 added a repeatable **read-only production probe** (`npm run probe:production`,
+    `scripts/probe-production.mjs`): fixed public GETs to `/health`, `/api/status`, `/api/catalog` and the
+    500 g / 1 kg / unstated-variant / retired-URL boards, with no credentials, no POSTs and no remote
+    change; it asserts the single-product scope (exactly one catalog product, no retired product row in any
+    board, the retired URL falling back with a written notice) and writes a JSON snapshot under
+    `.shurik-local/production/` or to `--out`. The probe passed **17/17** checks against
+    https://attention-shoppers.igormaka.workers.dev at 16:53:20 UTC (evidence
+    `docs/evidence/production-probe-20261012T1653Z.json`) and **17/17** against a fresh-store local
+    `wrangler dev` Worker. `runRefresh` also gained a deterministic completion timestamp (`timeSource`,
+    production default unchanged) so a new multi-tick cron test can simulate the production sequence on one
+    timeline: off-phase initial refresh at 15:52:12 → 18:17 tick recorded with **0 requests** and no marker
+    change → 00:17/06:17/12:17/18:17 ticks all refreshing (the 06:17 tick lands 15 s before the stored due
+    time, so the early-due tolerance is what keeps the cadence) → completed refreshes stay **6 h ± 1 min**
+    apart and never reach the 8 h stale threshold after the first on-phase refresh. `npm run verify` —
+    **91/91** `node:test` cases pass; `wrangler deploy --dry-run` builds the bundle (79.47 KiB, gzip
+    20.37 KiB; bindings `BOARD` + `ASSETS`). `npm run cron:offline` — **6 bounded requests**, five offers
+    persisted, `pruned: 0`. `npm run check:sources` (live, 16:50 UTC) — the same five listings, same prices,
+    stock and shipping as 15:39 UTC. `npm run cron:local -- --fresh` (live, 16:55 UTC) — **6 bounded
+    requests**, all three vendors saved, five offers, Bank of Israel table USD 3.078 asOf 12:23:04Z. Local
+    Worker runtime (`npx wrangler dev --port 8789`, fresh SQLite state, no browser opened): the first
+    `/health` started the initial refresh (16:55:51.383 → 16:56:09.733 UTC, 6 requests, five observations,
+    all three vendors) and the probe passed against it. `npm run qa:browser` — **57/57** offline checks;
+    `npm run qa:browser -- http://127.0.0.1:8789` — **53/53** live checks against the fresh-store Worker.
 
 ## Owner-reported deployment vs independently verified
 
 | Item | Status |
 | --- | --- |
 | Worker name in `wrangler.jsonc` | `attention-shoppers` (aligned with the owner correction) |
-| Production URL reported by owner | https://attention-shoppers.igormaka.workers.dev — **independently verified reachable from the runner** (HTTP 200, 2026-10-12 15:51-15:54 UTC, read-only GETs, no credentials) |
-| Production scope | **Independently verified**: `/api/catalog` listed exactly one product (`lavazza-crema-e-gusto-vacuum-ground`) and three vendors; no retired line appeared in any board payload, and the retired Qualità Oro URL returned `requestedRetiredProduct` with the Crema e Gusto board. |
-| Production refresh / persistence | **Independently verified**: the probe's first `/health` GET started the documented initial refresh (15:51:52.931Z → 15:52:12.546Z, 4 bounded requests, CoffeeMan saved 3; Pucks/Coffee4U inside their backoff window). `/api/status` then showed `lastRefreshAt` 15:52:12.546Z, fresh, five observations and the Bank of Israel table asOf 12:23:04.599Z. The post-deploy probe found the same persisted store with the same timestamps. The 6-hour cron trigger itself has not been observed firing. |
-| Production board values | **Independently verified**: 500 g best ₪91.00 (CoffeeMan 2 × ₪33 + ₪25), 1 kg best ₪149.00 (4-pack), unstated variant ₪106.00 (Coffee4U), matching the local runs. |
+| Production URL reported by owner | https://attention-shoppers.igormaka.workers.dev — **independently verified reachable from the runner** (HTTP 200, 2026-10-12 15:51-15:54, 16:17-16:18 and 16:53 UTC, read-only GETs, no credentials) |
+| Production scope | **Independently verified**: `/api/catalog` listed exactly one product (`lavazza-crema-e-gusto-vacuum-ground`) and three vendors; no retired line appeared in any board payload, and the retired Qualità Oro URL returned `requestedRetiredProduct` with the Crema e Gusto board. Re-verified by the 3-63 probe at 16:53 UTC (17/17 scope checks; `docs/evidence/production-probe-20261012T1653Z.json`). |
+| Production refresh / persistence | **Independently verified**: the probe's first `/health` GET started the documented initial refresh (15:51:52.931Z → 15:52:12.546Z, 4 bounded requests, CoffeeMan saved 3; Pucks/Coffee4U inside their backoff window). `/api/status` then showed `lastRefreshAt` 15:52:12.546Z, fresh, five observations and the Bank of Israel table asOf 12:23:04.599Z. The post-deploy probe and the 16:53 probe found the same persisted store with the same timestamps (ageHours 1.0, stale false) and the same three vendor `nextAttemptAt` values (19:34/19:46/21:52 UTC). The 6-hour cron trigger itself has not been observed firing; the first tick after the store state was written is 18:17 UTC (expected to skip every vendor) and the 00:17 UTC tick should refresh. |
+| Production board values | **Independently verified**: 500 g best ₪91.00 (CoffeeMan 2 × ₪33 + ₪25), 1 kg best ₪149.00 (4-pack), unstated variant ₪106.00 (Coffee4U), matching the local runs and unchanged in the 16:53 probe. |
 | Production UI | **Independently verified**: the fixture-free live browser QA mode drove the deployed site in headless Chrome — **53/53** checks passed with zero console errors on 2026-10-12 16:20 UTC (evidence `docs/evidence/browser-qa-production-20261012T1620Z.json`). |
-| Deployed build version | **The 3-61 build is live** (verified 16:17-16:18 UTC: `/health` carries `lastObservationAt`, a 3-61-only field; `/api/status` reports `freshness.dataAsOf`). The earlier verified build predated 3-61. |
-| Main-push auto-deploy | **Independently verified for the 3-61 push**: after the supervisor published the 3-61 commits to main, the serving production build changed to one that includes the 3-61 fields, with the Durable Object store persisting across the deploy. The 6-hour cron trigger and future builds still need the owner's dashboard confirmation. |
+| Deployed build version | **The 3-61 build is live** (verified 16:17-16:18 UTC: `/health` carries `lastObservationAt`, a 3-61-only field; `/api/status` reports `freshness.dataAsOf`). The 3-62 phase-lock change has no public-API marker (it only changes vendor due-time evaluation), so the 16:53 probe cannot confirm which build serves it; the first observable difference is the **06:17 UTC tick on 2026-10-13**, which should refresh instead of skipping. |
+| Main-push auto-deploy | **Independently verified for the 3-61 push**: after the supervisor published the 3-61 commits to main, the serving production build changed to one that includes the 3-61 fields, with the Durable Object store persisting across the deploy. The 3-62 push is on main and is expected to deploy the same way, but its effect is only observable through a cron tick. The 6-hour cron trigger and future builds still need the owner's dashboard confirmation. |
 | Local refresh-while-no-browser-open | Verified locally through `wrangler dev` + the documented scheduled trigger (item 6 above) and again with the 3-61 fresh store (item 11). |
 | No Cloudflare administration | Maintained: no CF API calls, deploys, logins or token discovery in this repository or its history. The production probe used plain public HTTPS GETs only. |
 
@@ -350,16 +374,33 @@ dashboard and one tick should be observed (the loop has only observed request-tr
 main pushes should keep reaching Workers Builds. The other checks below were independently verified from
 the runner on 2026-10-12: `/health` reports a non-null `lastRefreshAt` and `lastObservationAt`,
 `/api/catalog` lists exactly one product, the board shows the five Crema e Gusto offers, and the 3-61
-build is live after the push. The 3-62 phase-lock fix reaches production with the next main push; after
-that, the first cron ticks are the place to confirm it: a tick that lands with all vendors inside their
-six-hour window is recorded but does not advance `lastRefreshAt` (expected), while the next tick should
-save observations and advance the marker, so consecutive ticks no longer alternate between refreshing and
-skipping. Report any Cloudflare error back to the loop without pasting credentials.
+build is live after the push. The 3-63 read-only probe re-verified all of that at 16:53 UTC (17/17 scope
+checks) against the same persisted 15:52:12.546Z store. The 3-62 phase-lock fix is on main; the expected
+production sequence for the stored state is: the **18:17 UTC tick** records a run that fetches nothing
+while every vendor is inside its six-hour window (does not advance `lastRefreshAt`, expected), the
+**00:17 UTC tick** refreshes all three vendors, and the **06:17 UTC tick on 2026-10-13** is the first
+place the phase-lock fix is observable: because the run's stored due time lands a few seconds after the
+fixed clock tick, the tick should still refresh and save observations with the fix (without it, that tick
+would skip and the board would drift toward a twelve-hour cadence and report stale for hours). The loop
+can confirm this with `npm run probe:production` (read-only) once the ticks have passed. Report any
+Cloudflare error back to the loop without pasting credentials.
 
 ## Committed evidence snapshots
 
 Current-scope evidence (committed for review, not live data):
 
+- `docs/evidence/production-probe-20261012T1653Z.json` — the 3-63 read-only production probe (17/17 checks)
+  captured with `npm run probe:production`: `/health`/`/api/status` at 16:53:20 UTC still reported the
+  persisted 15:52:12.546Z refresh with five observations, freshness ageHours 1.0 and stale false, the
+  catalog still exposed exactly one product and three vendors, the 500 g / 1 kg / unstated boards were
+  unchanged (₪91.00 / ₪149.00 / ₪106.00), the retired Qualità Oro URL still fell back with
+  `requestedRetiredProduct`, and no board payload carried a retired product row. The snapshot also records
+  the vendor `nextAttemptAt` values (19:34/19:46/21:52 UTC), which are the basis for the expected
+  18:17/00:17/06:17 cron sequence above.
+- `docs/evidence/source-check-20261012T1650Z.json` — the 16:50 UTC live adapter check of the five active
+  Crema e Gusto offers (₪33 / ₪124 / ₪240 / ₪30 / ₪38, all in stock) with the same published shipping
+  evidence as 15:39 UTC, re-confirming that no vendor price or stock changed during the day and that the
+  CoffeeMan 8-pack and Pucks offers still publish no shipping rate.
 - `docs/evidence/cron-phase-lock-20261012T163945Z.json` — the 3-62 cron phase-lock reproduction: the
   pre-fix `refresh.js` (commit 0f8ccae) and the fixed code each run the real fixture pipeline through a
   successful 00:17:20Z refresh and the 06:17:00Z cron tick 20 s before the stored due times. Pre-fix: 1
@@ -469,7 +510,43 @@ Historical evidence (recorded before the owner correction; kept clearly labelled
 
 ## Iteration notes (historical unless marked current)
 
-Current iteration (3-61): fixed the board-freshness gap that the production probe exposed and recorded
+Current iteration (3-63): added a repeatable **read-only production probe** and closed the test-coverage
+gap around the 3-62 cron phase-lock fix. `scripts/probe-production.mjs` (`npm run probe:production`)
+sends fixed public GETs to `/health`, `/api/status`, `/api/catalog` and the 500 g / 1 kg /
+unstated-variant / retired-URL boards, never authenticates or deploys, asserts the single-product scope
+and writes a JSON snapshot; it passed **17/17** checks against the owner-reported production URL at
+16:53 UTC and against a fresh-store local `wrangler dev` Worker. `runRefresh` now accepts an optional
+`timeSource` (production default unchanged) so a new multi-tick cron test can run the real fixture
+pipeline on one simulated timeline: the off-phase 18:17 tick records a **0-request** run without
+advancing `lastRefreshAt`, the 00:17 tick refreshes all vendors, the 06:17/12:17/18:17 ticks keep
+refreshing through the early-due tolerance, completed refreshes stay **6 h ± 1 min** apart and the board
+never reaches the 8 h stale threshold after the first on-phase refresh. The live chain was re-run with
+this build: `npm run verify` — **91/91** `node:test` cases pass and `wrangler deploy --dry-run` builds
+(79.47 KiB, gzip 20.37 KiB); `npm run check:sources` (16:50 UTC) — five listings, prices/stock/shipping
+unchanged; `npm run cron:offline` — 6 bounded requests, five offers, `pruned: 0`; `npm run cron:local --
+--fresh` (16:55 UTC) — 6 requests, five offers, USD 3.078 asOf 12:23:04Z; fresh-store `wrangler dev`
+initial refresh (16:55:51 → 16:56:09 UTC, 6 requests, five observations, all three vendors) plus the
+probe; `npm run qa:browser` — **57/57** offline and **53/53** live against the local Worker. The 3-62 fix
+still has no public-API marker, so its production effect is expected at the 06:17 UTC tick on 2026-10-13
+(the expected 18:17/00:17/06:17 sequence is documented above). Evidence:
+`docs/evidence/production-probe-20261012T1653Z.json`, `docs/evidence/source-check-20261012T1650Z.json`.
+
+Iteration 3-62: fixed the cron **phase-lock** defect that would have silently drifted the production
+refresh cadence from six to twelve hours. A successful run stores each vendor as due at `run time + 6 h`,
+but the cron fires at fixed clock times, so a tick landing seconds before the due time skipped every
+vendor, saved no observation and left `lastRefreshAt` unchanged; the board would then report stale for
+hours between runs. `isVendorDue()` now counts a vendor with no consecutive failures as due up to 15
+minutes early (`EARLY_DUE_TOLERANCE_MS`); vendors inside a failure backoff keep their strict due time.
+`npm run verify` — **90/90** `node:test` cases (three new: the early-due rule, a tick 30 s before the
+six-hour mark refreshing all vendors, and a fixture-QA-server freshness filter), bundle 79.00 KiB /
+gzip 20.17 KiB; `npm run cron:offline` — 6 requests, five offers, `pruned: 0`; `npm run qa:browser` —
+**57/57**; live `cron:local -- --fresh` (16:34:59 → 16:35:16 UTC) — 6 requests, five offers, USD 3.078.
+The reproduced before/after scenario is in `docs/evidence/cron-phase-lock-20261012T163945Z.json`:
+the pre-fix `refresh.js` from commit 0f8ccae makes 1 request, skips all three vendors and saves 0
+observations on the tick, while the fixed code makes 6 requests, skips none and saves all three. The
+iteration 3-63 test above extends this to the full multi-tick production sequence.
+
+Iteration 3-61: fixed the board-freshness gap that the production probe exposed and recorded
 the first independently verified production refresh. Board freshness now reports the newest saved
 observation (`lastObservationAt`, `freshness.dataAsOf`) and uses it as the age anchor only when no
 completed refresh exists, so an interrupted run (for example a redeploy stopping the background job) with
