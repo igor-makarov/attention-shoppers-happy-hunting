@@ -55,8 +55,8 @@ export const RECIPES = {
       // generic select step would silently record a locality that was never
       // set. Fill the named fields and require them, so a run that cannot set
       // the destination is blocked instead of attributed to it.
-      { action: 'fill', selector: '#city', value: '{locality}', optional: false },
-      { action: 'fill', selector: '#zip', value: '{postcode}', optional: false },
+      { action: 'fill', selector: '#city', value: '{locality}', optional: false, verifies: 'destination' },
+      { action: 'fill', selector: '#zip', value: '{postcode}', optional: false, verifies: 'destination' },
       // The ₪30 home-delivery fee reaches the summary only after the delivery
       // card is selected, so the recipe must choose the actual method.
       { action: 'clickAnyText', texts: ['משלוח עד הבית'], optional: false },
@@ -81,7 +81,8 @@ export const RECIPES = {
       { action: 'goto', url: '{cartUrl}', optional: true },
       { action: 'waitText', text: 'סה"כ', timeout: 20000, optional: true },
       { action: 'setQuantity', target: '{grams}', optional: true },
-      { action: 'selectLabel', selector: 'select', label: '{locality}', optional: true },
+      { action: 'selectLabel', selector: 'select', label: '{locality}', optional: true, verifies: 'destination' },
+      { action: 'fill', selector: 'input[name*="zip" i], input[name*="postal" i], input[id*="zip" i], input[id*="postal" i]', value: '{postcode}', optional: true, verifies: 'destination' },
       // Select the published home-courier method when the picker offers it, so
       // the summary reflects a chosen method rather than a pre-selection.
       { action: 'clickAnyText', texts: ['משלוח לבית הלקוח עם שליח'], optional: true },
@@ -106,7 +107,8 @@ export const RECIPES = {
       { action: 'goto', url: '{cartUrl}', optional: true },
       { action: 'waitText', text: 'סל', timeout: 20000, optional: true },
       { action: 'setQuantity', target: '{grams}', optional: true },
-      { action: 'selectLabel', selector: 'select', label: '{locality}', optional: true },
+      { action: 'selectLabel', selector: 'select', label: '{locality}', optional: true, verifies: 'destination' },
+      { action: 'fill', selector: 'input[name*="zip" i], input[name*="postal" i], input[id*="zip" i], input[id*="postal" i]', value: '{postcode}', optional: true, verifies: 'destination' },
       // Choose the door-to-door method when it is offered; the pickup-point and
       // self-pickup alternatives are recorded separately from the ranked rate.
       { action: 'clickAnyText', texts: ['משלוח עד הבית'], optional: true },
@@ -265,6 +267,7 @@ export function buildEvidenceRecord({
   blocker = null,
   steps = [],
   actualPacks = null,
+  destinationVerified = null,
   now = Date.now()
 } = {}) {
   const grams = Number(params.grams) > 0 ? Number(params.grams) : recipe.packGrams;
@@ -273,6 +276,12 @@ export function buildEvidenceRecord({
   const arithmeticOk = totals.itemSubtotalIls != null && totals.shippingIls != null && totals.deliveredTotalIls != null
     && Math.abs(totals.itemSubtotalIls + totals.shippingIls - totals.deliveredTotalIls) <= 0.05;
   const resolvedStatus = status === 'quoted' && !arithmeticOk ? 'partial' : status;
+  // A requested locality/postcode that the recipe could not set on the page must
+  // not read as a destination quote: keep the requested values but say plainly
+  // that the destination was not verified.
+  const destinationNote = destinationVerified === false && (params.locality || params.postcode)
+    ? 'The destination (locality/postcode) was requested but could not be verified on the rendered page, so the displayed quote is not confirmed for that destination.'
+    : null;
   return {
     kind: 'browser-research-quote',
     schemaVersion: EVIDENCE_SCHEMA_VERSION,
@@ -285,6 +294,7 @@ export function buildEvidenceRecord({
     observedPacks: Number.isFinite(actualPacks) ? actualPacks : null,
     locality: params.locality ?? null,
     postcode: params.postcode ?? null,
+    destinationVerified: destinationVerified === true ? true : destinationVerified === false ? false : null,
     service: params.service ?? null,
     status: resolvedStatus,
     itemSubtotalIls: totals.itemSubtotalIls ?? null,
@@ -295,7 +305,7 @@ export function buildEvidenceRecord({
     freeThresholdText: totals.freeThresholdText ?? null,
     currency: totals.currency ?? 'ILS',
     arithmeticOk,
-    qualification: totals.qualification ?? null,
+    qualification: [totals.qualification, destinationNote].filter(Boolean).join(' ') || null,
     blocker: blocker ? sanitizeExcerpt(blocker, 300) : null,
     excerpt: totals.excerpt ? sanitizeExcerpt(totals.excerpt) : null,
     steps: steps.map(step => ({ step: step.step, ok: step.ok, optional: Boolean(step.optional), error: step.error ? sanitizeExcerpt(step.error, 200) : null, detail: step.detail ? sanitizeExcerpt(step.detail, 120) : null })),
@@ -323,6 +333,9 @@ export function validateEvidence(record) {
     }
     if (record.arithmeticOk !== true) errors.push('a quoted record must have consistent arithmetic');
     if (!record.locality) errors.push('a quoted record must name the destination it was observed for');
+    if (record.destinationVerified === false && !/destination .*could not be verified/i.test(record.qualification ?? '')) {
+      errors.push('a quoted record with an unverified destination must say so in qualification');
+    }
   }
   if (record.status === 'blocked' && !record.blocker) errors.push('a blocked record must explain the blocker');
   if (record.blocker && /[?&](?:sess|session|token|sid|cart_id|PHPSESSID)=/i.test(record.blocker)) {
@@ -364,6 +377,19 @@ export async function runRecipe({ recipe, driver, params = {}, now = Date.now(),
   let status = 'quoted';
   let blocker = null;
   let actualPacks = null;
+  // Destination verification: a step marked `verifies: 'destination'` must set
+  // the requested locality/postcode and the page must hold it afterwards. The
+  // flag stays null when a recipe has no destination steps, and turns false as
+  // soon as one fails or sets something else, so the evidence record can say the
+  // quote is not confirmed for the requested destination.
+  let destinationVerified = null;
+  const isDestinationStep = step => step.verifies === 'destination';
+  const destinationMatches = (step, result) => {
+    const expected = step.action === 'fill' ? step.value : step.label;
+    const actual = step.action === 'fill' ? result?.value : result;
+    if (expected == null) return true;
+    return actual != null && String(actual).includes(String(expected));
+  };
   const recordStep = (step, ok, error, detail = null) => {
     steps.push({
       step: step.action,
@@ -377,9 +403,18 @@ export async function runRecipe({ recipe, driver, params = {}, now = Date.now(),
     try {
       const result = await executeStep(step, driver, runParams);
       if (step.action === 'setQuantity' && Number.isFinite(result)) actualPacks = result;
+      if (isDestinationStep(step)) {
+        if (!destinationMatches(step, result)) {
+          const actual = step.action === 'fill' ? result?.value ?? null : result ?? null;
+          const expected = step.action === 'fill' ? step.value : step.label;
+          throw new Error(`destination verification failed: the page holds ${JSON.stringify(actual)} instead of ${JSON.stringify(expected)}`);
+        }
+        destinationVerified = destinationVerified === false ? false : true;
+      }
       recordStep(step, true, null, stepDetail(step, result));
     } catch (error) {
       recordStep(step, false, error);
+      if (isDestinationStep(step)) destinationVerified = false;
       if (step.optional) continue;
       status = 'blocked';
       blocker = `Required step "${step.action}" failed: ${error?.message ?? error}`;
@@ -443,6 +478,7 @@ export async function runRecipe({ recipe, driver, params = {}, now = Date.now(),
     blocker,
     steps,
     actualPacks,
+    destinationVerified,
     now
   });
 }

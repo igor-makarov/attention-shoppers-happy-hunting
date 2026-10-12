@@ -61,6 +61,8 @@ test('recipe placeholders expand to the run parameters', () => {
   assert.equal(city.optional, false, 'a quote attributed to a locality must set it on the page');
   assert.equal(zip.value, '6100000');
   assert.equal(zip.optional, false, 'the postcode is required for a destination quote');
+  assert.equal(city.verifies, 'destination');
+  assert.equal(zip.verifies, 'destination');
   assert.equal(steps.some(step => step.action === 'selectLabel'), false, 'the only <select> on the Pucks estimator is the language dropdown, so the recipe never uses a generic select step');
   const method = steps.find(step => step.action === 'clickAnyText');
   assert.deepEqual(method.texts, ['משלוח עד הבית'], 'the recipe selects the actual delivery method');
@@ -240,6 +242,7 @@ test('runRecipe records every step and stops at the first required blocker', asy
   assert.match(methodStep.detail, /clicked: משלוח עד הבית/, 'the evidence records the method that was selected');
   const cityStep = record.steps.find(step => step.step === 'fill' && step.detail);
   assert.match(cityStep.detail, /#city=תל אביב/, 'the evidence records the destination value the page actually holds');
+  assert.equal(record.destinationVerified, true, 'a verified #city/#zip fill is recorded as a verified destination');
   assert.equal(record.itemSubtotalIls, 60);
   assert.equal(record.shippingIls, 30);
   assert.equal(validateEvidence(record).ok, true);
@@ -253,7 +256,7 @@ test('a run blocks when the required delivery method cannot be selected', async 
     clickAnyText: async () => { throw new Error('no clickable element matched any of ["משלוח עד הבית"]'); },
     clickSelector: async () => 'a.slide_cart__btn-checkout',
     selectLabel: async () => {},
-    fill: async () => {},
+    fill: async (selector, value) => ({ selector, value }),
     setQuantity: async () => 2,
     waitText: async () => true,
     sleep: async () => {},
@@ -289,7 +292,34 @@ test('a run blocks when the required destination fields cannot be set', async ()
   assert.equal(record.status, 'blocked', 'a quote must not be attributed to a destination the recipe could not set');
   assert.match(record.blocker, /Required step "fill" failed/);
   assert.ok(record.steps.some(step => step.step === 'fill' && step.ok === false && step.optional === false));
+  assert.equal(record.destinationVerified, false);
   assert.equal(validateEvidence(record).ok, true);
+});
+
+test('a destination step that sets the wrong value is recorded as unverified, not trusted', async () => {
+  // The Coffee4U estimator also has a language <select>; if a generic select
+  // step matches it, the run must not claim the locality was set.
+  const driver = {
+    goto: async () => {},
+    gotoUnlessText: async () => 'navigated',
+    clickText: async () => {},
+    clickAnyText: async () => 'שליחות מדלת לדלת',
+    clickSelector: async () => 'a.slide_cart__btn-checkout',
+    selectLabel: async () => 'עברית',
+    fill: async (selector, value) => ({ selector, value }),
+    setQuantity: async () => 1,
+    waitText: async () => true,
+    sleep: async () => {},
+    getText: async () => `סיכום הזמנה\nסה"כ מוצרים 38 ₪\nמשלוח 30 ₪\nסה"כ לתשלום 68 ₪`,
+    currentUrl: async () => 'https://www.coffee4u.co.il/cart.asp'
+  };
+  const record = await runRecipe({ recipe: RECIPES.coffee4u, driver, params: { grams: 250, locality: 'תל אביב', postcode: '6100000' } });
+  assert.equal(record.status, 'quoted');
+  assert.equal(record.destinationVerified, false, 'a language dropdown is not a destination');
+  assert.match(record.qualification, /could not be verified/, 'the record says the destination was not verified');
+  assert.equal(validateEvidence(record).ok, true);
+  const stripped = { ...record, qualification: null };
+  assert.equal(validateEvidence(stripped).ok, false, 'an unverified destination must be disclosed');
 });
 
 test('runRecipe marks a hard failure as blocked with the exact step', async () => {
@@ -300,7 +330,7 @@ test('runRecipe marks a hard failure as blocked with the exact step', async () =
     clickAnyText: async () => 'משלוח עד הבית',
     clickSelector: async () => 'a.slide_cart__btn-checkout',
     selectLabel: async () => {},
-    fill: async () => {},
+    fill: async (selector, value) => ({ selector, value }),
     setQuantity: async () => 1,
     waitText: async () => true,
     sleep: async () => {},

@@ -486,6 +486,9 @@ function createResearchDriver(session) {
       })()`, [selector, label]);
       if (!out?.ok) throw new Error(`select ${selector}: ${out?.reason ?? 'failed'}${out?.options ? ` (options: ${out.options.join(', ')})` : ''}`);
       await delay(1500);
+      // Return what was selected so the evidence record can verify it against
+      // the requested locality instead of trusting the step blindly.
+      return out.selected;
     },
     async fill(selector, value) {
       const exists = await evalIn(`return !!document.querySelector(arguments[0])`, [selector]);
