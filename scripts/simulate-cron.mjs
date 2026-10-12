@@ -6,7 +6,14 @@
 //
 // The Worker's scheduled handler calls the same runRefresh() function, so this
 // script exercises the production refresh path without any Cloudflare account.
+//
+// Offline runs are deterministic: they use their own state file and start from a
+// clean store, so the command can be repeated and the live script's six-hour
+// backoff window is never consumed by a fixture run. Live runs keep their state
+// (like the deployed cron); pass --fresh to a live run to reset it. Set
+// BOARD_STATE_PATH to choose the state file explicitly.
 
+import { rm } from 'node:fs/promises';
 import { runRefresh } from '../src/refresh.js';
 import { createFileStore } from '../src/store.js';
 import { registeredVendors } from '../src/vendors/index.js';
@@ -14,9 +21,12 @@ import { createFixtureFetch } from '../tests/fixtures/vendor-fixtures.mjs';
 
 const args = new Set(process.argv.slice(2));
 const offline = args.has('--offline');
-const storePath = process.env.BOARD_STATE_PATH ?? '.shurik-local/board.json';
+const explicitStatePath = process.env.BOARD_STATE_PATH || null;
+const storePath = explicitStatePath ?? (offline ? '.shurik-local/board-offline.json' : '.shurik-local/board.json');
+const resetState = args.has('--fresh') || (offline && !explicitStatePath);
 const now = args.has('--simulate-failure-now') ? Date.now() + 24 * 60 * 60 * 1000 : Date.now();
 
+if (resetState) await rm(storePath, { force: true });
 const store = await createFileStore(storePath);
 
 if (offline) {
