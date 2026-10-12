@@ -94,6 +94,7 @@ test('board ranks the offer with a verified delivered total and labels the unkno
   assert.equal(board.best.totalIls, 91);
   assert.equal(board.best.ilsPerKg, 182);
   assert.equal(board.best.availabilityLabel, 'In stock (observed)');
+  assert.equal(board.best.shipping.certaintyLabel, 'Published rate (verified)', 'the API carries a written shipping-certainty label');
   assert.equal(board.ranked.length, 2, 'the single pack and the 4-pack are both rankable');
   const fourPack = board.ranked.find(quote => quote.product.packCount === 4);
   assert.equal(fourPack.totalIls, 149, '₪124 + ₪25 courier');
@@ -101,9 +102,11 @@ test('board ranks the offer with a verified delivered total and labels the unkno
   const unknown = board.unknown.find(quote => quote.vendor.id === 'pucks');
   assert.equal(unknown.totalIls, null);
   assert.match(unknown.reasons.join(' '), /unknown, not free/);
+  assert.equal(unknown.shipping.certaintyLabel, 'Not published before checkout', 'unknown rates keep an honest written label too');
   const eightPack = board.unknown.find(quote => quote.product.packCount === 8);
   assert.equal(eightPack.totalIls, null, 'the 8-pack page publishes no courier price');
   assert.match(board.freshness.vendors.map(v => v.vendorId).join(','), /coffeeman/);
+  assert.ok(board.freshness.vendors.every(vendor => vendor.nextAttemptAt), 'every vendor state exposes its next due time for the footer');
   assert.equal(board.counts.excludedByVariant, 1, 'the Coffee4U listing states no blend variant, so it is not merged into Classico');
   assert.deepEqual(board.counts.excludedVariants, ['unspecified']);
 });
