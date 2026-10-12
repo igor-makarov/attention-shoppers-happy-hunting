@@ -2,14 +2,15 @@
 
 All observations below were retrieved by the deterministic adapters in `src/vendors/`
 through the bounded fetcher. Re-run them at any time with `npm run check:sources`;
-each run writes its evidence to `.shurik-local/sources/<timestamp>.json`.
+each run writes its evidence to `.shurik-local/sources/<timestamp>.json`; review snapshots are copied to
+`docs/evidence/`.
 
 ## Tracked listings (live checks)
 
 ### CoffeeMan / Amigo — coffeeman.co.il (Israel)
 
 - Product page: `https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico`
-- Retrieved: 2026-10-12 11:04 UTC and 11:20 UTC (adapter `coffeeman/1`)
+- Retrieved: 2026-10-12 11:04, 11:20 and 11:29 UTC (adapter `coffeeman/1`)
 - Establishes: name "250 גרם קפה טחון lavazza Crema e Gusto Classico חוזק 7", SKU 930333, variant Classico, ground, 250 g single pack, price ₪33 (regular ₪36), schema.org availability `InStock`, and the published delivery options on the page: courier delivery ₪25, free self-pickup, plus a distribution-center option whose price is not published.
 - Parser: schema.org microdata in the legacy Windows-1255 page; the adapter decodes the declared charset before parsing.
 - Shipping certainty: **verified** for the published courier rate. Coverage: country-wide (IL) per the vendor's own delivery options list.
@@ -17,7 +18,7 @@ each run writes its evidence to `.shurik-local/sources/<timestamp>.json`.
 ### Pucks — pucks.co.il (Ramla, Israel)
 
 - Product page: `https://pucks.co.il/product/lavazza-crema-e-gusto-ground-coffee-250g`
-- Retrieved: 2026-10-12 11:04 UTC and 11:20 UTC (adapter `pucks/1`)
+- Retrieved: 2026-10-12 11:04, 11:20 and 11:29 UTC (adapter `pucks/1`)
 - Establishes: name "lavazza crema e gusto classico-250 גרם קפה טחון", SKU Lav69, GTIN 8000070038769, variant Classico, ground, 250 g single pack, price ₪30.00, schema.org JSON-LD availability `InStock`.
 - Parser: `application/ld+json` Product/Offer block on the public product page.
 - Shipping certainty: **unknown** — the page states shipping is calculated at checkout, so the offer stays visible and unranked. It is never treated as free.
@@ -25,7 +26,7 @@ each run writes its evidence to `.shurik-local/sources/<timestamp>.json`.
 ### Bank of Israel — official exchange rates (reference data)
 
 - Feed: `https://www.boi.org.il/currency.xml` (JSON mode used by the adapter)
-- Retrieved: 2026-10-12 11:20 UTC; the published rate table is dated 2026-10-09.
+- Retrieved: 2026-10-12 11:20 and 11:29 UTC; the published rate table is dated 2026-10-09.
 - Establishes: official ILS reference rates (e.g. USD 3.055) used only to convert non-ILS prices into an **estimate**; a missing rate never becomes zero and blocks ranking instead.
 
 ## Sources researched and not included
