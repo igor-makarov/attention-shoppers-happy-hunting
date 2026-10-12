@@ -17,7 +17,8 @@ as never refreshed even though its offers were recent. Outstanding production ch
 After the supervisor published the 3-61 commits, a second read-only probe at 16:17-16:18 UTC found
 `/health` serving `lastObservationAt` — a field only the 3-61 code emits — so the pushed build is live in
 production and the main-push Workers Builds path is independently verified from the runner; the Durable
-Object store persisted across the deploy with the same refresh timestamps. Iteration 3-59 kept the single-product scope and improved freshness honesty and
+Object store persisted across the deploy with the same refresh timestamps, and headless-Chrome browser QA
+driven against the production URL passed **53/53** checks with zero console errors. Iteration 3-59 kept the single-product scope and improved freshness honesty and
 comparison quality: the board's `lastRefreshAt` now advances only when at least one vendor actually saved
 an observation (an FX-only or empty run can no longer look freshly checked), every offer stores one
 step of previous-check evidence so the UI shows the unit-price change since the last successful check in
@@ -290,8 +291,13 @@ labels and the next-source-check footer line, recorded in
     build containing this iteration's changes is serving in production; the Durable Object store persisted
     across the deploy. The 500 g / 1 kg / unstated / retired-URL boards were unchanged (₪91.00 / ₪149.00 /
     ₪106.00 / Qualità Oro fallback). No `cf-cache-status` header was present. The 6-hour cron tick itself
-    has still not been observed firing. Evidence:
-    `docs/evidence/production-verification-20261012T1618Z.json`.
+    has still not been observed firing. The deployed UI was then driven end-to-end by
+    `npm run qa:browser -- https://attention-shoppers.igormaka.workers.dev` — **53/53** checks passed
+    against production with zero console errors, covering the best-choice card, comparison rows, written
+    stock and shipping-certainty labels, the retired-URL notice, the coverage caveat, Hebrew isolation,
+    keyboard focus, mobile reflow and the footer freshness/next-check lines. Evidence:
+    `docs/evidence/production-verification-20261012T1618Z.json` and
+    `docs/evidence/browser-qa-production-20261012T1620Z.json`.
 
 ## Owner-reported deployment vs independently verified
 
@@ -302,6 +308,7 @@ labels and the next-source-check footer line, recorded in
 | Production scope | **Independently verified**: `/api/catalog` listed exactly one product (`lavazza-crema-e-gusto-vacuum-ground`) and three vendors; no retired line appeared in any board payload, and the retired Qualità Oro URL returned `requestedRetiredProduct` with the Crema e Gusto board. |
 | Production refresh / persistence | **Independently verified**: the probe's first `/health` GET started the documented initial refresh (15:51:52.931Z → 15:52:12.546Z, 4 bounded requests, CoffeeMan saved 3; Pucks/Coffee4U inside their backoff window). `/api/status` then showed `lastRefreshAt` 15:52:12.546Z, fresh, five observations and the Bank of Israel table asOf 12:23:04.599Z. The post-deploy probe found the same persisted store with the same timestamps. The 6-hour cron trigger itself has not been observed firing. |
 | Production board values | **Independently verified**: 500 g best ₪91.00 (CoffeeMan 2 × ₪33 + ₪25), 1 kg best ₪149.00 (4-pack), unstated variant ₪106.00 (Coffee4U), matching the local runs. |
+| Production UI | **Independently verified**: the fixture-free live browser QA mode drove the deployed site in headless Chrome — **53/53** checks passed with zero console errors on 2026-10-12 16:20 UTC (evidence `docs/evidence/browser-qa-production-20261012T1620Z.json`). |
 | Deployed build version | **The 3-61 build is live** (verified 16:17-16:18 UTC: `/health` carries `lastObservationAt`, a 3-61-only field; `/api/status` reports `freshness.dataAsOf`). The earlier verified build predated 3-61. |
 | Main-push auto-deploy | **Independently verified for the 3-61 push**: after the supervisor published the 3-61 commits to main, the serving production build changed to one that includes the 3-61 fields, with the Durable Object store persisting across the deploy. The 6-hour cron trigger and future builds still need the owner's dashboard confirmation. |
 | Local refresh-while-no-browser-open | Verified locally through `wrangler dev` + the documented scheduled trigger (item 6 above) and again with the 3-61 fresh store (item 11). |
@@ -318,6 +325,10 @@ build is live after the push. Report any Cloudflare error back to the loop witho
 
 Current-scope evidence (committed for review, not live data):
 
+- `docs/evidence/browser-qa-production-20261012T1620Z.json` — **53/53** live browser checks driven
+directly against https://attention-shoppers.igormaka.workers.dev on 2026-10-12 16:20 UTC with zero console
+  errors: the strongest end-to-end evidence that the deployed 3-61 build serves the tracked board, the
+  retired-URL fallback, the shipping labels and the freshness footer correctly in a real browser.
 - `docs/evidence/production-verification-20261012T1618Z.json` — the 3-61 **post-deploy** production
   probe: `/health` and `/api/status` now carrying `lastObservationAt`/`freshness.dataAsOf` (a 3-61-only
   shape) with the persisted 15:52:12.546Z refresh and five observations, the unchanged
@@ -432,10 +443,12 @@ requests, offline browser QA is **57/57** and live browser QA against a fresh-st
 five observations, a completed initial refresh at 15:52:12.546Z, ₪91.00/₪149.00/₪106.00 boards,
 retired-URL fallback) and exposed the interrupted-run state that motivated the fix; after the supervisor
 published these commits, a second probe at 16:17-16:18 UTC found the 3-61-only `lastObservationAt` field
-serving from production, so the push reached Workers Builds and the persisted store survived the deploy.
-Also repaired four broken evidence-file references across docs. Evidence:
+serving from production, so the push reached Workers Builds and the persisted store survived the deploy;
+live browser QA against the production URL then passed **53/53** with zero console errors. Also repaired
+four broken evidence-file references across docs. Evidence:
 `docs/evidence/production-verification-20261012T1554Z.json`,
 `docs/evidence/production-verification-20261012T1618Z.json`,
+`docs/evidence/browser-qa-production-20261012T1620Z.json`,
 `docs/evidence/worker-runtime-status-2026-10-12T1609Z.json`,
 `docs/evidence/browser-qa-fixtures-20261012T1610Z.json`,
 `docs/evidence/browser-qa-live-20261012T1609Z.json`.
@@ -548,7 +561,7 @@ any adapter.
   labels, the `+₪ vs best` comparison rows, the approximate next-source-check footer line and the fresh
   vendor-coverage probes; session 3-61 added the interrupted-refresh freshness fallback, verified the
   production deployment and its request-triggered initial refresh from the runner, and then verified the
-  pushed 3-61 build serving in production.
+  pushed 3-61 build serving in production with 53/53 browser checks against the live URL.
 - Next useful task for the loop: improve only Crema e Gusto coverage, shipping evidence, freshness and
   comparison quality. Candidates, in order: (a) observe a real 6-hour cron tick in production if the
   owner reports the trigger is live, or keep the request-triggered refresh path verified; (b) re-check
