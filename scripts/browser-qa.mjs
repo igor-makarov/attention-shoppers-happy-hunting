@@ -67,6 +67,7 @@ try {
   const api500 = await fetchBoard(base, 500, 'tel-aviv');
   const api1000 = await fetchBoard(base, 1000, 'tel-aviv');
   const api1000Eilat = await fetchBoard(base, 1000, 'eilat');
+  const api2000 = await fetchBoard(base, 2000, 'tel-aviv');
   const best = api500.best;
   if (!best) throw new Error('the board API has no ranked offer, so UI comparison checks cannot run');
   const coffee4uQuote = api500.ranked.find(quote => quote.vendor.id === 'coffee4u') ?? null;
@@ -82,6 +83,22 @@ try {
     check('fixtures: the API applies the validated Pucks shipping policy',
       api500.shippingPolicies?.some(entry => entry.id === 'pucks-il-home-delivery' && entry.expired === false),
       JSON.stringify(api500.shippingPolicies));
+    const single2000Api = api2000.ranked.find(quote => quote.vendor.id === 'coffeeman' && (quote.product.packCount ?? 1) === 1) ?? null;
+    check('fixtures: the published CoffeeMan promotion discounts 8 single packs to ₪237.60 while the 8-pack stays ₪260.00',
+      single2000Api?.itemSubtotalBeforeDiscountIls === 264
+        && single2000Api?.itemDiscount?.amountIls === 26.4
+        && single2000Api?.itemTotalIls === 237.6
+        && single2000Api?.totalIls === 262.6
+        && api2000.ranked.find(quote => quote.key.includes('2000g'))?.itemDiscount == null,
+      JSON.stringify(single2000Api && {
+        item: single2000Api.itemTotalIls,
+        before: single2000Api.itemSubtotalBeforeDiscountIls,
+        discount: single2000Api.itemDiscount?.amountIls,
+        total: single2000Api.totalIls
+      }));
+    check('fixtures: the board exposes the validated promotion summary',
+      api2000.promotions?.some(entry => entry.id === 'coffeeman-ground-coffee-percent-off' && entry.percent === 10 && entry.expired === false),
+      JSON.stringify(api2000.promotions));
   }
 
   await waitFor(() => fetch(`http://127.0.0.1:${PORT}/status`).then(r => r.json()).then(() => true).catch(() => false), 15_000, 'chromedriver start');
@@ -367,6 +384,52 @@ try {
     pickup.rows[0]?.text?.slice(0, 200));
   await setDetailsOpen(wd, '#pickup-options', false);
   check('pickup: the disclosure can be closed again', (await evaluate(wd, `document.querySelector('#pickup-options')?.open`)) === false, 'closed');
+
+  // Published quantity promotion: at 2 kg the CoffeeMan single-pack offer must
+  // show the discounted item subtotal with the pre-discount amount, and the
+  // multipacks must stay undiscounted. The check is derived from the API and
+  // reports a skip when this store has no discounted offer (for example a
+  // production store that has not refreshed since banner parsing shipped).
+  const single2000 = api2000.ranked.find(quote => quote.vendor.id === 'coffeeman' && (quote.product.packCount ?? 1) === 1) ?? null;
+  await wd('POST', '/url', { url: `${base}${productPath}?grams=2000&dest=tel-aviv` });
+  await waitForProduct(wd);
+  await setDetailsOpen(wd, '#compare-other-offers', true);
+  const promotionCards = await evaluate(wd, `(() => {
+    return [...document.querySelectorAll('#best-offer, #compare-other-offers .offer')].map(card => {
+      const cells = [...card.querySelectorAll('.totals__cell')];
+      return {
+        vendor: card.querySelector('.offer__vendor')?.innerText.trim() ?? null,
+        pack: card.querySelector('.offer__pack')?.textContent.trim() ?? null,
+        item: cells[0]?.querySelector('.totals__value')?.textContent.trim() ?? null,
+        itemMeta: cells[0]?.querySelector('.totals__meta--discount')?.textContent.trim() ?? null,
+        total: cells[2]?.querySelector('.totals__value')?.textContent.trim() ?? null,
+        detailsText: [...card.querySelectorAll('details')].map(node => node.textContent).join(' ')
+      };
+    });
+  })()`);
+  const singleCard = promotionCards.find(card => /^250 g pack/.test(card.pack ?? '') && /CoffeeMan/.test(card.vendor ?? '')) ?? null;
+  const multipackCards = promotionCards.filter(card => /multipack/.test(card.pack ?? ''));
+  if (single2000?.itemDiscount) {
+    check('promotion: the 2 kg single-pack offer shows the discounted subtotal and the pre-discount amount',
+      singleCard?.item === ils(single2000.itemTotalIls)
+        && /10% promotion applied/.test(singleCard?.itemMeta ?? '')
+        && (singleCard?.itemMeta ?? '').includes(ils(single2000.itemSubtotalBeforeDiscountIls))
+        && singleCard?.total === ils(single2000.totalIls),
+      JSON.stringify(singleCard));
+    check('promotion: the offer details name the published promotion and keep the vendor wording',
+      /Published promotion: 10% off from ₪250\.00 item subtotal \(multipacks excluded\)/.test(singleCard?.detailsText ?? '')
+        && /10% הנחה/.test(singleCard?.detailsText ?? ''),
+      (singleCard?.detailsText ?? '').match(/Published promotion[^.]*/)?.[0] ?? 'no promotion line');
+    check('promotion: no multipack card is discounted and no free shipping is inferred from the item promotion',
+      multipackCards.length >= 1
+        && multipackCards.every(card => !card.itemMeta)
+        && singleCard?.item === '₪237.60',
+      multipackCards.map(card => `${card.pack} :: ${card.item} :: ${card.itemMeta ?? 'no discount'}`).join(' | '));
+  } else {
+    check('promotion: this store has no discounted single-pack offer to render', true, 'no itemDiscount in the API at 2 kg');
+  }
+  await screenshot(wd, 'product-promotion-2000g-desktop.png');
+  await setDetailsOpen(wd, '#compare-other-offers', false);
 
   // Obsolete variant URL: the parameter is discarded from the address bar and
   // the one unified comparison renders, with Coffee4U in it and its published

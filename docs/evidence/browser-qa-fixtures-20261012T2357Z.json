@@ -1,0 +1,638 @@
+{
+  "mode": "fixtures",
+  "base": "http://127.0.0.1:42205",
+  "startedAt": "2026-10-12T23:55:07.401Z",
+  "checks": [
+    {
+      "name": "fixtures: the researched Pucks checkout rate makes Pucks the 500 g fixture winner at ₪90.00",
+      "ok": true,
+      "detail": "Pucks (פאקס) ₪90.00 shipping=checkout_quote"
+    },
+    {
+      "name": "fixtures: the API applies the validated Pucks shipping policy",
+      "ok": true,
+      "detail": "[{\"id\":\"pucks-il-home-delivery\",\"version\":1,\"vendorId\":\"pucks\",\"origin\":\"observed_cart\",\"certainty\":\"checkout_quote\",\"service\":\"home_delivery\",\"alternatives\":[],\"observedAt\":\"2026-10-12T18:10:10Z\",\"reviewBy\":\"2026-11-11T00:00:00.000Z\",\"expired\":false},{\"id\":\"coffeeman-single-4pack-il-home-delivery\",\"version\":1,\"vendorId\":\"coffeeman\",\"origin\":\"published\",\"certainty\":\"verified\",\"service\":\"home_delivery\",\"alternatives\":[\"distribution-center\"],\"observedAt\":\"2026-10-12T20:04:00Z\",\"reviewBy\":\"2026-11-11T00:00:00.000Z\",\"expired\":false},{\"id\":\"coffeeman-8pack-il-cart-quote\",\"version\":1,\"vendorId\":\"coffeeman\",\"origin\":\"observed_cart\",\"certainty\":\"checkout_quote\",\"service\":\"home_delivery\",\"alternatives\":[\"distribution-center\"],\"observedAt\":\"2026-10-12T20:07:00Z\",\"reviewBy\":\"2026-11-11T00:00:00.000Z\",\"expired\":false},{\"id\":\"coffee4u-il-home-delivery\",\"version\":1,\"vendorId\":\"coffee4u\",\"origin\":\"published\",\"certainty\":\"verified\",\"service\":\"home_delivery\",\"alternatives\":[\"pickup-point\"],\"observedAt\":\"2026-10-12T20:25:00Z\",\"reviewBy\":\"2026-11-11T00:00:00.000Z\",\"expired\":false}]"
+    },
+    {
+      "name": "fixtures: the published CoffeeMan promotion discounts 8 single packs to ₪237.60 while the 8-pack stays ₪260.00",
+      "ok": true,
+      "detail": "{\"item\":237.6,\"before\":264,\"discount\":26.4,\"total\":262.6}"
+    },
+    {
+      "name": "fixtures: the board exposes the validated promotion summary",
+      "ok": true,
+      "detail": "[{\"id\":\"coffeeman-ground-coffee-percent-off\",\"version\":1,\"vendorId\":\"coffeeman\",\"origin\":\"published\",\"percent\":10,\"minItemSubtotal\":250,\"semantics\":\"at_least\",\"excludesMultipacks\":true,\"observedAt\":\"2026-10-12T23:38:00Z\",\"reviewBy\":\"2026-11-11T00:00:00.000Z\",\"expired\":false}]"
+    },
+    {
+      "name": "home: title is \"Attention shoppers\" without a trailing period",
+      "ok": true,
+      "detail": "Attention shoppers"
+    },
+    {
+      "name": "home: the catalog renders exactly the tracked product as a card",
+      "ok": true,
+      "detail": "1 × Lavazza Crema e Gusto"
+    },
+    {
+      "name": "home: the card summarizes identity, packaging, vendors and the one comparison",
+      "ok": true,
+      "detail": "ground coffee in a vacuum brick · sold as 250 g packs and multipacks · one comparison for all tracked listings :: Compare item subtotal, named delivery method and charge, and the delivered total for a chosen quantity and Israeli locality. 3 tracked vendors · 5 listings: CoffeeMan (אמיגו), Pucks (פאקס), Coffee4U (קופי פור יו)."
+    },
+    {
+      "name": "home: the card links to the directly loadable product page",
+      "ok": true,
+      "detail": "/product/lavazza-crema-e-gusto-vacuum-ground vs /product/lavazza-crema-e-gusto-vacuum-ground"
+    },
+    {
+      "name": "home: the full vendor comparison board is not rendered on the home route",
+      "ok": true,
+      "detail": "no offer cards or totals on /"
+    },
+    {
+      "name": "home: no emoji in visible text",
+      "ok": true,
+      "detail": "emoji scan"
+    },
+    {
+      "name": "home: the page does not scroll horizontally",
+      "ok": true,
+      "detail": "overflow=false"
+    },
+    {
+      "name": "home: the footer reports the last observation time from the status API",
+      "ok": true,
+      "detail": "Tracked offers last checked 13 Oct 2026, 02:55 (just now)."
+    },
+    {
+      "name": "home→product: clicking the card opens the product page",
+      "ok": true,
+      "detail": "{\"heading\":\"Lavazza Crema e Gusto\",\"url\":\"/product/lavazza-crema-e-gusto-vacuum-ground\"}"
+    },
+    {
+      "name": "product: the heading names the product",
+      "ok": true,
+      "detail": "Lavazza Crema e Gusto"
+    },
+    {
+      "name": "product: compact site branding with an \"All products\" way back to the index",
+      "ok": true,
+      "detail": "back=/"
+    },
+    {
+      "name": "product: the best offer names its vendor and stock status",
+      "ok": true,
+      "detail": "Pucks (פאקס) In stock (observed)"
+    },
+    {
+      "name": "product: the best offer shows the accurate pack and purchased grams",
+      "ok": true,
+      "detail": "250 g pack · 2 × 250 g packs = 500 g"
+    },
+    {
+      "name": "product: item subtotal is ₪60.00",
+      "ok": true,
+      "detail": "₪60.00"
+    },
+    {
+      "name": "product: shipping shows ₪30.00 with the named method and certainty",
+      "ok": true,
+      "detail": "₪30.00 :: Home delivery :: Checkout rate (observed, conditional)"
+    },
+    {
+      "name": "product: delivered total is ₪90.00",
+      "ok": true,
+      "detail": "₪90.00"
+    },
+    {
+      "name": "product: the short conditional warning names the coverage condition once on the card",
+      "ok": true,
+      "detail": "Conditional total: Coverage not confirmed for every locality — full terms under Delivery options."
+    },
+    {
+      "name": "product: the vendor link points at the API product page",
+      "ok": true,
+      "detail": "https://pucks.co.il/product/lavazza-crema-e-gusto-ground-coffee-250g vs https://pucks.co.il/product/lavazza-crema-e-gusto-ground-coffee-250g"
+    },
+    {
+      "name": "product: every disclosure is collapsed by default",
+      "ok": true,
+      "detail": "Delivery options and conditions:false | Offer details and check history:false | Compare other offers (4):false | Delivery options and conditions:false | Offer details and check history:false | Delivery options and conditions:false | Offer details and check history:false | Delivery options and conditions:false | Offer details and check history:false | Delivery options and conditions:false | Offer details and check history:false | Self-pickup options (4) — not a delivered price:false | Pickup terms:false | Pickup terms:false | Pickup terms:false | Pickup terms:false | Refresh diagnostics:false"
+    },
+    {
+      "name": "product: a \"Compare other offers\" disclosure and a collapsed pickup disclosure exist",
+      "ok": true,
+      "detail": "Compare other offers (4) :: Self-pickup options (4) — not a delivered price"
+    },
+    {
+      "name": "product: the three decision values sit in one visible row without horizontal scrolling",
+      "ok": true,
+      "detail": "{\"rects\":[{\"bottom\":427,\"left\":140,\"right\":523,\"top\":320},{\"bottom\":427,\"left\":523,\"right\":906,\"top\":320},{\"bottom\":427,\"left\":906,\"right\":1290,\"top\":320}],\"overflow\":false}"
+    },
+    {
+      "name": "product: quantity 500 g is the pressed default",
+      "ok": true,
+      "detail": "250 g,false | 500 g,true | 750 g,false | 1 kg,false | 2 kg,false"
+    },
+    {
+      "name": "product: destination selector lists Israeli localities",
+      "ok": true,
+      "detail": "Tel Aviv–Yafo · 6100000 area | Jerusalem · 9100000 area | Haifa · 3100000 area | Be'er Sheva · 8400000 area | Eilat · 8800000 area | Elsewhere in Israel"
+    },
+    {
+      "name": "product: no blend/variant selector, menu entry or variant warning exists",
+      "ok": true,
+      "detail": "controls=0"
+    },
+    {
+      "name": "product: no wide comparison table and no \"[object HTML…]\" artifacts",
+      "ok": true,
+      "detail": "tables=0"
+    },
+    {
+      "name": "product: no emoji in visible text",
+      "ok": true,
+      "detail": "emoji scan"
+    },
+    {
+      "name": "product: Hebrew vendor text is direction-isolated",
+      "ok": true,
+      "detail": "18"
+    },
+    {
+      "name": "product: skip link and main landmark are present",
+      "ok": true,
+      "detail": "skip=true main=true"
+    },
+    {
+      "name": "product: page does not scroll horizontally",
+      "ok": true,
+      "detail": "overflow=false"
+    },
+    {
+      "name": "disclosure: opening the best offer details shows its conditions and full coverage terms",
+      "ok": true,
+      "detail": "{\"conditions\":[\"Free shipping above ₪100.00 item subtotal\"],\"caveats\":1}"
+    },
+    {
+      "name": "disclosure: the same coverage caveat is not repeated on the card",
+      "ok": true,
+      "detail": "one caveat element"
+    },
+    {
+      "name": "disclosure: the shipping-policy re-check date is a future due label, never \"just now\"",
+      "ok": true,
+      "detail": "Shipping rule: pucks-il-home-delivery v1 (observed anonymous cart quote, observed 12"
+    },
+    {
+      "name": "disclosure: closing the details hides them again",
+      "ok": true,
+      "detail": "closed"
+    },
+    {
+      "name": "compare: the disclosure opens and renders the other ranked offers",
+      "ok": true,
+      "detail": "cards=4 ranked=5"
+    },
+    {
+      "name": "compare: every other offer names its vendor",
+      "ok": true,
+      "detail": "CoffeeMan (אמיגו) IN STOCK (OBSERVED) | Coffee4U (קופי פור יו) IN STOCK (OBSERVED) | CoffeeMan (אמיגו) IN STOCK (OBSERVED) | CoffeeMan (אמיגו) IN STOCK (OBSERVED)"
+    },
+    {
+      "name": "compare: each offer shows item subtotal, shipping and delivered total from the API with accurate pack labels",
+      "ok": true,
+      "detail": "250 g pack · 2 × 250 g packs = 500 g :: ₪66.00 + ₪25.00 + ₪91.00 || 250 g pack · 2 × 250 g packs = 500 g :: ₪76.00 + ₪30.00 + ₪106.00 || 4 × 250 g multipack (1000 g) · 1 multipack (4 × 250 g) = 1000 g :: ₪124.00 + ₪25.00 + ₪149.00 || 8 × 250 g multipack (2000 g) · 1 multipack (8 × 250 g) = 2000 g :: ₪240.00 + ₪20.00 + ₪260.00"
+    },
+    {
+      "name": "compare: a ranked multipack spells out its contents and purchased grams",
+      "ok": true,
+      "detail": "4 × 250 g multipack (1000 g) :: 250 g pack · 2 × 250 g packs = 500 g | 250 g pack · 2 × 250 g packs = 500 g | 4 × 250 g multipack (1000 g) · 1 multipack (4 × 250 g) = 1000 g | 8 × 250 g multipack (2000 g) · 1 multipack (8 × 250 g) = 2000 g"
+    },
+    {
+      "name": "product: the per-kilogram winner spells out its pack contents and purchased grams",
+      "ok": true,
+      "detail": "coffeeman:930335:classico:ground:2000g:x8 :: Cheapest per kilogram: CoffeeMan (אמיגו) — ₪130.00 per kg (1 multipack (8 × 250 g) = 2000 g, delivered ₪260.00)"
+    },
+    {
+      "name": "compare: every offer states its difference from the best delivered total",
+      "ok": true,
+      "detail": "+₪1.00 vs best delivered total | +₪16.00 vs best delivered total | +₪59.00 vs best delivered total | +₪170.00 vs best delivered total"
+    },
+    {
+      "name": "compare: each offer discloses its coverage caveat at most once",
+      "ok": true,
+      "detail": "1,1,1,1"
+    },
+    {
+      "name": "compare: the Coffee4U listing with unstated blend wording is in the same comparison, not withheld",
+      "ok": true,
+      "detail": "CoffeeMan (אמיגו) IN STOCK (OBSERVED) ₪91.00 | Coffee4U (קופי פור יו) IN STOCK (OBSERVED) ₪106.00 | CoffeeMan (אמיגו) IN STOCK (OBSERVED) ₪149.00 | CoffeeMan (אמיגו) IN STOCK (OBSERVED) ₪260.00"
+    },
+    {
+      "name": "compare: no variant-exclusion notice or blend wording is repeated on the comparison",
+      "ok": true,
+      "detail": "[]"
+    },
+    {
+      "name": "compare: the disclosure can be closed again",
+      "ok": true,
+      "detail": "closed"
+    },
+    {
+      "name": "pickup: the disclosure opens and keeps pickup out of the delivered ranking",
+      "ok": true,
+      "detail": "rows=4 api=4"
+    },
+    {
+      "name": "pickup: every pickup row names the real vendor, not an object string",
+      "ok": true,
+      "detail": "CoffeeMan (אמיגו) | CoffeeMan (אמיגו) | CoffeeMan (אמיגו) | Coffee4U (קופי פור יו)"
+    },
+    {
+      "name": "pickup: rows show the pickup fee and say self-pickup is not delivery",
+      "ok": true,
+      "detail": "CoffeeMan (אמיגו)250 g pack · 2 × 250 g packs = 500 gItem subtotal: ₪66.00Pickup fee: FreeSelf-pickup, not deliveryPickup termsFree self-pickup, listed on the product page. Pickup only — not a deliver"
+    },
+    {
+      "name": "pickup: the disclosure can be closed again",
+      "ok": true,
+      "detail": "closed"
+    },
+    {
+      "name": "promotion: the 2 kg single-pack offer shows the discounted subtotal and the pre-discount amount",
+      "ok": true,
+      "detail": "{\"detailsText\":\"Delivery options and conditionsDistribution-center delivery up to 5 kg (cart-observed for 0.5–1 kg carts): ₪15.00Self-pickup: Free self-pickup, listed on the product page.Coverage: Home delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout. Offer details and check historyUnit price down ₪2.00 since the previous check (12 Oct 2026, 20:55 (6 h ago))Published promotion: 10% off from ₪250.00 item subtotal (multipacks excluded). Vendor wording: “כל הקפה טחון ב-10% הנחה. קונים קפה טחון מכל המותגים המובילים ב-250 ש\\\"ח ומקבלים 10% הנחה אוטומטית בקופה על הקפה שבחרתם. (לא כולל מארזים ובאנדלים)”Promotion evidence: https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico (retrieved 13 Oct 2026, 02:55 (just now))Last successful check: 13 Oct 2026, 02:55 (just now)Vendor listing name: 250 גרם קפה טחון lavazza Crema e Gusto Classico חוזק 7Stated blend wording: ClassicoShipping rule: coffeeman-single-4pack-il-home-delivery v1 (published rule, observed 12 Oct 2026, 23:04 (4 h ago), re-check by 11 Nov 2026, 02:00 (in 29 d))Shipping terms: Published courier delivery rate: ₪25.00. A distribution-center delivery option exists, but its price is not published on the product page. Free self-pickup is available and is kept separate from delivery. Anonymous cart 2026-10-12 (https://www.coffeeman.co.il/checkout.asp): ₪25 home courier (matching the published rate) and ₪15 distribution-center delivery up to 5 kg for 0.5–1 kg carts; free courier was observed from a 1.75 kg / ₪231 cart, but no free-shipping rule is published, so the board keeps the published ₪25 and never assumes free shipping.Shipping evidence: https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico (retrieved 13 Oct 2026, 02:55 (just now)) — Delivery options are listed on the product page.\",\"item\":\"₪237.60\",\"itemMeta\":\"10% promotion applied — was ₪264.00\",\"pack\":\"250 g pack · 8 × 250 g packs = 2000 g\",\"total\":\"₪262.60\",\"vendor\":\"CoffeeMan (אמיגו) IN STOCK (OBSERVED)\"}"
+    },
+    {
+      "name": "promotion: the offer details name the published promotion and keep the vendor wording",
+      "ok": true,
+      "detail": "Published promotion: 10% off from ₪250"
+    },
+    {
+      "name": "promotion: no multipack card is discounted and no free shipping is inferred from the item promotion",
+      "ok": true,
+      "detail": "8 × 250 g multipack (2000 g) · 1 multipack (8 × 250 g) = 2000 g :: ₪240.00 ::  | 4 × 250 g multipack (1000 g) · 2 multipacks (4 × 250 g) = 2000 g :: ₪248.00 :: "
+    },
+    {
+      "name": "variant-param: an old variant URL is cleaned up and shows the one unified comparison",
+      "ok": true,
+      "detail": "{\"search\":\"?grams=250&dest=tel-aviv\",\"total\":\"₪58.00\",\"variantControl\":null,\"vendor\":\"CoffeeMan (אמיגו) IN STOCK (OBSERVED)\"}"
+    },
+    {
+      "name": "variant-param: Coffee4U stays in the unified comparison with its published alternatives",
+      "ok": true,
+      "detail": "{\"conditions\":[\"Delivery to a צ'יטה שופס pickup point: ₪15.00\",\"Self-pickup: Free self-pickup at the shop, listed on the product page.\",\"Delivery time: עד 1-5 ימי עסקים\"],\"pack\":\"250 g pack · 1 × 250 g pack = 250 g\",\"total\":\"₪68.00\",\"vendor\":\"Coffee4U (קופי פור יו) IN STOCK (OBSERVED)\"}"
+    },
+    {
+      "name": "interaction: 1 kg updates the delivered total to ₪120.00",
+      "ok": true,
+      "detail": "{\"perKg\":\"₪120.00 per kg\",\"total\":\"₪120.00\",\"url\":\"/product/lavazza-crema-e-gusto-vacuum-ground?grams=1000&dest=tel-aviv\"}"
+    },
+    {
+      "name": "interaction: per-kg price recalculated for 1 kg",
+      "ok": true,
+      "detail": "₪120.00 per kg"
+    },
+    {
+      "name": "interaction: quantity is reflected in the shareable product URL",
+      "ok": true,
+      "detail": "/product/lavazza-crema-e-gusto-vacuum-ground?grams=1000&dest=tel-aviv"
+    },
+    {
+      "name": "interaction: destination change recalculates for Eilat (₪120.00) and stays in the URL",
+      "ok": true,
+      "detail": "{\"total\":\"₪120.00\",\"url\":\"?grams=1000&dest=eilat\"}"
+    },
+    {
+      "name": "keyboard: Tab moves focus to the next quantity button",
+      "ok": true,
+      "detail": "{\"label\":\"500 g\",\"outlineColor\":\"rgb(0, 112, 180)\",\"outlineStyle\":\"solid\",\"outlineWidth\":\"3px\",\"tag\":\"BUTTON\"}"
+    },
+    {
+      "name": "keyboard: focused control shows a visible outline in the official Blau focus color",
+      "ok": true,
+      "detail": "solid 3px rgb(0, 112, 180)"
+    },
+    {
+      "name": "mobile: the best card fits the viewport without horizontal scrolling",
+      "ok": true,
+      "detail": "{\"card\":{\"bottom\":836,\"left\":16,\"right\":359,\"top\":302},\"overflow\":false}"
+    },
+    {
+      "name": "mobile: item subtotal, shipping charge and method are visible in the initial viewport",
+      "ok": true,
+      "detail": "{\"viewport\":701,\"cells\":[{\"bottom\":542,\"left\":34,\"right\":189,\"top\":409},{\"bottom\":542,\"left\":189,\"right\":344,\"top\":409}],\"method\":{\"bottom\":477,\"left\":202,\"right\":332,\"top\":459}}"
+    },
+    {
+      "name": "mobile: the delivered total is visible in the initial 390×844 viewport",
+      "ok": true,
+      "detail": "{\"viewport\":701,\"total\":{\"bottom\":591,\"left\":34,\"right\":332,\"top\":569}}"
+    },
+    {
+      "name": "mobile: the actual money values are the API values",
+      "ok": true,
+      "detail": "₪60.00 | ₪30.00 | ₪90.00"
+    },
+    {
+      "name": "mobile: disclosures stay collapsed by default",
+      "ok": true,
+      "detail": "open=false"
+    },
+    {
+      "name": "mobile: quantity buttons keep a 44px touch target",
+      "ok": true,
+      "detail": "44"
+    },
+    {
+      "name": "mobile: the page is much shorter than the old comparison board",
+      "ok": true,
+      "detail": "height=1502"
+    },
+    {
+      "name": "mobile home: the product card is visible on the first screen without horizontal scrolling",
+      "ok": true,
+      "detail": "{\"cardVisible\":true,\"height\":765,\"overflow\":false}"
+    },
+    {
+      "name": "legacy: an old query URL forwards to the product page keeping quantity and locality, discarding the variant",
+      "ok": true,
+      "detail": "{\"destination\":\"haifa\",\"path\":\"/product/lavazza-crema-e-gusto-vacuum-ground\",\"pressed\":[\"750 g\"],\"search\":\"?product=lavazza-crema-e-gusto-vacuum-ground&grams=750&dest=haifa\",\"total\":\"₪120.00\"}"
+    },
+    {
+      "name": "legacy: a retired-line query URL falls back to Crema e Gusto with a written notice and no retired offers",
+      "ok": true,
+      "detail": "RETIRED PRODUCT LINE\n\nThis link asked for Lavazza Qualità Oro. Only Lavazza Crema e Gusto vacuum-packed ground coffee is tracked now, so the comparison below covers Crema e Gusto offers only. Re-tracking another product line needs an explicit new owner instruction."
+    },
+    {
+      "name": "legacy: a URL with an untracked variant id is ignored, not turned into an empty or filtered board",
+      "ok": true,
+      "detail": "{\"search\":\"?grams=500&dest=tel-aviv\",\"total\":\"₪90.00\",\"variantControl\":null}"
+    },
+    {
+      "name": "shareable: a directly loaded product URL restores quantity and locality with no variant control",
+      "ok": true,
+      "detail": "{\"destination\":\"eilat\",\"pressed\":[\"1 kg\"],\"search\":\"?grams=1000&dest=eilat\",\"total\":\"₪120.00\",\"variantControl\":null}"
+    },
+    {
+      "name": "freshness: the footer names the last offer observation instead of a never-refreshed message",
+      "ok": true,
+      "detail": "Last offer observation: 13 Oct 2026, 02:55 (just now). No refresh has completed on this deployment yet."
+    },
+    {
+      "name": "failure: a failed last attempt keeps its last successful observation ranked",
+      "ok": true,
+      "detail": "{\"observedAt\":\"2026-10-12T23:25:08.825Z\",\"attemptedAt\":\"2026-10-12T23:55:08.825Z\"}"
+    },
+    {
+      "name": "failure: the best-offer details say the last attempt failed and name the last successful check",
+      "ok": true,
+      "detail": "Offer details and check historyLast successful check: 13 Oct 2026, 02:25 (30 min ago)Vendor listing name: lavazza crema e gusto classico-250 גרם קפה טחוןStated blend wording: ClassicoLast attempt failed 13 Oct 2026, 02:55 (just now) — HTTP "
+    },
+    {
+      "name": "failure: the footer names failing sources with their consecutive failures and last error",
+      "ok": true,
+      "detail": "Refresh diagnosticsExchange rates: no official rate table stored yet, so foreign-currency offers cannot be ranked.coffeeman: last success 13 Oct 2026, 02:25 (30 min ago) · last attempt 13 Oct 2026, 02:55 (just now)pucks: last success 13 Oct 2026, 02:25 (30 min ago) · last attempt 13 Oct 2026, 02:55 (just now)coffee4u: last success 13 Oct 2026, 02:55 (just now) · last attempt 13 Oct 2026, 02:55 (just now)Next source check due (approximate, set by each vendor's last run): 13 Oct 2026, 03:25 (in 30 min)coffeeman: 1 consecutive failure(s) · next attempt 13 Oct 2026, 03:25 (in 30 min) · last error: HTTP 503 from the vendor product pagepucks: 1 consecutive failure(s) · next attempt 13 Oct 2026, 03:25 (in 30 min) · last error: HTTP 503 from the vendor product page"
+    },
+    {
+      "name": "terms: the QA-only demo offer ranks with its minimum order, threshold and locality restriction",
+      "ok": true,
+      "detail": "₪160.00 :: Free-shipping threshold met (from ₪100.00) | Minimum order ₪30.00 | Delivery area: only Tel Aviv–Yafo, Eilat"
+    },
+    {
+      "name": "freshness: a stopped scheduled refresh is labelled in the footer",
+      "ok": true,
+      "detail": "Last completed refresh: 11 Oct 2026, 20:55 (30 h ago). No completed scheduled refresh for 30 h — prices may be out of date."
+    },
+    {
+      "name": "terms: the locality restriction moves the demo offer to the missing-information disclosure for Jerusalem",
+      "ok": true,
+      "detail": "{\"reasons\":[\"Vendor delivery list does not include Jerusalem\"],\"unknownOpen\":false}"
+    },
+    {
+      "name": "unknown: the QA-only no-rate offer is unrankable with a plain-language reason and never ranked",
+      "ok": true,
+      "detail": "[\"Shipping is not published before checkout, so it is treated as unknown, not free (QA-only demo: no public shipping rate. Not a real vendor listing.)\"]"
+    },
+    {
+      "name": "unknown: the missing-information disclosure exists with a count and is collapsed by default",
+      "ok": true,
+      "detail": "Offers with missing information (1)"
+    },
+    {
+      "name": "unknown: the no-rate offer says \"Shipping not published\" and explains what is missing",
+      "ok": true,
+      "detail": "QA fixture offer (no shipping rate, not a vendor) In stock (observed)250 g pack · 2 × 250 g packs = 500 gItem subtotal: ₪48.00Shipping: Shipping not publishedLast successful check: 13 Oct 2026, 02:55 (just now)Shipping not published. Needed for a delivered total: a published rate or a public checkout-estimator quote fo"
+    },
+    {
+      "name": "unknown: the no-rate offer stays out of the ranked cards",
+      "ok": true,
+      "detail": "Pucks (פאקס) IN STOCK (OBSERVED) |  |  |  | "
+    }
+  ],
+  "consoleErrors": [],
+  "dataSource": "recorded fixtures via scripts/qa-server.mjs (5 observations)",
+  "expectations": {
+    "expected500": "₪90.00",
+    "expected1000": "₪120.00",
+    "expected1000Eilat": "₪120.00",
+    "bestVendor": "Pucks (פאקס)"
+  },
+  "home": {
+    "heading": "Attention shoppers",
+    "cardCount": 1,
+    "cardHref": "/product/lavazza-crema-e-gusto-vacuum-ground"
+  },
+  "product": {
+    "heading": "Lavazza Crema e Gusto",
+    "disclosures": [
+      {
+        "summary": "Delivery options and conditions",
+        "open": false
+      },
+      {
+        "summary": "Offer details and check history",
+        "open": false
+      },
+      {
+        "summary": "Compare other offers (4)",
+        "open": false
+      },
+      {
+        "summary": "Delivery options and conditions",
+        "open": false
+      },
+      {
+        "summary": "Offer details and check history",
+        "open": false
+      },
+      {
+        "summary": "Delivery options and conditions",
+        "open": false
+      },
+      {
+        "summary": "Offer details and check history",
+        "open": false
+      },
+      {
+        "summary": "Delivery options and conditions",
+        "open": false
+      },
+      {
+        "summary": "Offer details and check history",
+        "open": false
+      },
+      {
+        "summary": "Delivery options and conditions",
+        "open": false
+      },
+      {
+        "summary": "Offer details and check history",
+        "open": false
+      },
+      {
+        "summary": "Self-pickup options (4) — not a delivered price",
+        "open": false
+      },
+      {
+        "summary": "Pickup terms",
+        "open": false
+      },
+      {
+        "summary": "Pickup terms",
+        "open": false
+      },
+      {
+        "summary": "Pickup terms",
+        "open": false
+      },
+      {
+        "summary": "Pickup terms",
+        "open": false
+      },
+      {
+        "summary": "Refresh diagnostics",
+        "open": false
+      }
+    ],
+    "totals": [
+      {
+        "label": "Item subtotal",
+        "value": "₪60.00",
+        "method": null,
+        "certainty": null
+      },
+      {
+        "label": "Shipping",
+        "value": "₪30.00",
+        "method": "Home delivery",
+        "certainty": "Checkout rate (observed, conditional)"
+      },
+      {
+        "label": "Delivered total",
+        "value": "₪90.00",
+        "method": null,
+        "certainty": null
+      }
+    ]
+  },
+  "compare": {
+    "cards": [
+      {
+        "vendor": "CoffeeMan (אמיגו) IN STOCK (OBSERVED)",
+        "totals": [
+          "₪66.00",
+          "₪25.00",
+          "₪91.00"
+        ]
+      },
+      {
+        "vendor": "Coffee4U (קופי פור יו) IN STOCK (OBSERVED)",
+        "totals": [
+          "₪76.00",
+          "₪30.00",
+          "₪106.00"
+        ]
+      },
+      {
+        "vendor": "CoffeeMan (אמיגו) IN STOCK (OBSERVED)",
+        "totals": [
+          "₪124.00",
+          "₪25.00",
+          "₪149.00"
+        ]
+      },
+      {
+        "vendor": "CoffeeMan (אמיגו) IN STOCK (OBSERVED)",
+        "totals": [
+          "₪240.00",
+          "₪20.00",
+          "₪260.00"
+        ]
+      }
+    ]
+  },
+  "mobile": {
+    "bodyOverflow": false,
+    "card": {
+      "bottom": 836,
+      "left": 16,
+      "right": 359,
+      "top": 302
+    },
+    "cells": [
+      {
+        "label": "Item subtotal",
+        "method": null,
+        "rect": {
+          "bottom": 542,
+          "left": 34,
+          "right": 189,
+          "top": 409
+        },
+        "value": "₪60.00"
+      },
+      {
+        "label": "Shipping",
+        "method": "Home delivery",
+        "rect": {
+          "bottom": 542,
+          "left": 189,
+          "right": 344,
+          "top": 409
+        },
+        "value": "₪30.00"
+      },
+      {
+        "label": "Delivered total",
+        "method": null,
+        "rect": {
+          "bottom": 619,
+          "left": 34,
+          "right": 344,
+          "top": 542
+        },
+        "value": "₪90.00"
+      }
+    ],
+    "disclosuresOpen": false,
+    "innerHeight": 701,
+    "innerWidth": 390,
+    "methodValue": {
+      "bottom": 477,
+      "left": 202,
+      "right": 332,
+      "top": 459
+    },
+    "minTap": 44,
+    "pageHeight": 1502,
+    "totalValue": {
+      "bottom": 591,
+      "left": 34,
+      "right": 332,
+      "top": 569
+    }
+  },
+  "sessionClosed": true,
+  "finishedAt": "2026-10-12T23:55:09.130Z",
+  "failed": false
+}

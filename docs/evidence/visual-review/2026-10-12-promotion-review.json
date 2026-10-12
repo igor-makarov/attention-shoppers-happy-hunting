@@ -1,0 +1,62 @@
+{
+  "recordedAt": "2026-10-12T23:58:00Z",
+  "iteration": "3-79",
+  "scope": "Fixture-backed and live-local desktop/mobile screenshots of the home index and the product page after the published quantity promotion (CoffeeMan 10% off ground coffee from a ₪250 item subtotal) was added to the item subtotal and offer details. The visible card layout is unchanged except for one muted promotion line under the item-subtotal value when a discount applies.",
+  "limitation": {
+    "tool": "coding agent file-read tool",
+    "result": "PNG input is rejected ('reading images is not supported'), so the screenshots could not be inspected as images by the model. This record is a coarse, machine-derived review only; it cannot establish that text is correct or legible.",
+    "mitigation": "All labels and money values are corroborated by the rendered DOM text and the API payloads captured in the same headless-Chrome sessions (docs/evidence/browser-qa-fixtures-20261012T2357Z.json, docs/evidence/browser-qa-live-20261012T2358Z.json) and by the live source check docs/evidence/source-check-20261012T2353Z.json."
+  },
+  "screenshots": [
+    "docs/evidence/visual-review/fixtures-home-desktop-1440-20261012T2358Z.png",
+    "docs/evidence/visual-review/fixtures-home-mobile-390-20261012T2358Z.png",
+    "docs/evidence/visual-review/fixtures-product-desktop-1440-20261012T2358Z.png",
+    "docs/evidence/visual-review/fixtures-product-mobile-390-20261012T2358Z.png",
+    "docs/evidence/visual-review/fixtures-product-promotion-2000g-desktop-20261012T2358Z.png",
+    "docs/evidence/visual-review/fixtures-product-desktop-unknown-shipping-20261012T2358Z.png"
+  ],
+  "measuredDomGeometry": {
+    "mobileViewport": { "width": 390, "innerHeight": 701, "ownerCriterionHeight": 844 },
+    "bestOfferCardTop": 302,
+    "itemSubtotalCellBottom": 542,
+    "shippingCellBottom": 542,
+    "shippingMethodValueBottom": 477,
+    "deliveredTotalValueBottom": 591,
+    "pageHeight": 1502,
+    "horizontalOverflow": false,
+    "minimumQuantityTapHeight": 44,
+    "disclosuresOpenByDefault": false
+  },
+  "tokenRegions": {
+    "tool": "node scripts/inspect-screenshot.mjs (coarse luminance + Canton Zürich token-pixel map)",
+    "productDesktopPromotion2000g": {
+      "blue": "12170 px, bbox x117-1308 y171-775 (best-offer rule/selected context, not decorative)",
+      "softblue": "380080 px, bbox x119-1307 y18-817",
+      "green": "834 px, bbox x289-1289 y260-691 (in-stock labels)",
+      "greenSoft": "5055 px",
+      "red": "0 px (no unavailable offer in the fixture board)",
+      "amber": "169 px, bbox x149-733 y450-855 (uncertainty text)",
+      "amberSoft": "32422 px",
+      "divider": "14156 px"
+    },
+    "productMobile390": {
+      "blue": "9349 px, bbox x16-358 y140-700",
+      "softblue": "93428 px, bbox x20-358 y14-700",
+      "green": "423 px, bbox x154-306 y349-371",
+      "amber": "149 px, bbox x45-311 y642-688",
+      "red": "0 px",
+      "divider": "3219 px"
+    }
+  },
+  "checks": {
+    "offlineBrowserQa": "85/85 checks pass against the fixture QA server, zero console errors (docs/evidence/browser-qa-fixtures-20261012T2357Z.json)",
+    "liveBrowserQa": "81/81 checks pass against a fresh-store local wrangler dev Worker with real vendor data, zero console errors (docs/evidence/browser-qa-live-20261012T2358Z.json)",
+    "promotionCard": "PASS promotion: the 2 kg single-pack offer shows the discounted subtotal and the pre-discount amount — ₪237.60 with '10% promotion applied — was ₪264.00'",
+    "promotionDetails": "PASS promotion: the offer details name the published promotion and keep the vendor wording — 'Published promotion: 10% off from ₪250.00 item subtotal (multipacks excluded). Vendor wording: …'",
+    "promotionScope": "PASS promotion: no multipack card is discounted and no free shipping is inferred from the item promotion — 8-pack ₪240.00 and 4-pack ₪248.00 carry no discount line",
+    "promotionApi": "PASS fixtures: the published CoffeeMan promotion discounts 8 single packs to ₪237.60 while the 8-pack stays ₪260.00; PASS fixtures: the board exposes the validated promotion summary",
+    "firstViewportValues": "PASS mobile: item subtotal, shipping charge and method are visible in the initial viewport; PASS mobile: the delivered total is visible in the initial 390x844 viewport",
+    "homeIndex": "PASS home: exactly the tracked product card, links to the product page, no full comparison board on the home route"
+  },
+  "conclusion": "The promotion adds one muted line to the item-subtotal cell and one line to the collapsed offer details; the three decision values, named delivery method and delivered total still sit inside the initial mobile viewport, the disclosures stay collapsed by default, and no new colour region was introduced. The discount is shown with the pre-discount amount so the arithmetic stays auditable, and the multipack cards are visibly undiscounted. No claim of image-based visual review is made."
+}

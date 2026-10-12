@@ -9,7 +9,11 @@ policies and the progressive-disclosure layout are validated locally (136/136 te
 live browser checks) and against the deployed site: the four-policy build is live (production probe 24/24
 at 23:12 UTC, live browser QA 78/78 at 23:12 UTC with zero console errors), the Pucks free-above-₪100 rule
 is applied to the old persisted store at read time, and obsolete `variant=` URLs resolve to that one board.
-Production's stored vendor snapshot was last refreshed 15:52 UTC; the **00:17 UTC cron tick on 2026-10-13**
+Iteration 3-79 adds the vendor's **published quantity promotion** (CoffeeMan 10% off the ground-coffee
+item subtotal from a ₪250 subtotal, multipacks excluded), parsed from the product-page banner each
+refresh and applied to the item subtotal with the vendor's own wording disclosed: the 8 × 250 g singles
+offer at a 2 kg target now reads ₪237.60 + ₪25 = ₪262.60 instead of ₪264 + ₪25 = ₪289, while the
+multipacks stay undiscounted and no shipping discount is inferred. Production's stored vendor snapshot was last refreshed 15:52 UTC; the **00:17 UTC cron tick on 2026-10-13**
 is expected to replace it (the 18:17 tick skipped under the phase lock), after which the read-only probe
 should be re-run.**
 The Worker implements the self-updating board for exactly one product line — **Lavazza Crema e Gusto
@@ -124,6 +128,13 @@ product line requires an explicit new owner instruction.
   alternatives and coverage caveat from the matching policy, never overwriting what the row already
   states and never touching its price, stock or `observedAt`; the adapters derive their researched
   constants from the same policies instead of separate hard-coded strings.
+- **Published quantity promotions**: the CoffeeMan product page's 10%-off ground-coffee banner (from a
+  ₪250 item subtotal, multipacks excluded) is parsed on every fetch into the validated promotion model
+  (`src/lib/promotions.js`), applied to the offer's item subtotal with the pre-discount amount and the
+  vendor's wording disclosed, and exposed as `promotions` in the board response and `/api/status`. A
+  checked page with no banner records an explicit empty list; a checked-in fallback covers rows stored
+  before banner parsing and stops after its review date. The base unit price, stock and observation time
+  are never changed, and no shipping discount is inferred from an item promotion.
 - **Self-updating runtime**: `wrangler.jsonc` triggers `17 */6 * * *` (about every six hours); the first
   `/health` or `/api/board` after deployment starts one throttled initial refresh. Observations, vendor
   state, FX rates, run history and leases persist in the SQLite-backed `BoardStore` Durable Object. The
@@ -1525,3 +1536,68 @@ passed **78/78** with zero console errors. Evidence:
 snapshot (vendor due times 19:34/19:46/21:51 have passed; the 18:17 tick skipped under the phase lock).
 Re-run `npm run probe:production` after it and confirm fresh vendor observations plus the four policies;
 then continue within Crema e Gusto coverage, shipping evidence, freshness and comparison quality.
+
+## Iteration 3-79 — published quantity promotion applied to the item subtotal (2026-10-12)
+
+**What changed.** CoffeeMan publishes a ground-coffee quantity promotion in the promotion banner of the
+single 250 g product page: “כל הקפה טחון ב-10% הנחה. קונים קפה טחון מכל המותגים המובילים ב-250 ש"ח
+ומקבלים 10% הנחה אוטומטית בקופה על הקפה שבחרתם. (לא כולל מארזים ובאנדלים)” — 10% off the ground-coffee
+item subtotal from a ₪250 subtotal, applied automatically at checkout, multipacks and bundles excluded.
+The anonymous 8 × 250 g cart observed on 2026-10-12 had already shown exactly that (₪264 item subtotal →
+₪237.60 after the automatic discount), while the 6 × 250 g (₪198) and 7 × 250 g (₪231) carts showed no
+discount. Until now the board ignored the promotion and displayed ₪264 + ₪25 = ₪289 for the 8-single-pack
+offer at a 2 kg target.
+
+- `src/lib/promotions.js` is the new validated promotion model and evaluator: vendor/product/URL scope,
+  percent, activating item-subtotal rule with the vendor's own `at_least`/`above` wording, multipack
+  exclusion, vendor wording, evidence URL/retrieval time and a `reviewBy` window for the checked-in
+  fallback. `validatePromotion()` rejects malformed rules before they can reduce a price;
+  `resolvePromotion()` returns `applied`/`none` plus the discount.
+- The adapter parses the vendor's banner on every fetch (`parseCoffeemanPromotion`, parser
+  `coffeeman/7`), so an ended promotion stops applying with the next observation. A checked page with no
+  banner records an explicit `promotions: []`, which is never re-enriched from the fallback. The ₪990
+  vacuum-container gift banner shown on the 4-pack/8-pack pages states no percent and is ignored.
+- The checked-in fallback (`coffeeman-ground-coffee-percent-off` v1, observed 2026-10-12T23:38Z,
+  `reviewBy` 2026-11-11) covers persisted rows stored before banner parsing, so the old production store
+  gains the evidenced discount at read time without waiting for the next vendor refresh. Applying it
+  never touches the base unit price (₪33), stock, `observedAt` or the refresh marker, and no shipping
+  discount is inferred: the published ₪25 courier rate still applies to the discounted subtotal.
+- `quoteOffer()` exposes `itemSubtotalBeforeDiscountIls`/`itemDiscount` and labels the discount; the
+  board response and `/api/status` expose `promotions` (`promotionSummary`). The product page shows one
+  muted line under the item subtotal (`10% promotion applied — was ₪264.00`) and the full vendor wording
+  plus evidence inside `Offer details and check history`.
+
+**Verified locally (2026-10-12/13 UTC).**
+
+- `npm run verify` — **148/148** `node:test` cases pass (up from 136); `wrangler deploy --dry-run`
+  builds the bundle (118.94 KiB, gzip 29.74 KiB; bindings `BOARD` + `ASSETS`). New tests cover the parsed
+  banner, the ignored gift banner, validation failures, the ₪250 boundary (₪231 no discount, ₪264
+  discounted), the multipack exclusion, a parsed empty list never being fallback-enriched, an expired
+  fallback, an old persisted CoffeeMan row gaining the discount at read time, `promotions: null` keeping
+  raw evidence, the board arithmetic (8 singles ₪237.60 + ₪25 = ₪262.60 vs the 8-pack ₪260.00) and the
+  rendered card/detail labels.
+- `npm run cron:offline` — 6 bounded requests, all three vendors saved, five offers.
+- `npm run check:sources` (live, 23:53 UTC) — all five listings pass with unchanged prices (CoffeeMan
+  ₪33/₪124/₪240; Pucks ₪30; Coffee4U ₪38). The live CoffeeMan single row now carries the parsed
+  promotion (10%, ₪250, multipacks excluded); the two multipack rows and the other vendors carry
+  `promotions: []`. Evidence: `docs/evidence/source-check-20261012T2353Z.json`; banner retrieval record
+  `docs/evidence/vendor-research-2026-10-12T2338Z-coffeeman-promotion.json`.
+- Fresh-store local `wrangler dev` Worker (23:54 UTC, live vendor fetches, no browser opened for the
+  refresh): five observations; at 2 kg Pucks wins at ₪240.00 (free above ₪100), CoffeeMan 8-pack
+  ₪260.00, CoffeeMan 8 × 250 g singles **₪237.60 + ₪25.00 = ₪262.60** (was ₪289.00), CoffeeMan
+  2 × 4-pack ₪273.00, Coffee4U ₪334.00. The ranking is unchanged at 500 g/1 kg and the 8-pack still
+  wins at 2 kg, but the singles offer now matches the vendor's automatic checkout discount.
+- `npm run qa:browser` (offline fixtures) **85/85** and against the local live Worker **81/81**, zero
+  console errors. New checks assert the discounted API values and promotion summary, the rendered
+  `₪237.60` item subtotal with `10% promotion applied — was ₪264.00`, the vendor wording in the offer
+  details, and that neither multipack card carries a discount line.
+- Visual review record: `docs/evidence/visual-review/2026-10-12-promotion-review.json` plus sanitized
+  fixture screenshots (including the 2 kg promotion view). The file-read tool still rejects PNG input,
+  so no image-based claim is made; labels/amounts are corroborated by rendered DOM text and the API in
+  the same sessions.
+
+**Next step:** the new build must reach production through the main-push Workers Builds path; then the
+**00:17 UTC cron tick on 2026-10-13** should replace the 15:52 production store snapshot. Re-run
+`npm run probe:production` afterwards to confirm fresh vendor observations, the four shipping policies
+and (once the build is deployed) the promotion summary in `/api/status`, and continue within Crema e
+Gusto coverage, shipping evidence, freshness and comparison quality.

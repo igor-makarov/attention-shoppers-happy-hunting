@@ -238,6 +238,26 @@ check(
   expiredPolicies.length ? `expired=[${expiredPolicies.join(', ')}]` : 'none expired'
 );
 
+// Published quantity promotions: only checked once the deployed build exposes
+// them, so the probe stays green while the main-push deploy is still rolling
+// out; once present, the rule, percent, threshold and review date must be
+// well-formed (an expired promotion stops reducing an item subtotal).
+const promotions = Array.isArray(statusBody.promotions) ? statusBody.promotions : null;
+if (promotions) {
+  const promotion = promotions.find(entry => entry?.id === 'coffeeman-ground-coffee-percent-off');
+  check(
+    'status exposes the published quantity promotion with a review date',
+    Boolean(promotion)
+      && promotion.percent === 10
+      && promotion.minItemSubtotal === 250
+      && promotion.expired === false
+      && Number.isFinite(Date.parse(promotion.reviewBy)),
+    promotion
+      ? `${promotion.id} v${promotion.version} ${promotion.percent}% from ₪${promotion.minItemSubtotal}`
+      : `ids=[${promotions.map(entry => entry?.id).join(', ')}]`
+  );
+}
+
 const snapshot = {
   capturedAt: `${startedAt} to ${finishedAt}`,
   mode: 'read-only public GETs from the coding runner; no Cloudflare credentials, admin API, deploy or remote resource change',
@@ -271,6 +291,11 @@ if (jsonOnly) {
   console.log(`Catalog: products=[${catalogProducts.join(', ')}] vendors=[${(catalog.vendors ?? []).map(vendor => vendor.id).join(', ')}]`);
   console.log(`Vendor next attempts: ${(status.vendors ?? []).map(vendor => `${vendor.vendorId}@${vendor.nextAttemptAt}`).join(' ')}`);
   console.log(`Shipping policies: ${shippingPolicies.map(policy => `${policy.id} v${policy.version} (${policy.origin}, reviewBy ${policy.reviewBy}${policy.expired ? ', EXPIRED' : ''})`).join(' | ')}`);
+  if (promotions) {
+    console.log(`Promotions: ${promotions.map(promotion => `${promotion.id} v${promotion.version} (${promotion.percent}% from ₪${promotion.minItemSubtotal}${promotion.expired ? ', EXPIRED' : ''})`).join(' | ')}`);
+  } else {
+    console.log('Promotions: not exposed by the deployed build yet');
+  }
   console.log(`Runs: ${(status.runs ?? []).map(run => `${run.trigger}(${run.requests} req, ${run.finishedAt})`).join(' ')}`);
   for (const [name, board] of Object.entries(boards)) {
     const best = boards[name]?.best;

@@ -6,6 +6,15 @@ The 2026-10-12 owner correction retired the earlier multi-product scope: Lavazza
 
 Three Israeli vendor adapters currently observe **five real Crema e Gusto listings**: CoffeeMan single 250 g, 4 × 250 g and 8 × 250 g, Pucks 250 g and Coffee4U 250 g. Swiss signage design, meaningful status colors, no emoji typography.
 
+Vendor conditions are modeled, not hard-coded: browser-researched delivery rules live in validated,
+versioned shipping policies (Pucks ₪30 / free above a ₪100 item subtotal, CoffeeMan's published ₪25
+single/4-pack courier with its cart-observed ₪15 distribution-center alternative and the ₪20 one-8-pack
+checkout quote, Coffee4U's published ₪30 door-to-door rate with its ₪15 pickup-point alternative), and
+the CoffeeMan **published quantity promotion** — 10% off the ground-coffee item subtotal from a ₪250
+subtotal, multipacks excluded — is parsed from the product-page banner on every refresh and applied to
+the item subtotal with the vendor's own wording disclosed in the offer details. A missing rate or a
+promotion the vendor stops advertising never becomes a silent zero or an invented discount.
+
 The board is implemented and self-updating: deterministic vendor adapters observe real product pages, a
 pure quote engine ranks delivered ILS totals, and a scheduled Durable Object refresh keeps the data
 current without a browser or the coding loop. Each refresh keeps the previous successful price and stock
