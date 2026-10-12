@@ -166,10 +166,18 @@ export class BoardStore {
   }
 
   async acquireLease(name, holderId, ttlMs) {
-    const current = await this.getMeta(`lease:${name}`);
+    // Keep the read-check-write synchronous: Durable Object SQL is synchronous, so no
+    // other request can interleave between the check and the write and double-acquire.
+    const key = `lease:${name}`;
+    const row = this.sql.exec('SELECT value FROM meta WHERE key = ?', key).toArray()[0];
+    const current = row ? JSON.parse(row.value) : null;
     const now = Date.now();
     if (current && current.expiresAt > now && current.holderId !== holderId) return false;
-    await this.setMeta(`lease:${name}`, { holderId, expiresAt: now + ttlMs, acquiredAt: new Date(now).toISOString() });
+    this.sql.exec(
+      `INSERT INTO meta (key, value) VALUES (?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      key, JSON.stringify({ holderId, expiresAt: now + ttlMs, acquiredAt: new Date(now).toISOString() })
+    );
     return true;
   }
 
@@ -251,10 +259,12 @@ export function createMemoryStore(initial = {}) {
       return runs.slice(-limit).reverse();
     },
     async acquireLease(name, holderId, ttlMs) {
-      const current = meta.get(`lease:${name}`);
+      // Read-check-write without awaits so two simultaneous runs cannot both acquire.
+      const key = `lease:${name}`;
+      const current = meta.get(key);
       const now = Date.now();
       if (current && current.expiresAt > now && current.holderId !== holderId) return false;
-      meta.set(`lease:${name}`, { holderId, expiresAt: now + ttlMs, acquiredAt: new Date(now).toISOString() });
+      meta.set(key, { holderId, expiresAt: now + ttlMs, acquiredAt: new Date(now).toISOString() });
       return true;
     },
     async releaseLease(name) {

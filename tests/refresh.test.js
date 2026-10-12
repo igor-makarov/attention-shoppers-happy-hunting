@@ -136,6 +136,19 @@ test('leases prevent concurrent refresh runs', async () => {
   await first;
 });
 
+test('refresh runs started in the same tick cannot both acquire the lease', async () => {
+  const store = createMemoryStore();
+  const calls = [];
+  const [first, second] = await Promise.all([
+    runRefresh({ store, fetchImpl: fixtureFetch({ calls }), now: NOW }),
+    runRefresh({ store, fetchImpl: fixtureFetch({ calls }), now: NOW })
+  ]);
+  const summaries = [first, second];
+  assert.equal(summaries.filter(summary => summary.skipped).length, 1, 'exactly one run is skipped');
+  assert.equal(summaries.find(summary => !summary.skipped).requests, 3);
+  assert.equal(calls.length, 3, 'the losing run performs no vendor or FX requests');
+});
+
 test('initial refresh runs once and is throttled afterwards', async () => {
   const store = createMemoryStore();
   const started = await maybeInitialRefresh({ store, ctx: null, now: NOW, run: async () => ({ ran: true }), vendors: [], includeFx: false });

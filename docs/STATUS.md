@@ -44,7 +44,7 @@ so it is treated as unknown, not free". FX reference table from the Bank of Isra
 ## Verification performed (2026-10-12, all local)
 
 1. `npm ci --ignore-scripts` — clean install from the pinned lockfile, 0 vulnerabilities.
-2. `npm run verify` — 39/39 `node:test` cases pass, then `wrangler deploy --dry-run` builds the Worker
+2. `npm run verify` — 40/40 `node:test` cases pass, then `wrangler deploy --dry-run` builds the Worker
    bundle with no Cloudflare credential (54.60 KiB, gzip 14.89 KiB; bindings `BOARD` + `ASSETS` shown).
    Covered acceptance cases include: shipping changes the winner; unknown shipping cannot win;
    stale/out-of-stock/unknown availability stay unranked; variants and multipacks stay separate;
@@ -88,7 +88,9 @@ on a clean checkout because it assumed a dev server already on port 8789 and com
 hard-coded live prices. Now `npm run qa:browser` starts a fixture-backed server derived from the recorded
 vendor pages, and every UI expectation comes from the API response. Added `scripts/qa-server.mjs`,
 `tests/qa-server.test.js` and live-mode support, standardised `npm run dev` on the documented port 8789,
-and corrected the stale scaffold note in docs/ARCHITECTURE.md.
+and corrected the stale scaffold note in docs/ARCHITECTURE.md. The refresh lease is now a synchronous
+read-check-write in the Durable Object SQL and memory store, so two runs started in the same tick cannot
+both acquire it; a new concurrency test covers that.
 
 Static evidence snapshots are committed for review: `docs/evidence/source-check-2026-10-12T1104Z.json`
 (live adapter observations), `docs/evidence/browser-qa-fixtures-2026-10-12T1135Z.json` (27 offline browser
