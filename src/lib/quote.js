@@ -198,6 +198,8 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
     orderedGrams: null,
     itemPrice: { amount: price.amount ?? null, currency: price.currency ?? null },
     itemTotalIls: null,
+    itemSubtotalBeforeDiscountIls: null,
+    itemDiscount: null,
     shipping: {
       mode: shipping.mode ?? 'delivery',
       service: shipping.service ?? null,

@@ -7,6 +7,7 @@
 import { products, resolveProductRequest } from './catalog.js';
 import { quoteBoard, findDestination, DESTINATIONS } from './lib/quote.js';
 import { policySummary } from './lib/policies.js';
+import { promotionSummary } from './lib/promotions.js';
 import { runRefresh, maybeInitialRefresh, refreshFreshness, newestObservationAt } from './refresh.js';
 import { durableStore, storeClient } from './store.js';
 import { registeredVendors } from './vendors/index.js';
@@ -153,6 +154,9 @@ async function handleStatus(env) {
     // force, when it was observed and when it must be re-checked. An expired
     // policy stops enriching offers until browser research renews it.
     shippingPolicies: policySummary(Date.now()),
+    // Published quantity promotions (item-price discounts) the board may apply,
+    // with the same review-date discipline.
+    promotions: promotionSummary(Date.now()),
     vendors: Object.values(snapshot.vendors ?? {}).map(state => ({
       vendorId: state.vendorId,
       lastAttemptAt: state.lastAttemptAt,

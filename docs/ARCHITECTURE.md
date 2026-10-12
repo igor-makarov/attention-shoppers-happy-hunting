@@ -66,6 +66,21 @@ policy-derived alternative are withheld, so a freshly parsed offer falls back to
 shipping rather than carrying a stale quote forward. Page-published rates (CoffeeMan's ₪25 and
 Coffee4U's ₪30/₪15) are parsed from the vendor page and stay independent of the policy window.
 
+`src/lib/promotions.js` is the shared, validated model for published item-price promotions (quantity
+discounts). A promotion states the vendor, product/URL scope, the percent off, the activating
+item-subtotal rule (with the vendor's `above`/`at_least` wording preserved), whether multipacks are
+excluded, the vendor's own wording and the evidence URL/retrieval time. The adapters parse the vendor's
+promotion banner on every fetch (`parseCoffeemanPromotion`), so an ended promotion stops applying with
+the next observation; a checked page with no banner records an explicit empty `promotions: []`, which is
+never re-enriched. The checked-in fallback (`coffeeman-ground-coffee-percent-off` v1: 10% off ground
+coffee from a ₪250 item subtotal, multipacks excluded, observed in the anonymous 8 × 250 g cart at ₪264
+→ ₪237.60) only covers persisted rows stored before banner parsing and stops applying past its
+`reviewBy`. `quoteOffer()` applies the resolved discount to the item subtotal before shipping, exposes
+`itemSubtotalBeforeDiscountIls`/`itemDiscount` and discloses the vendor wording in the offer details;
+the base unit price, stock and `observedAt` are never touched, and no shipping discount is inferred
+from an item promotion. `promotionSummary()` exposes the rule, percent, threshold and review date
+through `/api/status`.
+
 `src/refresh.js` is the deterministic scheduled pipeline (leases, bounded concurrency, per-vendor
 backoff, last-known-good retention) and the same function runs in the Worker's `scheduled` handler, the
 local cron simulation and tests. Successful vendors count as due up to fifteen minutes before their
@@ -77,7 +92,9 @@ snapshots of that storage and never fetch visitor-supplied URLs.
 
 Verification is layered: `tests/*.test.js` covers parsers, quote edge cases, the shipping-policy
 evaluator (including an old persisted Pucks row and an old persisted CoffeeMan 8-pack row each gaining
-their evidenced rule after a policy update), the
+their evidenced rule after a policy update), the promotion parser/evaluator (including the ₪250 boundary,
+the multipack exclusion, a parsed empty `promotions: []` never being re-enriched, and an old persisted
+CoffeeMan row gaining the discount at read time), the
 refresh pipeline and the Worker routes against recorded fixtures; `scripts/check-sources.mjs` re-checks
 the live vendor pages; `scripts/simulate-cron.mjs` runs the full refresh offline or live;
 `scripts/research-workflow.mjs` defines the vendor navigation recipes and the common, sanitized

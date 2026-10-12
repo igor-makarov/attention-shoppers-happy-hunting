@@ -149,7 +149,7 @@ export function parseCoffeemanProduct(html, { now, url = PRODUCT_URL, productId 
   // The vendor publishes the ground-coffee quantity promotion in its own
   // promotion banner on the single-pack page. Parse it on every fetch so an
   // ended promotion stops applying with the next observation.
-  const parsedPromotion = parseCoffeemanPromotion(html, { url });
+  const parsedPromotion = parseCoffeemanPromotion(html, { url, retrievedAt: new Date(now ?? Date.now()).toISOString() });
   const promotions = parsedPromotion ? [parsedPromotion] : [];
   const checkoutQuote = checkoutQuoteFor({ url, classification });
   const cartObservation = cartObservationFor({ url, classification });
@@ -295,7 +295,7 @@ function cartObservationFor({ url, classification }) {
  * banner shown on the multipack pages states no discount and is ignored, so it
  * can never be turned into a price reduction.
  */
-export function parseCoffeemanPromotion(html, { url = PRODUCT_URL } = {}) {
+export function parseCoffeemanPromotion(html, { url = PRODUCT_URL, retrievedAt = new Date().toISOString() } = {}) {
   const blocks = [...html.matchAll(/<h3[^>]*class="promotionName"[^>]*>([\s\S]*?)<\/h3>\s*<p[^>]*class="promotionDesc"[^>]*>([\s\S]*?)<\/p>/gi)];
   for (const block of blocks) {
     const name = decodeEntities(collapse(stripTags(block[1])));
@@ -317,7 +317,7 @@ export function parseCoffeemanPromotion(html, { url = PRODUCT_URL } = {}) {
       excludesMultipacks: /לא כולל מארזים/.test(text),
       origin: 'published',
       wording: text,
-      evidence: { url, note: 'Promotion banner parsed from the product page HTML (promotionName/promotionDesc).' }
+      evidence: { url, retrievedAt, note: 'Promotion banner parsed from the product page HTML (promotionName/promotionDesc).' }
     };
   }
   return null;

@@ -1,0 +1,55 @@
+{
+  "kind": "vendor-research",
+  "topic": "CoffeeMan published ground-coffee quantity promotion (10% off from a ₪250 item subtotal, multipacks excluded)",
+  "date": "2026-10-12",
+  "retrievedAtUtc": "2026-10-12T23:38:00Z",
+  "method": "Bounded HTTP GET with a descriptive research user agent through the coding runner (no browser session, no login, no account, no order, no cart/session/cookie values recorded). The three tracked CoffeeMan product pages were read to compare their promotion banners; the banner HTML is the same markup the adapter parses deterministically (promotionName/promotionDesc).",
+  "pages": [
+    {
+      "url": "https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
+      "listing": "Crema e Gusto Classico 250 g single pack (SKU 930333)",
+      "bannerName": "כל הקפה טחון ב-10% הנחה.",
+      "bannerDescription": "קונים  קפה טחון מכל המותגים המובילים  ב-250 ש\"ח ומקבלים 10% הנחה אוטומטית בקופה על הקפה שבחרתם. (לא כולל מארזים ובאנדלים)",
+      "parsedRule": {
+        "id": "coffeeman-ground-coffee-percent-off",
+        "percent": 10,
+        "minItemSubtotal": { "amount": 250, "currency": "ILS" },
+        "semantics": "at_least",
+        "excludesMultipacks": true
+      },
+      "translation": "All ground coffee at 10% off. Buy ground coffee from all leading brands for ₪250 and get an automatic 10% discount at checkout on the coffee you chose. (Not including multipacks and bundles.)"
+    },
+    {
+      "url": "https://www.coffeeman.co.il/product/4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
+      "listing": "Crema e Gusto Classico 4 × 250 g multipack (SKU 930334)",
+      "bannerName": "מיכל ואקום שקוף חשמלי לאיחסון קפה",
+      "bannerDescription": "בכל קנייה באתר של קפה, קפסולות ואביזרים מעל 990 ש\"ח  קבל מיכל ואקום שקוף חשמלי לאיחסון קפה בשווי של 299 ש\"ח , מתנה  !",
+      "parsedRule": null,
+      "note": "A gift banner, not a percent-off rule: the parser ignores it, and the multipack is excluded from the ground-coffee promotion by the vendor wording anyway."
+    },
+    {
+      "url": "https://www.coffeeman.co.il/product/8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
+      "listing": "Crema e Gusto Classico 8 × 250 g multipack (SKU 930335)",
+      "bannerName": "מיכל ואקום שקוף חשמלי לאיחסון קפה",
+      "bannerDescription": "בכל קנייה באתר של קפה, קפסולות ואביזרים מעל 990 ש\"ח  קבל מיכל ואקום שקוף חשמלי לאיחסון קפה בשווי של 299 ש\"ח , מתנה  !",
+      "parsedRule": null,
+      "note": "Same gift banner as the 4-pack page; no ground-coffee percent-off rule is advertised for the multipacks."
+    }
+  ],
+  "crossCheck": {
+    "cartEvidence": "docs/evidence/browser-research/2026-10-12-coffeeman-cart-single-4pack.json",
+    "observedCart": "8 × 250 g single packs = ₪264 item subtotal, ₪237.60 total after the automatic 10% checkout discount (within the 2026-10-12 19:56-20:09 UTC research window)",
+    "observedNoDiscount": [
+      "6 × 250 g = ₪198",
+      "7 × 250 g = ₪231",
+      "2 × (4 × 250 g) = ₪248 (multipack, excluded)",
+      "1 × (8 × 250 g) = ₪240 (multipack, excluded)"
+    ],
+    "boundary": "The vendor wording is 'ב-250 ש\"ח' (at ₪250), so the board applies an at-least boundary; the exact ₪250 cart was not observed, and the nearest observations (₪231 no discount, ₪264 discounted) are consistent with the published wording."
+  },
+  "scope": {
+    "appliesTo": "Lavazza Crema e Gusto single 250 g packs only; the multipacks are excluded by the vendor's own wording and pages",
+    "boardEffect": "The item subtotal of the 8 × 250 g single-pack offer at a 2 kg target is ₪237.60 instead of ₪264.00; the published ₪25 courier rate still applies (no shipping discount is inferred), so the delivered total is ₪262.60 and the 8-pack remains the cheapest CoffeeMan offer at ₪260.00.",
+    "noInvention": "The base unit price (₪33), stock observation time and refresh marker are never changed by applying the promotion; the raw vendor wording and retrieval time stay in the offer details."
+  }
+}

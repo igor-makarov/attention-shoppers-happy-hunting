@@ -80,8 +80,10 @@ conditional)` label so its quantity/destination condition stays visible.
   charge, named delivery method and written certainty label** and the **delivered total** plus
   per-kilogram normalization. The method (`Home delivery`, `Pickup-point delivery`,
   `Distribution-center delivery`, `Self-pickup`, or `Delivery method not stated`) is rendered separately
-  from the certainty label, so a shopper can tell what the charge buys. On mobile the three cells stack
-  but remain in the same card, inside the first viewport.
+  from the certainty label, so a shopper can tell what the charge buys. When a published quantity
+  promotion reduced the subtotal, the item-subtotal cell adds one muted line (`10% promotion applied —
+  was ₪264.00`); the vendor's own wording and the evidence stay inside the offer details. On mobile the
+  three cells stack but remain in the same card, inside the first viewport.
 - Conditions are one short list per offer (free-shipping threshold, minimum order, delivery area,
   alternative services, self-pickup, delivery time, cart-size limit) inside that offer's
   `Delivery options and conditions` disclosure. A coverage caveat is written once inside the same
@@ -90,10 +92,11 @@ conditional)` label so its quantity/destination condition stays visible.
   pack/quantity, item subtotal, pickup fee and the written "Self-pickup, not delivery"), with the
   repeated pickup terms behind a `Pickup terms` disclosure.
 - Debug/provenance metadata (previous checks, failed attempts, the applied shipping-policy version, the
-  adapter's shipping terms, shipping evidence, FX, per-vendor refresh state, next source check) lives
-  behind `Offer details and check history` / `Refresh diagnostics` disclosures instead of the first
-  screen. A cart-observed alternative (for example CoffeeMan's distribution-center delivery) carries
-  its cart condition in the short label and its full observation in the disclosure.
+  applied promotion's vendor wording and evidence, the adapter's shipping terms, shipping evidence, FX,
+  per-vendor refresh state, next source check) lives behind `Offer details and check history` /
+  `Refresh diagnostics` disclosures instead of the first screen. A cart-observed alternative (for
+  example CoffeeMan's distribution-center delivery) carries its cart condition in the short label and
+  its full observation in the disclosure.
 - Unknown shipping says **"Shipping not published"** with the exact reason and is never shown as zero;
   a published rate with unconfirmed destination coverage is labelled as such, not as a guaranteed
   checkout total.

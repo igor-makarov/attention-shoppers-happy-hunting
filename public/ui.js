@@ -107,6 +107,30 @@ export function itemSubtotalText(quote) {
   return `${money(amount)} ${quote.itemPrice.currency ?? ''}`.trim();
 }
 
+/**
+ * Short card-face line for an applied published quantity promotion. The full
+ * vendor wording and evidence live in the offer details, so the money cell
+ * stays compact while still showing that the subtotal was reduced and from
+ * what amount.
+ */
+export function itemDiscountText(quote) {
+  const discount = quote?.itemDiscount;
+  if (!discount) return null;
+  const before = quote.itemSubtotalBeforeDiscountIls != null ? money(quote.itemSubtotalBeforeDiscountIls) : null;
+  return `${discount.percent}% promotion applied${before ? ` — was ${before}` : ''}`;
+}
+
+/** Full promotion line for the offer details, including the vendor's own wording. */
+export function promotionDetailText(quote) {
+  const discount = quote?.itemDiscount;
+  if (!discount) return null;
+  const from = discount.minItemSubtotal != null ? ` from ${money(discount.minItemSubtotal)} item subtotal` : '';
+  const scope = discount.excludesMultipacks ? 'multipacks excluded' : 'all packs';
+  const source = discount.source === 'policy' ? ', applied from the validated published-rule fallback' : '';
+  const wording = discount.wording ? ` Vendor wording: “${discount.wording}”` : '';
+  return `Published promotion: ${discount.percent}% off${from} (${scope}${source}).${wording}`;
+}
+
 export function shippingValueText(quote) {
   const shipping = quote.shipping ?? {};
   if (shipping.amountIls != null) {
@@ -146,7 +170,8 @@ export function totalsBlock(quote, { perKg = true } = {}) {
   return el('div', { class: 'totals' },
     el('div', { class: 'totals__cell' },
       el('span', { class: 'totals__label', text: 'Item subtotal' }),
-      el('span', { class: 'totals__value num', text: itemSubtotalText(quote) })),
+      el('span', { class: 'totals__value num', text: itemSubtotalText(quote) }),
+      el('span', { class: 'totals__meta totals__meta--discount', text: itemDiscountText(quote) })),
     el('div', { class: 'totals__cell' },
       el('span', { class: 'totals__label', text: 'Shipping' }),
       el('span', { class: 'totals__value num', text: shippingValueText(quote) }),
@@ -231,6 +256,11 @@ export function diagnosticsDisclosure(quote) {
   if (change) rows.push(change);
   const stockChange = stockChangeText(quote);
   if (stockChange) rows.push(stockChange);
+  const promotion = promotionDetailText(quote);
+  if (promotion) rows.push(promotion);
+  if (quote.itemDiscount?.evidence?.url) {
+    rows.push(`Promotion evidence: ${quote.itemDiscount.evidence.url}${quote.itemDiscount.evidence.retrievedAt ? ` (retrieved ${timeLabel(quote.itemDiscount.evidence.retrievedAt)})` : ''}`);
+  }
   rows.push(`Last successful check: ${timeLabel(quote.observedAt)}`);
   if (quote.product?.name) rows.push(`Vendor listing name: ${quote.product.name}`);
   if (quote.product?.variantId && quote.product.variantId !== 'unspecified' && quote.product.variantLabel) {
