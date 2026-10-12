@@ -85,7 +85,8 @@ product line requires an explicit new owner instruction.
   redeploy), the board falls back to the newest saved observation for the age, exposes it as
   `lastObservationAt`/`freshness.dataAsOf`, and names it in the footer instead of claiming no refresh ever
   happened; a recorded but old completion still reads as stale, because that is the scheduled pipeline
-  having stopped. The board footer also names the earliest vendor `nextAttemptAt` as an approximate next source
+  having stopped. Only observations for product lines that are still tracked count toward freshness, so a
+  lingering historical row cannot mask a stale board. The board footer also names the earliest vendor `nextAttemptAt` as an approximate next source
   check time, so a shopper can see the board is scheduled to keep updating.
 - **Bounded fetching**: host allowlists per adapter, 12 s timeout, 1.5 MB response cap, max two vendors
   in flight, one attempt per offer per run, published crawl delays honoured (`Crawl-delay: 7` on
@@ -250,22 +251,23 @@ labels and the next-source-check footer line, recorded in
    evidence. No fourth vendor found, so the board stays with the three observed adapters. Evidence:
    `docs/evidence/vendor-probe-2026-10-12T1519Z.json` and
    `docs/evidence/vendor-probe-2026-10-12T1536Z.json`.
-11. 3-61 local re-run with the freshness fallback: `npm run verify` — **86/86** `node:test` cases pass
-    (two new refresh tests for the interrupted-run fallback and `newestObservationAt`, one new worker test
-    for board/health freshness without a completion marker), then `wrangler deploy --dry-run` builds the
-    bundle (78.48 KiB, gzip 20.05 KiB; bindings `BOARD` + `ASSETS`). `npm run cron:offline` — **6 bounded
+11. 3-61 local re-run with the freshness fallback: `npm run verify` — **87/87** `node:test` cases pass
+    (two new refresh tests for the interrupted-run fallback and `newestObservationAt`, two new worker tests:
+    board/health freshness without a completion marker, and a lingering retired-product row not counting
+    toward freshness), then `wrangler deploy --dry-run` builds the
+    bundle (78.81 KiB, gzip 20.11 KiB; bindings `BOARD` + `ASSETS`). `npm run cron:offline` — **6 bounded
     requests**, all three vendors saved (CoffeeMan 3, Pucks 1, Coffee4U 1), five offers persisted,
     `pruned: 0`. `npm run qa:browser` — **57/57** offline checks pass, including two new checks that a store
     with fresh observations but no completion marker stays out of the stale state and the footer says
     `Last offer observation: …` instead of a never-refreshed message. `npm run qa:browser --
     http://127.0.0.1:8789` — **53/53** live checks pass against a fresh-store `wrangler dev` Worker
-    (`--persist-to .shurik-local/wrangler-3-61`, no browser opened): the first `/health` started the initial
-    refresh (16:01:28.782 → 16:01:48.231 UTC, 6 bounded requests, five observations, Bank of Israel table),
+    (`--persist-to .shurik-local/wrangler-3-61b`, no browser opened): the first `/health` started the initial
+    refresh (16:08:47.312 → 16:09:06.466 UTC, 6 bounded requests, five observations, Bank of Israel table),
     `/health` reported `lastRefreshAt` **and** `lastObservationAt`, and the boards matched ₪91.00 / ₪149.00 /
     ₪106.00 with the retired URL falling back. Evidence:
-    `docs/evidence/worker-runtime-status-2026-10-12T1602Z.json`,
-    `docs/evidence/browser-qa-fixtures-20261012T1603Z.json`,
-    `docs/evidence/browser-qa-live-20261012T1602Z.json`.
+    `docs/evidence/worker-runtime-status-2026-10-12T1609Z.json`,
+    `docs/evidence/browser-qa-fixtures-20261012T1610Z.json`,
+    `docs/evidence/browser-qa-live-20261012T1609Z.json`.
 12. 3-61 production verification (read-only, from the runner; no Cloudflare credentials, admin API or
     deploy): ten GETs against https://attention-shoppers.igormaka.workers.dev returned HTTP 200. Before the
     probe `/health` reported `lastRefreshAt: null` while `/api/status` held five observations with
@@ -306,16 +308,16 @@ Current-scope evidence (committed for review, not live data):
   state before the probe (`lastRefreshAt` null with five saved observations), the initial refresh the probe
   started (15:51:52.931Z → 15:52:12.546Z, 4 requests), the completed status (fresh, five observations, FX
   asOf 12:23:04.599Z) and the 500 g / 1 kg / unstated / retired-URL board summaries.
-- `docs/evidence/worker-runtime-status-2026-10-12T1602Z.json` — `/health`, `/api/status`, `/api/catalog`,
-  the 500 g / 1 kg / unstated-variant boards and the retired-URL fallback from the 3-61 local Worker run on
-  a fresh Durable Object store (`--persist-to .shurik-local/wrangler-3-61`, no browser opened): a 6-request
-  initial refresh, five observations, `/health` reporting both `lastRefreshAt` and `lastObservationAt`, and
-  `freshness.dataAsOf` in the board payload.
-- `docs/evidence/browser-qa-fixtures-20261012T1603Z.json` — **57/57** offline browser checks with the 3-61
-  code, including the two new interrupted-refresh checks (fresh observations without a completion marker
-  stay out of the stale state; the footer names the last offer observation).
-- `docs/evidence/browser-qa-live-20261012T1602Z.json` — **53/53** live browser checks against the 3-61
-  fresh-store `wrangler dev` Worker with real observations, including the same two interrupted-refresh
+- `docs/evidence/worker-runtime-status-2026-10-12T1609Z.json` — `/health`, `/api/status`, `/api/catalog`,
+  the 500 g / 1 kg / unstated-variant boards and the retired-URL fallback from the final 3-61 local Worker
+  run on a fresh Durable Object store (`--persist-to .shurik-local/wrangler-3-61b`, no browser opened): a
+  6-request initial refresh, five observations, `/health` reporting both `lastRefreshAt` and
+  `lastObservationAt`, and `freshness.dataAsOf` in the board payload.
+- `docs/evidence/browser-qa-fixtures-20261012T1610Z.json` — **57/57** offline browser checks with the final
+  3-61 code, including the two new interrupted-refresh checks (fresh observations without a completion
+  marker stay out of the stale state; the footer names the last offer observation).
+- `docs/evidence/browser-qa-live-20261012T1609Z.json` — **53/53** live browser checks against the final
+  3-61 fresh-store `wrangler dev` Worker with real observations, including the same two interrupted-refresh
   checks against the local fixture server.
 - `docs/evidence/source-check-20261012T1544Z.json` — the 15:39 UTC live adapter check of the five
   active Crema e Gusto offers (₪33 / ₪124 / ₪240 / ₪30 / ₪38, all in stock) with coverage caveats and
@@ -400,18 +402,20 @@ the first independently verified production refresh. Board freshness now reports
 observation (`lastObservationAt`, `freshness.dataAsOf`) and uses it as the age anchor only when no
 completed refresh exists, so an interrupted run (for example a redeploy stopping the background job) with
 fresh saved offers is not labelled never refreshed; a recorded but old completion still reads as stale
-because the scheduled pipeline stopped. `/health` now reports `lastObservationAt` too. Two refresh tests,
-one worker test and two browser QA checks cover the fallback; `npm run verify` passes **86/86** with the
-Worker bundle building (78.48 KiB, gzip 20.05 KiB), `npm run cron:offline` saves five offers with 6 bounded
+because the scheduled pipeline stopped. `/health` now reports `lastObservationAt` too, and only rows for
+product lines that are still tracked count toward freshness, so a lingering historical row cannot keep the
+single-product board looking fresh. Two refresh tests, two worker tests and two browser QA checks cover the
+fallback; `npm run verify` passes **87/87** with the
+Worker bundle building (78.81 KiB, gzip 20.11 KiB), `npm run cron:offline` saves five offers with 6 bounded
 requests, offline browser QA is **57/57** and live browser QA against a fresh-store `wrangler dev` is
 **53/53**. Read-only production GETs from the runner independently verified the deployed site (one product,
 five observations, a completed initial refresh at 15:52:12.546Z, ₪91.00/₪149.00/₪106.00 boards,
 retired-URL fallback) and exposed the interrupted-run state that motivated the fix. Also repaired three
 broken evidence-file references in this document. Evidence:
 `docs/evidence/production-verification-20261012T1554Z.json`,
-`docs/evidence/worker-runtime-status-2026-10-12T1602Z.json`,
-`docs/evidence/browser-qa-fixtures-20261012T1603Z.json`,
-`docs/evidence/browser-qa-live-20261012T1602Z.json`.
+`docs/evidence/worker-runtime-status-2026-10-12T1609Z.json`,
+`docs/evidence/browser-qa-fixtures-20261012T1610Z.json`,
+`docs/evidence/browser-qa-live-20261012T1609Z.json`.
 
 Iteration 3-60: improved Crema e Gusto shipping evidence, freshness and comparison quality
 inside the single-product scope, and ran a fresh bounded vendor-coverage hunt. The quote engine now

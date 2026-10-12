@@ -1,8 +1,18 @@
 {
-  "mode": "live",
-  "base": "http://127.0.0.1:8789",
-  "startedAt": "2026-10-12T16:02:16.904Z",
+  "mode": "fixtures",
+  "base": "http://127.0.0.1:40787",
+  "startedAt": "2026-10-12T16:09:59.301Z",
   "checks": [
+    {
+      "name": "fixtures: CoffeeMan is the ranked fixture offer at ₪91.00 for 500 g",
+      "ok": true,
+      "detail": "CoffeeMan (אמיגו) ₪91.00"
+    },
+    {
+      "name": "fixtures: Pucks stays unranked with unknown shipping",
+      "ok": true,
+      "detail": "Shipping is not published before checkout, so it is treated as unknown, not free (No published courier rate found; delivery cost is unknown before checkout. A distribution-center delivery option exists, but its price is not published on the product page. Free self-pickup is available and is kept separate from delivery.) | Shipping is not published before checkout, so it is treated as unknown, not free (Shipping is calculated at checkout)"
+    },
     {
       "name": "api: ranked offer exists with a verified delivered total",
       "ok": true,
@@ -76,22 +86,22 @@
     {
       "name": "desktop: footer reports the last completed refresh instead of a static waiting message",
       "ok": true,
-      "detail": "Last completed refresh: 12 Oct 2026, 19:01 (just now)."
+      "detail": "Last completed refresh: 12 Oct 2026, 19:09 (just now)."
     },
     {
       "name": "desktop: a published rate without a published locality list is disclosed as a coverage caveat",
       "ok": true,
-      "detail": "Item price | Shipping | Shipping certainty | Stock | Checked | Cheapest per kilogram | Delivery coverage | Pickup :: ₪33.00 ILS × 2 = ₪66.00 | ₪25.00 | Published rate (verified) | In stock (observed) | 12 Oct 2026, 19:01 (just now) | CoffeeMan (אמיגו) — ₪149.00 per kg (1 × 250 g, delivered ₪149.00) | Home delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout. | Free self-pickup is available and shown separately"
+      "detail": "Item price | Shipping | Shipping certainty | Stock | Checked | Price change | Cheapest per kilogram | Delivery coverage | Pickup :: ₪33.00 ILS × 2 = ₪66.00 | ₪25.00 | Published rate (verified) | In stock (observed) | 12 Oct 2026, 19:09 (just now) | Unit price down ₪2.00 since the previous check (12 Oct 2026, 13:09 (6 h ago)) | CoffeeMan (אמיגו) — ₪149.00 per kg (1 × 250 g, delivered ₪149.00) | Home delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout. | Free self-pickup is available and shown separately"
     },
     {
       "name": "desktop: item-price cells show unit price × packs bought = ILS line total",
       "ok": true,
-      "detail": "₪33.00 ILS × 2 = ₪66.00 | ₪124.00 ILS × 1 = ₪124.00"
+      "detail": "₪33.00 ILS × 2 = ₪66.00\nUnit price down ₪2.00 since the previous check (12 Oct 2026, 13:09 (6 h ago)) | ₪124.00 ILS × 1 = ₪124.00"
     },
     {
       "name": "desktop: shipping certainty is written as text next to the rate",
       "ok": true,
-      "detail": "Item price | Shipping | Shipping certainty | Stock | Checked | Cheapest per kilogram | Delivery coverage | Pickup :: ₪33.00 ILS × 2 = ₪66.00 | ₪25.00 | Published rate (verified) | In stock (observed) | 12 Oct 2026, 19:01 (just now) | CoffeeMan (אמיגו) — ₪149.00 per kg (1 × 250 g, delivered ₪149.00) | Home delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout. | Free self-pickup is available and shown separately :: ₪25.00\nPublished rate (verified)\nHome delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout. | ₪25.00\nPublished rate (verified)\nHome delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout."
+      "detail": "Item price | Shipping | Shipping certainty | Stock | Checked | Price change | Cheapest per kilogram | Delivery coverage | Pickup :: ₪33.00 ILS × 2 = ₪66.00 | ₪25.00 | Published rate (verified) | In stock (observed) | 12 Oct 2026, 19:09 (just now) | Unit price down ₪2.00 since the previous check (12 Oct 2026, 13:09 (6 h ago)) | CoffeeMan (אמיגו) — ₪149.00 per kg (1 × 250 g, delivered ₪149.00) | Home delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout. | Free self-pickup is available and shown separately :: ₪25.00\nPublished rate (verified)\nHome delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout. | ₪25.00\nPublished rate (verified)\nHome delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout."
     },
     {
       "name": "desktop: comparison rows state the difference from the best delivered total",
@@ -101,17 +111,27 @@
     {
       "name": "desktop: footer reports when the next source check is due",
       "ok": true,
-      "detail": "Next source check due (approximate, set by each vendor's last run): 13 Oct 2026, 01:01 (in 6 h)"
+      "detail": "Next source check due (approximate, set by each vendor's last run): 13 Oct 2026, 01:09 (in 6 h)"
+    },
+    {
+      "name": "fixtures: the CoffeeMan single pack carries synthetic previous-check metadata",
+      "ok": true,
+      "detail": "{\"comparable\":true,\"direction\":\"down\",\"deltaIls\":2,\"previousAmount\":35,\"previousCurrency\":\"ILS\",\"previousIls\":35,\"previousObservedAt\":\"2026-10-12T10:09:59.304Z\"}"
     },
     {
       "name": "desktop: price change since the previous check is shown when previous evidence exists",
       "ok": true,
-      "detail": "no previous evidence in the API payload"
+      "detail": "Item price | Shipping | Shipping certainty | Stock | Checked | Price change | Cheapest per kilogram | Delivery coverage | Pickup :: ₪33.00 ILS × 2 = ₪66.00 | ₪25.00 | Published rate (verified) | In stock (observed) | 12 Oct 2026, 19:09 (just now) | Unit price down ₪2.00 since the previous check (12 Oct 2026, 13:09 (6 h ago)) | CoffeeMan (אמיגו) — ₪149.00 per kg (1 × 250 g, delivered ₪149.00) | Home delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout. | Free self-pickup is available and shown separately"
     },
     {
       "name": "desktop: the comparison table repeats the previous-check price line for the best offer",
       "ok": true,
-      "detail": "₪33.00 ILS × 2 = ₪66.00"
+      "detail": "₪33.00 ILS × 2 = ₪66.00\nUnit price down ₪2.00 since the previous check (12 Oct 2026, 13:09 (6 h ago))"
+    },
+    {
+      "name": "fixtures: the per-kilogram winner differs from the delivered winner at 500 g",
+      "ok": true,
+      "detail": "perKg=coffeeman:930334:classico:ground:1000g:x4 best=coffeeman:930333:classico:ground:250g:x1"
     },
     {
       "name": "desktop: the cheapest per-kilogram offer is called out when it differs from the cheapest total",
@@ -131,7 +151,7 @@
     {
       "name": "variant: the published door-to-door rate is the ranked shipping amount",
       "ok": true,
-      "detail": "Item price | Shipping | Shipping certainty | Stock | Checked | Delivery coverage | Delivery to a צ'יטה שופס pickup point | Delivery time | Pickup :: ₪38.00 ILS × 2 = ₪76.00 | ₪30.00 | Published rate (verified) | In stock (observed) | 12 Oct 2026, 19:01 (just now) | Door-to-door delivery is limited to the localities on Coffee4U’s home-delivery list, which the product page does not publish. Confirm the destination at checkout. | ₪15.00 (published alternative shipping service) | עד 1-5 ימי עסקים | Free self-pickup is available and shown separately"
+      "detail": "Item price | Shipping | Shipping certainty | Stock | Checked | Delivery coverage | Delivery to a צ'יטה שופס pickup point | Delivery time | Pickup :: ₪38.00 ILS × 2 = ₪76.00 | ₪30.00 | Published rate (verified) | In stock (observed) | 12 Oct 2026, 19:09 (just now) | Door-to-door delivery is limited to the localities on Coffee4U’s home-delivery list, which the product page does not publish. Confirm the destination at checkout. | ₪15.00 (published alternative shipping service) | עד 1-5 ימי עסקים | Free self-pickup is available and shown separately"
     },
     {
       "name": "variant: the cheaper pickup-point delivery is labelled as an alternative shipping service",
@@ -231,17 +251,17 @@
     {
       "name": "terms: minimum order is displayed",
       "ok": true,
-      "detail": "[[\"Item price\",\"₪20.00 ILS × 8 = ₪160.00\"],[\"Shipping\",\"Free\"],[\"Shipping certainty\",\"Published rate (verified)\"],[\"Stock\",\"In stock (observed)\"],[\"Checked\",\"12 Oct 2026, 19:02 (just now)\"],[\"Minimum order\",\"₪30.00 ILS\"],[\"Free shipping\",\"from ₪100.00 ILS\"],[\"Delivery area\",\"Only: tel-aviv, eilat\"]]"
+      "detail": "[[\"Item price\",\"₪20.00 ILS × 8 = ₪160.00\"],[\"Shipping\",\"Free\"],[\"Shipping certainty\",\"Published rate (verified)\"],[\"Stock\",\"In stock (observed)\"],[\"Checked\",\"12 Oct 2026, 19:10 (just now)\"],[\"Minimum order\",\"₪30.00 ILS\"],[\"Free shipping\",\"from ₪100.00 ILS\"],[\"Delivery area\",\"Only: tel-aviv, eilat\"]]"
     },
     {
       "name": "terms: free-shipping threshold is displayed",
       "ok": true,
-      "detail": "[[\"Item price\",\"₪20.00 ILS × 8 = ₪160.00\"],[\"Shipping\",\"Free\"],[\"Shipping certainty\",\"Published rate (verified)\"],[\"Stock\",\"In stock (observed)\"],[\"Checked\",\"12 Oct 2026, 19:02 (just now)\"],[\"Minimum order\",\"₪30.00 ILS\"],[\"Free shipping\",\"from ₪100.00 ILS\"],[\"Delivery area\",\"Only: tel-aviv, eilat\"]]"
+      "detail": "[[\"Item price\",\"₪20.00 ILS × 8 = ₪160.00\"],[\"Shipping\",\"Free\"],[\"Shipping certainty\",\"Published rate (verified)\"],[\"Stock\",\"In stock (observed)\"],[\"Checked\",\"12 Oct 2026, 19:10 (just now)\"],[\"Minimum order\",\"₪30.00 ILS\"],[\"Free shipping\",\"from ₪100.00 ILS\"],[\"Delivery area\",\"Only: tel-aviv, eilat\"]]"
     },
     {
       "name": "terms: locality-restricted delivery area is displayed",
       "ok": true,
-      "detail": "[[\"Item price\",\"₪20.00 ILS × 8 = ₪160.00\"],[\"Shipping\",\"Free\"],[\"Shipping certainty\",\"Published rate (verified)\"],[\"Stock\",\"In stock (observed)\"],[\"Checked\",\"12 Oct 2026, 19:02 (just now)\"],[\"Minimum order\",\"₪30.00 ILS\"],[\"Free shipping\",\"from ₪100.00 ILS\"],[\"Delivery area\",\"Only: tel-aviv, eilat\"]]"
+      "detail": "[[\"Item price\",\"₪20.00 ILS × 8 = ₪160.00\"],[\"Shipping\",\"Free\"],[\"Shipping certainty\",\"Published rate (verified)\"],[\"Stock\",\"In stock (observed)\"],[\"Checked\",\"12 Oct 2026, 19:10 (just now)\"],[\"Minimum order\",\"₪30.00 ILS\"],[\"Free shipping\",\"from ₪100.00 ILS\"],[\"Delivery area\",\"Only: tel-aviv, eilat\"]]"
     },
     {
       "name": "terms: met free-shipping threshold shows Free and a written label",
@@ -251,7 +271,7 @@
     {
       "name": "freshness: a stopped scheduled refresh is labelled in the footer",
       "ok": true,
-      "detail": "Last completed refresh: 11 Oct 2026, 13:02 (30 h ago). No completed scheduled refresh for 30 h — prices may be out of date."
+      "detail": "Last completed refresh: 11 Oct 2026, 13:10 (30 h ago). No completed scheduled refresh for 30 h — prices may be out of date."
     },
     {
       "name": "terms: locality restriction moves the demo offer to the unknown list for Jerusalem",
@@ -261,17 +281,79 @@
     {
       "name": "freshness: an interrupted refresh keeps fresh observations out of the stale state",
       "ok": true,
-      "detail": "{\"lastRefreshAt\":null,\"lastObservationAt\":\"2026-10-12T16:02:19.368Z\",\"dataAsOf\":\"2026-10-12T16:02:19.368Z\",\"ageHours\":0,\"stale\":false,\"fx\":null,\"vendors\":[{\"vendorId\":\"coffeeman\",\"lastAttemptAt\":\"2026-10-12T16:02:19.368Z\",\"lastSuccessAt\":\"2026-10-12T16:02:19.368Z\",\"consecutiveFailures\":0,\"nextAttemptAt\":\"2026-10-12T22:02:19.368Z\",\"lastErrors\":[]},{\"vendorId\":\"pucks\",\"lastAttemptAt\":\"2026-10-12T16:02:19.368Z\",\"lastSuccessAt\":\"2026-10-12T16:02:19.368Z\",\"consecutiveFailures\":0,\"nextAttemptAt\":\"2026-10-12T22:02:19.368Z\",\"lastErrors\":[]},{\"vendorId\":\"coffee4u\",\"lastAttemptAt\":\"2026-10-12T16:02:19.368Z\",\"lastSuccessAt\":\"2026-10-12T16:02:19.368Z\",\"consecutiveFailures\":0,\"nextAttemptAt\":\"2026-10-12T22:02:19.368Z\",\"lastErrors\":[]}]}"
+      "detail": "{\"lastRefreshAt\":null,\"lastObservationAt\":\"2026-10-12T16:10:01.251Z\",\"dataAsOf\":\"2026-10-12T16:10:01.251Z\",\"ageHours\":0,\"stale\":false,\"fx\":null,\"vendors\":[{\"vendorId\":\"coffeeman\",\"lastAttemptAt\":\"2026-10-12T16:10:01.251Z\",\"lastSuccessAt\":\"2026-10-12T16:10:01.251Z\",\"consecutiveFailures\":0,\"nextAttemptAt\":\"2026-10-12T22:10:01.251Z\",\"lastErrors\":[]},{\"vendorId\":\"pucks\",\"lastAttemptAt\":\"2026-10-12T16:10:01.251Z\",\"lastSuccessAt\":\"2026-10-12T16:10:01.251Z\",\"consecutiveFailures\":0,\"nextAttemptAt\":\"2026-10-12T22:10:01.251Z\",\"lastErrors\":[]},{\"vendorId\":\"coffee4u\",\"lastAttemptAt\":\"2026-10-12T16:10:01.251Z\",\"lastSuccessAt\":\"2026-10-12T16:10:01.251Z\",\"consecutiveFailures\":0,\"nextAttemptAt\":\"2026-10-12T22:10:01.251Z\",\"lastErrors\":[]}]}"
     },
     {
       "name": "freshness: the footer names the last offer observation instead of a never-refreshed message",
       "ok": true,
-      "detail": "Last offer observation: 12 Oct 2026, 19:02 (just now). No refresh has completed on this deployment yet."
+      "detail": "Last offer observation: 12 Oct 2026, 19:10 (just now). No refresh has completed on this deployment yet."
     }
   ],
   "consoleErrors": [],
-  "dataSource": "server supplied on the command line",
-  "fixtureObservations": null,
+  "dataSource": "recorded fixtures via scripts/qa-server.mjs (5 observations)",
+  "fixtureObservations": [
+    {
+      "key": "coffeeman:930333:classico:ground:250g:x1",
+      "vendor": "CoffeeMan (אמיגו)",
+      "price": {
+        "amount": 33,
+        "currency": "ILS",
+        "regularAmount": 36
+      },
+      "previousPrice": {
+        "amount": 35,
+        "currency": "ILS"
+      },
+      "availability": "in_stock",
+      "shipping": "verified"
+    },
+    {
+      "key": "coffeeman:930334:classico:ground:1000g:x4",
+      "vendor": "CoffeeMan (אמיגו)",
+      "price": {
+        "amount": 124,
+        "currency": "ILS",
+        "regularAmount": null
+      },
+      "previousPrice": null,
+      "availability": "in_stock",
+      "shipping": "verified"
+    },
+    {
+      "key": "coffeeman:930335:classico:ground:2000g:x8",
+      "vendor": "CoffeeMan (אמיגו)",
+      "price": {
+        "amount": 240,
+        "currency": "ILS",
+        "regularAmount": null
+      },
+      "previousPrice": null,
+      "availability": "in_stock",
+      "shipping": "unknown"
+    },
+    {
+      "key": "pucks:Lav69:classico:ground:250g:x1",
+      "vendor": "Pucks (פאקס)",
+      "price": {
+        "amount": 30,
+        "currency": "ILS"
+      },
+      "previousPrice": null,
+      "availability": "in_stock",
+      "shipping": "unknown"
+    },
+    {
+      "key": "coffee4u:2010561:unspecified:ground:250g:x1",
+      "vendor": "Coffee4U (קופי פור יו)",
+      "price": {
+        "amount": 38,
+        "currency": "ILS"
+      },
+      "previousPrice": null,
+      "availability": "in_stock",
+      "shipping": "verified"
+    }
+  ],
   "expectations": {
     "expected500": "₪91.00",
     "expectedPerKg": "₪182.00",
@@ -282,6 +364,6 @@
   },
   "termsDataSource": "QA-only demo offer added to the recorded fixtures (not a vendor)",
   "sessionClosed": true,
-  "finishedAt": "2026-10-12T16:02:19.454Z",
+  "finishedAt": "2026-10-12T16:10:01.333Z",
   "failed": false
 }
