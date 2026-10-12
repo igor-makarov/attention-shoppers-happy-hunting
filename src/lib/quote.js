@@ -58,6 +58,12 @@ export function quoteBoard({
     quotes.push(quoteOffer(observation, { grams, destination, fx, now, staleAfterMs }));
   }
   const ranked = quotes.filter(quote => quote.rankable).sort(compareQuotes);
+  // The cheapest delivered total is not always the cheapest bulk value. Keep the
+  // per-kilogram winner as separate structured evidence so the board can call it
+  // out without changing the ranking itself.
+  const bestPerKgQuote = ranked.length
+    ? ranked.reduce((min, quote) => (quote.ilsPerKg < min.ilsPerKg ? quote : min))
+    : null;
   const pickup = [
     ...quotes.filter(quote => quote.group === 'pickup'),
     ...quotes
@@ -76,6 +82,18 @@ export function quoteBoard({
     generatedAt: new Date(now).toISOString(),
     fx: fx ? { asOf: fx.asOf ?? null, source: fx.source?.name ?? null } : null,
     best: ranked[0] ?? null,
+    bestPerKg: bestPerKgQuote
+      ? {
+          key: bestPerKgQuote.key,
+          vendor: bestPerKgQuote.vendor,
+          ilsPerKg: bestPerKgQuote.ilsPerKg,
+          totalIls: bestPerKgQuote.totalIls,
+          units: bestPerKgQuote.units,
+          orderedGrams: bestPerKgQuote.orderedGrams,
+          packGrams: bestPerKgQuote.product.packGrams,
+          packCount: bestPerKgQuote.product.packCount
+        }
+      : null,
     ranked,
     pickup,
     unrankable,

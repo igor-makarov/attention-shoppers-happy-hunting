@@ -504,3 +504,32 @@ test('previous availability is exposed for stock-change labels', () => {
   assert.equal(board.best.previous.availabilityLabel, 'Out of stock (observed)');
   assert.equal(board.best.priceChange.comparable, true, 'the price is still comparable across a stock change');
 });
+
+test('the cheapest per-kilogram offer is reported separately from the cheapest delivered total', () => {
+  const single = observation({
+    key: 'single:1',
+    price: { amount: 33 },
+    shipping: { certainty: 'verified', amount: { amount: 25, currency: 'ILS' } }
+  });
+  const fourPack = observation({
+    key: 'four:1',
+    product: { packGrams: 250, packCount: 4, totalGrams: 1000 },
+    price: { amount: 124 },
+    shipping: { certainty: 'verified', amount: { amount: 25, currency: 'ILS' } }
+  });
+  const board = quote([single, fourPack], { targetGrams: 500 });
+  assert.equal(board.best.key, 'single:1');
+  assert.equal(board.best.totalIls, 91, '2 × ₪33 + ₪25 is the cheapest delivered total at 500 g');
+  assert.equal(board.bestPerKg.key, 'four:1');
+  assert.equal(board.bestPerKg.ilsPerKg, 149);
+  assert.equal(board.bestPerKg.totalIls, 149);
+  assert.equal(board.bestPerKg.units, 1);
+  assert.equal(board.bestPerKg.orderedGrams, 1000);
+});
+
+test('the per-kilogram winner is the delivered best when no bulk offer beats it', () => {
+  const only = observation({ key: 'only:1' });
+  const board = quote([only]);
+  assert.equal(board.bestPerKg.key, board.best.key);
+  assert.equal(board.bestPerKg.ilsPerKg, board.best.ilsPerKg);
+});

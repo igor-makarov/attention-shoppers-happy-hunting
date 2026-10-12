@@ -124,6 +124,7 @@ try {
     bestTerms: [...document.querySelectorAll('.best__side dt')].map(n => n.textContent),
     bestValues: [...document.querySelectorAll('.best__side dd')].map(n => n.textContent),
     compareItemCells: [...document.querySelectorAll('table.compare tbody tr td:nth-child(3)')].map(n => n.innerText),
+    comparePerKgCells: [...document.querySelectorAll('table.compare tbody tr td:nth-child(6)')].map(n => n.innerText),
     visibleText: document.body.innerText,
     bidiFragments: document.querySelectorAll('[dir="auto"][lang="he"]').length,
     hasSkipLink: !!document.querySelector('.skip'),
@@ -189,6 +190,23 @@ try {
     || (desktop.compareItemCells[0] ?? '').includes(expectedChangeText);
   check('desktop: the comparison table repeats the previous-check price line for the best offer', tableChangeShown,
     desktop.compareItemCells[0] ?? '');
+
+  // Comparison quality: when the cheapest delivered total is not the cheapest
+  // per-kilogram offer, the board calls the bulk winner out separately without
+  // changing the ranking.
+  const perKgWinner = api500.bestPerKg ?? null;
+  const perKgIndex = perKgWinner ? api500.ranked.findIndex(quote => quote.key === perKgWinner.key) : -1;
+  if (fixtureServer) {
+    check('fixtures: the per-kilogram winner differs from the delivered winner at 500 g',
+      perKgWinner?.key != null && perKgWinner.key !== best.key,
+      `perKg=${perKgWinner?.key} best=${best.key}`);
+  }
+  const perKgCalledOut = !perKgWinner || perKgWinner.key === best.key
+    || (desktop.bestTerms.includes('Cheapest per kilogram')
+      && (desktop.bestValues[desktop.bestTerms.indexOf('Cheapest per kilogram')] ?? '').includes(`${ils(perKgWinner.ilsPerKg)} per kg`)
+      && (desktop.comparePerKgCells[perKgIndex] ?? '').includes('Cheapest per kilogram'));
+  check('desktop: the cheapest per-kilogram offer is called out when it differs from the cheapest total', perKgCalledOut,
+    perKgWinner ? `perKg=${perKgWinner.key} ${ils(perKgWinner.ilsPerKg)} best=${best.key} rows=${desktop.comparePerKgCells.join(' | ')}` : 'no separate per-kg winner');
 
   // Unstated variant: the Coffee4U listing is never merged into the Classico
   // ranking. It is selectable on its own, ranked with the published door-to-door

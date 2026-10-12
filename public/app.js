@@ -325,6 +325,12 @@ function renderRankedSection(board) {
   if (bestChange) rows.push(['Price change', bestChange]);
   const bestStockChange = stockChangeText(best);
   if (bestStockChange) rows.push(['Stock change', bestStockChange]);
+  const perKgWinner = board.bestPerKg && board.bestPerKg.key !== best.key ? board.bestPerKg : null;
+  if (perKgWinner) {
+    rows.push(['Cheapest per kilogram', el('span', {},
+      bidi(perKgWinner.vendor?.name ?? ''),
+      ` — ${money(perKgWinner.ilsPerKg)} per kg (${perKgWinner.units} × ${perKgWinner.packGrams} g, delivered ${money(perKgWinner.totalIls)})`)]);
+  }
   if (best.shipping.destination?.scope === 'localities') rows.push(['Delivery area', `Only: ${(best.shipping.destination.localities ?? []).join(', ')}`]);
   if (best.shipping.coverageCaveat) rows.push(['Delivery coverage', best.shipping.coverageCaveat]);
   for (const alternative of best.shipping.alternatives ?? []) {
@@ -382,7 +388,10 @@ function renderCompareTable(quotes, board) {
         : null,
       quote.shipping.coverageCaveat ? el('div', { class: 'unknown__meta', text: quote.shipping.coverageCaveat }) : null));
     row.append(el('td', { class: 'num' }, el('strong', { text: money(quote.totalIls) }), quote.estimate ? el('span', { class: 'estimate-note', text: ' est.' }) : null));
-    row.append(el('td', { class: 'num', text: money(quote.ilsPerKg) }));
+    row.append(el('td', { class: 'num' }, el('span', { text: money(quote.ilsPerKg) }),
+      board.bestPerKg?.key === quote.key && board.best?.key !== quote.key
+        ? el('div', { class: 'unknown__meta', text: 'Cheapest per kilogram' })
+        : null));
     row.append(el('td', {}, statusBadge(quote.availability, quote.availabilityLabel)));
     row.append(el('td', { class: 'num', text: timeLabel(quote.observedAt) }));
     body.append(row);
