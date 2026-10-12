@@ -323,7 +323,10 @@ labels and the next-source-check footer line, recorded in
     stored due times) is recorded in `docs/evidence/cron-phase-lock-20261012T163342Z.json`: the pre-fix
     `refresh.js` from commit 0f8ccae makes **1** request, skips all three vendors and saves **0**
     observations on the tick, while the fixed code makes **6** requests, skips none and saves all three.
-    The loop does not deploy: the fix reaches production with the next main push.
+    The fixed pipeline was then exercised live: `npm run cron:local -- --fresh` ran 16:34:59.732Z →
+    16:35:16.549Z UTC with **6 bounded requests**, saved the same five Crema e Gusto offers (₪33 / ₪124 /
+    ₪240 / ₪30 / ₪38, all in stock) and fetched the Bank of Israel table (USD 3.078, asOf
+    12:23:04.599Z). The loop does not deploy: the fix reaches production with the next main push.
 
 ## Owner-reported deployment vs independently verified
 
