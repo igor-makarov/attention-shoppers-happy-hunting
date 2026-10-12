@@ -124,6 +124,8 @@ try {
     bestTerms: [...document.querySelectorAll('.best__side dt')].map(n => n.textContent),
     bestValues: [...document.querySelectorAll('.best__side dd')].map(n => n.textContent),
     compareItemCells: [...document.querySelectorAll('table.compare tbody tr td:nth-child(3)')].map(n => n.innerText),
+    compareShippingCells: [...document.querySelectorAll('table.compare tbody tr td:nth-child(4)')].map(n => n.innerText),
+    compareTotalCells: [...document.querySelectorAll('table.compare tbody tr td:nth-child(5)')].map(n => n.innerText),
     comparePerKgCells: [...document.querySelectorAll('table.compare tbody tr td:nth-child(6)')].map(n => n.innerText),
     visibleText: document.body.innerText,
     bidiFragments: document.querySelectorAll('[dir="auto"][lang="he"]').length,
@@ -163,6 +165,18 @@ try {
     return cell.includes(`${ils(quote.itemPrice.amount)} ${quote.itemPrice.currency} × ${quote.units} = ${ils(quote.itemTotalIls)}`);
   });
   check('desktop: item-price cells show unit price × packs bought = ILS line total', itemMathOk, desktop.compareItemCells.join(' | '));
+  check('desktop: shipping certainty is written as text next to the rate',
+    desktop.bestTerms.includes('Shipping certainty')
+      && (desktop.bestValues[desktop.bestTerms.indexOf('Shipping certainty')] ?? '').includes(best.shipping.certaintyLabel ?? '')
+      && api500.ranked.every((quote, index) => (desktop.compareShippingCells[index] ?? '').includes(quote.shipping.certaintyLabel ?? '')),
+    `${desktop.bestTerms.join(' | ')} :: ${desktop.bestValues.join(' | ')} :: ${desktop.compareShippingCells.join(' | ')}`);
+  const deltaTextOk = api500.ranked.length < 2 || (desktop.compareTotalCells.length === api500.ranked.length
+    && desktop.compareTotalCells[0].includes('Cheapest delivered total')
+    && desktop.compareTotalCells.slice(1).every(cell => /\+₪[\d.,]+ vs best|Same delivered total as best/.test(cell)));
+  check('desktop: comparison rows state the difference from the best delivered total', deltaTextOk, desktop.compareTotalCells.join(' | '));
+  check('desktop: footer reports when the next source check is due',
+    /Next source check due \(approximate/.test(desktop.visibleText ?? ''),
+    (desktop.visibleText ?? '').split('\n').find(line => /Next source check due/.test(line)) ?? 'not found');
 
   // Comparison quality: when the stored observation carries the previous successful
   // check, the UI must show the unit-price change in ILS with its timestamp. The

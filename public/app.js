@@ -99,6 +99,16 @@ function timeLabel(iso) {
   return `${IL_TIME.format(date)} (${relative})`;
 }
 
+/** Format a future due time. Vendor nextAttemptAt is a due time, not a promise, so the copy says so. */
+function dueLabel(iso) {
+  if (!iso) return 'not scheduled';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return 'unknown time';
+  const hours = (date.getTime() - Date.now()) / 3_600_000;
+  const relative = hours <= 0 ? 'due now' : hours < 1 ? `in ${Math.round(hours * 60)} min` : `in ${Math.round(hours)} h`;
+  return `${IL_TIME.format(date)} (${relative})`;
+}
+
 function statusBadge(status, label) {
   const kind = status === 'in_stock' ? 'in_stock' : status === 'out_of_stock' ? 'out_of_stock' : 'unknown';
   return el('span', { class: `status status--${kind}`, text: label });
@@ -316,6 +326,7 @@ function renderRankedSection(board) {
   const rows = [
     ['Item price', itemPriceLine(best)],
     ['Shipping', best.shipping.amountIls === 0 ? 'Free' : best.shipping.amountIls != null ? money(best.shipping.amountIls) : 'Unknown'],
+    ['Shipping certainty', best.shipping.certaintyLabel ?? 'Not published before checkout'],
     ['Stock', statusBadge(best.availability, best.availabilityLabel)],
     ['Checked', timeLabel(best.observedAt)]
   ];
@@ -382,12 +393,17 @@ function renderCompareTable(quotes, board) {
       priceChangeText(quote) ? el('div', { class: 'unknown__meta', text: priceChangeText(quote) }) : null));
     row.append(el('td', { class: 'num' },
       quote.shipping.amountIls === 0 ? 'Free' : money(quote.shipping.amountIls),
+      el('div', { class: 'unknown__meta', text: quote.shipping.certaintyLabel ?? 'Not published before checkout' }),
       (quote.shipping.alternatives ?? []).map(alternative => el('div', { class: 'unknown__meta', text: `${alternative.label}: ${alternative.amountIls != null ? money(alternative.amountIls) : 'unknown'}` })),
       quote.shipping.minOrder != null || quote.shipping.freeThreshold != null
         ? el('div', { class: 'unknown__meta', text: [quote.shipping.minOrder != null ? `min ${money(quote.shipping.minOrder)}` : null, quote.shipping.freeThreshold != null ? `free from ${money(quote.shipping.freeThreshold)}` : null].filter(Boolean).join(' · ') })
         : null,
       quote.shipping.coverageCaveat ? el('div', { class: 'unknown__meta', text: quote.shipping.coverageCaveat }) : null));
-    row.append(el('td', { class: 'num' }, el('strong', { text: money(quote.totalIls) }), quote.estimate ? el('span', { class: 'estimate-note', text: ' est.' }) : null));
+    const totalDelta = board.best && quote.key !== board.best.key && Number.isFinite(quote.totalIls) && Number.isFinite(board.best.totalIls)
+      ? Math.round((quote.totalIls - board.best.totalIls) * 100) / 100
+      : null;
+    row.append(el('td', { class: 'num' }, el('strong', { text: money(quote.totalIls) }), quote.estimate ? el('span', { class: 'estimate-note', text: ' est.' }) : null,
+      el('div', { class: 'unknown__meta', text: totalDelta == null ? 'Cheapest delivered total' : totalDelta === 0 ? 'Same delivered total as best' : `+${money(totalDelta)} vs best` })));
     row.append(el('td', { class: 'num' }, el('span', { text: money(quote.ilsPerKg) }),
       board.bestPerKg?.key === quote.key && board.best?.key !== quote.key
         ? el('div', { class: 'unknown__meta', text: 'Cheapest per kilogram' })
@@ -481,6 +497,10 @@ function renderFooterStatus(board) {
   }
   for (const vendor of vendors) {
     wrap.append(el('div', { text: `${vendor.vendorId}: last success ${timeLabel(vendor.lastSuccessAt)} · last attempt ${timeLabel(vendor.lastAttemptAt)}` }));
+  }
+  const nextDue = vendors.map(vendor => vendor.nextAttemptAt).filter(Boolean).sort()[0] ?? null;
+  if (nextDue) {
+    wrap.append(el('div', { text: `Next source check due (approximate, set by each vendor's last run): ${dueLabel(nextDue)}` }));
   }
   if (failing.length) {
     wrap.append(el('div', { class: 'status status--stale', text: `${failing.length} source(s) failing` }));

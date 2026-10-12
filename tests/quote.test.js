@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { quoteBoard, quoteOffer, findDestination } from '../src/lib/quote.js';
+import { quoteBoard, quoteOffer, findDestination, shippingCertaintyLabel } from '../src/lib/quote.js';
 
 const NOW = Date.parse('2026-10-12T12:00:00.000Z');
 const FRESH = '2026-10-12T09:00:00.000Z';
@@ -82,6 +82,21 @@ test('unknown shipping cannot win and is never treated as zero', () => {
   const blocked = [...board.unrankable, ...board.staleOrUnavailable].find(item => item.key === 'unknown:1');
   assert.equal(blocked.totalIls, null);
   assert.match(blocked.reasons.join(' '), /unknown, not free/);
+});
+
+test('shipping certainty is exposed as a written label, never as a bare flag', () => {
+  assert.equal(shippingCertaintyLabel('verified'), 'Published rate (verified)');
+  assert.equal(shippingCertaintyLabel('estimated'), 'Estimated rate');
+  assert.equal(shippingCertaintyLabel('unknown'), 'Not published before checkout');
+  assert.equal(shippingCertaintyLabel(undefined), 'Not published before checkout');
+
+  const verified = observation({ key: 'label-verified:1', shipping: { certainty: 'verified', amount: { amount: 25, currency: 'ILS' } } });
+  const unknown = observation({ key: 'label-unknown:1', shipping: { certainty: 'unknown', amount: null, note: 'Calculated at checkout' } });
+  const board = quote([verified, unknown]);
+  assert.equal(board.best.shipping.certaintyLabel, 'Published rate (verified)');
+  const blocked = [...board.unrankable, ...board.staleOrUnavailable].find(item => item.key === 'label-unknown:1');
+  assert.equal(blocked.shipping.certaintyLabel, 'Not published before checkout');
+  assert.equal(blocked.totalIls, null, 'an unknown rate still cannot rank');
 });
 
 test('stale and out-of-stock observations stay visible but unranked', () => {

@@ -29,6 +29,21 @@ const AVAILABILITY_LABELS = {
   unknown: 'Availability unknown'
 };
 
+/**
+ * Plain-language shipping certainty. The board never presents an unknown rate as
+ * free, so the label says where the amount came from (or that it is missing)
+ * instead of relying on a color or a bare "verified" flag.
+ */
+const SHIPPING_CERTAINTY_LABELS = {
+  verified: 'Published rate (verified)',
+  estimated: 'Estimated rate',
+  unknown: 'Not published before checkout'
+};
+
+export function shippingCertaintyLabel(certainty) {
+  return SHIPPING_CERTAINTY_LABELS[certainty] ?? SHIPPING_CERTAINTY_LABELS.unknown;
+}
+
 export function quoteBoard({
   observations = [],
   productId,
@@ -152,6 +167,7 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
     shipping: {
       mode: shipping.mode ?? 'delivery',
       certainty: shipping.certainty ?? 'unknown',
+      certaintyLabel: shippingCertaintyLabel(shipping.certainty ?? 'unknown'),
       amount: shipping.amount?.amount ?? null,
       currency: shipping.amount?.currency ?? null,
       amountIls: null,

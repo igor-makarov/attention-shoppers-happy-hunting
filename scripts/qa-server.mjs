@@ -177,7 +177,9 @@ async function handle(request, response, { observations, now, withTermsDemo, las
           lastAttemptAt: new Date(now).toISOString(),
           lastSuccessAt: new Date(now).toISOString(),
           consecutiveFailures: 0,
-          nextAttemptAt: null,
+          // Synthetic six-hour due time, matching the Worker's successful-refresh
+          // schedule so the footer next-check line is testable offline.
+          nextAttemptAt: new Date(now + 6 * 60 * 60 * 1000).toISOString(),
           lastErrors: []
         }))
       },
