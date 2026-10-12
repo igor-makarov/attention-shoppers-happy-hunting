@@ -112,7 +112,7 @@ Observed board results (local Worker, 13:01 UTC):
    fetched. `/api/board` then served both ranked product boards and the unranked offers described
    above. This is the refresh-while-no-browser-open path. Evidence:
    `docs/evidence/worker-runtime-status-2026-10-12T1301Z.json`.
-7. `npm run qa:browser` — headless Chrome (chromedriver 154) QA, **46/46 checks pass offline, exit 0**,
+7. `npm run qa:browser` — headless Chrome (chromedriver 154) QA, **47/47 checks pass offline, exit 0**,
    desktop 1440 px and mobile 390 px, screenshots and JSON report in `.shurik-local/qa/`. The command is
    self-contained: it starts `scripts/qa-server.mjs` on an ephemeral port, which serves `public/` plus
    the read-only API computed from `tests/fixtures/` by the production quote engine, so no Worker,
@@ -122,15 +122,18 @@ Observed board results (local Worker, 13:01 UTC):
    updates, keyboard Tab focus with a visible 3 px focus outline and Enter activation, Hebrew text
    isolated with `dir="auto"`, no emoji anywhere in the visible text, no horizontal overflow, 44 px
    touch targets on mobile, and a footer that reports the last completed refresh instead of a static
-   "waiting" message. Product checks cover the selector listing both products, Qualità Oro's own
+   "waiting" message. A shared URL with an untracked variant id is checked to fall back to the product
+   default and still rank the default offer. Product checks cover the selector listing both products,
+   Qualità Oro's own
    default variant, its own ranked best (₪99.00 for 500 g) and the shareable URL. Seven extra checks
    run against a second fixture server with one clearly labelled QA-only demo offer to verify minimum
    order, free-shipping threshold, free-shipping-met labelling and a locality delivery restriction, plus
    one check that a board whose scheduled refresh stopped for 30 hours is labelled in the footer.
-8. `npm run qa:browser -- http://127.0.0.1:8789` — live mode passed **44/44** against the local
-   `wrangler dev` Worker at 13:09 UTC (an earlier run at 13:01 UTC also passed 44/44; fixture-only
-   checks are skipped in live mode); the run also re-verified the no-browser refresh path described in
-   item 6. One earlier browser QA attempt (3-51)
+8. `npm run qa:browser -- http://127.0.0.1:8789` — live mode passed **45/45** against the local
+   `wrangler dev` Worker at 13:11 UTC (earlier runs at 13:01 and 13:09 UTC passed 44/44; fixture-only
+   checks are skipped in live mode, and the new variant-fallback check runs in both modes); the run
+   also re-verified the no-browser refresh path described in item 6. One earlier browser QA attempt
+   (3-51)
    aborted on a transient WebDriver timeout before any UI check ran; a manual WebDriver session then
    confirmed the page renders (`boardState=ready`) and the repeat runs passed cleanly.
 
@@ -189,10 +192,10 @@ Historical evidence snapshots are committed for review and are not live data:
 
 - `docs/evidence/source-check-2026-10-12T1257Z.json` — live adapter observations for all nine offers
   from CoffeeMan, Pucks and Coffee4U (12:57 UTC), the evidence behind the table above.
-- `docs/evidence/browser-qa-fixtures-2026-10-12T1309Z.json` — 46 offline browser checks, including the
-  product selector, the Qualità Oro board, the unstated-variant ranking, the labelled shipping
-  alternative and the stale-refresh footer warning.
-- `docs/evidence/browser-qa-live-2026-10-12T1309Z.json` — 44 live browser checks against a local
+- `docs/evidence/browser-qa-fixtures-2026-10-12T1312Z.json` — 47 offline browser checks, including the
+  product selector, the Qualità Oro board, the unstated-variant ranking, the untracked-variant URL
+  fallback, the labelled shipping alternative and the stale-refresh footer warning.
+- `docs/evidence/browser-qa-live-2026-10-12T1311Z.json` — 45 live browser checks against a local
   `wrangler dev` Worker with real observations, re-run after the variant fallback change.
 - `docs/evidence/worker-runtime-status-2026-10-12T1301Z.json` — `/health`, `/api/status`, `/api/catalog`
   and both product boards from the local Worker after its no-browser initial refresh (three vendors, 9
@@ -200,7 +203,7 @@ Historical evidence snapshots are committed for review and are not live data:
 - `docs/evidence/vendor-research-2026-10-12T1305Z-pucks-shipping.json` — public-product-page, cart and
   terms-page quotes supporting the Pucks unknown-shipping label instead of a guessed amount.
 - Earlier snapshots from iterations 3-49 to 3-53 remain in `docs/evidence/` as history, including the
-  13:01 UTC QA pair and the source check behind the table above.
+  13:01 and 13:09 UTC QA pairs and the source check behind the table above.
 
 ## Repository and security checks
 

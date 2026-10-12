@@ -220,6 +220,19 @@ try {
   await evaluate(wd, `(() => { const select = document.getElementById('product'); select.value = 'lavazza-crema-e-gusto-vacuum-ground'; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
   await waitForPage(wd, `document.querySelector('.best__vendor')?.textContent.includes('CoffeeMan')`, 15_000, 'restore the first product', `({vendor: document.querySelector('.best__vendor')?.textContent ?? null})`);
 
+  // A shared URL with an untracked variant id (a typo or an old link) must fall back to
+  // the product's default variant instead of rendering an empty board.
+  await wd('POST', '/url', { url: `${base}/?grams=500&dest=tel-aviv&variant=nope` });
+  await waitForBoard(wd);
+  const fallbackVariant = await evaluate(wd, `({
+    vendor: document.querySelector('.best__vendor')?.textContent ?? null,
+    total: document.querySelector('.best__total')?.textContent ?? null,
+    variantValue: document.getElementById('variant')?.value ?? null
+  })`);
+  check('variant: a URL with an untracked variant id falls back to the product default',
+    fallbackVariant.variantValue === 'classico' && fallbackVariant.total === expected500,
+    JSON.stringify(fallbackVariant));
+
   // Quantity interaction: click "1 kg".
   const kgButton = await wd('POST', '/element', { using: 'css selector', value: '#quantity-group button[data-grams="1000"]' });
   await wd('POST', `/element/${elementId(kgButton)}/click`, {});
