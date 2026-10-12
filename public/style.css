@@ -1,0 +1,27 @@
+:root { color-scheme: light; --ink: #111; --paper: #f4f3eb; --pending: #f4d900; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: Helvetica, Arial, sans-serif; }
+.masthead, footer { display: flex; justify-content: space-between; gap: 24px; padding: 22px 4vw; font-weight: 700; font-size: 13px; }
+.masthead { border-bottom: 3px solid var(--ink); }
+.headline { display: grid; grid-template-columns: 18% 1fr; padding: 38px 4vw 46px; }
+.arrow { font-size: clamp(75px, 14vw, 200px); line-height: 1; font-weight: 700; }
+h1 { margin: 0; font-size: clamp(55px, 10vw, 145px); line-height: .91; letter-spacing: -.055em; font-weight: 700; }
+.headline p { grid-column: 2; font-size: clamp(18px, 2.2vw, 30px); line-height: 1.2; margin: 24px 0 0; }
+.destination { display: flex; justify-content: space-between; gap: 20px; padding: 24px 4vw; background: var(--ink); color: var(--paper); font-size: 16px; }
+.board { margin: 48px 4vw 70px; display: grid; grid-template-columns: 25% 1fr; column-gap: 4vw; }
+.section-label { border-top: 3px solid var(--ink); padding-top: 12px; font-size: 12px; font-weight: 700; }
+h2 { margin: 0; border-top: 3px solid var(--ink); padding-top: 12px; font-size: clamp(32px, 5vw, 72px); letter-spacing: -.04em; line-height: 1; }
+.product-form { grid-column: 2; margin: 20px 0 32px; font-size: 18px; }
+.notice { grid-column: 2; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); padding: 20px; background: var(--pending); }
+.notice strong { font-size: 22px; }
+.notice p { max-width: 65ch; margin-bottom: 0; font-size: 16px; line-height: 1.5; }
+footer { border-top: 3px solid var(--ink); font-size: 12px; }
+@media (max-width: 640px) {
+  .masthead { font-size: 10px; }
+  .headline { grid-template-columns: 14% 1fr; padding: 30px 4vw; }
+  .arrow { font-size: 60px; }
+  .destination, footer { flex-direction: column; gap: 10px; }
+  .board { grid-template-columns: 1fr; margin-top: 32px; }
+  .section-label { border: 0; margin-bottom: 20px; }
+  .product-form, .notice { grid-column: 1; }
+}
