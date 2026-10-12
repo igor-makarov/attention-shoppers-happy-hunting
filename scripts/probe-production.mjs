@@ -148,6 +148,11 @@ for (const [name, response] of Object.entries(endpoints)) {
 
 const catalogProducts = (endpoints.catalog.body?.products ?? []).map(product => product.id);
 check('catalog exposes exactly the tracked product', catalogProducts.length === 1 && catalogProducts[0] === TRACKED_PRODUCT, catalogProducts.join(', '));
+check(
+  'health reports ok with storage available',
+  endpoints.health.body?.status === 'ok' && !endpoints.health.body?.storageError,
+  `${endpoints.health.body?.status ?? 'missing'} / ${endpoints.health.body?.storageError ?? 'no storage error'}`
+);
 
 const boards = {
   board500: endpoints.board500.body,
