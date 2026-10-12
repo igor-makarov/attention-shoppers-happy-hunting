@@ -46,9 +46,9 @@ test('scheduled refresh persists observations without a browser', async () => {
   const summary = await run({ store, fetchImpl: fixtureFetch({ calls }), now: NOW, trigger: 'cron' });
   assert.equal(summary.trigger, 'cron');
   assert.equal(summary.vendors.length, 3);
-  assert.equal(summary.requests, 13, 'seven CoffeeMan listings, four Pucks listings, Coffee4U and one FX request');
+  assert.equal(summary.requests, 15, 'eight CoffeeMan listings, five Pucks listings, Coffee4U and one FX request');
   const snapshot = await store.snapshot();
-  assert.equal(snapshot.observations.length, 12);
+  assert.equal(snapshot.observations.length, 14);
   const coffeeman = snapshot.observations.find(o => o.vendor.id === 'coffeeman');
   assert.equal(coffeeman.price.amount, 33);
   assert.equal(coffeeman.attemptedAt, new Date(NOW).toISOString());
@@ -82,7 +82,7 @@ test('one failing vendor keeps its previous good observation and does not block 
   assert.equal(kept.observedAt, before.observedAt, 'last successful observation timestamp is unchanged');
   assert.ok(kept.attemptedAt, 'failed attempt timestamp is recorded');
   const attempts = await store.listRuns(5);
-  assert.equal(attempts[0].vendors.find(v => v.vendorId === 'coffeeman').failures.length, 7, 'all seven CoffeeMan listings report the failure');
+  assert.equal(attempts[0].vendors.find(v => v.vendorId === 'coffeeman').failures.length, 8, 'all eight CoffeeMan listings report the failure');
 });
 
 test('repeated failures back off and stop re-fetching the broken vendor', async () => {
@@ -180,8 +180,8 @@ test('refresh runs started in the same tick cannot both acquire the lease', asyn
   ]);
   const summaries = [first, second];
   assert.equal(summaries.filter(summary => summary.skipped).length, 1, 'exactly one run is skipped');
-  assert.equal(summaries.find(summary => !summary.skipped).requests, 13);
-  assert.equal(calls.length, 13, 'the losing run performs no vendor or FX requests');
+  assert.equal(summaries.find(summary => !summary.skipped).requests, 15);
+  assert.equal(calls.length, 15, 'the losing run performs no vendor or FX requests');
 });
 
 test('initial refresh runs once and is throttled afterwards', async () => {
@@ -360,4 +360,29 @@ test('the third tracked product is observed from two vendors with honest stock a
   assert.equal(outOfStock.price.amount, 35, 'a price is still observed for an out-of-stock listing');
   assert.equal(outOfStock.availability, 'out_of_stock', 'the page is observed as out of stock, not assumed available');
   assert.equal(snapshot.observations.filter(o => o.product.productId === 'lavazza-qualita-oro-vacuum-ground').length, 4);
+});
+
+test('the fourth tracked product (Lavazza Suerte) is observed from two vendors and stays separate', async () => {
+  const store = createMemoryStore();
+  await run({ store, fetchImpl: fixtureFetch(), now: NOW });
+  const snapshot = await store.snapshot();
+  const suerte = snapshot.observations.filter(o => o.product.productId === 'lavazza-suerte-ground');
+  assert.equal(suerte.length, 2, 'one CoffeeMan listing plus one Pucks listing');
+  assert.deepEqual([...new Set(suerte.map(o => o.vendor.id))].sort(), ['coffeeman', 'pucks'], 'two independent vendors carry the fourth product');
+
+  const coffeeman = suerte.find(o => o.vendor.id === 'coffeeman');
+  assert.equal(coffeeman.product.sku, '930661');
+  assert.equal(coffeeman.product.packGrams, 250);
+  assert.equal(coffeeman.product.form, 'ground');
+  assert.equal(coffeeman.price.amount, 33);
+  assert.equal(coffeeman.availability, 'in_stock');
+  assert.equal(coffeeman.shipping.certainty, 'verified');
+  assert.equal(coffeeman.shipping.amount.amount, 25);
+
+  const pucks = suerte.find(o => o.vendor.id === 'pucks');
+  assert.equal(pucks.product.sku, 'Lav03');
+  assert.equal(pucks.product.gtin, '8000070083103');
+  assert.equal(pucks.price.amount, 35);
+  assert.equal(pucks.availability, 'in_stock');
+  assert.equal(pucks.shipping.certainty, 'unknown');
 });

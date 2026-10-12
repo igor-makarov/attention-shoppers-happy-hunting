@@ -184,18 +184,18 @@ test('scheduled handler refreshes and persists through the BOARD binding', async
     globalThis.fetch = originalFetch;
   }
   const snapshot = await store.snapshot();
-  assert.equal(snapshot.observations.length, 12);
+  assert.equal(snapshot.observations.length, 14);
   assert.equal(snapshot.meta.lastRefreshAt.trigger, 'cron');
   assert.equal(snapshot.meta.fx.rates.USD.rate, 3.05);
   const run = snapshot.runs[0];
   assert.equal(run.trigger, 'cron');
-  assert.equal(run.requests, 13);
+  assert.equal(run.requests, 15);
 });
 
 test('the second tracked product has its own board and its own default variant', async () => {
   const store = await seededStore();
   const catalog = await (await worker.fetch(new Request('https://example.test/api/catalog'), envWith(createMemoryStore()), {})).json();
-  assert.equal(catalog.products.length, 3, 'every tracked product is listed for the selector');
+  assert.equal(catalog.products.length, 4, 'every tracked product is listed for the selector');
   const oro = catalog.products.find(item => item.id === 'lavazza-qualita-oro-vacuum-ground');
   assert.equal(oro.line, 'Qualità Oro');
   assert.deepEqual(oro.variants.map(item => item.id), ['unspecified']);
@@ -240,6 +240,24 @@ test('the third tracked product ranks its own delivered total and keeps its out-
   assert.equal(oos.availability, 'out_of_stock');
   assert.match(oos.labels.join(' '), /Out of stock/);
   assert.equal(oos.totalIls, null, 'an out-of-stock page is never ranked as available');
+});
+
+test('the fourth tracked product (Suerte) ranks its own delivered total and keeps its unknown shipping visible', async () => {
+  const store = await seededStore();
+  const catalog = await (await worker.fetch(new Request('https://example.test/api/catalog'), envWith(createMemoryStore()), {})).json();
+  const suerte = catalog.products.find(item => item.id === 'lavazza-suerte-ground');
+  assert.equal(suerte.line, 'Suerte');
+  assert.equal(suerte.defaultVariant, 'unspecified');
+
+  const board = await (await worker.fetch(new Request('https://example.test/api/board?product=lavazza-suerte-ground&grams=500&dest=tel-aviv'), envWith(store), {})).json();
+  assert.equal(board.product.id, 'lavazza-suerte-ground');
+  assert.equal(board.counts.observed, 2, 'only Suerte offers are compared');
+  // 2 × ₪33 CoffeeMan single packs + ₪25 verified courier
+  assert.equal(board.best.vendor.id, 'coffeeman');
+  assert.equal(board.best.totalIls, 91);
+  const unknown = board.unknown.find(quote => quote.product.sku === 'Lav03');
+  assert.equal(unknown.totalIls, null, 'the Pucks item cannot win with unknown shipping');
+  assert.match(unknown.reasons.join(' '), /unknown, not free/);
 });
 
 test('an unknown variant id falls back to the product default instead of an empty board', async () => {

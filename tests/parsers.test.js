@@ -272,6 +272,51 @@ test('Qualità Rossa is classified as its own tracked line, never as Oro or Crem
   assert.match(rossaBeans.reasons.join(' '), /whole beans/);
 });
 
+test('coffeeman Suerte fixture parses the fourth product with its published courier rate', () => {
+  const single = parseCoffeemanProduct(decodeHtml(read('coffeeman-suerte-product.windows-1255.html')), { now, productId: 'lavazza-suerte-ground' });
+  assert.equal(single.product.productId, 'lavazza-suerte-ground');
+  assert.equal(single.product.variantId, 'unspecified', 'the Suerte page states no blend variant');
+  assert.equal(single.product.form, 'ground');
+  assert.equal(single.product.packGrams, 250);
+  assert.equal(single.product.packCount, 1);
+  assert.equal(single.product.sku, '930661');
+  assert.equal(single.price.amount, 33);
+  assert.equal(single.price.currency, 'ILS');
+  assert.equal(single.availability, 'in_stock');
+  assert.equal(single.shipping.certainty, 'verified');
+  assert.equal(single.shipping.amount.amount, 25);
+  assert.equal(single.shipping.pickup.available, true);
+});
+
+test('pucks Suerte fixture parses its own SKU, GTIN and unknown shipping', () => {
+  const observation = parsePucksProduct(read('pucks-suerte-product.html').toString('utf8'), {
+    now,
+    url: 'https://pucks.co.il/product/lavazza-suerte-ground-coffee-250g',
+    productId: 'lavazza-suerte-ground'
+  });
+  assert.equal(observation.product.productId, 'lavazza-suerte-ground');
+  assert.equal(observation.product.variantId, 'unspecified');
+  assert.equal(observation.product.packGrams, 250);
+  assert.equal(observation.product.sku, 'Lav03');
+  assert.equal(observation.product.gtin, '8000070083103');
+  assert.equal(observation.price.amount, 35);
+  assert.equal(observation.availability, 'in_stock');
+  assert.equal(observation.shipping.certainty, 'unknown');
+});
+
+test('Suerte is classified as its own tracked line and never merged with the other products', () => {
+  const suerte = classifyListing('250 גרם קפה טחון LAVAZZA SUERTE חוזק 10');
+  assert.equal(suerte.matched, true);
+  assert.equal(suerte.productId, 'lavazza-suerte-ground');
+  assert.equal(suerte.variantId, 'unspecified');
+  assert.equal(suerte.packGrams, 250);
+  const hebrew = classifyListing('Lavazza Suerte- לווצה סוארטה 250 גרם קפה טחון');
+  assert.equal(hebrew.productId, 'lavazza-suerte-ground');
+  const scoped = classifyListing('Lavazza Suerte-250 גרם קפה טחון', { productId: 'lavazza-qualita-rossa-vacuum-ground' });
+  assert.equal(scoped.matched, false, 'a Suerte listing never matches the Qualità Rossa adapter');
+  assert.match(scoped.reasons.join(' '), /Qualità Rossa/);
+});
+
 test('a listing is refused when it belongs to another tracked line', () => {
   const html = decodeHtml(read('coffeeman-qualita-oro-product.windows-1255.html'));
   assert.throws(

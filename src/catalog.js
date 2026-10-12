@@ -24,6 +24,10 @@ const LINE_PATTERNS = {
     /קוואליטה\s*רוסה/,
     /קווליטה\s*רוסה/,
     /לווצה\s*רוסה/
+  ],
+  'lavazza-suerte': [
+    /lavazza\s*suerte/i,
+    /לווצה\s*סוארטה/
   ]
 };
 
@@ -63,6 +67,18 @@ export const PRODUCTS = [
     variants: ['unspecified'],
     linePatterns: LINE_PATTERNS['lavazza-qualita-rossa'],
     notes: 'Third tracked product: Lavazza Qualità Rossa ground coffee in a vacuum brick. The line publishes no blend variant, so listings are stored as "Variant not stated". A second Pucks listing (SKU Lav35) was observed out of stock on 2026-10-12 and stays visible as an unranked offer instead of being dropped or shown as available.'
+  },
+  {
+    id: 'lavazza-suerte-ground',
+    brand: 'Lavazza',
+    line: 'Suerte',
+    form: 'ground',
+    packaging: 'ground pack',
+    targetMarket: 'IL',
+    defaultVariant: 'unspecified',
+    variants: ['unspecified'],
+    linePatterns: LINE_PATTERNS['lavazza-suerte'],
+    notes: 'Fourth tracked product: Lavazza Suerte ground coffee in a 250 g pack. Both tracked pages state ground coffee; the pages do not use the words "vacuum brick", so the packaging is recorded as a ground pack rather than overclaiming. The line publishes no blend variant, so listings are stored as "Variant not stated".'
   }
 ];
 

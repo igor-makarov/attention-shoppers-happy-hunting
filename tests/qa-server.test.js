@@ -7,7 +7,12 @@ import { startQaServer, fixtureObservations } from '../scripts/qa-server.mjs';
 
 test('fixture observations parse through the production adapters', async () => {
   const observations = await fixtureObservations(Date.parse('2026-10-12T11:00:00.000Z'));
-  assert.equal(observations.length, 12, "five Crema e Gusto, four Qualità Oro and three Qualità Rossa offers");
+  assert.equal(observations.length, 14, "five Crema e Gusto, four Qualità Oro, three Qualità Rossa and two Suerte offers");
+  const suerteOffers = observations.filter(item => item.product.productId === "lavazza-suerte-ground");
+  assert.equal(suerteOffers.length, 2, "the fourth tracked product comes from two independent vendors");
+  assert.equal(suerteOffers.find(item => item.vendor.id === "coffeeman").price.amount, 33);
+  assert.equal(suerteOffers.find(item => item.vendor.id === "coffeeman").shipping.amount.amount, 25);
+  assert.equal(suerteOffers.find(item => item.vendor.id === "pucks").product.sku, "Lav03");
   const rossaOffers = observations.filter(item => item.product.productId === "lavazza-qualita-rossa-vacuum-ground");
   assert.equal(rossaOffers.length, 3, "the third tracked product comes from two independent vendors");
   assert.equal(rossaOffers.find(item => item.vendor.id === "coffeeman").price.amount, 33);
@@ -90,7 +95,7 @@ test('QA fixture server serves the board API and static assets offline', async (
 
     const catalog = await (await fetch(`${server.url}/api/catalog`)).json();
     assert.deepEqual(catalog.vendors.map(vendor => vendor.id).sort(), ["coffee4u", "coffeeman", "pucks"]);
-    assert.deepEqual(catalog.products.map(item => item.id), ["lavazza-crema-e-gusto-vacuum-ground", "lavazza-qualita-oro-vacuum-ground", "lavazza-qualita-rossa-vacuum-ground"], "the catalog drives the product selector");
+    assert.deepEqual(catalog.products.map(item => item.id), ["lavazza-crema-e-gusto-vacuum-ground", "lavazza-qualita-oro-vacuum-ground", "lavazza-qualita-rossa-vacuum-ground", "lavazza-suerte-ground"], "the catalog drives the product selector");
 
     const oroBoard = await (await fetch(`${server.url}/api/board?product=lavazza-qualita-oro-vacuum-ground&grams=1000&dest=tel-aviv`)).json();
     assert.equal(oroBoard.product.line, "Qualità Oro");

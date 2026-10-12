@@ -218,41 +218,46 @@ try {
     oro.tableRows === apiOro.ranked.length && apiOro.counts?.observed === 4, `rows=${oro.tableRows} ranked=${apiOro.ranked.length} observed=${apiOro.counts?.observed}`);
   await screenshot(wd, 'desktop-1440-qualita-oro.png');
 
-  // Third tracked product (Lavazza Qualità Rossa): its own board, its own offers and a
-  // genuinely out-of-stock listing that must stay visible with its written label
-  // instead of being dropped or presented as available.
-  const apiRossa = await fetchBoard(base, 500, 'tel-aviv', 'unspecified', 'lavazza-qualita-rossa-vacuum-ground');
-  const expectedRossa = ils(apiRossa.best?.totalIls);
-  await evaluate(wd, `(() => { const select = document.getElementById('product'); select.value = 'lavazza-qualita-rossa-vacuum-ground'; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
-  await waitForPage(wd, `document.querySelector('.section__intro')?.textContent.includes('Qualità Rossa')`, 15_000, 'product switch to Qualità Rossa', `({intro: document.querySelector('.section__intro')?.textContent ?? null, product: document.getElementById('product')?.value ?? null})`);
-  const rossa = await evaluate(wd, `({
-    intro: document.querySelector('.section__intro')?.textContent ?? null,
-    vendor: document.querySelector('.best__vendor')?.textContent ?? null,
-    total: document.querySelector('.best__total')?.textContent ?? null,
-    variantValue: document.getElementById('variant')?.value ?? null,
-    url: location.search,
-    tableRows: document.querySelectorAll('table.compare tbody tr').length,
-    unknownText: [...document.querySelectorAll('#unknown .unknown')].map(node => node.innerText).join(' || ')
-  })`);
-  check(`product: switching to ${catalog.products[2].line} ranks its own best offer at ${expectedRossa}`,
-    rossa.vendor === apiRossa.best?.vendor.name && rossa.total === expectedRossa && /Qualità Rossa/.test(rossa.intro ?? ''),
-    `${rossa.vendor} ${rossa.total} vs ${expectedRossa} (${rossa.intro})`);
-  // The compare table only renders when there is more than one ranked offer.
-  const expectedRossaRows = apiRossa.ranked.length > 1 ? apiRossa.ranked.length : 0;
-  check('product: the third product compares only its own offers with its own default variant',
-    rossa.tableRows === expectedRossaRows && apiRossa.counts?.observed === 3 && rossa.variantValue === 'unspecified'
-      && !/Crema e Gusto|Qualità Oro/.test(rossa.unknownText ?? ''),
-    `rows=${rossa.tableRows}/${expectedRossaRows} ranked=${apiRossa.ranked.length} observed=${apiRossa.counts?.observed} variant=${rossa.variantValue}`);
-  check('product: the third product switch is reflected in the shareable URL',
-    /product=lavazza-qualita-rossa-vacuum-ground/.test(rossa.url ?? ''), rossa.url);
-  const rossaMissing = (apiRossa.unknown ?? []).find(quote => quote.product.sku === 'Lav80') ?? (apiRossa.unknown ?? [])[0];
-  // innerText reflects the CSS text-transform (uppercase), so compare case-insensitively.
-  check('product: a missing-shipping or out-of-stock offer stays visible with its written label',
-    Boolean(rossaMissing)
-      && rossa.unknownText.toLowerCase().includes(String(rossaMissing.availabilityLabel).toLowerCase())
-      && rossa.unknownText.includes(rossaMissing.vendor.name),
-    `${rossaMissing?.availabilityLabel} :: ${rossa.unknownText.slice(0, 160)}`);
-  await screenshot(wd, 'desktop-1440-qualita-rossa.png');
+  // Every further tracked product (Lavazza Qualità Rossa, Lavazza Suerte, ...) has its own
+  // board, its own default variant and only its own offers. A cheaper item whose shipping is
+  // unknown, or a page observed out of stock, must stay visible with a written label instead
+  // of being dropped or presented as available.
+  for (let index = 2; index < catalog.products.length; index += 1) {
+    const item = catalog.products[index];
+    const apiProduct = await fetchBoard(base, 500, 'tel-aviv', 'unspecified', item.id);
+    const expectedProduct = ils(apiProduct.best?.totalIls);
+    await evaluate(wd, `(() => { const select = document.getElementById('product'); select.value = ${JSON.stringify(item.id)}; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+    await waitForPage(wd, `document.querySelector('.section__intro')?.textContent.includes(${JSON.stringify(item.line)})`, 15_000, `product switch to ${item.line}`, `({intro: document.querySelector('.section__intro')?.textContent ?? null, product: document.getElementById('product')?.value ?? null})`);
+    const state = await evaluate(wd, `({
+      intro: document.querySelector('.section__intro')?.textContent ?? null,
+      vendor: document.querySelector('.best__vendor')?.textContent ?? null,
+      total: document.querySelector('.best__total')?.textContent ?? null,
+      variantValue: document.getElementById('variant')?.value ?? null,
+      url: location.search,
+      tableRows: document.querySelectorAll('table.compare tbody tr').length,
+      unknownText: [...document.querySelectorAll('#unknown .unknown')].map(node => node.innerText).join(' || ')
+    })`);
+    check(`product: switching to ${item.line} ranks its own best offer at ${expectedProduct}`,
+      state.vendor === apiProduct.best?.vendor.name && state.total === expectedProduct && (state.intro ?? '').includes(item.line),
+      `${state.vendor} ${state.total} vs ${expectedProduct} (${state.intro})`);
+    // The compare table only renders when there is more than one ranked offer.
+    const expectedRows = apiProduct.ranked.length > 1 ? apiProduct.ranked.length : 0;
+    const leaked = catalog.products.filter(other => other.id !== item.id).map(other => other.line)
+      .filter(line => (state.unknownText ?? '').includes(line) || (state.intro ?? '').includes(line));
+    check(`product: ${item.line} compares only its own offers with its own default variant`,
+      state.tableRows === expectedRows && apiProduct.counts?.observed > 0 && state.variantValue === 'unspecified' && leaked.length === 0,
+      `rows=${state.tableRows}/${expectedRows} observed=${apiProduct.counts?.observed} variant=${state.variantValue} leaked=${leaked.join(',')}`);
+    check(`product: the ${item.line} switch is reflected in the shareable URL`,
+      (state.url ?? '').includes(`product=${item.id}`), state.url);
+    const missing = (apiProduct.unknown ?? [])[0];
+    // innerText reflects the CSS text-transform (uppercase), so compare case-insensitively.
+    check(`product: ${item.line} keeps its unknown-shipping or out-of-stock offer visible with a written label`,
+      Boolean(missing)
+        && (state.unknownText ?? '').toLowerCase().includes(String(missing.availabilityLabel).toLowerCase())
+        && (state.unknownText ?? '').includes(missing.vendor.name),
+      `${missing?.availabilityLabel} :: ${(state.unknownText ?? '').slice(0, 160)}`);
+    await screenshot(wd, `desktop-1440-${item.id}.png`);
+  }
   await screenshot(wd, 'desktop-1440-qualita-oro.png');
   await evaluate(wd, `(() => { const select = document.getElementById('product'); select.value = 'lavazza-crema-e-gusto-vacuum-ground'; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
   await waitForPage(wd, `document.querySelector('.best__vendor')?.textContent.includes('CoffeeMan')`, 15_000, 'restore the first product', `({vendor: document.querySelector('.best__vendor')?.textContent ?? null})`);
