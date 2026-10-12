@@ -200,7 +200,7 @@ test('coffee4u shipping parser reports self-pickup and the pickup-point option s
   assert.match(parsed.deliveryTime, /ימי עסקים/);
 });
 
-test('variant classification keeps Forte separate from Classico', () => {
+test('raw blend wording is recorded per listing without becoming a filter', () => {
   const classico = classifyListing('250 גרם קפה טחון lavazza Crema e Gusto Classico חוזק 7');
   const forte = classifyListing('250 גרם לוואצה קרמה גוסטו פורטה טחון');
   assert.equal(classico.variantId, 'classico');
@@ -279,14 +279,14 @@ test('a retired line never matches, even without a scoped product id', () => {
   assert.equal(known, false, 'the retired id is not treated as a tracked product');
 });
 
-test('classification picks the one tracked line and keeps forms and variants apart', () => {
+test('classification picks the one tracked line and keeps forms apart while recording blend wording', () => {
   const crema = classifyListing('250 גרם קפה טחון lavazza Crema e Gusto Classico חוזק 7');
   assert.equal(crema.matched, true);
   assert.equal(crema.productId, 'lavazza-crema-e-gusto-vacuum-ground');
   assert.equal(crema.variantId, 'classico');
   assert.equal(crema.packGrams, 250);
   const forte = classifyListing('250 גרם לוואצה קרמה גוסטו פורטה טחון');
-  assert.equal(forte.matched, true, 'the Forte variant is still the same tracked product');
+  assert.equal(forte.matched, true, 'a Forte listing is the same tracked product and is compared in the same board');
   assert.equal(forte.variantId, 'forte');
 
   const beans = classifyListing('פולי קפה Lavazza Crema e Gusto 1 ק"ג');

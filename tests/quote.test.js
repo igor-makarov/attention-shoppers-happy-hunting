@@ -121,7 +121,7 @@ test('availability unknown is not shown as confirmed available', () => {
   assert.match(entry.reasons.join(' '), /cannot be confirmed as available/);
 });
 
-test('variants and multipacks are not merged: variant stays in identity and per-kg normalizes', () => {
+test('pack sizes stay separate offers while stated blend wording stays identity metadata', () => {
   const single = observation({ key: 'single:1', price: { amount: 30 }, shipping: { amount: { amount: 0, currency: 'ILS' } } });
   const multipack = observation({
     key: 'multi:1',

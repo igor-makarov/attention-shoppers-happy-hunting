@@ -1,15 +1,16 @@
 # Project status
 
-Stage: **Crema e Gusto scope enforced; the Canton Zürich shopping board, the browser-researched
-shipping rates and the redesigned UI validated locally (99/99 tests, 82/82 offline and 78/78 live browser
-checks); production serves the redesigned assets, the first production cron tick was observed at
-18:17:55 UTC (0 requests, exactly as expected) and its stored observations pick up the researched rates
-at the 00:17 UTC cron tick; a fresh 19:07-19:16 UTC browser session independently reproduced all three
-vendors' rendered shipping quotes; iteration 3-70 labels cart-observed rates as conditional checkout
-rates and halves the pickup-row space; iteration 3-71 resolved the CoffeeMan single/4-pack delivery
-methods in a fresh anonymous cart (₪25 courier / ₪15 distribution-center for 0.5-1 kg carts), recorded
-the cart-dependent free-delivery behavior without inventing a threshold, and surfaced the adapter
-shipping terms in the offer disclosure.**
+Stage: **Crema e Gusto scope enforced and the owner's blend/variant removal implemented (2026-10-12):
+there is no variant selector, menu entry, warning, "other variant" count or variant filtering in the API or
+UI, and every eligible tracked Crema e Gusto vacuum-packed ground listing — including the Coffee4U listing
+whose blend wording is not stated — is compared in one board for the selected quantity, locality and
+delivery method. The Canton Zürich product index + dedicated product page, the browser-researched shipping
+rates and the progressive-disclosure layout are validated locally (124/124 tests, 78/78 offline and 76/76
+live browser checks); the local-live Worker with real vendor data ranks Pucks ₪90, CoffeeMan ₪91 and
+Coffee4U ₪106 at 500 g in the same comparison, and obsolete `variant=` URLs resolve to that one board.**
+Production still serves the earlier build until the next main-push Workers Builds deploy; the researched
+rates reach the production store at the next scheduled cron tick, and production verification remains
+outstanding (listed below).
 The Worker implements the self-updating board for exactly one product line — **Lavazza Crema e Gusto
 vacuum-packed ground coffee** — with three independent Israeli vendor adapters and five observed
 listings. The owner reports the site deployed at
@@ -66,12 +67,15 @@ product line requires an explicit new owner instruction.
 - **One-product comparison board** (`/`, `/api/board`): ranks delivered offers for Lavazza Crema e Gusto
   ground coffee in a vacuum brick by item price + shipping + mandatory fees in ILS, normalized to
   delivered ILS/kg and to the packs a shopper actually buys. Destination (six Israeli locality/postcode
-  areas, including "Elsewhere in Israel"), target grams and blend variant are selectable; no street
-  address is collected or stored. `/api/catalog` exposes exactly one product, its variants and the
+  areas, including "Elsewhere in Israel") and target grams are selectable; no street
+  address is collected or stored. `/api/catalog` exposes exactly one product, no variant menu, and the
   three vendor adapters.
-- **Variants and packs stay separate**: Classico, Forte, Ricco, Risveglio and decaf are filtered
-  independently, and the Coffee4U listing (which states no blend variant) is stored as *Variant not
-  stated*. The board reports how many offers the selected variant excluded instead of merging them.
+- **No blend/variant feature (owner correction, 2026-10-12)**: every eligible Crema e Gusto ground
+  listing is compared together. The Coffee4U listing, which states no blend wording, is included rather
+  than hidden behind a selector; a listing that prints Classico/Forte wording keeps that wording only as
+  raw listing identity inside its optional offer details. `quoteBoard()` has no variant filter or
+  exclusion count, `?variant=` is ignored by the Worker and the offline harness, and old shared URLs keep
+  product/quantity/locality while the product page strips the obsolete parameter from the address bar.
   Single 250 g, 4 × 250 g and 8 × 250 g offers are never merged.
 - **Retired lines cannot reappear**: `classifyListing()` rejects a retired listing with a reason naming
   the retired line; `resolveProductRequest()` maps an old `?product=lavazza-qualita-oro-vacuum-ground`
@@ -200,6 +204,10 @@ labels and the next-source-check footer line, recorded in
   Israel table dated 2026-10-12 (USD 3.078, asOf 12:23:04Z).
 
 ## Verification performed (2026-10-12, all local)
+
+> Dated verification record for the 3-58 to 3-64 build. It describes the board as it was before the
+> owner's blend/variant removal; the current implementation and its verification are recorded in
+> **Iteration 3-75** at the end of this file (124/124 tests, 78/78 offline and 76/76 live browser checks).
 
 1. `npm ci --ignore-scripts` — clean install from the pinned lockfile, 0 vulnerabilities.
 2. `npm run verify` — **83/83** `node:test` cases pass, then `wrangler deploy --dry-run` builds the
@@ -1144,3 +1152,66 @@ rates and this build reach the production store; then continue within Crema e Gu
 evidence, freshness and comparison quality. One open question for a later session: decide whether the
 cart-dependent free-delivery observations should become a structured condition (the rule is not
 published, so no threshold is invented now).
+
+## Iteration 3-75 — blend/variant feature removed; one unified Crema e Gusto comparison verified
+
+**Owner correction implemented (2026-10-12): "Get rid of the coffee variant."** The tracked Crema e Gusto
+listings are one coffee comparison, not shopper-selectable blends. The selector, unobserved-variant menu
+entries, variant warnings, "other variant" counts/links and variant-as-shopping-configuration are gone
+from the home page, the product page, the Worker API and the offline QA harness:
+
+- `src/catalog.js` no longer exports `VARIANTS`, `variantById()`, `resolveVariantId()` or
+  `variantCatalog()`, and the tracked product no longer carries `defaultVariant`/`variants`. Raw blend
+  wording is still detected per listing (`STATED_VARIANTS`, `variantOf()`) and stored as
+  `variantId`/`variantLabel` for provenance only. An unstated listing is never relabelled Classico.
+- `src/lib/quote.js` compares every eligible ground listing; the `variantId` parameter, the exclusion
+  count and the variant list were removed from `quoteBoard()`. `src/index.js` ignores the obsolete
+  `?variant=` parameter and `/api/catalog` exposes no variant menu; `scripts/qa-server.mjs` mirrors it.
+- `public/product.html`/`product.js` have no blend control; the obsolete `variant=` parameter is stripped
+  from the address bar while product/quantity/locality are preserved, and the home card forwards only
+  product/grams/dest. Raw vendor listing wording (`Vendor listing name`) and stated blend wording now
+  appear only inside `Offer details and check history` (for example the Pucks listing shows
+  `Vendor listing name: lavazza crema e gusto classico-250 גרם קפה טחון` and `Stated blend wording:
+  Classico`); the Coffee4U offer shows its name without any blend badge.
+- `AGENTS.md`, `README.md`, `docs/DESIGN.md`, `docs/ARCHITECTURE.md` and `docs/SOURCES.md` now state the
+  unified comparison and the evidence-only role of raw blend wording; browser QA was rewritten for it.
+
+**Verified locally (2026-10-12 UTC):**
+
+- `npm ci --ignore-scripts` — clean install from the pinned lockfile, 0 vulnerabilities.
+- `npm run verify` — **124/124** `node:test` cases pass; `wrangler deploy --dry-run` builds the bundle
+  (98.13 KiB, gzip 25.43 KiB; bindings `BOARD` + `ASSETS`). New/updated tests cover the unified
+  comparison of stated and unstated listings, the absence of `variantId`/`excludedByVariant` in the API,
+  and inert `variant=nope|constructor|unspecified|forte` parameters.
+- Fresh-store `wrangler dev` initial refresh (21:45:32.407Z → 21:45:52.404Z): **6 bounded requests**, all
+  three vendors saved (CoffeeMan 3, Pucks 1, Coffee4U 1), five observations, Bank of Israel table.
+  `/api/board?grams=500&dest=tel-aviv` ranks **Pucks ₪90** (2 × ₪30 + ₪30), **CoffeeMan ₪91**
+  (2 × ₪33 + ₪25), **Coffee4U ₪106** (2 × ₪38 + ₪30), then the CoffeeMan 4-pack ₪149 and 8-pack ₪260;
+  the Coffee4U quote carries its raw `variantLabel: "Variant not stated"` as provenance while ranking in
+  the same board. The same request with `&variant=unspecified` or `&variant=classico` returns an
+  identical ranking, and no response carries `variantId` or `excludedByVariant`.
+  Evidence: `docs/evidence/worker-runtime-status-2026-10-12T2151Z.json`.
+- `npm run qa:browser` (offline fixtures) — **78/78** checks pass: home card says "one comparison for all
+  tracked listings", the product page has zero variant controls and no "blend variant"/"another variant"
+  text, the Coffee4U listing appears in `Compare other offers` with its ₪15 pickup-point alternative and
+  free self-pickup, and an old `?variant=unspecified` URL is cleaned to `?grams=250&dest=tel-aviv` with
+  the unified winner. Evidence: `docs/evidence/browser-qa-fixtures-20261012T2154Z.json`.
+- `npm run qa:browser -- http://127.0.0.1:8789` (live Worker, real vendor data) — **76/76** checks pass
+  with zero console errors, including the legacy-URL, retired-line fallback, shareable-URL, mobile
+  first-viewport money values, disclosure open/close, named-vendor and unknown-shipping checks.
+  Evidence: `docs/evidence/browser-qa-live-20261012T2150Z.json`.
+- `npm run cron:offline` — 6 bounded requests, five offers persisted, `pruned: 0`.
+- `npm run check:sources` (live, 21:47 UTC) — all five listings pass with unchanged prices: CoffeeMan
+  ₪33/₪124/₪240, Pucks ₪30, Coffee4U ₪38, with the recorded rates and coverage caveats. Evidence:
+  `docs/evidence/source-check-20261012T2147Z.json`.
+- Screenshot review limitation (unchanged): the coding agent's file-read tool rejects PNG input, so the
+  saved screenshots were reviewed with `scripts/inspect-screenshot.mjs` character/pixel maps only — those
+  cannot establish that text is correct or legible. Token-region output (blue/soft-blue/green/amber,
+  no red on the ranked fixture board) and all labels/amounts are corroborated by rendered DOM text and the
+  API in the same session; the review record is
+  `docs/evidence/visual-review/2026-10-12-variant-removal-review.json`.
+
+**Next step:** run `npm run probe:production` after the next main-push deploy to confirm the variant
+removal reaches the production assets and that the production store's five observations resolve to the one
+unified comparison; then continue within Crema e Gusto coverage, shipping evidence, freshness and
+comparison quality.
