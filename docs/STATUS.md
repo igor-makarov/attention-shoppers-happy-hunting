@@ -885,9 +885,9 @@ rendered-contrast walker asserts WCAG AA (no violations) with the focus outline 
 - `npm run verify` — 95/95 tests and the `wrangler deploy --dry-run` bundle pass (the fresh workspace needed `npm ci`
   for the pinned wrangler 4.149.0).
 - `npm run qa:browser` (offline fixtures) — **81/81** checks.
-- `node scripts/browser-qa.mjs http://127.0.0.1:8789` against `wrangler dev` with live vendor data — **77/77** checks
-  (81/81 offline in the final re-run after the mobile copy/space compaction); the local scheduled trigger refreshed
-  all three vendors (five observations).
+- `node scripts/browser-qa.mjs http://127.0.0.1:8789` against `wrangler dev` with live vendor data — **77/77** checks;
+  the local scheduled trigger refreshed all three vendors (five observations). Both modes were re-run after the mobile
+  copy/space compaction and stayed green (81/81 offline, 77/77 live).
 - `npm run cron:offline` — full fixture pipeline OK; `npm run cron:local` — live vendors + Bank of Israel wrote five
   observations (Pucks ₪30, CoffeeMan ₪33/₪124/₪240, Coffee4U ₪38; USD 3.078 from the 2026-10-12 BOI table), and the
   immediate re-run skipped all three vendors with 0 requests under the six-hour backoff.
