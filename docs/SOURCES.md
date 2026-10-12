@@ -37,6 +37,19 @@ Tracked listings (three separate offers, never merged):
 - Parser: `application/ld+json` Product/Offer block on the public product page.
 - Shipping certainty: **unknown** — the page states shipping is calculated at checkout, so the offer stays visible and unranked. It is never treated as free.
 
+### Coffee4U / קופי פור יו — coffee4u.co.il (Tel Aviv, Israel)
+
+- Product page: `https://www.coffee4u.co.il/product/lavazza-crema-e-gusto-250-gr-%D7%98%D7%97%D7%95%D7%9F`
+- Retrieved: 2026-10-12 12:02 (research probe) and 12:09 UTC (adapter `coffee4u/1` via live `npm run check:sources`)
+- Establishes: name "Lavazza Crema e gusto 250 gr טחון", internal SKU 2010561, ground coffee, 250 g single pack, price ₪38, schema.org availability `InStock`, and the delivery options published next to the product:
+  - free self-pickup at the shop;
+  - delivery to a צ'יטה שופס pickup point, ₪15 (up to 5 kg, up to 7 business days);
+  - door-to-door courier, ₪30 (1-5 business days).
+- Shipping certainty: **verified** for the door-to-door courier rate, which is the ranked delivered amount. The ₪15 pickup-point service is stored as an alternative shipping option and is never used as the ranked total, and free self-pickup stays in the separate pickup list. The product page does not enumerate the courier's locality list, so the geographic caveat is stated instead of assumed.
+- Variant: the page names only "Crema e gusto" and states no Classico, Forte or other blend variant, so the listing is stored as **variant unspecified** and is never merged into the Classico ranking. The board reports how many offers another variant excluded.
+- Parser: schema.org microdata in a legacy Windows-1255 page; the declared charset is decoded before parsing. `robots.txt` allows product pages and asks for `Crawl-delay: 7`; the adapter fetches one fixed URL per six-hour run, so the delay is respected by the refresh interval.
+- Fixtures: `tests/fixtures/coffee4u-product.windows-1255.html` plus a derived out-of-stock variant, both minimized excerpts of the page retrieved on 2026-10-12.
+
 ### Bank of Israel — official exchange rates (reference data)
 
 - Feed: `https://www.boi.org.il/currency.xml` (JSON mode used by the adapter)
@@ -56,12 +69,20 @@ Tracked listings (three separate offers, never merged):
 | coffeepoint.co.il | Wix store (Pepyaka server); product and price data is client-rendered and shipping is only calculated at checkout | No stable public product page with published structured data. |
 | Bing / DuckDuckGo HTML search | DuckDuckGo returned an anti-bot challenge (HTTP 202); Bing returned a page whose result targets were not extractable | Used only to look for further Israeli vendors; no new viable source found. |
 | super-pharm.co.il | HTTP 247 with a JavaScript bot-detection challenge (`kramericaindustries.ac_v2.lib.js`) on both the main and shop hosts | Anti-bot protection; not bypassed, so the chain cannot be used as a third vendor from the runner. |
+| espresso-club.co.il | 2026-10-12: reachable, but the root document is an Angular single-page shell (`<base href="/">`, Material icons) and `/catalogsearch/result/?q=lavazza` returned no usable response; `robots.txt` served the same SPA shell | No stable server-rendered product page or published structured data, so no adapter. |
+| 365mashbir.co.il | 2026-10-12: Shopify storefront reachable; product sitemaps (29 files) contain no Lavazza Crema e Gusto listing | Not a source for the tracked product. |
+| zap.co.il | 2026-10-12: reachable price-comparison aggregator; its model page for the exact ground 250 g product lists only CoffeeMan | Aggregator prices are not a vendor listing, carry no shipping terms and are used for research only, never as an adapter. |
+| mojeek.com / Bing HTML / DuckDuckGo | 2026-10-12: mojeek returned HTTP 403, Bing HTML had no extractable result links, DuckDuckGo returned an anti-bot challenge | Search engines were used only for research; no viable new source was found through them. |
 
-Two independent adapters (CoffeeMan and Pucks) meet the "at least two" requirement with four real
-listings: three CoffeeMan offers with observed prices and stock, two of them with a verified ₪25 courier
-rate, and one Pucks offer whose shipping stays unknown. Fixture-backed quote tests show that the
+Three independent adapters (CoffeeMan, Pucks and Coffee4U) meet and exceed the "at least two" requirement
+with five real listings: three CoffeeMan offers with observed prices and stock, two of them with a verified
+₪25 courier rate; one Pucks offer whose shipping stays unknown; and one Coffee4U offer with an observed
+price, listed stock and two published shipping services. Fixture-backed quote tests show that the
 CoffeeMan 4 × 250 g pack wins at 1 kg (₪149 delivered) while two single packs win at 500 g (₪91
-delivered) — the board's comparison changes with the shopper's quantity, using only observed prices.
+delivered) — the board's comparison changes with the shopper's quantity using only observed prices — and
+that the Coffee4U listing is ranked separately from Classico because the vendor does not state the blend
+variant, with its ₪15 pickup-point delivery labelled as an alternative rather than merged into the
+ranked total.
 More vendors can be added by creating `src/vendors/<id>.js` with an allowlisted product URL and a
 parser, registering it in `src/vendors/index.js`, and adding fixtures under `tests/fixtures/`.
 

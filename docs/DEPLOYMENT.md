@@ -46,7 +46,7 @@ Alternative storage was considered and rejected: KV or R2 would add a separate c
 
 - `wrangler.jsonc` triggers the scheduled handler on `17 */6 * * *` (UTC), about every six hours.
 - The first `GET /health` or `GET /api/board` after a deployment starts one initial refresh in the background so the board is not empty until the first cron tick. It is lease- and throttle-protected (10 minutes) and can never be triggered repeatedly by public traffic.
-- Each run fetches at most one URL per tracked offer plus the Bank of Israel rate file, capped at two vendors concurrently, 12 s per request and 1.5 MB per response, with hosts restricted to each adapter's allowlist.
+- Each run fetches at most one URL per tracked offer plus the Bank of Israel rate file, capped at two vendors concurrently, 12 s per request and 1.5 MB per response, with hosts restricted to each adapter's allowlist. Five offers from three independent vendors (CoffeeMan, Pucks, Coffee4U) are tracked today; the count is visible in `/api/catalog`.
 - Failures keep the previous good observation, back off (30 min doubling to 12 h) and are surfaced in `/api/status` and the board footer. One broken vendor cannot stop the others.
 
 ## Local verification without a Cloudflare account

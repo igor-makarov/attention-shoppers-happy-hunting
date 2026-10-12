@@ -146,6 +146,44 @@ try {
   check('desktop: footer reports the last completed refresh instead of a static waiting message',
     /Last completed refresh:/.test(desktop.footerStatus ?? '') && !/Waiting for the first refresh/.test(desktop.footerStatus ?? ''),
     desktop.footerStatus);
+
+  // Unstated variant: the Coffee4U listing is never merged into the Classico
+  // ranking. It is selectable on its own, ranked with the published door-to-door
+  // rate, and the cheaper pickup-point delivery stays labelled as an alternative.
+  const apiUnstated = await fetchBoard(base, 500, 'tel-aviv', 'unspecified');
+  check('desktop: offers for another variant are reported as excluded, not merged',
+    Number(api500.counts?.excludedByVariant) >= 1 && /another blend variant/.test(desktop.visibleText),
+    `excluded=${api500.counts?.excludedByVariant}`);
+  await evaluate(wd, `(() => { const select = document.getElementById('variant'); select.value = 'unspecified'; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+  await waitForPage(wd, `document.querySelector('.best__vendor')?.textContent.includes('Coffee4U')`, 15_000, 'unstated-variant ranking', `({vendor: document.querySelector('.best__vendor')?.textContent ?? null, total: document.querySelector('.best__total')?.textContent ?? null})`);
+  const unstated = await evaluate(wd, `(() => {
+    const terms = [...document.querySelectorAll('.best__side dt')].map(node => node.textContent);
+    const values = [...document.querySelectorAll('.best__side dd')].map(node => node.textContent);
+    return {
+      vendor: document.querySelector('.best__vendor')?.textContent ?? null,
+      total: document.querySelector('.best__total')?.textContent ?? null,
+      variant: document.querySelector('.best__variant')?.textContent ?? null,
+      terms,
+      values,
+      links: [...document.querySelectorAll('.best a')].map(node => node.href),
+      rowText: [...document.querySelectorAll('table.compare tbody tr')].map(node => node.innerText)
+    };
+  })()`);
+  const expectedUnstated = ils(apiUnstated.best?.totalIls);
+  check(`variant: the unstated-variant listing ranks on its own at ${expectedUnstated}`,
+    unstated.vendor?.includes('Coffee4U') && unstated.total === expectedUnstated && /Variant not stated/.test(unstated.variant ?? ''),
+    `${unstated.vendor} ${unstated.total} vs ${expectedUnstated} (${unstated.variant})`);
+  check('variant: the published door-to-door rate is the ranked shipping amount',
+    unstated.terms.includes('Shipping') && unstated.values[unstated.terms.indexOf('Shipping')] === ils(apiUnstated.best?.shipping?.amountIls),
+    `${unstated.terms.join(' | ')} :: ${unstated.values.join(' | ')}`);
+  check('variant: the cheaper pickup-point delivery is labelled as an alternative shipping service',
+    unstated.terms.some(term => /pickup point/i.test(term)) && unstated.values.some(value => /published alternative shipping service/.test(value)),
+    unstated.terms.join(' | '));
+  check('variant: the ranked offer keeps its vendor page link',
+    (unstated.links ?? []).some(href => href === apiUnstated.best?.itemUrl), (unstated.links ?? []).join(' '));
+  await screenshot(wd, 'desktop-1440-unstated-variant.png');
+  await evaluate(wd, `(() => { const select = document.getElementById('variant'); select.value = 'classico'; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+  await waitForPage(wd, `document.querySelector('.best__vendor')?.textContent.includes('CoffeeMan')`, 15_000, 'restore classico ranking', `({vendor: document.querySelector('.best__vendor')?.textContent ?? null})`);
   await screenshot(wd, 'desktop-1440.png');
 
   // Quantity interaction: click "1 kg".
@@ -279,8 +317,8 @@ async function fetchJson(url) {
   return response.json();
 }
 
-function fetchBoard(baseUrl, grams, dest) {
-  return fetchJson(`${baseUrl}/api/board?grams=${grams}&dest=${encodeURIComponent(dest)}&variant=classico`);
+function fetchBoard(baseUrl, grams, dest, variant = 'classico') {
+  return fetchJson(`${baseUrl}/api/board?grams=${grams}&dest=${encodeURIComponent(dest)}&variant=${encodeURIComponent(variant)}`);
 }
 
 async function webdriver(method, path, body) {

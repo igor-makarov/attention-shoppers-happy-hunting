@@ -1,8 +1,9 @@
 # Project status
 
-Stage: **Ready for Cloudflare handoff.** The Worker implements the real self-updating board; the owner
-still has to connect Cloudflare Workers Builds (steps at the end of this file and in docs/DEPLOYMENT.md).
-No Cloudflare deployment, credential or remote resource was created by the coding loop.
+Stage: **Ready for Cloudflare handoff.** The Worker implements the real self-updating board with three
+independent vendor adapters; the owner still has to connect Cloudflare Workers Builds (steps at the end
+of this file and in docs/DEPLOYMENT.md). No Cloudflare deployment, credential or remote resource was
+created by the coding loop.
 
 ## What the deployed Worker does
 
@@ -10,7 +11,11 @@ No Cloudflare deployment, credential or remote resource was created by the codin
   ground coffee by item price + shipping + mandatory fees in ILS, normalized to delivered ILS/kg and to
   the packs a shopper actually buys. Destination (six Israeli locality/postcode areas), target grams and
   variant are selectable; no street address is collected. Ranked offers also show minimum order,
-  free-shipping threshold, locality restrictions and offset labels.
+  free-shipping threshold, locality restrictions, offset labels and any additional published shipping
+  service (for example Coffee4U's ₪15 delivery to a pickup point).
+- **Variants stay separate**: Classico, Forte and other stated variants are filtered independently, and a
+  listing whose page does not state the blend variant (Coffee4U) is stored as *Variant not stated*. The
+  board reports how many offers the selected variant excluded, so they are discoverable instead of merged.
 - **Honest unknowns**: unknown shipping, unknown FX, unknown availability, stale observations and
   out-of-stock offers remain visible with plain-language reasons. Missing data never becomes zero and
   never wins. Pickup is shown separately and never competes with delivery.
@@ -39,38 +44,44 @@ Retrieved 2026-10-12 with `npm run check:sources` (bounded fetcher + production 
 | CoffeeMan (IL) | Lavazza Crema e Gusto Classico 4 × 250 g ground, SKU 930334 | ₪124.00 | in stock (schema.org microdata) | ₪25 courier; free self-pickup | verified |
 | CoffeeMan (IL) | Lavazza Crema e Gusto Classico 8 × 250 g ground, SKU 930335 | ₪240.00 | in stock (schema.org microdata) | courier price not published | unknown (unranked) |
 | Pucks (IL) | Lavazza Crema e Gusto Classico 250 g ground, SKU Lav69, GTIN 8000070038769 | ₪30.00 | in stock (JSON-LD) | calculated at checkout | unknown (unranked) |
+| Coffee4U (IL) | Lavazza Crema e gusto 250 g ground, SKU 2010561, variant not stated | ₪38.00 | in stock (schema.org microdata) | ₪30 door-to-door courier; ₪15 pickup-point delivery; free self-pickup | verified |
 
-Live board at 500 g to Tel Aviv: best delivered total ₪91.00 = 2 × ₪33 + ₪25 shipping for CoffeeMan single
-packs (₪182.00/kg); the 4-pack is ranked second at ₪149.00. At 1 kg the recorded 4-pack wins at ₪149.00
-against ₪157.00 for four single packs, so the best choice changes with the shopper's quantity using only
-observed prices. Pucks and the 8-pack stay visible as unranked with plain-language reasons: shipping is
-not published before checkout and the 8-pack page lists no courier rate, so neither is treated as free.
-FX reference table from the Bank of Israel dated 2026-10-09.
+Live board at 500 g Classico to Tel Aviv: best delivered total ₪91.00 = 2 × ₪33 + ₪25 shipping for
+CoffeeMan single packs (₪182.00/kg); the 4-pack is ranked second at ₪149.00. At 1 kg the recorded 4-pack
+wins at ₪149.00 against ₪157.00 for four single packs, so the best choice changes with the shopper's
+quantity using only observed prices. Pucks and the 8-pack stay visible as unranked with plain-language
+reasons: shipping is not published before checkout, and the 8-pack page lists no courier rate, so neither
+is treated as free. Selecting "Variant not stated" ranks the Coffee4U offer at ₪106.00 for 500 g
+(₪212.00/kg) with the ₪15 pickup-point delivery shown as an alternative service; it is never merged into
+the Classico ranking. FX reference table from the Bank of Israel dated 2026-10-09.
 
 ## Verification performed (2026-10-12, all local)
 
 1. `npm ci --ignore-scripts` — clean install from the pinned lockfile, 0 vulnerabilities.
-2. `npm run verify` — 43/43 `node:test` cases pass, then `wrangler deploy --dry-run` builds the Worker
-   bundle with no Cloudflare credential (55.37 KiB, gzip 15.00 KiB; bindings `BOARD` + `ASSETS` shown).
+2. `npm run verify` — 52/52 `node:test` cases pass, then `wrangler deploy --dry-run` builds the Worker
+   bundle with no Cloudflare credential (63.03 KiB, gzip 16.13 KiB; bindings `BOARD` + `ASSETS` shown).
    Covered acceptance cases include: shipping changes the winner; unknown shipping cannot win;
    stale/out-of-stock/unknown availability stay unranked; variants and multipacks stay separate;
    quantity rounding, minimum order and free-shipping thresholds; missing FX is not zero; destination
-   coverage; pickup separated; leases; backoff; allowlist; and the fixture-backed QA server keeping the
-   browser harness aligned with the production quote engine.
-3. `npm run check:sources` (live) — CoffeeMan (all three listings) and Pucks PASS against the real pages at
-   11:48 UTC: prices ₪33 / ₪124 / ₪240 / ₪30, all listed in stock, verified ₪25 courier on the 250 g and
-   4-pack pages, unknown shipping on the 8-pack and Pucks. The same adapters fetched the same pages
-   during the live local refresh at 11:48 UTC and parsed identically.
+   coverage; pickup separated; shipping alternatives are converted but never replace the ranked amount;
+   the variant filter reports excluded offers; leases; backoff; allowlist; and the fixture-backed QA
+   server keeping the browser harness aligned with the production quote engine.
+3. `npm run check:sources` (live) — CoffeeMan (all three listings), Pucks and Coffee4U PASS against the
+   real pages at 12:09 UTC: prices ₪33 / ₪124 / ₪240 / ₪30 / ₪38, all listed in stock, verified ₪25
+   courier on the first two CoffeeMan pages, verified ₪30 door-to-door plus a ₪15 pickup-point
+   alternative on the Coffee4U page, unknown shipping on the 8-pack and Pucks. The same adapters fetched
+   the same pages during the live local refresh at 12:10 UTC and parsed identically.
 4. `npm run cron:offline` — full refresh pipeline against recorded Windows-1255/JSON-LD fixtures, all
-   four offers and the FX table persisted.
-5. `npm run cron:local` — live pipeline at 11:48 UTC: 5 bounded requests, CoffeeMan saved 3 and Pucks
-   saved 1, Bank of Israel rates fetched (USD 3.055), `nextAttemptAt` +6 h.
+   five offers and the FX table persisted; 6 bounded requests.
+5. `npm run cron:local` — live pipeline at 12:10 UTC: 6 bounded requests, CoffeeMan saved 3, Pucks 1,
+   Coffee4U 1, Bank of Israel rates fetched (USD 3.055), `nextAttemptAt` +6 h, 0 failures.
 6. Local Worker runtime (`npx wrangler dev --persist-to ...`, SQLite Durable Object, fresh storage, no
-   browser opened): `GET /health` started the initial refresh at 11:49 UTC — 5 bounded requests, both
-   vendors saved, 4 observations persisted, `nextAttemptAt` +6 h, FX fetched. A following
-   `/cdn-cgi/local/scheduled` made 0 requests and skipped both vendors on backoff. `/api/board` then
-   served the ranked board from storage. This is the refresh-while-no-browser-open path.
-7. `npm run qa:browser` — headless Chrome (chromedriver 154) QA: **35/35 checks pass offline, exit 0**,
+   browser opened): `GET /health` started the initial refresh at 12:17 UTC — 6 bounded requests, all
+   three vendors saved, 5 observations persisted, `nextAttemptAt` +6 h, FX fetched. `/api/board` then
+   served the ranked Classico board (4 observed, 2 ranked, 1 excluded for another variant) and the
+   unstated-variant board (Coffee4U ₪106.00 for 500 g with its shipping alternative). This is the
+   refresh-while-no-browser-open path.
+7. `npm run qa:browser` — headless Chrome (chromedriver 154) QA, **40/40 checks pass offline, exit 0**,
    desktop 1440 px and mobile 390 px, screenshots and JSON report in `.shurik-local/qa/`. The command is
    self-contained: it starts `scripts/qa-server.mjs` on an ephemeral port, which serves `public/` plus the
    read-only API computed from `tests/fixtures/` by the production quote engine, so no Worker, network or
@@ -79,48 +90,41 @@ FX reference table from the Bank of Israel dated 2026-10-09.
    shown separately, destination and quantity controls, shareable URL updates, keyboard Tab focus with a
    visible 3 px focus outline and Enter activation, Hebrew text isolated with `dir="auto"`, no emoji
    anywhere in the visible text, no horizontal overflow, 44 px touch targets on mobile, and a footer that
-   reports the last completed refresh instead of the static "waiting" message. Seven more
-   checks run against a second fixture server with one clearly labelled QA-only demo offer to verify that
-   minimum order, free-shipping threshold, free-shipping-met labelling and a locality delivery restriction
-   are rendered, and that the restriction moves the offer to the unknown list for an excluded destination.
-   The comparison table is checked against every ranked offer from the API. Live mode
-   (`npm run qa:browser -- http://127.0.0.1:8789`) passed **33/33** against a real `wrangler dev` Worker on
-   2026-10-12 11:54 UTC (fixture-only checks are skipped in live mode); the run also re-verified the
-   no-browser refresh path described in item 6.
+   reports the last completed refresh instead of a static "waiting" message. New this iteration: the
+   excluded-variant notice, switching the variant control to rank the unstated-variant Coffee4U offer on
+   its own, the published door-to-door rate as the ranked shipping amount, and the ₪15 pickup-point
+   delivery rendered as a labelled alternative. Seven more checks run against a second fixture server
+   with one clearly labelled QA-only demo offer to verify minimum order, free-shipping threshold,
+   free-shipping-met labelling and a locality delivery restriction. The comparison table is checked
+   against every ranked offer from the API. Live mode
+   (`npm run qa:browser -- http://127.0.0.1:8789`) passed **38/38** against a real `wrangler dev` Worker
+   on 2026-10-12 12:16 UTC (fixture-only checks are skipped in live mode); the run also re-verified the
+   no-browser refresh path described in item 6. One earlier browser QA attempt aborted on a transient
+   WebDriver timeout before any UI check ran; a manual WebDriver session then confirmed the page renders
+   (`boardState=ready`, no page errors besides a 404 favicon) and the repeat runs passed cleanly.
 
-This iteration (3-49) fixed three real defects found by the new QA: quantity buttons were dead because
-`el()` registered `addEventListener('Click')` instead of `click`; the browser QA harness misread the
-W3C element id, never polled page conditions (`waitFor` misuse) and deleted the wrong session path; and
-Hebrew vendor/product names were not direction-isolated. Added `npm run check:sources` and
-`npm run qa:browser` for repeatable evidence.
+## Iteration notes
 
-This iteration (3-50) made the browser QA repeatable. It previously failed with `ERR_CONNECTION_REFUSED`
-on a clean checkout because it assumed a dev server already on port 8789 and compared the DOM to
-hard-coded live prices. Now `npm run qa:browser` starts a fixture-backed server derived from the recorded
-vendor pages, and every UI expectation comes from the API response. Added `scripts/qa-server.mjs`,
-`tests/qa-server.test.js` and live-mode support, standardised `npm run dev` on the documented port 8789,
-and corrected the stale scaffold note in docs/ARCHITECTURE.md. The refresh lease is now a synchronous
-read-check-write in the Durable Object SQL and memory store, so two runs started in the same tick cannot
-both acquire it; a new concurrency test covers that.
+Iteration 3-49 fixed three real defects found by the browser QA: quantity buttons were dead because
+`el()` registered `addEventListener('Click')` instead of `click`; the harness misread the W3C element id;
+and Hebrew vendor/product names were not direction-isolated. It added `npm run check:sources` and
+`npm run qa:browser`.
 
-The same iteration closed a visible-terms gap: ranked offers now show minimum order, free-shipping
-threshold, locality delivery restrictions and mandatory fees, plus their offset labels (for example
-"Free shipping threshold met"). The QA-only demo offer described above verifies those rows in a real
-browser without pretending it is a vendor.
+Iteration 3-50 made the browser QA repeatable offline, added live-mode support, standardised `npm run dev`
+on port 8789, made the refresh lease atomic (synchronous read-check-write), and added the ranked-terms
+rows: minimum order, free-shipping threshold, locality restrictions, mandatory fees and offset labels.
+The CoffeeMan adapter grew from one listing to three observed listings (single, 4-pack, 8-pack).
 
-Finally, the CoffeeMan adapter grew from one listing to three observed listings: the single 250 g pack,
-the 4 × 250 g multipack (SKU 930334) and the 8 × 250 g multipack (SKU 930335), each fetched from its own
-allowlisted URL with its own price, availability, SKU and shipping terms. The 8-pack page publishes no
-courier price, so it stays unranked. This turns the board into a real comparison with a quantity-dependent
-winner: 2 single packs deliver for ₪91 at 500 g, while the 4-pack delivers for ₪149 at 1 kg versus ₪157
-for four single packs. New minimized Windows-1255 fixtures and parser/worker tests cover both multipacks.
-The site footer now reports the last completed refresh instead of a static waiting message.
-
-Static evidence snapshots are committed for review: `docs/evidence/source-check-2026-10-12T1148Z.json`
-(live adapter observations for all four offers), `docs/evidence/browser-qa-fixtures-2026-10-12T1155Z.json`
-(35 offline browser checks), `docs/evidence/browser-qa-live-2026-10-12T1154Z.json` (33 live browser
-checks) and `docs/evidence/worker-runtime-status-2026-10-12T1149Z.json` (initial-refresh and backoff run
-records from the local Worker). They are historical evidence, not live data.
+Iteration 3-51 added the third independent Israeli vendor adapter, **Coffee4U** (`src/vendors/coffee4u.js`,
+parser `coffee4u/1`): a Windows-1255 page with schema.org price/currency/availability/SKU microdata and a
+per-product delivery list publishing ₪30 door-to-door courier, ₪15 pickup-point delivery and free
+self-pickup. The parser refuses the page if the courier rate disappears instead of guessing zero, keeps
+the cheap pickup-point service as a labelled alternative, and records the unstated blend variant as
+*Variant not stated* so it is never merged into Classico. The quote engine now passes converted shipping
+alternatives through to the UI and reports `counts.excludedByVariant`, and the board shows a plain-language
+notice when offers for another variant were withheld. New fixtures, parser/quote/refresh/worker/QAServer
+tests and five new browser checks cover all of that; the vendor research that found Coffee4U (and the
+sources that were probed and rejected) is recorded in docs/SOURCES.md.
 
 ## Repository and security checks
 
@@ -128,8 +132,11 @@ records from the local Worker). They are historical evidence, not live data.
 - `wrangler.jsonc` defines the Durable Object class and migration, so no manual CF provisioning is
   needed and no administrative credential lives in GitHub.
 - Research blockers recorded honestly in docs/SOURCES.md: rami-levy.co.il returns 403 (anti-bot, not
-  bypassed); tivtaam.co.il is a JS-only SPA; amazon.com has no public evidence of delivery to Israel for
-  the tracked listing, so it is excluded rather than guessed.
+  bypassed); tivtaam.co.il and espresso-club.co.il are JS-only SPA shells; super-pharm.co.il serves a
+  bot-detection challenge; amazon.com has no public evidence of delivery to Israel for the tracked
+  listing, so it is excluded rather than guessed.
+- The Coffee4U adapter fetches one allowlisted product URL per six-hour run and honours the site's
+  `Crawl-delay: 7` request through the refresh interval; no checkout, cart or account endpoint is touched.
 
 ## Remaining owner steps (Cloudflare handoff)
 
@@ -141,17 +148,19 @@ records from the local Worker). They are historical evidence, not live data.
 4. Disable builds/previews for every other branch, especially `shurik-control/*`.
 5. Use the minimum build credential (Workers Scripts:Edit for this Worker only). Never add a CF token to
    GitHub or to the Worker.
-6. After the first deploy, confirm `/health` reports `lastRefreshAt`, the board shows the four observed
-   offers (three CoffeeMan listings and Pucks), the comparison table appears for 1 kg, and the 6-hour cron
-   trigger is listed. Then verify that one later main push is picked up by Workers Builds.
+6. After the first deploy, confirm `/health` reports `lastRefreshAt`, the board shows the five observed
+   offers (three CoffeeMan listings, Pucks, Coffee4U), the comparison table appears for 1 kg, the variant
+   control lists both Classico and "Variant not stated", and the 6-hour cron trigger is listed. Then
+   verify that one later main push is picked up by Workers Builds.
 7. If anything fails, report the Cloudflare error back to the loop; do not paste credentials.
 
 ## Loop notes
 
 - Model/provider: opencode-go / deepseek-v4.1-flash at max reasoning (owner-authorized). Iterations
   2-45…2-47 hit provider 429 "Endpoint is unavailable" before any work landed; session 3-48 timed out
-  mid vendor research, but its checkpoints are preserved. Iterations 3-49 and 3-50 ran normally.
-- Next useful task for the loop: add a third independent vendor adapter only with evidenced Israeli
-  delivery (or a public, permitted international listing with documented IL shipping); the board already
-  ranks more than one delivered offer from CoffeeMan. Keep `npm run check:sources` green against live
-  pages and re-run `npm run qa:browser` after any UI change.
+  mid vendor research, but its checkpoints are preserved. Iterations 3-49, 3-50 and 3-51 ran normally.
+- Next useful task for the loop: a fourth vendor adapter only with evidenced Israeli delivery, or a
+  permitted international listing with published IL shipping; alternatively add a second tracked product
+  (the catalog already models products as a list) so the board is not coffee-only. Keep
+  `npm run check:sources` green against live pages and re-run both `npm run qa:browser` modes after any
+  UI change.
