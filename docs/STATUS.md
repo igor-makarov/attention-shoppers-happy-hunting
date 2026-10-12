@@ -893,8 +893,13 @@ rendered-contrast walker asserts WCAG AA (no violations) with the focus outline 
 - `npm run probe:production` (read-only) — all checks pass; catalog exposes exactly the tracked product.
 - Production read-only GETs: `/app.js` serves the redesigned code (`totals__cell`), `/fonts/InterVariable.woff2` answers
   200, and the hero has no trailing period. The production store still holds pre-research observations, so Pucks and the
-  CoffeeMan 8-pack appear as unknown there until each vendor's next refresh (probe due times: pucks 19:34, coffee4u
-  19:46, coffeeman 21:51 UTC). This iteration does **not** claim the researched rates are live yet.
+  CoffeeMan 8-pack appear as unknown there until the next cron tick: the probe's vendor due times (pucks 19:34,
+  coffee4u 19:46, coffeeman 21:51 UTC) are all before the 00:17 UTC tick, and public requests only trigger the
+  one-time initial refresh, so that tick is the expected refresh point. This iteration does **not** claim the
+  researched rates are live yet.
+- `npm run check:sources` (live vendor pages, 19:01 UTC) — all three adapters pass with five observations and the
+  researched rates: Pucks `pucks/6` ₪30 verified, CoffeeMan `coffeeman/6` ₪25/₪25/₪20 verified, Coffee4U ₪30 verified
+  (`coffee4u/1`).
 - Production layout measured read-only: 1440 px — no table, no horizontal overflow, delivered-total cell at x=906-1290
   (the owner-reported defect had it starting at x=1641); 390 px — no horizontal overflow, 44 px quantity taps, pickup rows
   grouped. Metrics and screenshots: `docs/evidence/visual-review/2026-10-12-production-layout.json`.
