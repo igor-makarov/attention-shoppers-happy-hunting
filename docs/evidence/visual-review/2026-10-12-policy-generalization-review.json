@@ -1,0 +1,50 @@
+{
+  "recordedAt": "2026-10-12T22:58:00Z",
+  "iteration": "3-77",
+  "scope": "Fixture-backed desktop/mobile screenshots of the home index and the product page after the shipping-policy generalization; the visible layout is unchanged from 3-75/3-76 because the new policy rows live inside collapsed offer details.",
+  "limitation": {
+    "tool": "coding agent file-read tool",
+    "result": "PNG input is rejected ('reading images is not supported'), so the screenshots could not be inspected as images by the model. This record is a coarse, machine-derived review only; it cannot establish that text is correct or legible.",
+    "mitigation": "All labels and money values are corroborated by the rendered DOM text and the API payloads captured in the same headless-Chrome session (docs/evidence/browser-qa-fixtures-20261012T2257Z.json, docs/evidence/browser-qa-live-20261012T2250Z.json, docs/evidence/worker-runtime-status-2026-10-12T2250Z.json)."
+  },
+  "screenshots": [
+    "docs/evidence/visual-review/fixtures-home-desktop-1440-20261012T2257Z.png",
+    "docs/evidence/visual-review/fixtures-home-mobile-390-20261012T2257Z.png",
+    "docs/evidence/visual-review/fixtures-product-desktop-1440-20261012T2257Z.png",
+    "docs/evidence/visual-review/fixtures-product-mobile-390-20261012T2257Z.png"
+  ],
+  "measuredDomGeometry": {
+    "mobileViewport": { "width": 390, "innerHeight": 701, "ownerCriterionHeight": 844 },
+    "bestOfferCardTop": 302,
+    "itemSubtotalCellBottom": 542,
+    "shippingCellBottom": 542,
+    "shippingMethodValueBottom": 477,
+    "deliveredTotalValueBottom": 591,
+    "pageHeight": 1502,
+    "horizontalOverflow": false,
+    "minimumQuantityTapHeight": 44,
+    "disclosuresOpenByDefault": false
+  },
+  "tokenRegions": {
+    "tool": "node scripts/inspect-screenshot.mjs (coarse luminance + Canton Zürich token-pixel map)",
+    "productDesktop1440": {
+      "blue": "12135 px, bbox x117-1308 y171-609 (best-offer rule/selected context, not decorative)",
+      "softblue": "382366 px, bbox x119-1307 y18-846",
+      "green": "419 px, bbox x1136-1289 y260-282 (in-stock label)",
+      "greenSoft": "2844 px",
+      "red": "0 px (no unavailable offer in the fixture board)",
+      "amber": "166 px, bbox x151-733 y450-461 (uncertainty text)",
+      "amberSoft": "22296 px",
+      "divider": "13960 px"
+    }
+  },
+  "checks": {
+    "offlineBrowserQa": "79/79 checks pass against the fixture QA server (docs/evidence/browser-qa-fixtures-20261012T2257Z.json)",
+    "liveBrowserQa": "77/77 checks pass against a fresh-store local wrangler dev Worker with real vendor data, zero console errors (docs/evidence/browser-qa-live-20261012T2250Z.json)",
+    "firstViewportValues": "PASS mobile: item subtotal, shipping charge and method are visible in the initial viewport; PASS mobile: the delivered total is visible in the initial 390x844 viewport",
+    "packWording": "PASS product: the per-kilogram winner spells out its pack contents and purchased grams",
+    "homeIndex": "PASS home: exactly the tracked product card, links to the product page, no full comparison board on the home route",
+    "unifiedComparison": "PASS product: Coffee4U is compared in the same board with its pickup-point alternative and no blend control"
+  },
+  "conclusion": "The decision values (item subtotal, named method and charge, delivered total) are inside the initial mobile viewport and the comparison/alternative/policy detail stays behind collapsed disclosures. Colour regions match the Canton Zürich roles (blue for the selected/best context, green for in-stock, amber for uncertainty, no red on the fixture board). No claim of image-based visual review is made."
+}

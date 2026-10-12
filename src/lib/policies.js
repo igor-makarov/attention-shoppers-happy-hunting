@@ -28,6 +28,12 @@
 
 const PRODUCT_ID = 'lavazza-crema-e-gusto-vacuum-ground';
 
+// Amigo's terms make home delivery subject to an unpublished locality list;
+// both CoffeeMan policies carry the same structured caveat.
+const AMIGO_HOME_DELIVERY_CAVEAT =
+  'Home delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout.';
+const AMIGO_CAVEAT_SOURCE = 'https://www.coffeeman.co.il/page/%D7%AA%D7%A0%D7%90%D7%99-%D7%A9%D7%99%D7%9E%D7%95%D7%A9';
+
 /**
  * Pucks home-delivery rule, observed in the anonymous checkout estimator on
  * 2026-10-12: ₪30 flat home delivery, free above a ₪100 item subtotal.
@@ -35,13 +41,9 @@ const PRODUCT_ID = 'lavazza-crema-e-gusto-vacuum-ground';
  * (the fee did not change with locality; no restriction was displayed).
  * The vendor's own wording is "above ₪100"; the boundary was observed only at
  * ₪60 (paid) and ₪120 (free), so `thresholdSemantics` records "above" and the
- * quote engine keeps the observed `>=` arithmetic only as the conservative
- * reading of "free above the stated threshold" — see docs/SOURCES.md.
+ * quote engine applies the vendor's strict wording — a cart of exactly ₪100 is
+ * not treated as free — see docs/SOURCES.md.
  */
-const AMIGO_HOME_DELIVERY_CAVEAT =
-  'Home delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout.';
-const AMIGO_CAVEAT_SOURCE = 'https://www.coffeeman.co.il/page/%D7%AA%D7%A0%D7%90%D7%99-%D7%A9%D7%99%D7%9E%D7%95%D7%A9';
-
 export const pucksHomeDeliveryPolicy = {
   id: 'pucks-il-home-delivery',
   version: 1,

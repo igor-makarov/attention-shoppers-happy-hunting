@@ -116,7 +116,15 @@ product line requires an explicit new owner instruction.
   and comparison table show unit price × packs bought = ILS line total so the delivered total is
   auditable. A cart-observed rate is never relabelled as published and is never stretched to an
   unobserved cart size (the CoffeeMan 8-pack quote carries its 2000 g limit); a genuinely missing rate
-  keeps the `Not published before checkout` label and never becomes zero.
+  keeps the `Not published before checkout` label and never becomes zero. Every researched delivery
+  rule is a versioned policy in `src/lib/policies.js` (iteration 3-77): Pucks ₪30 / free-above-₪100,
+  CoffeeMan's published ₪25 single/4-pack rule with the cart-observed ₪15 distribution-center
+  alternative, CoffeeMan's ₪20 one-8-pack quote with its ₪20 alternative, and Coffee4U's published
+  ₪30 door-to-door rule with its ₪15 pickup-point alternative and the observed closed-locality-list
+  coverage shape. The read-time evaluator fills a stored row's missing rate, threshold, service,
+  alternatives and coverage caveat from the matching policy, never overwriting what the row already
+  states and never touching its price, stock or `observedAt`; the adapters derive their researched
+  constants from the same policies instead of separate hard-coded strings.
 - **Self-updating runtime**: `wrangler.jsonc` triggers `17 */6 * * *` (about every six hours); the first
   `/health` or `/api/board` after deployment starts one throttled initial refresh. Observations, vendor
   state, FX rates, run history and leases persist in the SQLite-backed `BoardStore` Durable Object. The
@@ -1366,3 +1374,59 @@ rendered DOM text and the API in the same session).
 observations (Pucks/coffee4u due since 19:34/19:46, coffeeman since 21:51); re-run
 `npm run probe:production` after that tick. Then continue within Crema e Gusto coverage, shipping
 evidence, freshness and comparison quality.
+
+## Iteration 3-77 — every researched delivery rule becomes a validated policy (2026-10-12)
+
+**Generalized shipping policy model (owner priority 2).** Iterations 3-75/3-76 moved the Pucks
+home-delivery rule and the CoffeeMan 8-pack cart quote into `src/lib/policies.js`, but the CoffeeMan
+single/4-pack cart observation and the Coffee4U coverage/pickup-point evidence were still adapter
+constants. Iteration 3-77 completes the shared representation:
+
+- `src/lib/policies.js` now carries four validated policies: `pucks-il-home-delivery` v1,
+  `coffeeman-single-4pack-il-home-delivery` v1 (published ₪25 courier on the single 250 g and
+  4 × 250 g pages + cart-observed ₪15 distribution-center alternative), `coffeeman-8pack-il-cart-quote`
+  v1 (₪20 home courier on the one-8-pack/2 kg cart, now with its observed ₪20 distribution-center
+  alternative) and `coffee4u-il-home-delivery` v1 (published ₪30 door-to-door + ₪15 pickup-point
+  alternative + the observed closed-locality-list coverage shape). Each policy keeps its origin
+  (`published`/`observed_cart`), certainty, service, product/URL scope, cart-size scope, destination
+  scope, evidence URL/time and `reviewBy`.
+- The evaluator gained validated `alternatives`: when a stored row has none, the matching policy's
+  secondary delivery methods are added; a row that already states its own alternatives, rate, coverage
+  caveat or destination is never overwritten. The destination merge keeps the row's own scope and adds
+  the missing caveat plus the observed coverage shape. `validatePolicy` rejects a malformed alternative,
+  and `ruleKey` includes the alternative signature so conflicting policies stay `inconsistent`.
+- The adapters derive their researched constants from the policies (`coffeeman.js` derives the ₪15/₪20
+  distribution-center alternatives and the Amigo caveat; `coffee4u.js` derives the coverage caveat,
+  observed locality counts and pickup-point alternative), and every parsed row stamps the policy id,
+  version, origin and review date, so the parsed row, the read-time evaluator and the tests share one
+  representation. `/api/status` exposes each policy's service, alternative ids, observation time and
+  review date.
+
+**Verified locally (2026-10-12 UTC):**
+
+- `npm run verify` — **131/131** `node:test` cases pass (up from 127); `wrangler deploy --dry-run`
+  builds the bundle (106.99 KiB, gzip 27.11 KiB; bindings `BOARD` + `ASSETS`). New tests cover the four
+  checked-in policies, an old persisted CoffeeMan single-pack row gaining ₪25 + the ₪15 alternative +
+  the Amigo caveat at read time (₪91 at 500 g), an old persisted Coffee4U row gaining ₪30 + the ₪15
+  pickup-point alternative + the 1,269/420-locality coverage shape (₪106 at 500 g), a fully known row
+  never being rewritten or policy-stamped, and a malformed alternative invalidating the policy.
+- Fresh-store `wrangler dev` (22:49:27.187Z → 22:49:44.307Z): **6 bounded requests**, all three vendors
+  saved (CoffeeMan 3, Pucks 1, Coffee4U 1), five observations. The 500 g board ranks Pucks ₪90,
+  CoffeeMan single ₪91 (₪15 alternative), Coffee4U ₪106 (₪15 pickup-point alternative), CoffeeMan
+  4-pack ₪149, CoffeeMan 8-pack ₪260; at 1 kg and 2 kg Pucks wins with free delivery above ₪100.
+  Evidence: `docs/evidence/worker-runtime-status-2026-10-12T2250Z.json`.
+- `npm run qa:browser` (offline fixtures) **79/79** and `npm run qa:browser -- http://127.0.0.1:8790`
+  (fresh local live Worker) **77/77**, zero console errors. Evidence:
+  `docs/evidence/browser-qa-live-20261012T2250Z.json`.
+- `npm run cron:offline` — 6 bounded requests, five offers persisted.
+- `npm run check:sources` (live, 22:48 UTC) — all five listings pass with unchanged prices; the Coffee4U
+  parsed row now carries the policy-derived coverage caveat and pickup-point alternative. Evidence:
+  `docs/evidence/source-check-20261012T2248Z.json`.
+- Local read-only probe (`npm run probe:production -- --url http://127.0.0.1:8790`) — 22/22 checks pass,
+  including the unified board, retired-line fallback and the inert obsolete-variant parameter. Evidence:
+  `docs/evidence/local-probe-20261012T2250Z.json`.
+
+**Next step:** the **00:17 UTC cron tick** should replace the 15:52 production store snapshot with fresh
+vendor observations; re-run `npm run probe:production` after that tick and confirm the production
+`/api/status` exposes all four policies once this build deploys through the main-push Workers Builds
+path. Then continue within Crema e Gusto coverage, shipping evidence, freshness and comparison quality.
