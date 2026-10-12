@@ -1,7 +1,8 @@
-// CoffeeMan / Amigo (coffeeman.co.il), Israel — Lavazza ground coffee in a vacuum brick:
-// Crema e Gusto Classico (single 250 g pack, 4 × 250 g SKU 930334, 8 × 250 g SKU 930335),
-// Qualità Oro (single 250 g SKU 930339, 4 × 250 g SKU 930340, 8 × 250 g SKU 930341) and
-// Qualità Rossa (single 250 g SKU 930336) and Suerte (single 250 g SKU 930661).
+// CoffeeMan / Amigo (coffeeman.co.il), Israel — the one tracked product line:
+// Lavazza Crema e Gusto Classico ground coffee in a vacuum brick
+// (single 250 g pack, 4 × 250 g SKU 930334, 8 × 250 g SKU 930335).
+// The Qualità Oro, Qualità Rossa and Suerte pages were retired by the
+// 2026-10-12 owner correction and are deliberately not fetched targets.
 // The pages are legacy Windows-1255 HTML documents with schema.org microdata.
 // Price, listed availability, SKU and the published delivery options are parsed from each
 // product page. Free self-pickup is kept separate from home delivery. The 8-pack pages do not
@@ -16,11 +17,6 @@ import { createObservation, parseError } from './index.js';
 const PRODUCT_URL = 'https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico';
 const FOUR_PACK_URL = 'https://www.coffeeman.co.il/product/4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico';
 const EIGHT_PACK_URL = 'https://www.coffeeman.co.il/product/8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico';
-const ORO_URL = 'https://www.coffeeman.co.il/product/lavazza-qualita-oro-ground-250-gr--%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F';
-const ORO_FOUR_PACK_URL = 'https://www.coffeeman.co.il/product/4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-lavazza-qualit224-oro-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F';
-const ORO_EIGHT_PACK_URL = 'https://www.coffeeman.co.il/product/8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-lavazza-qualit224-oro-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F';
-const ROSSA_URL = 'https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-qualita-rossa';
-const SUERTE_URL = 'https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-suerte-%D7%97%D7%95%D7%96%D7%A7-10';
 
 const AVAILABILITY = {
   InStock: 'in_stock',
@@ -31,26 +27,18 @@ const AVAILABILITY = {
 };
 
 const CREMA_E_GUSTO = 'lavazza-crema-e-gusto-vacuum-ground';
-const QUALITA_ORO = 'lavazza-qualita-oro-vacuum-ground';
-const QUALITA_ROSSA = 'lavazza-qualita-rossa-vacuum-ground';
-const SUERTE = 'lavazza-suerte-ground';
 
 export const coffeeman = {
   id: 'coffeeman',
   name: 'CoffeeMan (אמיגו)',
   homepage: 'https://www.coffeeman.co.il',
   allowedHosts: ['www.coffeeman.co.il', 'coffeeman.co.il'],
-  parserVersion: 'coffeeman/4',
+  parserVersion: 'coffeeman/5',
   crawlDelayMs: 7000,
   offers: [
     { id: 'classico-250g', url: PRODUCT_URL, kind: 'delivery', productId: CREMA_E_GUSTO },
     { id: 'classico-1000g-4pack', url: FOUR_PACK_URL, kind: 'delivery', productId: CREMA_E_GUSTO },
-    { id: 'classico-2000g-8pack', url: EIGHT_PACK_URL, kind: 'delivery', productId: CREMA_E_GUSTO },
-    { id: 'qualita-oro-250g', url: ORO_URL, kind: 'delivery', productId: QUALITA_ORO },
-    { id: 'qualita-oro-1000g-4pack', url: ORO_FOUR_PACK_URL, kind: 'delivery', productId: QUALITA_ORO },
-    { id: 'qualita-oro-2000g-8pack', url: ORO_EIGHT_PACK_URL, kind: 'delivery', productId: QUALITA_ORO },
-    { id: 'qualita-rossa-250g', url: ROSSA_URL, kind: 'delivery', productId: QUALITA_ROSSA },
-    { id: 'suerte-250g', url: SUERTE_URL, kind: 'delivery', productId: SUERTE }
+    { id: 'classico-2000g-8pack', url: EIGHT_PACK_URL, kind: 'delivery', productId: CREMA_E_GUSTO }
   ],
 
   async observe({ fetchText, now }) {

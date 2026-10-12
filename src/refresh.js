@@ -8,6 +8,7 @@
 
 import { createBoundedFetcher } from './lib/http.js';
 import { parseBoiRates, FX_SOURCE } from './lib/fx.js';
+import { PRODUCTS } from './catalog.js';
 import { registeredVendors, vendorHosts } from './vendors/index.js';
 
 export const REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000; // About every six hours.
@@ -95,12 +96,23 @@ export async function runRefresh({
     let fx = null;
     if (includeFx) fx = await refreshFxCached({ store, fetchImpl, now, counter, logger });
 
+    // Owner correction 2026-10-12: only Crema e Gusto is tracked. Historical
+    // observations and failure markers for retired product lines are removed
+    // from the live store so old data cannot linger or be counted anywhere.
+    let pruned = 0;
+    try {
+      pruned = await pruneRetiredObservations({ store, vendors });
+    } catch (error) {
+      logger?.warn?.(`[refresh] retired-observation prune failed: ${error?.message ?? error}`);
+    }
+
     const finishedAt = new Date(Date.now()).toISOString();
     const summary = {
       trigger,
       startedAt,
       finishedAt,
       requests,
+      pruned,
       vendors: results,
       fx: fx ? { ok: fx.ok, asOf: fx.fx?.asOf ?? null, error: fx.error ?? null } : { skipped: true }
     };
@@ -216,4 +228,30 @@ export async function maybeInitialRefresh({ store, ctx, now = Date.now(), run = 
   });
   if (ctx?.waitUntil) ctx.waitUntil(promise);
   return { started: true, promise };
+}
+
+/**
+ * Remove stored rows that belong to retired product lines or to offers that are
+ * no longer tracked. The tracked product's last-known-good observations are
+ * never touched, so a failing vendor still keeps its previous price and stock.
+ * Returns the number of rows removed.
+ */
+export async function pruneRetiredObservations({ store, vendors = registeredVendors() } = {}) {
+  if (typeof store?.deleteObservation !== 'function') return 0;
+  const activeProductIds = new Set(PRODUCTS.map(product => product.id));
+  const trackedAttemptKeys = new Set(vendors.flatMap(vendor =>
+    (vendor.offers ?? []).map(offer => `${vendor.id}:offer:${offer.id}`)
+  ));
+  let pruned = 0;
+  for (const row of await store.listObservations()) {
+    const productId = row?.product?.productId ?? null;
+    const retiredProduct = productId != null && !activeProductIds.has(productId);
+    const retiredAttempt = typeof row?.key === 'string'
+      && row.key.includes(':offer:')
+      && !trackedAttemptKeys.has(row.key);
+    if (!retiredProduct && !retiredAttempt) continue;
+    await store.deleteObservation(row.key);
+    pruned += 1;
+  }
+  return pruned;
 }

@@ -1,10 +1,16 @@
-// Tracked products and strict listing classification.
+// Tracked product and strict listing classification.
 //
-// The board compares one product at a time. Classification is deliberately
-// conservative: a listing that cannot be tied to a tracked product (Lavazza
-// ground coffee in a vacuum brick) is rejected instead of being merged into
-// the board. Blend variants (Classico, Forte, ...) and pack sizes stay
-// separate so different products are never mixed into one comparison.
+// Scope (owner correction, 2026-10-12): exactly one product is tracked —
+// Lavazza Crema e Gusto ground coffee in a vacuum brick. Qualità Oro,
+// Qualità Rossa, Suerte and every other Lavazza line are retired: their names
+// survive only as tombstones below, so a listing, a parser page or an old
+// ?product= URL can never silently re-enter the board. Re-adding a product
+// line requires an explicit new owner instruction.
+//
+// Classification stays conservative: a listing that cannot be tied to the
+// tracked product is rejected instead of being merged into the board. Blend
+// variants (Classico, Forte, ...) and pack sizes stay separate so different
+// products are never mixed into one comparison.
 
 import { decodeEntities } from './lib/text.js';
 
@@ -12,24 +18,47 @@ const LINE_PATTERNS = {
   'lavazza-crema-e-gusto': [
     /crema\s*(?:e|&|and|-)?\s*gusto/i,
     /קרמה\s*(?:אה\s*)?גוסטו/
-  ],
-  'lavazza-qualita-oro': [
-    /qualit[aàáy]\s*oro/i,
-    /qualit[aà]\s*oro/i,
-    /קוואליטה\s*אורו/,
-    /קווליטה\s*אורו/
-  ],
-  'lavazza-qualita-rossa': [
-    /qualit[aàáy]\s*rossa/i,
-    /קוואליטה\s*רוסה/,
-    /קווליטה\s*רוסה/,
-    /לווצה\s*רוסה/
-  ],
-  'lavazza-suerte': [
-    /lavazza\s*suerte/i,
-    /לווצה\s*סוארטה/
   ]
 };
+
+/**
+ * Product lines that earlier iterations tracked and the 2026-10-12 owner
+ * correction retired. They are not fetch targets, not catalog entries and not
+ * selectable anywhere; the patterns exist only so `classifyListing()` can
+ * reject those pages with an explicit reason and `resolveProductRequest()`
+ * can fall back to the tracked product instead of resurrecting them.
+ */
+export const RETIRED_LINES = [
+  {
+    id: 'lavazza-qualita-oro-vacuum-ground',
+    line: 'Qualità Oro',
+    patterns: [
+      /qualit[aàáy]\s*oro/i,
+      /קוואליטה\s*אורו/,
+      /קווליטה\s*אורו/
+    ]
+  },
+  {
+    id: 'lavazza-qualita-rossa-vacuum-ground',
+    line: 'Qualità Rossa',
+    patterns: [
+      /qualit[aàáy]\s*rossa/i,
+      /קוואליטה\s*רוסה/,
+      /קווליטה\s*רוסה/,
+      /לווצה\s*רוסה/
+    ]
+  },
+  {
+    id: 'lavazza-suerte-ground',
+    line: 'Suerte',
+    patterns: [
+      /lavazza\s*suerte/i,
+      /לווצה\s*סוארטה/
+    ]
+  }
+];
+
+export const RETIRED_PRODUCT_IDS = RETIRED_LINES.map(line => line.id);
 
 export const PRODUCTS = [
   {
@@ -42,43 +71,7 @@ export const PRODUCTS = [
     defaultVariant: 'classico',
     variants: ['classico', 'forte', 'ricco', 'risveglio', 'decaf', 'unspecified'],
     linePatterns: LINE_PATTERNS['lavazza-crema-e-gusto'],
-    notes: 'Ground coffee only. Beans, capsules, pods and machines are rejected. Classico, Forte, Ricco, Risveglio and decaf remain separate variants.'
-  },
-  {
-    id: 'lavazza-qualita-oro-vacuum-ground',
-    brand: 'Lavazza',
-    line: 'Qualità Oro',
-    form: 'ground',
-    packaging: 'vacuum brick',
-    targetMarket: 'IL',
-    defaultVariant: 'unspecified',
-    variants: ['unspecified'],
-    linePatterns: LINE_PATTERNS['lavazza-qualita-oro'],
-    notes: 'Second tracked product: Lavazza Qualità Oro ground coffee in a vacuum brick. The line publishes no blend variant, so listings are stored as "Variant not stated"; beans, capsules and multipacks of another line stay separate.'
-  },
-  {
-    id: 'lavazza-qualita-rossa-vacuum-ground',
-    brand: 'Lavazza',
-    line: 'Qualità Rossa',
-    form: 'ground',
-    packaging: 'vacuum brick',
-    targetMarket: 'IL',
-    defaultVariant: 'unspecified',
-    variants: ['unspecified'],
-    linePatterns: LINE_PATTERNS['lavazza-qualita-rossa'],
-    notes: 'Third tracked product: Lavazza Qualità Rossa ground coffee in a vacuum brick. The line publishes no blend variant, so listings are stored as "Variant not stated". A second Pucks listing (SKU Lav35) was observed out of stock on 2026-10-12 and stays visible as an unranked offer instead of being dropped or shown as available.'
-  },
-  {
-    id: 'lavazza-suerte-ground',
-    brand: 'Lavazza',
-    line: 'Suerte',
-    form: 'ground',
-    packaging: 'ground pack',
-    targetMarket: 'IL',
-    defaultVariant: 'unspecified',
-    variants: ['unspecified'],
-    linePatterns: LINE_PATTERNS['lavazza-suerte'],
-    notes: 'Fourth tracked product: Lavazza Suerte ground coffee in a 250 g pack. Both tracked pages state ground coffee; the pages do not use the words "vacuum brick", so the packaging is recorded as a ground pack rather than overclaiming. The line publishes no blend variant, so listings are stored as "Variant not stated".'
+    notes: 'The only tracked product line (owner correction, 2026-10-12). Ground coffee in a vacuum brick; Classico, Forte, Ricco, Risveglio and decaf remain separate variants, and pack sizes and multipacks stay separate. Beans, capsules, pods and every other Lavazza product line are rejected.'
   }
 ];
 
@@ -104,9 +97,35 @@ const REJECT_FORMS = [
 const GROUND_PATTERN = /(ground|טחון|macinato|molido|moulu|gemahlen|malet|filtro|filter\s*coffee)/i;
 const BRAND_PATTERN = /(lavazza|לוואצה|לבאצה)/i;
 
-/** Look up a tracked product by id. */
+/** Look up a tracked product by id. Retired ids return null by design. */
 export function productById(id) {
   return PRODUCTS.find(product => product.id === id) ?? null;
+}
+
+/** Look up a retired line definition by id, or null when it was never tracked. */
+export function retiredProductById(id) {
+  return RETIRED_LINES.find(line => line.id === id) ?? null;
+}
+
+export function isRetiredProductId(id) {
+  return retiredProductById(id) !== null;
+}
+
+/**
+ * Resolve a requested product id to the tracked product.
+ *
+ * Unknown ids — including the retired Qualità Oro, Qualità Rossa and Suerte
+ * ids that older shared links and bookmarks still carry — fall back to the
+ * one tracked product. The retired definition is returned alongside so callers
+ * (the Worker and the offline QA server) can say plainly what happened
+ * instead of quietly showing a different product.
+ */
+export function resolveProductRequest(id) {
+  const requested = id ?? null;
+  if (!requested) return { product: PRODUCTS[0], retired: null, known: true };
+  const product = productById(requested);
+  if (product) return { product, retired: null, known: true };
+  return { product: PRODUCTS[0], retired: retiredProductById(requested), known: false };
 }
 
 /** Look up a blend variant definition by id. */
@@ -131,26 +150,32 @@ export function variantCatalog(product = PRODUCTS[0]) {
 }
 
 /**
- * Classify a listing name against the tracked products.
+ * Classify a listing name against the tracked product.
  *
  * Pass `productId` to require a specific tracked product (vendor adapters do
  * this for the offer they track); without it the first matching tracked product
  * is returned. Heavy HTML entities in vendor titles are decoded first, because
- * pages publish names such as "Lavazza Qualit&#224; Oro".
+ * pages publish names such as "Lavazza Qualit&#224; Oro". Retired lines are
+ * rejected with an explicit reason so historical pages can never re-enter the
+ * comparison.
  */
 export function classifyListing(text, { productId = null } = {}) {
   const value = decodeEntities(String(text ?? '')).toLowerCase();
   const reasons = [];
-  const candidates = productId ? [productById(productId)].filter(Boolean) : PRODUCTS;
+  const requestedProduct = productId ? productById(productId) : null;
+  const requestedRetired = productId ? retiredProductById(productId) : null;
+  const candidates = requestedProduct ? [requestedProduct] : (productId ? [] : PRODUCTS);
 
-  if (productId && candidates.length === 0) {
-    reasons.push(`unknown tracked product: ${productId}`);
-  }
+  if (productId && !requestedProduct && !requestedRetired) reasons.push(`unknown tracked product: ${productId}`);
+  if (requestedRetired) reasons.push(`product line ${requestedRetired.line} was retired; only Lavazza Crema e Gusto is tracked`);
   if (!BRAND_PATTERN.test(value)) reasons.push('brand is not Lavazza');
 
+  const retiredLine = RETIRED_LINES.find(line => line.patterns.some(pattern => pattern.test(value)));
+  if (retiredLine) reasons.push(`listing belongs to the retired Lavazza ${retiredLine.line} line; only Lavazza Crema e Gusto is tracked`);
+
   const product = candidates.find(candidate => candidate.linePatterns.some(pattern => pattern.test(value)));
-  if (!product) {
-    const wanted = productId ? `the tracked ${productById(productId)?.line ?? productId} line` : 'a tracked Lavazza product line';
+  if (!product && !retiredLine) {
+    const wanted = productId ? `the tracked ${productById(productId)?.line ?? requestedRetired?.line ?? productId} line` : 'the tracked Lavazza Crema e Gusto line';
     reasons.push(`listing is not ${wanted}`);
   }
 
@@ -173,6 +198,7 @@ export function classifyListing(text, { productId = null } = {}) {
     packGrams: pack.grams,
     packCount: pack.count,
     totalGrams: pack.grams != null ? pack.grams * pack.count : null,
+    retiredLine: retiredLine ? { id: retiredLine.id, line: retiredLine.line } : null,
     reasons: matched
       ? (pack.grams == null ? ['pack weight not stated; offer can be shown but not normalized'] : [])
       : reasons

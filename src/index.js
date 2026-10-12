@@ -4,7 +4,7 @@
 // supplied by a visitor and never trigger unbounded scraping. The first request
 // after a deployment may start one throttled initial refresh.
 
-import { products, PRODUCTS, productById, variantCatalog, resolveVariantId } from './catalog.js';
+import { products, resolveProductRequest, variantCatalog, resolveVariantId } from './catalog.js';
 import { quoteBoard, findDestination, DESTINATIONS } from './lib/quote.js';
 import { runRefresh, maybeInitialRefresh, refreshFreshness } from './refresh.js';
 import { durableStore, storeClient } from './store.js';
@@ -77,7 +77,10 @@ async function handleBoard(request, env, ctx, url) {
     });
   }
   const store = storeClient(durableStore(env));
-  const product = productById(url.searchParams.get('product')) ?? PRODUCTS[0];
+  // Owner correction 2026-10-12: only Crema e Gusto is tracked. An old shared
+  // URL that still names a retired line (Qualità Oro, Qualità Rossa, Suerte)
+  // falls back to the tracked product and says so instead of reviving it.
+  const { product, retired } = resolveProductRequest(url.searchParams.get('product'));
   const productId = product.id;
   const requestedVariant = url.searchParams.get('variant');
   // A variant id that is not tracked at all (a typo or an old shared link) falls
@@ -100,6 +103,7 @@ async function handleBoard(request, env, ctx, url) {
   return json({
     ...board,
     product: publicProduct(product),
+    requestedRetiredProduct: retired ? { id: retired.id, line: retired.line } : null,
     freshness: {
       ...refreshFreshness(snapshot.meta?.lastRefreshAt?.value ?? null, Date.now()),
       fx: snapshot.meta?.fx ? { asOf: snapshot.meta.fx.asOf, fetchedAt: snapshot.meta.fx.fetchedAt, source: snapshot.meta.fx.source?.name ?? null } : null,

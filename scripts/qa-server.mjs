@@ -18,7 +18,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { coffeeman } from '../src/vendors/coffeeman.js';
 import { pucks } from '../src/vendors/pucks.js';
 import { coffee4u } from '../src/vendors/coffee4u.js';
-import { products, resolveVariantId } from '../src/catalog.js';
+import { products, resolveVariantId, resolveProductRequest } from '../src/catalog.js';
 import { quoteBoard, findDestination, DESTINATIONS } from '../src/lib/quote.js';
 import { createObservation, registeredVendors } from '../src/vendors/index.js';
 import { refreshFreshness } from '../src/refresh.js';
@@ -147,7 +147,7 @@ async function handle(request, response, { observations, now, withTermsDemo, las
     });
   }
   if (url.pathname === '/api/board') {
-    const product = products.find(item => item.id === url.searchParams.get('product')) ?? products[0];
+    const { product, retired } = resolveProductRequest(url.searchParams.get('product'));
     const variantId = resolveVariantId(product, url.searchParams.get('variant'));
     const grams = url.searchParams.get('grams') ?? '500';
     const destination = findDestination(url.searchParams.get('dest'));
@@ -155,6 +155,7 @@ async function handle(request, response, { observations, now, withTermsDemo, las
     return json(response, {
       ...board,
       product: publicProducts().find(item => item.id === product.id) ?? null,
+      requestedRetiredProduct: retired ? { id: retired.id, line: retired.line } : null,
       freshness: {
         ...refreshFreshness(lastRefreshAt, now),
         fx: null,

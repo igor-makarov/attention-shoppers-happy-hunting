@@ -30,7 +30,7 @@ const SCHEMA = [
 ];
 
 export const STORE_INTERFACE = [
-  'listObservations', 'putObservation', 'markAttempt',
+  'listObservations', 'putObservation', 'markAttempt', 'deleteObservation',
   'getVendorState', 'setVendorState', 'getMeta', 'setMeta',
   'recordRun', 'listRuns', 'acquireLease', 'releaseLease'
 ];
@@ -46,6 +46,7 @@ export class BoardStore {
       listObservations: () => this.listObservations(),
       putObservation: args => this.putObservation(args[0]),
       markAttempt: args => this.markAttempt(args[0]),
+      deleteObservation: args => this.deleteObservation(args[0]),
       getVendorState: args => this.getVendorState(args[0]),
       setVendorState: args => this.setVendorState(args[0], args[1]),
       getMeta: args => this.getMeta(args[0]),
@@ -104,6 +105,10 @@ export class BoardStore {
        SELECT ?, ?, NULL, ?, ? WHERE NOT EXISTS (SELECT 1 FROM observations WHERE key = ?)`,
       key, '{}', attemptedAt, error ?? null, key
     );
+  }
+
+  async deleteObservation(key) {
+    this.sql.exec('DELETE FROM observations WHERE key = ?', key);
   }
 
   async snapshot() {
@@ -209,6 +214,7 @@ export function storeClient(stub) {
     listObservations: () => call('listObservations'),
     putObservation: observation => call('putObservation', observation),
     markAttempt: attempt => call('markAttempt', attempt),
+    deleteObservation: key => call('deleteObservation', key),
     getVendorState: vendorId => call('getVendorState', vendorId),
     setVendorState: (vendorId, value) => call('setVendorState', vendorId, value),
     getMeta: key => call('getMeta', key),
@@ -238,6 +244,9 @@ export function createMemoryStore(initial = {}) {
     async markAttempt({ key, attemptedAt, error }) {
       const existing = observations.get(key) ?? { key, product: {}, price: {}, shipping: {} };
       observations.set(key, { ...existing, attemptedAt, lastError: error ?? null });
+    },
+    async deleteObservation(key) {
+      observations.delete(key);
     },
     async getVendorState(vendorId) {
       return vendors.has(vendorId) ? { ...vendors.get(vendorId) } : null;

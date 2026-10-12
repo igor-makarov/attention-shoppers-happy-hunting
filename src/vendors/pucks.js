@@ -1,6 +1,7 @@
-// Pucks (pucks.co.il), Ramla, Israel — Lavazza ground coffee in a vacuum brick:
-// Crema e Gusto Classico 250 g, Qualità Oro 250 g and two Qualità Rossa 250 g listings
-// (SKU Lav80 in stock, SKU Lav35 observed out of stock on 2026-10-12) and Lavazza Suerte 250 g.
+// Pucks (pucks.co.il), Ramla, Israel — the one tracked product line:
+// Lavazza Crema e Gusto Classico 250 g ground coffee in a vacuum brick.
+// The Qualità Oro, Qualità Rossa and Suerte pages were retired by the
+// 2026-10-12 owner correction and are deliberately not fetched targets.
 // Source of truth: schema.org Product JSON-LD on the public product page.
 // Price and listed availability are observed. Shipping is only calculated at
 // checkout, so it stays unknown and the offer cannot win the ranking.
@@ -10,10 +11,6 @@ import { findJsonLd, textOf } from '../lib/text.js';
 import { createObservation, parseError } from './index.js';
 
 const PRODUCT_URL = 'https://pucks.co.il/product/lavazza-crema-e-gusto-ground-coffee-250g';
-const QUALITA_ORO_URL = 'https://pucks.co.il/product/lavazza-qualita-oro-ground-coffee-250gr';
-const ROSSA_URL = 'https://pucks.co.il/product/lavazza-qualita-rossa-ground-coffee-250g';
-const ROSSA_OOS_URL = 'https://pucks.co.il/product/lavazza-qualita-rossa-ground-coffee-powder-250g';
-const SUERTE_URL = 'https://pucks.co.il/product/lavazza-suerte-ground-coffee-250g';
 
 const AVAILABILITY = {
   'https://schema.org/InStock': 'in_stock',
@@ -27,16 +24,9 @@ export const pucks = {
   name: 'Pucks (פאקס)',
   homepage: 'https://pucks.co.il',
   allowedHosts: ['pucks.co.il', 'www.pucks.co.il'],
-  parserVersion: 'pucks/4',
+  parserVersion: 'pucks/5',
   offers: [
-    { id: 'classico-250g', url: PRODUCT_URL, kind: 'delivery', productId: 'lavazza-crema-e-gusto-vacuum-ground' },
-    { id: 'qualita-oro-250g', url: QUALITA_ORO_URL, kind: 'delivery', productId: 'lavazza-qualita-oro-vacuum-ground' },
-    // Both Pucks Qualità Rossa pages sell the same 250 g ground brick from different
-    // listings; they stay separate offers, and the out-of-stock one is never dropped
-    // or reported as available.
-    { id: 'qualita-rossa-250g', url: ROSSA_URL, kind: 'delivery', productId: 'lavazza-qualita-rossa-vacuum-ground' },
-    { id: 'qualita-rossa-250g-oos', url: ROSSA_OOS_URL, kind: 'delivery', productId: 'lavazza-qualita-rossa-vacuum-ground' },
-    { id: 'suerte-250g', url: SUERTE_URL, kind: 'delivery', productId: 'lavazza-suerte-ground' }
+    { id: 'classico-250g', url: PRODUCT_URL, kind: 'delivery', productId: 'lavazza-crema-e-gusto-vacuum-ground' }
   ],
 
   async observe({ fetchText, now }) {
