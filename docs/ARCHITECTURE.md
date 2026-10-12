@@ -33,7 +33,11 @@ board's `lastRefreshAt` only when at least one vendor actually saved an observat
 only the exchange-rate table cannot look like a fresh offer check. Board freshness also reports the newest
 saved observation and falls back to it for the age when no completion marker exists, so an interrupted run
 (for example a redeploy stopping the background job) with fresh saved offers is not labelled never
-refreshed, while a recorded but old completion still reports the scheduled pipeline as stopped.
+refreshed, while a recorded but old completion still reports the scheduled pipeline as stopped. A failed
+vendor check does not erase the last known good row: the attempt time and reason are stamped on that
+offer's existing observation row (or a marker is kept when the offer never succeeded), so the board still
+ranks the last successful price and stock while saying the most recent attempt failed, and a later
+successful check clears the mark.
 `src/refresh.js` is the deterministic scheduled pipeline (leases, bounded concurrency, per-vendor
 backoff, last-known-good retention) and the same function runs in the Worker's `scheduled` handler, the
 local cron simulation and tests. Successful vendors count as due up to fifteen minutes before their

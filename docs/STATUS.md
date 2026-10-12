@@ -33,7 +33,17 @@ that runtime: because a vendor's stored due time is `run time + 6 h` while the c
 times, a tick landing seconds early skipped every vendor and would silently drift the cadence to twelve
 hours (with the board reporting stale for hours between runs). Successful vendors now count as due up to
 15 minutes early; failure backoff stays strict. The fix is locally verified (**90/90** tests, fixture
-refresh, **57/57** offline browser checks) and waits for the next main-push deployment.
+refresh, **57/57** offline browser checks) and waits for the next main-push deployment. Iteration 3-63
+added the repeatable read-only production probe and the multi-tick cron cadence test, and re-verified the
+live sources at 16:50-16:53 UTC. Iteration 3-64 finished and verified the **failed-attempt disclosure**
+that session 3-63 saved just before its timeout: when a vendor check fails, the attempt time and reason
+are stamped on that offer's last successful observation row, so the board keeps ranking the last known
+good price and stock while saying the most recent attempt failed instead of presenting the row as freshly
+re-checked. Verified locally with **93/93** `node:test` cases, `wrangler deploy --dry-run` (80.12 KiB /
+gzip 20.60 KiB), the fixture refresh (6 bounded requests, five offers), a live `check:sources` pass at
+17:22 UTC (five listings unchanged), a live `cron:local -- --fresh` pass at 17:24 UTC (6 requests, five
+offers, USD 3.078), **63/63** offline and **59/59** live browser checks including six new failed-attempt
+checks.
 
 The 2026-10-12 owner correction retired Qualità Oro, Qualità Rossa, Suerte and every other Lavazza
 product line. They are no longer catalog entries, fetch targets or UI options. Their names survive only
@@ -65,6 +75,12 @@ product line requires an explicit new owner instruction.
 - **Provenance**: every offer keeps its vendor link, product identity (variant, form, pack grams, pack
   count, SKU/GTIN), availability with its structured-data evidence URL, last successful check, last
   attempt, parser version and shipping certainty.
+- **Failed attempts stay visible**: when a vendor check fails, the failure is stamped on that offer's last
+  successful observation row (`attemptedAt` + `lastError`) instead of a detached marker, so the board still
+  ranks the last known good price and stock while saying `Last attempt: Failed … — showing the last
+  successful observation`. The comparison table repeats `Last attempt failed …` next to the checked time,
+  the unknown list names the failure reason in plain language, and the footer lists each failing source
+  with its consecutive failures, next attempt and last error. A successful check clears the failure mark.
 - **Previous-check comparison**: each refresh stores the previous successful price, stock and pack weight
   for the same offer, and the board shows the unit-price change since that check in ILS with its timestamp
   ("Unit price down ₪2.00 since the previous check"). A pack-size change or a missing exchange rate makes
@@ -111,12 +127,13 @@ product line requires an explicit new owner instruction.
 
 ## Live observations (recorded evidence)
 
-Retrieved 2026-10-12 15:39 UTC and re-checked at 16:50 UTC with `npm run check:sources` (bounded fetcher +
-production parsers) and stored under `.shurik-local/sources/`; review copies in
-`docs/evidence/source-check-20261012T1544Z.json` and `docs/evidence/source-check-20261012T1650Z.json`.
+Retrieved 2026-10-12 15:39 UTC and re-checked at 16:50 and 17:22 UTC with `npm run check:sources` (bounded
+fetcher + production parsers) and stored under `.shurik-local/sources/`; review copies in
+`docs/evidence/source-check-20261012T1544Z.json`, `docs/evidence/source-check-20261012T1650Z.json` and
+`docs/evidence/source-check-20261012T1722Z.json`.
 Full source record: docs/SOURCES.md. Exactly five listings are active; no retired line is fetched. Prices,
-stock and shipping were unchanged across the 15:12, 15:39 and 16:50 UTC checks, and the 3-60 re-check of
-the CoffeeMan 8-pack page and the Pucks cart again found no published shipping rate
+stock and shipping were unchanged across the 15:12, 15:39, 16:50 and 17:22 UTC checks, and the 3-60 re-check
+of the CoffeeMan 8-pack page and the Pucks cart again found no published shipping rate
 (`docs/evidence/vendor-probe-2026-10-12T1536Z.json`).
 
 | Vendor | Listing | Price | Stock | Shipping | Certainty |
@@ -525,7 +542,26 @@ Historical evidence (recorded before the owner correction; kept clearly labelled
 
 ## Iteration notes (historical unless marked current)
 
-Current iteration (3-63): added a repeatable **read-only production probe** and closed the test-coverage
+Current iteration (3-64): completed and verified the **failed-attempt disclosure** whose code session
+3-63 saved seconds before its timeout, inside the single Crema e Gusto scope. A vendor failure now stamps
+`attemptedAt`/`lastError` on the offer's existing observation row (matched by item URL) instead of leaving
+a detached marker, so `quoteOffer` exposes `lastAttemptFailed`/`lastError` while `observedAt`, price and
+stock stay at the last success; a later successful check clears the mark. The offline QA server gained a
+`failedAttempt` scenario (fixture pages parsed 30 minutes earlier, CoffeeMan single pack and Pucks marked
+as failed, vendor state with 1 consecutive failure and a 30-minute backoff), with a new `node:test` case
+(**93/93** total) and six new browser checks. Verified: `npm run verify` — **93/93** tests, bundle
+80.12 KiB / gzip 20.60 KiB; `npm run check:sources` (17:22 UTC) — five listings PASS with unchanged
+₪33/₪124/₪240/₪30/₪38 prices, stock and shipping evidence; `npm run cron:offline` — 6 bounded requests,
+five offers, `pruned: 0`; `npm run cron:local -- --fresh` (17:24 UTC) — 6 requests, five offers, all three
+vendors saved, USD 3.078 asOf 12:23:04Z; fresh-store `wrangler dev` initial refresh (17:19:32 → 17:19:50
+UTC, 6 requests, five observations, all three vendors); `npm run qa:browser` — **63/63** offline and
+**59/59** live against the local Worker, zero console errors. Evidence:
+`docs/evidence/browser-qa-fixtures-20261012T1723Z.json`,
+`docs/evidence/browser-qa-live-20261012T1722Z.json`, `docs/evidence/source-check-20261012T1722Z.json`.
+The 3-62 cron fix still has no public-API marker, so its production effect remains expected at the 06:17
+UTC tick on 2026-10-13 (the expected 18:17/00:17/06:17 sequence is documented below).
+
+Iteration 3-63: added a repeatable **read-only production probe** and closed the test-coverage
 gap around the 3-62 cron phase-lock fix. `scripts/probe-production.mjs` (`npm run probe:production`)
 sends fixed public GETs to `/health`, `/api/status`, `/api/catalog` and the 500 g / 1 kg /
 unstated-variant / retired-URL boards, never authenticates or deploys, asserts the single-product scope
@@ -707,14 +743,18 @@ any adapter.
   stays strict), with pre-fix/fixed pipeline evidence in
   `docs/evidence/cron-phase-lock-20261012T163945Z.json`; session 3-63 added the repeatable read-only
   production probe, re-verified production and the live sources at 16:50-16:53 UTC, and added the
-  multi-tick cron cadence test on a deterministic timeline.
+  multi-tick cron cadence test on a deterministic timeline; session 3-64 completed and verified the
+  failed-attempt disclosure whose code session 3-63 saved just before its timeout — the failure stamps the
+  offer's last successful observation row, the offline QA server can simulate it, and six browser checks
+  plus one unit test cover the ranking, labels and footer.
 - Next useful task for the loop: improve only Crema e Gusto coverage, shipping evidence, freshness and
   comparison quality. Candidates, in order: (a) observe the production cron ticks with the read-only
-  probe (`npm run probe:production`) — the 18:17Z tick should record a 0-observation run without moving
-  `lastRefreshAt`, the 00:17Z tick should refresh all three vendors, and the **06:17Z tick on 2026-10-13**
-  is the first place the 3-62 phase-lock fix is observable (it should save observations even though it
-  lands seconds before the stored due time); (b) re-check whether Pucks or CoffeeMan starts publishing a
-  rate for the currently unrankable offers (the 3-60 probe and the 16:50 UTC live check found none);
+  probe (`npm run probe:production`) — no cron-tick run had been observed as of the 3-64 checks; the
+  18:17Z tick should record a 0-observation run without moving `lastRefreshAt`, the 00:17Z tick should
+  refresh all three vendors, and the **06:17Z tick on 2026-10-13** is the first place the 3-62 phase-lock
+  fix is observable (it should save observations even though it lands seconds before the stored due
+  time); (b) re-check whether Pucks or CoffeeMan starts publishing a rate for the currently unrankable
+  offers (the 3-60 probe and the 16:50/17:22 UTC live checks found none);
   (c) another bounded re-probe of the recorded blocked vendors at a later date for a fourth adapter. The
   2026-10-12 probes (14:25, 14:39-14:58, 15:19 and 15:35-15:41 UTC, the last via Zap and its
   FreshCafe/Brioso leads, plus the 3-63 17:05 UTC search-engine and 17:07 UTC direct-domain batches) found
