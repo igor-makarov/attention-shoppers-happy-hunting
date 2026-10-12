@@ -2,9 +2,13 @@
 // Lavazza Crema e Gusto Classico 250 g ground coffee in a vacuum brick.
 // The Qualità Oro, Qualità Rossa and Suerte pages were retired by the
 // 2026-10-12 owner correction and are deliberately not fetched targets.
-// Source of truth: schema.org Product JSON-LD on the public product page.
-// Price and listed availability are observed. Shipping is only calculated at
-// checkout, so it stays unknown and the offer cannot win the ranking.
+// Source of truth: schema.org Product JSON-LD on the public product page for
+// price and listed availability. Shipping was resolved by browser research on
+// 2026-10-12: the anonymous checkout estimator quoted a flat ₪30 home-delivery
+// fee with free shipping above ₪100 for 1, 2 and 4 × 250 g carts to Tel Aviv /
+// 6100000 (changing the locality to Eilat did not change the rule). The quote
+// is stored with its condition and its own retrieval time, never as an
+// unconditional country-wide promise.
 
 import { classifyListing } from '../catalog.js';
 import { findJsonLd, textOf } from '../lib/text.js';
@@ -19,12 +23,28 @@ const AVAILABILITY = {
   'https://schema.org/SoldOut': 'out_of_stock'
 };
 
+/**
+ * Browser-researched checkout quote (2026-10-12, 18:08-18:10 UTC).
+ * Evidence: docs/evidence/browser-research/2026-10-12-vendor-shipping-quotes.json
+ * and the pucks-checkout-*.png screenshots in the same directory. The public
+ * estimator exposed home delivery only; no street address or personal detail
+ * was entered and no order was submitted.
+ */
+export const PUCKS_CHECKOUT_SHIPPING = {
+  amountIls: 30,
+  freeThresholdIls: 100,
+  currency: 'ILS',
+  retrievedAt: '2026-10-12T18:10:10Z',
+  sourceUrl: 'https://pucks.co.il/payment/request',
+  note: 'Home delivery quoted by the anonymous checkout estimator on 2026-10-12: ₪30 flat, free above ₪100. Observed for 1, 2 and 4 × 250 g carts to Tel Aviv / 6100000; the estimator offers home delivery only.'
+};
+
 export const pucks = {
   id: 'pucks',
   name: 'Pucks (פאקס)',
   homepage: 'https://pucks.co.il',
   allowedHosts: ['pucks.co.il', 'www.pucks.co.il'],
-  parserVersion: 'pucks/5',
+  parserVersion: 'pucks/6',
   offers: [
     { id: 'classico-250g', url: PRODUCT_URL, kind: 'delivery', productId: 'lavazza-crema-e-gusto-vacuum-ground' }
   ],
@@ -92,11 +112,21 @@ export function parsePucksProduct(html, { now, url = PRODUCT_URL, productId = nu
     },
     shipping: {
       mode: 'delivery',
-      certainty: 'unknown',
-      amount: null,
+      // The browser-researched estimator quote is a verified observed rate for
+      // the quantities and destination recorded in the evidence; it is not a
+      // nationwide guarantee and it is never used as a zero default.
+      certainty: 'verified',
+      amount: { amount: PUCKS_CHECKOUT_SHIPPING.amountIls, currency: PUCKS_CHECKOUT_SHIPPING.currency },
+      freeThreshold: { amount: PUCKS_CHECKOUT_SHIPPING.freeThresholdIls, currency: PUCKS_CHECKOUT_SHIPPING.currency },
       destination: { scope: 'country', country: 'IL' },
-      note: shippingNote,
-      evidence: { url, retrievedAt: null, note: 'Store states shipping is calculated at checkout.' }
+      note: shippingNote === 'Shipping is calculated at checkout'
+        ? `${PUCKS_CHECKOUT_SHIPPING.note} The product page still says shipping is calculated at checkout.`
+        : PUCKS_CHECKOUT_SHIPPING.note,
+      evidence: {
+        url: PUCKS_CHECKOUT_SHIPPING.sourceUrl,
+        retrievedAt: PUCKS_CHECKOUT_SHIPPING.retrievedAt,
+        note: 'Anonymous checkout estimator quote recorded by interactive browser research; see docs/evidence/browser-research/2026-10-12-vendor-shipping-quotes.json.'
+      }
     },
     now
   });

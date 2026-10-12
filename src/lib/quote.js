@@ -182,6 +182,7 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
       minOrderCurrency: shipping.minOrder?.currency ?? null,
       destination: shipping.destination ?? { scope: 'country', country: 'IL' },
       deliveryTime: shipping.deliveryTime ?? null,
+      maxTotalGrams: shipping.maxTotalGrams ?? null,
       pickup: shipping.pickup ?? null,
       alternatives: (shipping.alternatives ?? []).map(alternative => {
         const converted = toIls(alternative.amount?.amount ?? null, alternative.amount?.currency ?? price.currency, fx);
@@ -246,6 +247,13 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
   }
   base.itemTotalIls = round2(itemTotal.amount);
   if (itemTotal.converted) base.estimate = true;
+
+  // A rate observed on a smaller anonymous cart is not silently stretched to a
+  // bigger one: the offer stays visible and unrankable with the exact reason.
+  if (shipping.maxTotalGrams != null && base.orderedGrams > shipping.maxTotalGrams) {
+    reasons.push(`Shipping was quoted only for carts up to ${shipping.maxTotalGrams} g, but this quantity is ${base.orderedGrams} g`);
+    return base;
+  }
 
   if (shipping.minOrder != null) {
     const min = toIls(shipping.minOrder.amount, shipping.minOrder.currency ?? price.currency, fx);

@@ -5,8 +5,10 @@
 // 2026-10-12 owner correction and are deliberately not fetched targets.
 // The pages are legacy Windows-1255 HTML documents with schema.org microdata.
 // Price, listed availability, SKU and the published delivery options are parsed from each
-// product page. Free self-pickup is kept separate from home delivery. The 8-pack pages do not
-// publish a courier price, so those offers stay unrankable instead of being treated as free.
+// product page. Free self-pickup is kept separate from home delivery. The 8-pack page does not
+// publish a courier price; the anonymous checkout estimator quoted ₪20 for one 2 kg multipack
+// during browser research on 2026-10-12, so that offer now carries the observed cart rate with
+// its 2 kg condition instead of staying unconditionally unknown.
 // robots.txt asks for a crawl delay of 7 seconds; the adapter declares that delay so the
 // refresh pipeline spaces its requests to this host.
 
@@ -28,12 +30,29 @@ const AVAILABILITY = {
 
 const CREMA_E_GUSTO = 'lavazza-crema-e-gusto-vacuum-ground';
 
+/**
+ * Browser-researched checkout quotes (2026-10-12, 18:16-18:17 UTC).
+ * Evidence: docs/evidence/browser-research/2026-10-12-vendor-shipping-quotes.json
+ * and the coffeeman-checkout-8pack.png screenshot. No street address, personal
+ * detail, login or order submission was involved.
+ */
+export const COFFEEMAN_CHECKOUT_QUOTES = {
+  [EIGHT_PACK_URL]: {
+    amountIls: 20,
+    currency: 'ILS',
+    maxTotalGrams: 2000,
+    retrievedAt: '2026-10-12T18:16:00Z',
+    sourceUrl: 'https://www.coffeeman.co.il/checkout.asp',
+    note: 'Anonymous checkout quote for one 8 × 250 g multipack (2 kg) on 2026-10-12: ₪20 home courier and ₪20 distribution-center delivery up to 5 kg; self-pickup free. The product page publishes no courier price, and carts above 2 kg are not verified.'
+  }
+};
+
 export const coffeeman = {
   id: 'coffeeman',
   name: 'CoffeeMan (אמיגו)',
   homepage: 'https://www.coffeeman.co.il',
   allowedHosts: ['www.coffeeman.co.il', 'coffeeman.co.il'],
-  parserVersion: 'coffeeman/5',
+  parserVersion: 'coffeeman/6',
   crawlDelayMs: 7000,
   offers: [
     { id: 'classico-250g', url: PRODUCT_URL, kind: 'delivery', productId: CREMA_E_GUSTO },
@@ -86,6 +105,10 @@ export function parseCoffeemanProduct(html, { now, url = PRODUCT_URL, productId 
   const deliveryTime = collapse(/זמן\s*אספקה\s*:\s*([^<\n]+)/.exec(html)?.[1] ?? '');
 
   const shipping = parseShippingOptions(html);
+  const checkoutQuote = checkoutQuoteFor({ url, classification });
+  const shippingNote = checkoutQuote
+    ? `${shipping.note} ${checkoutQuote.note}`
+    : shipping.note;
   const observation = createObservation({
     vendor: coffeeman,
     itemUrl: url,
@@ -111,8 +134,15 @@ export function parseCoffeemanProduct(html, { now, url = PRODUCT_URL, productId 
     },
     shipping: {
       mode: 'delivery',
-      certainty: shipping.deliveryCents == null ? 'unknown' : 'verified',
-      amount: shipping.deliveryCents == null ? null : { amount: shipping.deliveryCents, currency },
+      certainty: shipping.deliveryCents == null && !checkoutQuote ? 'unknown' : 'verified',
+      amount: shipping.deliveryCents != null
+        ? { amount: shipping.deliveryCents, currency }
+        : checkoutQuote
+          ? { amount: checkoutQuote.amountIls, currency: checkoutQuote.currency }
+          : null,
+      // A checkout-quoted rate is only used for the cart size it was observed
+      // on; the quote engine refuses to rank a larger cart with it.
+      maxTotalGrams: shipping.deliveryCents != null ? null : checkoutQuote?.maxTotalGrams ?? null,
       // The product page publishes the courier rate but not the locality list, and the
       // vendor terms state home delivery is subject to that list. The caveat is kept
       // structured so the board can disclose the geographic restriction instead of
@@ -125,14 +155,20 @@ export function parseCoffeemanProduct(html, { now, url = PRODUCT_URL, productId 
       },
       minOrder: null,
       freeThreshold: null,
-      note: shipping.note,
+      note: shippingNote,
       deliveryTime: deliveryTime || null,
       pickup: {
         available: shipping.pickupFree,
         amount: shipping.pickupFree ? { amount: 0, currency } : null,
         note: shipping.pickupFree ? 'Free self-pickup, listed on the product page.' : null
       },
-      evidence: { url, retrievedAt: null, note: 'Delivery options are listed on the product page.' }
+      evidence: checkoutQuote
+        ? {
+            url: checkoutQuote.sourceUrl,
+            retrievedAt: checkoutQuote.retrievedAt,
+            note: 'Anonymous checkout estimator quote recorded by interactive browser research; see docs/evidence/browser-research/2026-10-12-vendor-shipping-quotes.json.'
+          }
+        : { url, retrievedAt: null, note: 'Delivery options are listed on the product page.' }
     },
     now
   });
@@ -140,7 +176,6 @@ export function parseCoffeemanProduct(html, { now, url = PRODUCT_URL, productId 
 }
 
 export function parseShippingOptions(html) {
-  const start = html.indexOf('delivery-price-product');
   const block = start >= 0 ? html.slice(start, start + 2500) : '';
   const items = [...block.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)].map(match => collapse(stripTags(match[1])));
   let deliveryCents = null;
