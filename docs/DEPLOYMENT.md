@@ -2,9 +2,12 @@
 
 Current state (2026-10-12): handoff 1 (OpenCode key plus loop control) is complete, and the owner
 reports the Cloudflare side connected and serving **https://attention-shoppers.igormaka.workers.dev**
-with the production Worker name `attention-shoppers`. That is an owner report; the coding loop has no
-Cloudflare credentials and cannot independently verify a production refresh. The outstanding production
-checks are listed at the end of this file and in docs/STATUS.md.
+with the production Worker name `attention-shoppers`. On 2026-10-12 15:51-15:54 UTC the coding loop
+independently verified that URL from the runner with read-only public GETs (no Cloudflare credentials,
+admin API or deploy): HTTP 200, exactly one catalog product, five persisted observations, and a
+request-triggered initial refresh that completed at 15:52:12.546Z and advanced `lastRefreshAt`; evidence
+in docs/evidence/production-verification-20261012T1554Z.json. The loop still does not administer
+Cloudflare. The outstanding production checks are listed at the end of this file and in docs/STATUS.md.
 
 ## 1. OpenCode key
 

@@ -11,7 +11,8 @@ pure quote engine ranks delivered ILS totals, and a scheduled Durable Object ref
 current without a browser or the coding loop. Each refresh keeps the previous successful price and stock
 for the same offer, so the board shows the unit-price change since the last check (or explains why a
 comparison is impossible), and it reports a completed refresh only when a vendor was actually re-observed.
-See [current status](docs/STATUS.md),
+If a run is interrupted after saving observations, freshness falls back to the newest saved observation
+instead of claiming the board never refreshed. See [current status](docs/STATUS.md),
 [observed sources](docs/SOURCES.md), [design](docs/DESIGN.md) and [architecture](docs/ARCHITECTURE.md).
 
 ## Coding loop
@@ -24,8 +25,13 @@ DeepSeek V4.1 Flash is present in Shurik's pinned Pi AI catalog and supports low
 
 The owner reports auto-deploy enabled on main pushes from **Cloudflare Workers Builds** with the
 production Worker `attention-shoppers`, already served at
-https://attention-shoppers.igormaka.workers.dev (owner report; the coding loop has no Cloudflare access
-and does not administer the deployment). GitHub stores no CF credentials and has no deployment job.
+https://attention-shoppers.igormaka.workers.dev. On 2026-10-12 15:51-15:54 UTC the coding loop
+independently verified that public URL from the runner with read-only GETs (no Cloudflare credentials,
+admin API or deploy): the site answered HTTP 200, the catalog exposed exactly one product, five
+observations were persisted, and a request-triggered initial refresh completed and advanced
+`lastRefreshAt`; see
+[the production verification evidence](docs/evidence/production-verification-20261012T1554Z.json). The
+loop still does not administer the deployment. GitHub stores no CF credentials and has no deployment job.
 Cloudflare Cron Triggers run the Worker's scheduled handler about every six hours, and the
 SQLite-backed `BoardStore` Durable Object defined in `wrangler.jsonc` persists the last known
 observations, vendor refresh state, FX rates and run history.

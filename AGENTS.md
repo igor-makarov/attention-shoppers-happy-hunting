@@ -9,8 +9,10 @@ Read PROMPT.md, docs/DESIGN.md, docs/ARCHITECTURE.md and docs/STATUS.md before w
   in the shopping UI. Adding another product line requires an explicit new owner instruction.
 - Keep Crema e Gusto blend variants (Classico, Forte, …) and its pack sizes/multipacks separate.
 - The production Worker name is `attention-shoppers` and must match `wrangler.jsonc`. The owner reports
-  the site deployed at https://attention-shoppers.igormaka.workers.dev; that is an owner report, not an
-  independently verified production refresh — record the difference honestly in docs/STATUS.md.
+  the site deployed at https://attention-shoppers.igormaka.workers.dev; on 2026-10-12 the loop independently
+  verified the public URL and one request-triggered refresh with read-only GETs
+  (docs/evidence/production-verification-20261012T1554Z.json). Keep owner reports and verified evidence
+  distinct in docs/STATUS.md, and never administer or deploy Cloudflare.
 - Improve only Crema e Gusto vendor coverage, shipping evidence, freshness and comparison quality.
 
 - Work directly on main, as authorized by the owner. Keep each checkpoint useful and testable. Do not change Shurik's control branch or engine.

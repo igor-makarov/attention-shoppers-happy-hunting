@@ -5,7 +5,7 @@ There are two independent loops:
 1. Shurik on GitHub Actions develops and checkpoints source to main. It uses only OPENCODE_API_KEY and the repository GITHUB_TOKEN. Its state/history is public on shurik-control/main.
 2. The deployed Worker refreshes vendor observations using deterministic scheduled adapters, persists them through runtime bindings and serves the public comparison board. It does not need Shurik or an LLM to keep refreshing.
 
-Cloudflare Workers Builds will be connected by the owner after the second handoff. It observes main pushes and performs validation before deploying. No CF deployment workflow or CF API secret belongs in GitHub. Exclude shurik-control/* and all other branches from Cloudflare builds and previews.
+Cloudflare Workers Builds is reported connected by the owner and is serving the production Worker; it observes main pushes and performs validation before deploying. The loop independently verified the public deployment once on 2026-10-12 with read-only GETs (docs/evidence/production-verification-20261012T1554Z.json). No CF deployment workflow or CF API secret belongs in GitHub. Exclude shurik-control/* and all other branches from Cloudflare builds and previews.
 
 This prevents Shurik's Actions process from directly authenticating to CF. It is not a sandbox for agent-authored code: Shurik writes main, so its code and configuration can influence the CF build and live Worker. CF build commands can run source-controlled code in a credentialed environment. Restrict the CF build token to this Worker and the minimum required permissions; avoid broad account permissions or unrelated build/runtime secrets. Prefer runtime bindings over administrative API tokens. Never give the public Worker an administrative CF token.
 
