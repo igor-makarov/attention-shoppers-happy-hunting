@@ -71,22 +71,107 @@ function stockChangeText(quote) {
   return `Stock changed since the previous check: was ${previous.availabilityLabel ?? previous.availability}`;
 }
 
-/**
- * Plain-language item-price arithmetic for one quote: unit price × packs bought,
- * with the ILS line total when the quote has one. Keeps the delivered total
- * auditable in the UI instead of showing a bare unit price next to a sum.
- */
-function itemPriceLine(quote) {
-  const amount = quote?.itemPrice?.amount;
-  if (amount == null) return 'Unknown';
-  const currency = quote.itemPrice.currency ?? '';
+/** Accurate pack description: a multipack must never read as a single 250 g pack. */
+function packDescription(quote) {
+  const product = quote.product ?? {};
+  const per = product.packGrams != null ? `${product.packGrams} g` : 'weight not stated';
+  if ((product.packCount ?? 1) > 1) {
+    return `${product.packCount} × ${per} multipack${product.totalGrams != null ? ` (${product.totalGrams} g)` : ''}`;
+  }
+  return `${per} pack`;
+}
+
+/** What the shopper actually buys for the selected target quantity. */
+function quantityDescription(quote) {
+  const product = quote.product ?? {};
   const units = quote.units ?? 1;
-  const total = quote.itemTotalIls != null
-    ? money(quote.itemTotalIls)
-    : (Number.isFinite(amount) ? money(amount * units) : null);
-  if (total == null) return `${money(amount)} ${currency} × ${units}`;
-  const converted = currency && currency !== 'ILS' ? ' ILS (converted)' : '';
-  return `${money(amount)} ${currency} × ${units} = ${total}${converted}`;
+  if ((product.packCount ?? 1) > 1) {
+    return `${units} multipack${units === 1 ? '' : 's'} (${product.packCount} × ${product.packGrams} g) = ${quote.orderedGrams} g`;
+  }
+  return `${units} × ${product.packGrams ?? '?'} g pack${units === 1 ? '' : 's'} = ${quote.orderedGrams} g`;
+}
+
+function itemSubtotalText(quote) {
+  if (quote.itemTotalIls != null) return money(quote.itemTotalIls);
+  const amount = quote.itemPrice?.amount;
+  if (amount == null) return 'Unknown';
+  return `${money(amount)} ${quote.itemPrice.currency ?? ''}`.trim();
+}
+
+function shippingValueText(quote) {
+  const shipping = quote.shipping ?? {};
+  if (shipping.amountIls != null) {
+    if (shipping.amountIls === 0) return shipping.freeThreshold != null ? 'Free (threshold met)' : 'Free';
+    return money(shipping.amountIls);
+  }
+  if (shipping.amount != null) return `${money(shipping.amount)} ${shipping.currency ?? ''} (not converted)`.trim();
+  return 'Shipping not published';
+}
+
+function shippingServiceText(quote) {
+  if (quote.shipping?.mode === 'pickup') return 'Pickup only';
+  return quote.shipping?.certaintyLabel ?? 'Not published before checkout';
+}
+
+/** Item subtotal, shipping service and delivered total stay visible together. */
+function totalsBlock(quote, { perKg = true } = {}) {
+  return el('div', { class: 'totals' },
+    el('div', { class: 'totals__cell' },
+      el('span', { class: 'totals__label', text: 'Item subtotal' }),
+      el('span', { class: 'totals__value num', text: itemSubtotalText(quote) })),
+    el('div', { class: 'totals__cell' },
+      el('span', { class: 'totals__label', text: 'Shipping' }),
+      el('span', { class: 'totals__value num', text: shippingValueText(quote) }),
+      el('span', { class: 'totals__meta', text: shippingServiceText(quote) })),
+    el('div', { class: 'totals__cell totals__cell--total' },
+      el('span', { class: 'totals__label', text: 'Delivered total' }),
+      el('span', { class: 'totals__value num', text: quote.totalIls != null ? money(quote.totalIls) : 'Not calculable' }),
+      perKg && quote.ilsPerKg != null ? el('span', { class: 'totals__meta num', text: `${money(quote.ilsPerKg)} per kg` }) : null));
+}
+
+/** One written conditions list per offer; the same caveat is not repeated on a card. */
+function conditionsList(quote) {
+  const shipping = quote.shipping ?? {};
+  const items = [];
+  if (shipping.freeThreshold != null) {
+    items.push(quote.itemTotalIls != null && quote.itemTotalIls >= shipping.freeThreshold
+      ? `Free-shipping threshold met (from ${money(shipping.freeThreshold)})`
+      : `Free shipping from ${money(shipping.freeThreshold)} item subtotal`);
+  }
+  if (shipping.minOrder != null) items.push(`Minimum order ${money(shipping.minOrder)}`);
+  for (const alternative of shipping.alternatives ?? []) {
+    items.push(`${alternative.label}: ${alternative.amountIls != null ? money(alternative.amountIls) : 'rate not published'}`);
+  }
+  if (shipping.pickup?.available) items.push(shipping.pickup.note ? `Self-pickup: ${shipping.pickup.note}` : 'Free self-pickup available (kept separate from delivery)');
+  if (shipping.deliveryTime) items.push(`Delivery time: ${shipping.deliveryTime}`);
+  if (shipping.maxTotalGrams != null) items.push(`Rate quoted for carts up to ${shipping.maxTotalGrams} g`);
+  if (!items.length) return null;
+  const list = el('ul', { class: 'conditions' });
+  for (const item of items) list.append(el('li', {}, bidi(item)));
+  return list;
+}
+
+function caveatBlock(quote) {
+  if (!quote.shipping?.coverageCaveat) return null;
+  return el('p', { class: 'caveat' }, el('strong', { text: 'Coverage: ' }), bidi(quote.shipping.coverageCaveat));
+}
+
+/** Previous-check, failure and evidence provenance, collapsed behind a disclosure. */
+function diagnosticsDisclosure(quote) {
+  const rows = [];
+  const change = priceChangeText(quote);
+  if (change) rows.push(change);
+  const stockChange = stockChangeText(quote);
+  if (stockChange) rows.push(stockChange);
+  rows.push(`Last successful check: ${timeLabel(quote.observedAt)}`);
+  if (quote.lastAttemptFailed) rows.push(`Last attempt failed ${timeLabel(quote.attemptedAt)}${quote.lastError ? ` — ${truncate(quote.lastError)}` : ''}`);
+  const evidence = quote.shipping?.evidence;
+  if (evidence?.url) {
+    rows.push(`Shipping evidence: ${evidence.url}${evidence.retrievedAt ? ` (retrieved ${timeLabel(evidence.retrievedAt)})` : ''}${evidence.note ? ` — ${truncate(evidence.note, 160)}` : ''}`);
+  }
+  const body = el('div', { class: 'disclosure__body' });
+  for (const row of rows) body.append(el('div', { text: row }));
+  return el('details', { class: 'disclosure' }, el('summary', { text: 'Check history and evidence' }), body);
 }
 
 /** Wrap Hebrew-containing text in an isolated dir="auto" span so mixed IL/Latin names render correctly. */
@@ -173,7 +258,8 @@ function render() {
   const boardData = state.board;
   if (boardData.requestedRetiredProduct) board.append(renderRetiredNotice(boardData.requestedRetiredProduct));
   board.append(renderRankedSection(boardData));
-  if (boardData.pickup.length) board.append(renderPickupSection(boardData.pickup));
+  const pickupSection = renderPickupSection(boardData.pickup);
+  if (pickupSection) board.append(pickupSection);
   if (state.showUnknown) board.append(renderUnknownSection(boardData));
   board.append(renderFooterStatus(boardData));
 }
@@ -313,140 +399,86 @@ function renderRankedSection(board) {
   const section = el('section', { class: 'section', attrs: { id: 'ranked', 'aria-labelledby': 'ranked-title' } });
   const product = currentProduct();
   section.append(el('div', { class: 'section__head' },
-    el('div', { class: 'section__number', text: '01 / Best known delivered choice' }),
-    el('div', {},
-      el('h2', { attrs: { id: 'ranked-title' }, text: 'Delivered total, item plus shipping' }),
-      el('p', { class: 'section__intro', text: `For ${board.product?.line ?? product?.line ?? 'the tracked product'} (${board.product?.form ?? 'ground'}, ${board.product?.packaging ?? 'vacuum brick'}), ${board.targetGrams} g to ${board.destination.label}. Pack sizes are rounded up to whole packs; the board shows the packs you would actually buy.` }))));
+    el('div', { class: 'section__kicker', text: '01 / Delivered comparison' }),
+    el('h2', { attrs: { id: 'ranked-title' }, text: 'Item subtotal + shipping = delivered total' }),
+    el('p', { class: 'section__intro', text: `${board.product?.line ?? product?.line ?? 'Crema e Gusto'} ${board.product?.form ?? 'ground'} (${board.product?.packaging ?? 'vacuum brick'}), ${board.targetGrams} g to ${board.destination.label}. Packs round up to whole packs.` })));
 
   if (!board.best) {
     section.append(el('div', { class: 'empty' },
       el('strong', { text: 'No offer can be ranked right now.' }),
-      el('p', { text: 'Ranking needs a fresh confirmed stock observation, a published shipping price and a stored exchange rate where needed. The observations below explain exactly what is missing.' })));
+      el('p', { text: 'Ranking needs a fresh confirmed stock observation and a published shipping price. The offers below explain exactly what is missing.' })));
     return section;
   }
 
-  const best = board.best;
-  const main = el('div', { class: 'best__main' },
-    el('div', { class: 'best__vendor' }, bidi(best.vendor.name)),
-    el('h3', { class: 'best__product' }, bidi(best.product.name ?? 'Tracked product')),
-    el('p', { class: 'best__variant', text: `${best.product.packCount > 1 ? `${best.product.packCount} × ` : ''}${best.product.packGrams} g vacuum brick · ${best.product.variantLabel}` }),
-    el('div', { class: 'best__total-label', text: 'Delivered total for the selected quantity' }),
-    el('div', { class: 'best__total', text: money(best.totalIls) }),
-    el('div', { class: 'best__perkg', text: best.ilsPerKg != null ? `${money(best.ilsPerKg)} per kilogram · buys ${best.units} pack${best.units === 1 ? '' : 's'} (${best.orderedGrams} g)` : '' }),
-    offerLink(best));
-
-  const rows = [
-    ['Item price', itemPriceLine(best)],
-    ['Shipping', best.shipping.amountIls === 0 ? 'Free' : best.shipping.amountIls != null ? money(best.shipping.amountIls) : 'Unknown'],
-    ['Shipping certainty', best.shipping.certaintyLabel ?? 'Not published before checkout'],
-    ['Stock', statusBadge(best.availability, best.availabilityLabel)],
-    ['Checked', timeLabel(best.observedAt)]
-  ];
-  if (best.shipping.minOrder != null) rows.push(['Minimum order', `${money(best.shipping.minOrder)} ${best.shipping.minOrderCurrency ?? ''}`.trim()]);
-  if (best.shipping.freeThreshold != null) rows.push(['Free shipping', `from ${money(best.shipping.freeThreshold)} ${best.shipping.freeThresholdCurrency ?? ''}`.trim()]);
-  if (best.lastAttemptFailed) rows.push(['Last attempt', `Failed ${timeLabel(best.attemptedAt)} — showing the last successful observation${best.lastError ? ` (${truncate(best.lastError)})` : ''}`]);
-  const bestChange = priceChangeText(best);
-  if (bestChange) rows.push(['Price change', bestChange]);
-  const bestStockChange = stockChangeText(best);
-  if (bestStockChange) rows.push(['Stock change', bestStockChange]);
-  const perKgWinner = board.bestPerKg && board.bestPerKg.key !== best.key ? board.bestPerKg : null;
-  if (perKgWinner) {
-    rows.push(['Cheapest per kilogram', el('span', {},
-      bidi(perKgWinner.vendor?.name ?? ''),
-      ` — ${money(perKgWinner.ilsPerKg)} per kg (${perKgWinner.units} × ${perKgWinner.packGrams} g, delivered ${money(perKgWinner.totalIls)})`)]);
-  }
-  if (best.shipping.destination?.scope === 'localities') rows.push(['Delivery area', `Only: ${(best.shipping.destination.localities ?? []).join(', ')}`]);
-  if (best.shipping.coverageCaveat) rows.push(['Delivery coverage', best.shipping.coverageCaveat]);
-  for (const alternative of best.shipping.alternatives ?? []) {
-    rows.push([alternative.label, alternative.amountIls != null
-      ? `${money(alternative.amountIls)} (published alternative shipping service)`
-      : `${alternative.amount ?? 'unknown'} ${alternative.currency ?? ''} (not converted)`.trim()]);
-  }
-  for (const fee of best.mandatoryFees ?? []) rows.push([fee.label, money(fee.amountIls)]);
-  if (best.shipping.deliveryTime) rows.push(['Delivery time', best.shipping.deliveryTime]);
-  if (best.shipping.pickup?.available) rows.push(['Pickup', 'Free self-pickup is available and shown separately']);
-  const side = el('div', { class: 'best__side' });
-  const dl = el('dl');
-  for (const [term, value] of rows) {
-    dl.append(el('dt', { text: term }));
-    dl.append(el('dd', {}, value instanceof Node ? value : document.createTextNode(value)));
-  }
-  side.append(dl);
-  if (best.shipping.note) side.append(el('p', { class: 'unknown__reason', text: best.shipping.note }));
-  if (best.labels.length) side.append(el('p', { class: 'unknown__reason', text: best.labels.join(' · ') }));
-  if (best.estimate) side.append(el('p', {}, el('span', { class: 'status status--estimate', text: 'Estimate' }), el('span', { class: 'estimate-note', text: 'includes a converted or estimated component' })));
-
-  section.append(el('div', { class: 'best' }, main, side));
-
-  if (board.ranked.length > 1) {
-    section.append(renderCompareTable(board.ranked, board));
+  section.append(renderOfferCard(board.best, board, { best: true }));
+  const others = board.ranked.slice(1);
+  if (others.length) {
+    section.append(el('h3', { class: 'section__kicker', text: 'Other ranked offers' }));
+    const list = el('div', { class: 'offer-list' });
+    for (const quote of others) list.append(renderOfferCard(quote, board, { best: false }));
+    section.append(list);
   }
   if (board.counts?.excludedByVariant > 0) {
     const labels = (board.counts.excludedVariants ?? []).map(id => VARIANT_LABELS[id] ?? id).join(', ');
-    section.append(el('p', { class: 'meta-line', text: `${board.counts.excludedByVariant} observed offer(s) for another blend variant (${labels || 'unspecified'}) stay out of this comparison so variants are never merged. Switch the product variant control to compare them.` }));
+    section.append(el('p', { class: 'meta-line', text: `${board.counts.excludedByVariant} observed offer(s) for another blend variant (${labels || 'unspecified'}) stay out of this comparison so variants are never merged. Switch the variant control to compare them.` }));
   }
-  section.append(el('p', { class: 'meta-line', text: `Comparison total = item price + shipping + mandatory fees, converted to ILS where a Bank of Israel reference rate is stored. This is not a personalized checkout quote.` }));
+  const perKgWinner = board.bestPerKg && board.best && board.bestPerKg.key !== board.best.key ? board.bestPerKg : null;
+  if (perKgWinner) {
+    section.append(el('p', { class: 'meta-line' },
+      'Cheapest per kilogram: ',
+      bidi(perKgWinner.vendor?.name ?? ''),
+      ` — ${money(perKgWinner.ilsPerKg)} per kg (${perKgWinner.units} × ${perKgWinner.packGrams} g, delivered ${money(perKgWinner.totalIls)})`));
+  }
+  section.append(el('p', { class: 'meta-line', text: 'Comparison total = item subtotal + shipping + mandatory fees, converted to ILS where a stored Bank of Israel reference rate is needed. This is not a personalized checkout quote.' }));
   return section;
 }
 
-function renderCompareTable(quotes, board) {
-  const table = el('table', { class: 'compare' });
-  table.append(el('caption', { text: `All ranked offers for ${board.targetGrams} g to ${board.destination.label}` }));
-  const head = el('tr');
-  for (const label of ['Vendor', 'Pack / quantity', 'Item price', 'Shipping', 'Delivered total', 'Per kg', 'Stock', 'Checked']) {
-    head.append(el('th', { attrs: { scope: 'col' }, text: label }));
-  }
-  table.append(el('thead', {}, head));
-  const body = el('tbody');
-  for (const quote of quotes) {
-    const row = el('tr');
-    row.append(el('td', {}, el('span', { class: 'vendor-name' }, bidi(quote.vendor.name)), el('br'), offerLink(quote, 'Vendor page')));
-    row.append(el('td', { class: 'num', text: `${quote.units} × ${quote.product.packGrams} g = ${quote.orderedGrams} g` }));
-    row.append(el('td', { class: 'num' }, itemPriceLine(quote),
-      priceChangeText(quote) ? el('div', { class: 'unknown__meta', text: priceChangeText(quote) }) : null));
-    row.append(el('td', { class: 'num' },
-      quote.shipping.amountIls === 0 ? 'Free' : money(quote.shipping.amountIls),
-      el('div', { class: 'unknown__meta', text: quote.shipping.certaintyLabel ?? 'Not published before checkout' }),
-      (quote.shipping.alternatives ?? []).map(alternative => el('div', { class: 'unknown__meta', text: `${alternative.label}: ${alternative.amountIls != null ? money(alternative.amountIls) : 'unknown'}` })),
-      quote.shipping.minOrder != null || quote.shipping.freeThreshold != null
-        ? el('div', { class: 'unknown__meta', text: [quote.shipping.minOrder != null ? `min ${money(quote.shipping.minOrder)}` : null, quote.shipping.freeThreshold != null ? `free from ${money(quote.shipping.freeThreshold)}` : null].filter(Boolean).join(' · ') })
-        : null,
-      quote.shipping.coverageCaveat ? el('div', { class: 'unknown__meta', text: quote.shipping.coverageCaveat }) : null));
-    const totalDelta = board.best && quote.key !== board.best.key && Number.isFinite(quote.totalIls) && Number.isFinite(board.best.totalIls)
-      ? Math.round((quote.totalIls - board.best.totalIls) * 100) / 100
-      : null;
-    row.append(el('td', { class: 'num' }, el('strong', { text: money(quote.totalIls) }), quote.estimate ? el('span', { class: 'estimate-note', text: ' est.' }) : null,
-      el('div', { class: 'unknown__meta', text: totalDelta == null ? 'Cheapest delivered total' : totalDelta === 0 ? 'Same delivered total as best' : `+${money(totalDelta)} vs best` })));
-    row.append(el('td', { class: 'num' }, el('span', { text: money(quote.ilsPerKg) }),
-      board.bestPerKg?.key === quote.key && board.best?.key !== quote.key
-        ? el('div', { class: 'unknown__meta', text: 'Cheapest per kilogram' })
-        : null));
-    row.append(el('td', {}, statusBadge(quote.availability, quote.availabilityLabel)));
-    row.append(el('td', { class: 'num', text: timeLabel(quote.observedAt) },
-      quote.lastAttemptFailed ? el('div', { class: 'unknown__meta', text: `Last attempt failed ${timeLabel(quote.attemptedAt)}` }) : null));
-    body.append(row);
-  }
-  table.append(body);
-  return el('div', { class: 'table-wrap' }, table);
+/** One offer card: identity, pack/quantity, the three money values together and the conditions. */
+function renderOfferCard(quote, board, { best }) {
+  const card = el('article', { class: best ? 'offer offer--best' : 'offer' });
+  if (best) card.append(el('div', { class: 'offer__top' }, el('span', { class: 'tag tag--best', text: 'Best known delivered total' })));
+  card.append(el('div', { class: 'offer__top' },
+    el('div', { class: 'offer__vendor' }, bidi(quote.vendor.name), statusBadge(quote.availability, quote.availabilityLabel)),
+    el('div', { class: 'offer__delta', text: offerDeltaText(quote, board, best) })));
+  card.append(el('p', { class: 'offer__product' }, bidi(quote.product.name ?? 'Tracked product')));
+  card.append(el('p', { class: 'offer__pack', text: `${packDescription(quote)} · ${quantityDescription(quote)} · ${quote.product.variantLabel}` }));
+  card.append(totalsBlock(quote));
+  if (quote.estimate) card.append(el('p', { class: 'unknown__meta' }, el('span', { class: 'status status--estimate', text: 'Estimate' }), ' includes a converted or estimated component'));
+  const conditions = conditionsList(quote);
+  if (conditions) card.append(conditions);
+  const caveat = caveatBlock(quote);
+  if (caveat) card.append(caveat);
+  card.append(el('div', { class: 'offer__links' }, offerLink(quote, 'Open the vendor page')));
+  card.append(diagnosticsDisclosure(quote));
+  return card;
+}
+
+function offerDeltaText(quote, board, best) {
+  if (best) return 'Cheapest delivered total for this selection';
+  const delta = board.best && Number.isFinite(quote.totalIls) && Number.isFinite(board.best.totalIls)
+    ? Math.round((quote.totalIls - board.best.totalIls) * 100) / 100
+    : null;
+  if (delta == null) return '';
+  if (delta === 0) return 'Same delivered total as the best offer';
+  return `+${money(delta)} vs best delivered total`;
 }
 
 function renderPickupSection(pickup) {
+  const only = pickup.filter(quote => quote.shipping?.mode === 'pickup');
+  if (!only.length) return null;
   const section = el('section', { class: 'section', attrs: { id: 'pickup', 'aria-labelledby': 'pickup-title' } });
   section.append(el('div', { class: 'section__head' },
-    el('div', { class: 'section__number', text: '02 / Pickup' }),
-    el('div', {},
-      el('h2', { attrs: { id: 'pickup-title' }, text: 'Pickup options, kept separate' }),
-      el('p', { class: 'section__intro', text: 'Pickup is not a delivered price and never competes in the delivered ranking.' }))));
-  for (const quote of pickup) {
+    el('div', { class: 'section__kicker', text: '02 / Pickup only' }),
+    el('h2', { attrs: { id: 'pickup-title' }, text: 'Pickup-only offers' }),
+    el('p', { class: 'section__intro', text: 'Pickup is not a delivered price and never competes in the delivered ranking. Pickup that accompanies a delivered offer is shown on that offer card.' })));
+  for (const quote of only) {
     section.append(el('div', { class: 'pickup-row' },
-      el('div', {}, el('span', { class: 'vendor-name' }, bidi(quote.vendor.name)), el('div', { class: 'unknown__meta' }, bidi(quote.product.name ?? ''))),
-      el('div', {},
-        el('div', { class: 'unknown__grid' },
-          el('span', { text: `Item total for ${quote.units ?? 1} pack(s): ${money(quote.itemTotalIls) ?? 'unknown'}` }),
-          el('span', { text: `Pickup fee: ${quote.pickup?.amount?.amount === 0 ? 'Free' : quote.pickup?.amount?.amount != null ? money(quote.pickup.amount.amount) : 'See vendor policy'}` }),
-          el('span', { text: `Checked ${timeLabel(quote.observedAt)}` })),
-        el('p', { class: 'unknown__reason', text: [quote.pickup?.note, quote.labels.join('. ')].filter(Boolean).join(' ') }),
-        offerLink(quote))));
+      el('div', { class: 'unknown__vendor' }, bidi(quote.vendor.name)),
+      el('div', { class: 'unknown__meta' }, bidi(quote.product.name ?? '')),
+      el('div', { class: 'unknown__meta', text: `${packDescription(quote)} · ${quantityDescription(quote)}` }),
+      totalsBlock(quote, { perKg: false }),
+      el('p', { class: 'unknown__reason', text: [quote.pickup?.note, quote.labels.join('. ')].filter(Boolean).join(' ') }),
+      el('p', {}, offerLink(quote))));
   }
   return section;
 }
@@ -454,10 +486,9 @@ function renderPickupSection(pickup) {
 function renderUnknownSection(board) {
   const section = el('section', { class: 'section', attrs: { id: 'unknown', 'aria-labelledby': 'unknown-title' } });
   section.append(el('div', { class: 'section__head' },
-    el('div', { class: 'section__number', text: '03 / Not comparable yet' }),
-    el('div', {},
-      el('h2', { attrs: { id: 'unknown-title' }, text: 'Offers with missing information' }),
-      el('p', { class: 'section__intro', text: 'These observations stay visible with their source, timestamp and the exact reason a delivered total cannot be calculated. Missing shipping or currency data is never treated as zero.' }))));
+    el('div', { class: 'section__kicker', text: '03 / Not comparable yet' }),
+    el('h2', { attrs: { id: 'unknown-title' }, text: 'Offers with missing information' }),
+    el('p', { class: 'section__intro', text: 'These observations stay visible with their source, timestamp and the exact reason a delivered total cannot be calculated. Missing shipping is never treated as zero.' })));
 
   const entries = [...board.unrankable, ...board.staleOrUnavailable];
   if (!entries.length) {
@@ -466,28 +497,23 @@ function renderUnknownSection(board) {
   }
   const list = el('div', { class: 'unknown-list' });
   for (const quote of entries) {
-    const shipped = quote.shipping.amountIls != null
-      ? (quote.shipping.amountIls === 0 ? 'Free' : money(quote.shipping.amountIls))
-      : (quote.shipping.amount != null ? `${money(quote.shipping.amount)} ${quote.shipping.currency} (not converted)` : 'Unknown');
-    list.append(el('article', { class: 'unknown' },
-      el('div', {},
-        el('div', { class: 'unknown__vendor' }, bidi(quote.vendor.name)),
-        el('div', { class: 'unknown__meta' }, bidi(quote.product.name ?? '')),
-        el('div', { class: 'unknown__meta', text: `Variant: ${quote.product.variantLabel} · Pack: ${quote.product.packCount} × ${quote.product.packGrams ?? '?'} g` })),
-      el('div', {},
-        el('div', { class: 'unknown__grid' },
-          el('span', {}, statusBadge(quote.availability, quote.availabilityLabel)),
-          el('span', { text: `Item price: ${quote.itemPrice.amount != null ? `${money(quote.itemPrice.amount)} ${quote.itemPrice.currency}` : 'unknown'}` }),
-          el('span', { text: `Shipping: ${shipped}` }),
-          ...(quote.shipping.alternatives ?? []).map(alternative => el('span', { text: `${alternative.label}: ${alternative.amountIls != null ? money(alternative.amountIls) : 'unknown'}` })),
-          el('span', { text: `Last successful check: ${timeLabel(quote.observedAt)}` }),
-          el('span', { text: `Last attempt: ${timeLabel(quote.attemptedAt)}${quote.lastError ? ` — failed: ${truncate(quote.lastError)}` : ''}` }),
-          priceChangeText(quote) ? el('span', { text: priceChangeText(quote) }) : null,
-          stockChangeText(quote) ? el('span', { text: stockChangeText(quote) }) : null),
-        quote.shipping.coverageCaveat ? el('p', { class: 'unknown__meta', text: `Delivery coverage: ${quote.shipping.coverageCaveat}` }) : null,
-        el('p', { class: 'unknown__reason', text: quote.reasons.join('. ') || quote.labels.join('. ') || 'Not enough verified information yet.' }),
-        quote.labels.length ? el('p', { class: 'unknown__meta', text: quote.labels.join(' · ') }) : null,
-        el('p', {}, offerLink(quote, 'Check this vendor page')))));
+    const card = el('article', { class: 'unknown' });
+    card.append(el('div', { class: 'unknown__vendor' }, bidi(quote.vendor.name), ' ', statusBadge(quote.availability, quote.availabilityLabel)));
+    card.append(el('div', { class: 'unknown__meta' }, bidi(quote.product.name ?? '')));
+    card.append(el('div', { class: 'unknown__meta', text: `${packDescription(quote)} · ${quantityDescription(quote)} · ${quote.product.variantLabel}` }));
+    card.append(el('div', { class: 'unknown__grid' },
+      el('span', { text: `Item subtotal: ${itemSubtotalText(quote)}` }),
+      el('span', { text: `Shipping: ${shippingValueText(quote)}` }),
+      el('span', { text: `Last successful check: ${timeLabel(quote.observedAt)}` }),
+      quote.lastAttemptFailed ? el('span', { text: `Last attempt failed ${timeLabel(quote.attemptedAt)}${quote.lastError ? ` — ${truncate(quote.lastError)}` : ''}` }) : null));
+    if (quote.shipping?.amountIls == null && quote.shipping?.certainty !== 'verified') {
+      card.append(el('p', { class: 'unknown__reason', text: 'Shipping not published. Needed for a delivered total: a published rate or a public checkout-estimator quote for this quantity and locality. A missing rate is never counted as free.' }));
+    }
+    card.append(el('p', { class: 'unknown__reason', text: quote.reasons.join('. ') || quote.labels.join('. ') || 'Not enough verified information yet.' }));
+    const caveat = caveatBlock(quote);
+    if (caveat) card.append(caveat);
+    card.append(el('p', {}, offerLink(quote, 'Check this vendor page')));
+    list.append(card);
   }
   section.append(list);
   return section;
@@ -508,24 +534,29 @@ function renderFooterStatus(board) {
         ? `No completed scheduled refresh; the newest offer observation is ${age} h old — prices may be out of date.`
         : 'No scheduled refresh has completed yet — prices may be missing or out of date.' }));
   }
+  if (failing.length) {
+    wrap.append(el('div', { class: 'status status--stale', text: `${failing.length} source(s) failing` }));
+  }
+  // FX, per-vendor and next-due diagnostics are useful provenance but not
+  // decision information, so they live behind a disclosure instead of filling
+  // the first screen.
+  const body = el('div', { class: 'disclosure__body' });
   if (freshness.fx) {
-    wrap.append(el('div', { text: `Exchange rates: ${freshness.fx.source ?? 'Bank of Israel'} published ${freshness.fx.asOf ?? 'unknown'} · fetched ${timeLabel(freshness.fx.fetchedAt)}` }));
+    body.append(el('div', { text: `Exchange rates: ${freshness.fx.source ?? 'Bank of Israel'} published ${freshness.fx.asOf ?? 'unknown'} · fetched ${timeLabel(freshness.fx.fetchedAt)}` }));
   } else {
-    wrap.append(el('div', { text: 'Exchange rates: no official rate table stored yet, so foreign-currency offers cannot be ranked.' }));
+    body.append(el('div', { text: 'Exchange rates: no official rate table stored yet, so foreign-currency offers cannot be ranked.' }));
   }
   for (const vendor of vendors) {
-    wrap.append(el('div', { text: `${vendor.vendorId}: last success ${timeLabel(vendor.lastSuccessAt)} · last attempt ${timeLabel(vendor.lastAttemptAt)}` }));
+    body.append(el('div', { text: `${vendor.vendorId}: last success ${timeLabel(vendor.lastSuccessAt)} · last attempt ${timeLabel(vendor.lastAttemptAt)}` }));
   }
   const nextDue = vendors.map(vendor => vendor.nextAttemptAt).filter(Boolean).sort()[0] ?? null;
   if (nextDue) {
-    wrap.append(el('div', { text: `Next source check due (approximate, set by each vendor's last run): ${dueLabel(nextDue)}` }));
+    body.append(el('div', { text: `Next source check due (approximate, set by each vendor's last run): ${dueLabel(nextDue)}` }));
   }
-  if (failing.length) {
-    wrap.append(el('div', { class: 'status status--stale', text: `${failing.length} source(s) failing` }));
-    for (const vendor of failing) {
-      wrap.append(el('div', { text: `${vendor.vendorId}: ${vendor.consecutiveFailures} consecutive failure(s) · next attempt ${timeLabel(vendor.nextAttemptAt)}${vendor.lastErrors?.[0] ? ` · last error: ${vendor.lastErrors[0]}` : ''}` }));
-    }
+  for (const vendor of failing) {
+    body.append(el('div', { text: `${vendor.vendorId}: ${vendor.consecutiveFailures} consecutive failure(s) · next attempt ${timeLabel(vendor.nextAttemptAt)}${vendor.lastErrors?.[0] ? ` · last error: ${vendor.lastErrors[0]}` : ''}` }));
   }
+  wrap.append(el('details', { class: 'disclosure' }, el('summary', { text: 'Refresh diagnostics' }), body));
   return wrap;
 }
 
