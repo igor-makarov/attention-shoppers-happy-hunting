@@ -12,7 +12,7 @@
 
 import { classifyListing } from '../catalog.js';
 import { findJsonLd, textOf } from '../lib/text.js';
-import { pucksHomeDeliveryPolicy } from '../lib/policies.js';
+import { pucksHomeDeliveryPolicy, policyIsCurrent } from '../lib/policies.js';
 import { createObservation, parseError } from './index.js';
 
 const PRODUCT_URL = 'https://pucks.co.il/product/lavazza-crema-e-gusto-ground-coffee-250g';
@@ -90,6 +90,19 @@ export function parsePucksProduct(html, { now, url = PRODUCT_URL, productId = nu
   const shippingNote = /המשלוח מחושב/.test(html)
     ? 'Shipping is calculated at checkout'
     : 'Shipping terms are not published on the product page';
+  // The researched rate is only stamped while its policy is inside its review
+  // window. Once `reviewBy` passes the adapter stops applying it and the offer
+  // falls back to explicit unknown shipping (never free) until browser research
+  // renews the evidence — the same rule the read-time evaluator enforces.
+  const policyCurrent = policyIsCurrent(pucksHomeDeliveryPolicy, now);
+  const policyStamp = {
+    id: pucksHomeDeliveryPolicy.id,
+    version: pucksHomeDeliveryPolicy.version,
+    origin: pucksHomeDeliveryPolicy.origin,
+    retrievedAt: pucksHomeDeliveryPolicy.evidence.retrievedAt,
+    reviewBy: pucksHomeDeliveryPolicy.reviewBy,
+    thresholdSemantics: pucksHomeDeliveryPolicy.rule.thresholdSemantics
+  };
 
   return createObservation({
     vendor: pucks,
@@ -114,35 +127,40 @@ export function parsePucksProduct(html, { now, url = PRODUCT_URL, productId = nu
       value: String(offer.availability ?? 'not stated'),
       note: 'Availability comes from the product page structured data, not from a price-only scrape.'
     },
-    shipping: {
-      mode: 'delivery',
-      // The estimator offered home delivery only; the method is named separately
-      // from the certainty of the rate.
-      service: pucksHomeDeliveryPolicy.service,
-      // The browser-researched estimator quote is a verified observed rate for
-      // the quantities and destination recorded in the evidence; it is not a
-      // nationwide guarantee, it was never published on the product page, and
-      // it is never used as a zero default.
-      certainty: pucksHomeDeliveryPolicy.certainty,
-      amount: { ...pucksHomeDeliveryPolicy.rule.amount },
-      freeThreshold: { ...pucksHomeDeliveryPolicy.rule.freeThreshold },
-      freeThresholdSemantics: pucksHomeDeliveryPolicy.rule.thresholdSemantics,
-      destination: { ...pucksHomeDeliveryPolicy.destination },
-      note: shippingNote === 'Shipping is calculated at checkout'
-        ? `${PUCKS_CHECKOUT_SHIPPING.note} The product page still says shipping is calculated at checkout.`
-        : PUCKS_CHECKOUT_SHIPPING.note,
-      // Stamp the validated policy on the parsed observation too, so the offer
-      // detail can name the rule version and its review date.
-      policy: {
-        id: pucksHomeDeliveryPolicy.id,
-        version: pucksHomeDeliveryPolicy.version,
-        origin: pucksHomeDeliveryPolicy.origin,
-        retrievedAt: pucksHomeDeliveryPolicy.evidence.retrievedAt,
-        reviewBy: pucksHomeDeliveryPolicy.reviewBy,
-        thresholdSemantics: pucksHomeDeliveryPolicy.rule.thresholdSemantics
-      },
-      evidence: { ...pucksHomeDeliveryPolicy.evidence }
-    },
+    shipping: policyCurrent
+      ? {
+          mode: 'delivery',
+          // The estimator offered home delivery only; the method is named separately
+          // from the certainty of the rate.
+          service: pucksHomeDeliveryPolicy.service,
+          // The browser-researched estimator quote is a verified observed rate for
+          // the quantities and destination recorded in the evidence; it is not a
+          // nationwide guarantee, it was never published on the product page, and
+          // it is never used as a zero default.
+          certainty: pucksHomeDeliveryPolicy.certainty,
+          amount: { ...pucksHomeDeliveryPolicy.rule.amount },
+          freeThreshold: { ...pucksHomeDeliveryPolicy.rule.freeThreshold },
+          freeThresholdSemantics: pucksHomeDeliveryPolicy.rule.thresholdSemantics,
+          destination: { ...pucksHomeDeliveryPolicy.destination },
+          note: shippingNote === 'Shipping is calculated at checkout'
+            ? `${PUCKS_CHECKOUT_SHIPPING.note} The product page still says shipping is calculated at checkout.`
+            : PUCKS_CHECKOUT_SHIPPING.note,
+          // Stamp the validated policy on the parsed observation too, so the offer
+          // detail can name the rule version and its review date.
+          policy: policyStamp,
+          evidence: { ...pucksHomeDeliveryPolicy.evidence }
+        }
+      : {
+          mode: 'delivery',
+          service: pucksHomeDeliveryPolicy.service,
+          // Review overdue: the rate is withheld rather than carried forward, so
+          // the offer is visible with an honest unknown instead of a stale quote.
+          certainty: 'unknown',
+          amount: null,
+          destination: { scope: pucksHomeDeliveryPolicy.destination.scope, country: pucksHomeDeliveryPolicy.destination.country },
+          note: `The browser-researched ₪30 home-delivery rule is past its review date (${pucksHomeDeliveryPolicy.reviewBy}) and is not applied until browser research re-checks it; shipping is unknown, not free. ${shippingNote}.`,
+          policy: policyStamp
+        },
     now
   });
 }

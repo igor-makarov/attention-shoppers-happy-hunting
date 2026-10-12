@@ -310,6 +310,20 @@ export function validatePolicies(policies = SHIPPING_POLICIES) {
   return { ok: results.every(result => result.ok), results };
 }
 
+/**
+ * Is this policy still inside its review window at `now`?
+ *
+ * The read-time evaluator and the vendor adapters both use this: a policy past
+ * its `reviewBy` date must not enrich an old row and must not be stamped onto a
+ * freshly parsed row either, so the offer falls back to explicit unknown
+ * shipping instead of a stale unconditional rate until browser research renews
+ * the evidence.
+ */
+export function policyIsCurrent(policy, now = Date.now()) {
+  const reviewBy = Date.parse(policy?.reviewBy ?? '');
+  return Number.isFinite(reviewBy) && reviewBy >= now;
+}
+
 /** Does this policy's scope cover the observation? */
 function policyMatches(policy, observation) {
   if (!observation || !policy) return false;

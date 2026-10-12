@@ -14,7 +14,7 @@
 
 import { classifyListing } from '../catalog.js';
 import { decodeHtml, decodeEntities, parseDecimal, stripTags, collapse } from '../lib/text.js';
-import { coffeemanEightPackPolicy, coffeemanSingleFourPackPolicy } from '../lib/policies.js';
+import { coffeemanEightPackPolicy, coffeemanSingleFourPackPolicy, policyIsCurrent } from '../lib/policies.js';
 import { createObservation, parseError } from './index.js';
 
 const PRODUCT_URL = 'https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico';
@@ -149,7 +149,23 @@ export function parseCoffeemanProduct(html, { now, url = PRODUCT_URL, productId 
   const cartObservation = cartObservationFor({ url, classification });
   const coveragePolicy = checkoutQuote ? coffeemanEightPackPolicy : coffeemanSingleFourPackPolicy;
   const distributionCenterAlternative = coveragePolicy.alternatives?.find(alternative => alternative.id === 'distribution-center') ?? null;
-  const shippingNote = [...new Set([shipping.note, checkoutQuote?.note, cartObservation?.note].filter(Boolean))].join(' ');
+  // Policy-derived rates are only applied while the policy is inside its review
+  // window. The page-published ₪25 courier rate stands on its own; the
+  // checkout-quoted 8-pack rate and the cart-observed distribution-center
+  // alternative are withheld once `reviewBy` passes, so an overdue policy means
+  // explicit unknown shipping instead of a stale unconditional rate.
+  const policyCurrent = policyIsCurrent(coveragePolicy, now);
+  const checkoutQuoteCurrent = checkoutQuote != null && policyCurrent;
+  const cartObservationCurrent = cartObservation != null && policyCurrent;
+  const overdueNote = (checkoutQuote || cartObservation) && !policyCurrent
+    ? `The browser-researched checkout rule is past its review date (${coveragePolicy.reviewBy}) and is not applied until browser research re-checks it.`
+    : null;
+  const shippingNote = [...new Set([
+    shipping.note,
+    checkoutQuoteCurrent ? checkoutQuote?.note : null,
+    cartObservationCurrent ? cartObservation?.note : null,
+    overdueNote
+  ].filter(Boolean))].join(' ');
   const observation = createObservation({
     vendor: coffeeman,
     itemUrl: url,
@@ -176,15 +192,15 @@ export function parseCoffeemanProduct(html, { now, url = PRODUCT_URL, productId 
     shipping: {
       mode: 'delivery',
       service: 'home_delivery',
-      certainty: shipping.deliveryCents != null ? 'verified' : checkoutQuote ? 'checkout_quote' : 'unknown',
+      certainty: shipping.deliveryCents != null ? 'verified' : checkoutQuoteCurrent ? 'checkout_quote' : 'unknown',
       amount: shipping.deliveryCents != null
         ? { amount: shipping.deliveryCents, currency }
-        : checkoutQuote
+        : checkoutQuoteCurrent
           ? { amount: checkoutQuote.amountIls, currency: checkoutQuote.currency }
           : null,
       // A checkout-quoted rate is only used for the cart size it was observed
       // on; the quote engine refuses to rank a larger cart with it.
-      maxTotalGrams: shipping.deliveryCents != null ? null : checkoutQuote?.maxTotalGrams ?? null,
+      maxTotalGrams: shipping.deliveryCents != null ? null : checkoutQuoteCurrent ? checkoutQuote.maxTotalGrams ?? null : null,
       // The product page publishes the courier rate but not the locality list, and the
       // vendor terms state home delivery is subject to that list. The caveat is kept
       // structured so the board can disclose the geographic restriction instead of
@@ -200,7 +216,7 @@ export function parseCoffeemanProduct(html, { now, url = PRODUCT_URL, productId 
       // The distribution-center option is listed on the product page without a
       // price; the anonymous cart quoted it for the recorded cart sizes, so it
       // is shown as a conditional alternative and never replaces the ranked rate.
-      alternatives: shipping.distributionCenter && distributionCenterAlternative
+      alternatives: shipping.distributionCenter && distributionCenterAlternative && policyCurrent
         ? [{
             id: distributionCenterAlternative.id,
             label: distributionCenterAlternative.label,
@@ -216,7 +232,7 @@ export function parseCoffeemanProduct(html, { now, url = PRODUCT_URL, productId 
         amount: shipping.pickupFree ? { amount: 0, currency } : null,
         note: shipping.pickupFree ? 'Free self-pickup, listed on the product page.' : null
       },
-      evidence: checkoutQuote
+      evidence: checkoutQuoteCurrent
         ? {
             url: checkoutQuote.sourceUrl,
             retrievedAt: checkoutQuote.retrievedAt,

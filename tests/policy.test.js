@@ -15,6 +15,8 @@ import {
   policySummary
 } from '../src/lib/policies.js';
 import { parsePucksProduct } from '../src/vendors/pucks.js';
+import { parseCoffeemanProduct } from '../src/vendors/coffeeman.js';
+import { decodeHtml } from '../src/lib/text.js';
 
 const NOW = Date.parse('2026-10-12T12:00:00.000Z');
 const FRESH = '2026-10-12T09:00:00.000Z';
@@ -467,4 +469,59 @@ test('the public policy summary exposes versions and review dates without payloa
     assert.ok(Date.parse(entry.reviewBy) > NOW);
     assert.ok(!('evidence' in entry) || typeof entry.evidence !== 'object', 'no evidence payload in the summary');
   }
+});
+
+// An expired policy must not be applied at parse time either: the adapter is a
+// second place where a researched rule enters the board, and it must honor the
+// same `reviewBy` gate as the read-time evaluator so an overdue rate becomes
+// explicit unknown shipping instead of a stale unconditional quote.
+test('an expired Pucks policy is withheld at parse time and the offer falls back to explicit unknown shipping', () => {
+  const AFTER_REVIEW = Date.parse('2026-11-12T00:00:00.000Z');
+  const html = readFileSync(new URL('./fixtures/pucks-product.html', import.meta.url)).toString('utf8');
+  const expired = parsePucksProduct(html, { now: AFTER_REVIEW });
+  assert.equal(expired.shipping.certainty, 'unknown');
+  assert.equal(expired.shipping.amount, null);
+  assert.equal(expired.shipping.freeThreshold ?? null, null);
+  assert.match(expired.shipping.note, /past its review date/);
+  const board = quoteBoard({
+    observations: [expired],
+    targetGrams: 500,
+    destination: findDestination('tel-aviv'),
+    now: AFTER_REVIEW
+  });
+  assert.equal(board.ranked.length, 0, 'an overdue rate cannot rank');
+  assert.match(board.unrankable[0].reasons.join(' '), /not published before checkout/);
+  const current = parsePucksProduct(html, { now: NOW });
+  assert.equal(current.shipping.certainty, 'checkout_quote', 'the same page parses with the rate while the policy is current');
+  assert.equal(current.shipping.amount.amount, 30);
+});
+
+test('an expired CoffeeMan cart policy drops the 8-pack quote and the alternative but keeps the page-published single rate', () => {
+  const AFTER_REVIEW = Date.parse('2026-11-12T00:00:00.000Z');
+  const read = name => decodeHtml(readFileSync(new URL(`./fixtures/${name}`, import.meta.url)));
+  const eight = parseCoffeemanProduct(read('coffeeman-8pack-product.windows-1255.html'), { now: AFTER_REVIEW, url: 'https://example.test/8pack' });
+  assert.equal(eight.shipping.certainty, 'unknown');
+  assert.equal(eight.shipping.amount, null);
+  assert.equal(eight.shipping.alternatives.length, 0);
+  assert.equal(eight.shipping.maxTotalGrams ?? null, null);
+  assert.match(eight.shipping.note, /past its review date/);
+  const eightBoard = quoteBoard({
+    observations: [eight],
+    targetGrams: 500,
+    destination: findDestination('tel-aviv'),
+    now: AFTER_REVIEW
+  });
+  assert.equal(eightBoard.ranked.length, 0, 'the withheld 8-pack quote cannot rank');
+  const single = parseCoffeemanProduct(read('coffeeman-product.windows-1255.html'), { now: AFTER_REVIEW });
+  assert.equal(single.shipping.certainty, 'verified', 'the product page publishes the ₪25 courier rate independently of the policy');
+  assert.equal(single.shipping.amount.amount, 25);
+  assert.equal(single.shipping.alternatives.length, 0, 'the cart-observed ₪15 alternative is withheld with its policy');
+  const singleBoard = quoteBoard({
+    observations: [single],
+    targetGrams: 500,
+    destination: findDestination('tel-aviv'),
+    now: AFTER_REVIEW
+  });
+  assert.equal(singleBoard.ranked.length, 1, 'the page-published rate still ranks');
+  assert.equal(singleBoard.best.totalIls, 91);
 });
