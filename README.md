@@ -8,7 +8,10 @@ Three Israeli vendor adapters currently observe **five real Crema e Gusto listin
 
 The board is implemented and self-updating: deterministic vendor adapters observe real product pages, a
 pure quote engine ranks delivered ILS totals, and a scheduled Durable Object refresh keeps the data
-current without a browser or the coding loop. See [current status](docs/STATUS.md),
+current without a browser or the coding loop. Each refresh keeps the previous successful price and stock
+for the same offer, so the board shows the unit-price change since the last check (or explains why a
+comparison is impossible), and it reports a completed refresh only when a vendor was actually re-observed.
+See [current status](docs/STATUS.md),
 [observed sources](docs/SOURCES.md), [design](docs/DESIGN.md) and [architecture](docs/ARCHITECTURE.md).
 
 ## Coding loop
