@@ -96,6 +96,12 @@ test('an old persisted Pucks offer with unknown shipping gains the evidenced rul
   assert.equal(board.best.shipping.freeThreshold, 100, 'the evidenced free-shipping threshold comes with the rule');
   assert.equal(board.best.shipping.policy.id, 'pucks-il-home-delivery');
   assert.equal(board.best.shipping.policy.version, 1);
+  // The old row already had a generic country destination, so the policy's
+  // coverage caveat must still be attached: an enriched rate is never presented
+  // as unconditional country-wide delivery.
+  assert.match(board.best.shipping.coverageCaveat, /not individually verified/);
+  assert.equal(board.best.shipping.destination.scope, 'country', 'the row keeps its own destination scope');
+  assert.equal(board.best.labels.some(label => /Delivery coverage caveat/.test(label)), true);
   assert.equal(board.best.totalIls, 90, '2 × ₪30 item + ₪30 shipping; the ₪100 threshold is not met at ₪60');
   assert.match(board.best.shipping.note, /validated policy pucks-il-home-delivery v1/);
 

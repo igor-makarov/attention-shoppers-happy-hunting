@@ -188,6 +188,23 @@ check(
   boards.retiredUrl?.requestedRetiredProduct?.id === 'lavazza-qualita-oro-vacuum-ground',
   JSON.stringify(boards.retiredUrl?.requestedRetiredProduct ?? null)
 );
+// Owner correction 2026-10-12: no blend/variant feature. The obsolete parameter must
+// not create a second, filtered view, and the catalog must expose no variant menu.
+const rankedKeys = board => boardRows(board).map(quote => quote.key).sort().join('|');
+check(
+  'the obsolete variant parameter returns the same unified board',
+  rankedKeys(boards.boardUnstated) === rankedKeys(boards.board500)
+    && boards.board500?.variantId == null
+    && boards.boardUnstated?.variantId == null
+    && boards.board500?.counts?.excludedByVariant === undefined,
+  `variantId500=${boards.board500?.variantId ?? null} variantIdUnstated=${boards.boardUnstated?.variantId ?? null} excluded=${boards.board500?.counts?.excludedByVariant ?? 'absent'}`
+);
+const catalogProduct = endpoints.catalog.body?.products?.[0] ?? null;
+check(
+  'the catalog exposes no variant selection',
+  catalogProduct?.variants === undefined && catalogProduct?.defaultVariant === undefined,
+  `variants=${catalogProduct?.variants === undefined ? 'absent' : JSON.stringify(catalogProduct?.variants)} defaultVariant=${catalogProduct?.defaultVariant ?? 'absent'}`
+);
 
 const snapshot = {
   capturedAt: `${startedAt} to ${finishedAt}`,

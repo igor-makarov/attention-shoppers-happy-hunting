@@ -208,6 +208,17 @@ export function enrichObservationShipping(observation, options = {}) {
   if (shipping.destination == null && policy.destination) {
     shipping.destination = { ...policy.destination };
     changed = true;
+  } else if (shipping.destination != null && policy.destination?.caveat && shipping.destination.caveat == null) {
+    // An older stored row often already carries a generic destination scope but
+    // not the coverage caveat the researched evidence established. Keep the
+    // row's own scope and add the caveat, so an enriched rate is never
+    // presented as unconditional country-wide delivery.
+    shipping.destination = {
+      ...shipping.destination,
+      caveat: policy.destination.caveat,
+      caveatSource: policy.destination.caveatSource ?? null
+    };
+    changed = true;
   }
 
   if (!changed) return { observation, status: 'already-known', policy };

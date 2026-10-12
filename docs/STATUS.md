@@ -417,7 +417,7 @@ labels and the next-source-check footer line, recorded in
 | --- | --- |
 | Worker name in `wrangler.jsonc` | `attention-shoppers` (aligned with the owner correction) |
 | Production URL reported by owner | https://attention-shoppers.igormaka.workers.dev — **independently verified reachable from the runner** (HTTP 200, 2026-10-12 15:51-15:54, 16:17-16:18, 16:53 and 17:26 UTC, read-only GETs, no credentials) |
-| Production scope | **Independently verified**: `/api/catalog` listed exactly one product (`lavazza-crema-e-gusto-vacuum-ground`) and three vendors; no retired line appeared in any board payload, and the retired Qualità Oro URL returned `requestedRetiredProduct` with the Crema e Gusto board. Re-verified by the 3-63 probe at 16:53 UTC (17/17 scope checks; `docs/evidence/production-probe-20261012T1653Z.json`) and by the 3-75 probe at 21:49 UTC (21/21 checks; `docs/evidence/production-probe-20261012T2149Z.json`). |
+| Production scope | **Independently verified**: `/api/catalog` listed exactly one product (`lavazza-crema-e-gusto-vacuum-ground`) and three vendors; no retired line appeared in any board payload, and the retired Qualità Oro URL returned `requestedRetiredProduct` with the Crema e Gusto board. Re-verified by the 3-63 probe at 16:53 UTC (17/17 scope checks; `docs/evidence/production-probe-20261012T1653Z.json`) and by the 3-75 probes at 21:49 UTC (20/20 checks; `docs/evidence/production-probe-20261012T2149Z.json`) and 21:52 UTC (22/22 checks including the new inert-variant-parameter and no-variant-catalog regressions; `docs/evidence/production-probe-20261012T2152Z.json`). |
 | Production refresh / persistence | **Independently verified**: the probe's first `/health` GET started the documented initial refresh (15:51:52.931Z → 15:52:12.546Z, 4 bounded requests, CoffeeMan saved 3; Pucks/Coffee4U inside their backoff window). `/api/status` then showed `lastRefreshAt` 15:52:12.546Z, fresh, five observations and the Bank of Israel table asOf 12:23:04.599Z. The post-deploy probe, the 16:53 probe and the 3-64 probe at 17:26 UTC found the same persisted store with the same timestamps (ageHours 1.0, stale false) and the same three vendor `nextAttemptAt` values (19:34/19:46/21:52 UTC). The 6-hour cron trigger itself has not been observed firing; the first tick after the store state was written is 18:17 UTC (expected to skip every vendor) and the 00:17 UTC tick should refresh. |
 | Production board values | **Independently verified at 21:49 UTC after the 3-75 build deployed**: 500 g best **Pucks ₪90.00** (2 × ₪30 + the researched ₪30 rule applied at read time), CoffeeMan ₪91.00, **Coffee4U ₪106.00 in the same comparison**, CoffeeMan 4-pack ₪149.00; 1 kg best Pucks ₪120.00 (free above the ₪100 item subtotal); the CoffeeMan 8-pack stays unrankable at ₪240 because its cart-observed ₪20 rate is not a shared policy yet. The old persisted Pucks row (observed 13:34 UTC with unknown shipping) gained the validated rule without a vendor refresh, which independently confirms the read-time policy-enrichment/old-store gap fix in production. |
 | Production UI | **Independently verified**: the fixture-free live browser QA mode drove the deployed site in headless Chrome — **53/53** checks passed with zero console errors on 2026-10-12 16:20 UTC, again at 17:05 UTC after the 3-63 push, and **59/59** at 17:31 UTC after the failed-attempt build deployed (evidence `docs/evidence/browser-qa-production-20261012T1620Z.json`, `docs/evidence/browser-qa-production-20261012T1705Z.json`, `docs/evidence/browser-qa-production-20261012T1731Z.json`). |
@@ -445,7 +445,8 @@ would skip and the board would drift toward a twelve-hour cadence and report sta
 can confirm this with `npm run probe:production` (read-only) once the ticks have passed. Report any
 Cloudflare error back to the loop without pasting credentials.
 
-The 3-75 read-only probe at 21:49 UTC (21/21 checks) additionally verified that the blend/variant-removal
+The 3-75 read-only probes at 21:49 and 21:52 UTC (20/20 and 22/22 checks, the second with two new
+inert-variant-parameter regressions) additionally verified that the blend/variant-removal
 build is live in production: the API serves no `variantId`/`excludedByVariant`, `?variant=unspecified`
 returns the identical unified ranking with Coffee4U included, and the served assets match the committed
 code (`docs/evidence/production-probe-20261012T2149Z.json`,
@@ -1222,7 +1223,21 @@ from the home page, the product page, the Worker API and the offline QA harness:
   API in the same session; the review record is
   `docs/evidence/visual-review/2026-10-12-variant-removal-review.json`.
 
-**Next step:** run `npm run probe:production` after the next main-push deploy to confirm the variant
-removal reaches the production assets and that the production store's five observations resolve to the one
-unified comparison; then continue within Crema e Gusto coverage, shipping evidence, freshness and
-comparison quality.
+- Production read-only probe (21:49 and 21:52 UTC, public HTTPS GETs, no credentials): **20/20 and
+  22/22** checks pass. The production build is already the unified-comparison build: `/api/board` has no
+  `variantId`/`excludedByVariant`, `?variant=unspecified` returns the same ranking with Coffee4U in it,
+  `/api/catalog` carries the unified notes and no variant menu, the served `product.js` strips the
+  obsolete parameter, the served `home.js` says "one comparison for all tracked listings", and the
+  directly loaded product page has zero `variant` occurrences. The production store is still the
+  15:52:12.546Z snapshot, so the ₪90 Pucks 500 g quote comes from read-time policy enrichment of the old
+  persisted unknown-shipping row — the old-store gap fix working in production. Evidence:
+  `docs/evidence/production-probe-20261012T2149Z.json`,
+  `docs/evidence/production-probe-20261012T2152Z.json`,
+  `docs/evidence/production-build-marker-20261012T2152Z.json`.
+
+**Next step:** the variant removal is already confirmed live in production (probes above). The remaining
+production check is the **00:17 UTC cron tick**, which should refresh the store itself so the researched
+observations replace the 15:52 snapshot (the read-time policy enrichment already covers Pucks; the
+CoffeeMan 8-pack cart rate is not a shared policy, so its old row stays unrankable until then). Re-run
+`npm run probe:production` after that tick, then continue within Crema e Gusto coverage, shipping
+evidence, freshness and comparison quality.

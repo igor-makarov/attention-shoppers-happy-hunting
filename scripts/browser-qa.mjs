@@ -296,9 +296,14 @@ try {
   });
   check('compare: each offer shows item subtotal, shipping and delivered total from the API with accurate pack labels', compareMathOk,
     compare.cards.map((card, index) => `${card.pack} :: ${card.totals.map(t => t.value).join(' + ')}`).join(' || '));
-  check('compare: a multipack spells out its contents and purchased grams',
-    compare.cards.some(card => /8 × 250 g multipack \(2000 g\)/.test(card.pack ?? '') && /1 multipack \(8 × 250 g\) = 2000 g/.test(card.pack ?? '')),
-    compare.cards.map(c => c.pack).join(' | '));
+  // A ranked multipack must spell out its contents; in a store where the only
+  // multipack is unrankable (for example production before its first refreshed
+  // store), the check is derived from the API and skips rather than failing.
+  const rankedMultipack = api500.ranked.slice(1).find(quote => (quote.product.packCount ?? 1) > 1) ?? null;
+  check('compare: a ranked multipack spells out its contents and purchased grams',
+    rankedMultipack == null
+      || compare.cards.some(card => card.pack === `${packDescription(rankedMultipack)} · ${quantityDescription(rankedMultipack)}` && /multipack/.test(card.pack ?? '')),
+    rankedMultipack ? `${packDescription(rankedMultipack)} :: ${compare.cards.map(c => c.pack).join(' | ')}` : 'no ranked multipack in this store');
   check('compare: every offer states its difference from the best delivered total',
     compare.cards.every((card, index) => card.delta === offerDeltaText(api500.ranked[index + 1], api500)),
     compare.cards.map(c => c.delta).join(' | '));
