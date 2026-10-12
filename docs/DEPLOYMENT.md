@@ -75,6 +75,10 @@ npm run qa:browser                            # offline fixture-backed browser Q
 npm run qa:browser -- http://127.0.0.1:8789   # live browser QA against the running Worker
 ```
 
+The local scheduled trigger waits while the run executes. With the vendors' declared crawl delays a full
+run takes about 40 s, so a client-side timeout on that call does not mean the refresh failed; check
+`/api/status` for the persisted run, `lastRefreshAt` and the vendors' `nextAttemptAt`.
+
 `npm run qa:browser` without an argument starts `scripts/qa-server.mjs` on an ephemeral port. That server
 serves `public/` and the read-only board API computed from `tests/fixtures/` with the production quote
 engine, so headless Chrome checks the real UI offline and the script compares the DOM against the API

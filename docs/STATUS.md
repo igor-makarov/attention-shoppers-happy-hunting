@@ -77,8 +77,8 @@ Observed board results (local Worker, 13:01 UTC):
 ## Verification performed (2026-10-12, all local)
 
 1. `npm ci --ignore-scripts` — clean install from the pinned lockfile, 0 vulnerabilities.
-2. `npm run verify` — **65/65** `node:test` cases pass, then `wrangler deploy --dry-run` builds the
-   Worker bundle with no Cloudflare credential (69.89 KiB, gzip 17.98 KiB; bindings `BOARD` + `ASSETS`).
+2. `npm run verify` — **66/66** `node:test` cases pass, then `wrangler deploy --dry-run` builds the
+   Worker bundle with no Cloudflare credential (70.12 KiB, gzip 18.05 KiB; bindings `BOARD` + `ASSETS`).
    Covered acceptance cases include: shipping changes the winner; unknown shipping cannot win;
    stale/out-of-stock/unknown availability stay unranked; variants and multipacks stay separate;
    quantity rounding, minimum order and free-shipping thresholds; missing FX is not zero; destination
@@ -112,7 +112,15 @@ Observed board results (local Worker, 13:01 UTC):
    fetched. `/api/board` then served both ranked product boards and the unranked offers described
    above. This is the refresh-while-no-browser-open path. Evidence:
    `docs/evidence/worker-runtime-status-2026-10-12T1301Z.json`.
-7. `npm run qa:browser` — headless Chrome (chromedriver 154) QA, **47/47 checks pass offline, exit 0**,
+7. Scheduled handler against a second fresh Durable Object store, triggered only through the documented
+   local endpoint (`curl http://127.0.0.1:8789/cdn-cgi/local/scheduled`, no browser, no `/health`):
+   the run recorded trigger `scheduled`, started 13:13:28 UTC, made 10 bounded requests, persisted 9
+   observations and the Bank of Israel table, and set `nextAttemptAt` +6 h. A second trigger 58 s later
+   correctly made 0 requests because every vendor was inside its six-hour window, and both runs are in
+   the persisted run history. The curl call itself timed out client-side on the first trigger while the
+   ~40 s run was still executing; `/api/status` after completion shows the persisted result. Evidence:
+   `docs/evidence/worker-runtime-status-2026-10-12T1315Z.json`.
+8. `npm run qa:browser` — headless Chrome (chromedriver 154) QA, **47/47 checks pass offline, exit 0**,
    desktop 1440 px and mobile 390 px, screenshots and JSON report in `.shurik-local/qa/`. The command is
    self-contained: it starts `scripts/qa-server.mjs` on an ephemeral port, which serves `public/` plus
    the read-only API computed from `tests/fixtures/` by the production quote engine, so no Worker,
@@ -124,18 +132,17 @@ Observed board results (local Worker, 13:01 UTC):
    touch targets on mobile, and a footer that reports the last completed refresh instead of a static
    "waiting" message. A shared URL with an untracked variant id is checked to fall back to the product
    default and still rank the default offer. Product checks cover the selector listing both products,
-   Qualità Oro's own
-   default variant, its own ranked best (₪99.00 for 500 g) and the shareable URL. Seven extra checks
-   run against a second fixture server with one clearly labelled QA-only demo offer to verify minimum
-   order, free-shipping threshold, free-shipping-met labelling and a locality delivery restriction, plus
-   one check that a board whose scheduled refresh stopped for 30 hours is labelled in the footer.
-8. `npm run qa:browser -- http://127.0.0.1:8789` — live mode passed **45/45** against the local
+   Qualità Oro's own default variant, its own ranked best (₪99.00 for 500 g) and the shareable URL.
+   Seven extra checks run against a second fixture server with one clearly labelled QA-only demo offer
+   to verify minimum order, free-shipping threshold, free-shipping-met labelling and a locality
+   delivery restriction, plus one check that a board whose scheduled refresh stopped for 30 hours is
+   labelled in the footer.
+9. `npm run qa:browser -- http://127.0.0.1:8789` — live mode passed **45/45** against the local
    `wrangler dev` Worker at 13:11 UTC (earlier runs at 13:01 and 13:09 UTC passed 44/44; fixture-only
    checks are skipped in live mode, and the new variant-fallback check runs in both modes); the run
    also re-verified the no-browser refresh path described in item 6. One earlier browser QA attempt
-   (3-51)
-   aborted on a transient WebDriver timeout before any UI check ran; a manual WebDriver session then
-   confirmed the page renders (`boardState=ready`) and the repeat runs passed cleanly.
+   (3-51) aborted on a transient WebDriver timeout before any UI check ran; a manual WebDriver session
+   then confirmed the page renders (`boardState=ready`) and the repeat runs passed cleanly.
 
 ## Iteration notes
 
@@ -184,7 +191,10 @@ variant at all (a typo or an old shared link, including an object-prototype key)
 product's default variant like an unknown product or destination, instead of returning an empty board.
 The resolution lives in `resolveVariantId()` (`src/catalog.js`) and is shared by the Worker and the
 offline QA server so the harness cannot drift from production. Cross-product variant ids stay strict
-(a Classico request against Qualità Oro matches no offer, which the tests pin down).
+(a Classico request against Qualità Oro matches no offer, which the tests pin down). The scheduled
+handler was also exercised end-to-end through `wrangler dev`'s documented local trigger endpoint
+against a fresh Durable Object store: one full run (10 requests, 9 observations, FX, +6 h) and one
+correct zero-request backoff skip, with both runs in the persisted history.
 
 ## Committed evidence snapshots
 
@@ -200,6 +210,10 @@ Historical evidence snapshots are committed for review and are not live data:
 - `docs/evidence/worker-runtime-status-2026-10-12T1301Z.json` — `/health`, `/api/status`, `/api/catalog`
   and both product boards from the local Worker after its no-browser initial refresh (three vendors, 9
   observations, fresh, `nextAttemptAt` +6 h).
+- `docs/evidence/worker-runtime-status-2026-10-12T1315Z.json` — the scheduled-handler path triggered
+  through `curl /cdn-cgi/local/scheduled` against a second fresh Durable Object store: one 10-request
+  run and one correct zero-request backoff skip, 9 observations persisted, plus `/api/status` and both
+  product boards after the run.
 - `docs/evidence/vendor-research-2026-10-12T1305Z-pucks-shipping.json` — public-product-page, cart and
   terms-page quotes supporting the Pucks unknown-shipping label instead of a guessed amount.
 - Earlier snapshots from iterations 3-49 to 3-53 remain in `docs/evidence/` as history, including the
