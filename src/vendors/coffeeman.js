@@ -14,7 +14,7 @@
 
 import { classifyListing } from '../catalog.js';
 import { decodeHtml, decodeEntities, parseDecimal, stripTags, collapse } from '../lib/text.js';
-import { coffeemanEightPackPolicy } from '../lib/policies.js';
+import { coffeemanEightPackPolicy, coffeemanSingleFourPackPolicy } from '../lib/policies.js';
 import { createObservation, parseError } from './index.js';
 
 const PRODUCT_URL = 'https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico';
@@ -47,7 +47,7 @@ export const COFFEEMAN_CHECKOUT_QUOTES = {
     amountIls: coffeemanEightPackPolicy.rule.amount.amount,
     currency: coffeemanEightPackPolicy.rule.amount.currency,
     maxTotalGrams: coffeemanEightPackPolicy.rule.maxTotalGrams,
-    distributionCenterIls: 20,
+    distributionCenterIls: coffeemanEightPackPolicy.alternatives.find(alternative => alternative.id === 'distribution-center').amount.amount,
     observedCarts: 'the 2 kg cart',
     retrievedAt: coffeemanEightPackPolicy.evidence.retrievedAt,
     sourceUrl: coffeemanEightPackPolicy.evidence.url,
@@ -66,21 +66,26 @@ export const COFFEEMAN_CHECKOUT_QUOTES = {
  * No street address, personal detail, login or order submission was involved.
  */
 export const COFFEEMAN_CART_OBSERVATIONS = {
-  [PRODUCT_URL]: {
-    distributionCenterIls: 15,
-    observedCarts: '0.5–1 kg carts',
-    retrievedAt: '2026-10-12T19:57:00Z',
-    sourceUrl: 'https://www.coffeeman.co.il/checkout.asp',
-    note: 'Anonymous cart 2026-10-12 (https://www.coffeeman.co.il/checkout.asp): ₪25 home courier (matching the published rate) and ₪15 distribution-center delivery up to 5 kg for 0.5–1 kg carts; free courier was observed from a 1.75 kg / ₪231 cart, but no free-shipping rule is published, so the board keeps the published ₪25 and never assumes free shipping.'
-  },
-  [FOUR_PACK_URL]: {
-    distributionCenterIls: 15,
-    observedCarts: 'the 1 kg cart',
-    retrievedAt: '2026-10-12T20:04:00Z',
-    sourceUrl: 'https://www.coffeeman.co.il/checkout.asp',
-    note: 'Anonymous cart 2026-10-12 (https://www.coffeeman.co.il/checkout.asp): ₪25 home courier (matching the published rate) and ₪15 distribution-center delivery up to 5 kg for the 1 kg cart; free courier was observed for a 2 kg / ₪248 two-4-pack cart, but no free-shipping rule is published, so the board keeps the published ₪25 and never assumes free shipping.'
-  }
+  [PRODUCT_URL]: singleFourPackCartObservation(),
+  [FOUR_PACK_URL]: singleFourPackCartObservation()
 };
+
+/**
+ * The cart-researched distribution-center observation is stored once in the
+ * validated policy (`coffeeman-single-4pack-il-home-delivery`); this helper is
+ * the adapter-facing view of that policy, so the parsed row and the read-time
+ * evaluator share one representation instead of a second hard-coded string.
+ */
+function singleFourPackCartObservation() {
+  const alternative = coffeemanSingleFourPackPolicy.alternatives.find(entry => entry.id === 'distribution-center');
+  return {
+    distributionCenterIls: alternative.amount.amount,
+    observedCarts: '0.5–1 kg carts',
+    retrievedAt: coffeemanSingleFourPackPolicy.evidence.retrievedAt,
+    sourceUrl: 'https://www.coffeeman.co.il/checkout.asp',
+    note: alternative.note
+  };
+}
 
 export const coffeeman = {
   id: 'coffeeman',
@@ -142,6 +147,8 @@ export function parseCoffeemanProduct(html, { now, url = PRODUCT_URL, productId 
   const shipping = parseShippingOptions(html);
   const checkoutQuote = checkoutQuoteFor({ url, classification });
   const cartObservation = cartObservationFor({ url, classification });
+  const coveragePolicy = checkoutQuote ? coffeemanEightPackPolicy : coffeemanSingleFourPackPolicy;
+  const distributionCenterAlternative = coveragePolicy.alternatives?.find(alternative => alternative.id === 'distribution-center') ?? null;
   const shippingNote = [...new Set([shipping.note, checkoutQuote?.note, cartObservation?.note].filter(Boolean))].join(' ');
   const observation = createObservation({
     vendor: coffeeman,
@@ -183,22 +190,23 @@ export function parseCoffeemanProduct(html, { now, url = PRODUCT_URL, productId 
       // structured so the board can disclose the geographic restriction instead of
       // claiming unconditional country-wide coverage.
       destination: {
-        scope: 'country',
-        country: 'IL',
-        caveat: 'Home delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout.',
-        caveatSource: 'https://www.coffeeman.co.il/page/%D7%AA%D7%A0%D7%90%D7%99-%D7%A9%D7%99%D7%9E%D7%95%D7%A9'
+        scope: coveragePolicy.destination.scope,
+        country: coveragePolicy.destination.country,
+        caveat: coveragePolicy.destination.caveat,
+        caveatSource: coveragePolicy.destination.caveatSource
       },
       minOrder: null,
       freeThreshold: null,
       // The distribution-center option is listed on the product page without a
       // price; the anonymous cart quoted it for the recorded cart sizes, so it
       // is shown as a conditional alternative and never replaces the ranked rate.
-      alternatives: shipping.distributionCenter && cartObservation?.distributionCenterIls != null
+      alternatives: shipping.distributionCenter && distributionCenterAlternative
         ? [{
-            id: 'distribution-center',
-            label: `Distribution-center delivery up to 5 kg (cart-observed for ${cartObservation.observedCarts})`,
-            amount: { amount: cartObservation.distributionCenterIls, currency },
-            note: cartObservation.note
+            id: distributionCenterAlternative.id,
+            label: distributionCenterAlternative.label,
+            amount: { ...distributionCenterAlternative.amount },
+            maxTotalGrams: distributionCenterAlternative.maxTotalGrams ?? null,
+            note: distributionCenterAlternative.note
           }]
         : [],
       note: shippingNote,

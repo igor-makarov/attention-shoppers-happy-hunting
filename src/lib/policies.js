@@ -38,6 +38,10 @@ const PRODUCT_ID = 'lavazza-crema-e-gusto-vacuum-ground';
  * quote engine keeps the observed `>=` arithmetic only as the conservative
  * reading of "free above the stated threshold" — see docs/SOURCES.md.
  */
+const AMIGO_HOME_DELIVERY_CAVEAT =
+  'Home delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout.';
+const AMIGO_CAVEAT_SOURCE = 'https://www.coffeeman.co.il/page/%D7%AA%D7%A0%D7%90%D7%99-%D7%A9%D7%99%D7%9E%D7%95%D7%A9';
+
 export const pucksHomeDeliveryPolicy = {
   id: 'pucks-il-home-delivery',
   version: 1,
@@ -99,11 +103,18 @@ export const coffeemanEightPackPolicy = {
     minOrder: null,
     maxTotalGrams: 2000
   },
+  alternatives: [{
+    id: 'distribution-center',
+    label: 'Distribution-center delivery up to 5 kg (cart-observed for the 2 kg cart)',
+    amount: { amount: 20, currency: 'ILS' },
+    maxTotalGrams: 5000,
+    note: 'Anonymous checkout re-check 2026-10-12T20:07:00Z: ₪20 distribution-center delivery up to 5 kg for the one-8-pack (2 kg) cart; self-pickup free. A different service from the ranked home courier quote.'
+  }],
   destination: {
     scope: 'country',
     country: 'IL',
-    caveat: 'Home delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout.',
-    caveatSource: 'https://www.coffeeman.co.il/page/%D7%AA%D7%A0%D7%90%D7%99-%D7%A9%D7%99%D7%9E%D7%95%D7%A9'
+    caveat: AMIGO_HOME_DELIVERY_CAVEAT,
+    caveatSource: AMIGO_CAVEAT_SOURCE
   },
   evidence: {
     url: 'https://www.coffeeman.co.il/checkout.asp',
@@ -118,8 +129,123 @@ export const coffeemanEightPackPolicy = {
   reviewBy: '2026-11-11T00:00:00.000Z'
 };
 
+/**
+ * CoffeeMan single 250 g and 4 × 250 g published home-delivery rule with the
+ * cart-researched distribution-center alternative. The ₪25 courier rate is
+ * published on both product pages; the product page lists a distribution-center
+ * option without a price, so the ₪15 rate comes from anonymous checkout carts
+ * observed on 2026-10-12 (19:56-20:09 UTC). Larger carts were sometimes shown
+ * free, but no free-shipping rule is published, so the ranked rate stays the
+ * published ₪25 and free shipping is never inferred from those carts.
+ */
+export const coffeemanSingleFourPackPolicy = {
+  id: 'coffeeman-single-4pack-il-home-delivery',
+  version: 1,
+  vendorId: 'coffeeman',
+  productIds: [PRODUCT_ID],
+  itemUrlPrefixes: [
+    'https://www.coffeeman.co.il/product/250-',
+    'https://www.coffeeman.co.il/product/4-'
+  ],
+  service: 'home_delivery',
+  origin: 'published',
+  certainty: 'verified',
+  rule: {
+    amount: { amount: 25, currency: 'ILS' },
+    freeThreshold: null,
+    thresholdSemantics: null,
+    minOrder: null,
+    maxTotalGrams: null
+  },
+  alternatives: [{
+    id: 'distribution-center',
+    label: 'Distribution-center delivery up to 5 kg (cart-observed for 0.5–1 kg carts)',
+    amount: { amount: 15, currency: 'ILS' },
+    maxTotalGrams: 5000,
+    note: 'Anonymous cart 2026-10-12 (https://www.coffeeman.co.il/checkout.asp): ₪25 home courier (matching the published rate) and ₪15 distribution-center delivery up to 5 kg for 0.5–1 kg carts; free courier was observed from a 1.75 kg / ₪231 cart, but no free-shipping rule is published, so the board keeps the published ₪25 and never assumes free shipping.'
+  }],
+  destination: {
+    scope: 'country',
+    country: 'IL',
+    caveat: AMIGO_HOME_DELIVERY_CAVEAT,
+    caveatSource: AMIGO_CAVEAT_SOURCE
+  },
+  evidence: {
+    url: 'https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico',
+    retrievedAt: '2026-10-12T20:04:00Z',
+    note: 'The ₪25 home-courier rate is published on the single 250 g and 4 × 250 g product pages. The ₪15 distribution-center alternative was observed in anonymous checkout carts on 2026-10-12 (2 × 250 g and the 4 × 250 g multipack); see docs/evidence/browser-research/2026-10-12-coffeeman-cart-single-4pack.json.'
+  },
+  observedFor: {
+    carts: ['2 × 250 g = 500 g', '1 × (4 × 250 g) = 1 kg'],
+    destinations: ['the method picker showed the method prices without asking for a locality'],
+    note: 'No street address or personal detail was entered and no order was submitted.'
+  },
+  reviewBy: '2026-11-11T00:00:00.000Z'
+};
+
+/**
+ * Coffee4U published door-to-door rate and pickup-point alternative, with the
+ * coverage shape observed in the rendered anonymous checkout on 2026-10-12
+ * (20:24-20:25 UTC). The courier rate and the pickup-point rate are published
+ * next to the product; the checkout confirmed the closed destination lists.
+ */
+export const coffee4uHomeDeliveryPolicy = {
+  id: 'coffee4u-il-home-delivery',
+  version: 1,
+  vendorId: 'coffee4u',
+  productIds: [PRODUCT_ID],
+  itemUrlPrefixes: ['https://www.coffee4u.co.il/product/'],
+  service: 'home_delivery',
+  origin: 'published',
+  certainty: 'verified',
+  rule: {
+    amount: { amount: 30, currency: 'ILS' },
+    freeThreshold: null,
+    thresholdSemantics: null,
+    minOrder: null,
+    maxTotalGrams: null
+  },
+  alternatives: [{
+    id: 'pickup-point',
+    label: "Delivery to a צ'יטה שופס pickup point",
+    amount: { amount: 15, currency: 'ILS' },
+    maxTotalGrams: 5000,
+    note: 'Published on the same product page for up to 5 kg; a different service from door-to-door courier delivery. The rendered checkout lists 420 localities with pickup spots (observed 2026-10-12).'
+  }],
+  destination: {
+    scope: 'country',
+    country: 'IL',
+    caveat: 'Door-to-door delivery is limited to the localities on Coffee4U’s home-delivery list, which the product page does not publish. The rendered anonymous checkout requires the destination from a closed list of 1,269 Israeli localities (Tel Aviv - Yafo and Eilat verified 2026-10-12); the ₪15 pickup-point service lists 420 localities with pickup spots. Confirm the destination at checkout.',
+    caveatSource: 'https://www.coffee4u.co.il/page/%D7%AA%D7%A7%D7%A0%D7%95%D7%9F-0',
+    observed: {
+      courierLocalities: 1269,
+      pickupPointLocalities: 420,
+      verifiedLocalities: ['תל אביב - יפו', 'אילת'],
+      observedAt: '2026-10-12T20:25:00Z',
+      entryUrl: 'https://www.coffee4u.co.il/cart.asp',
+      evidence: 'docs/evidence/browser-research/2026-10-12-coffee4u-coverage.json'
+    }
+  },
+  evidence: {
+    url: 'https://www.coffee4u.co.il/product/lavazza-crema-e-gusto-250-gr-%D7%98%D7%97%D7%95%D7%9F',
+    retrievedAt: '2026-10-12T20:25:00Z',
+    note: 'Door-to-door courier ₪30 and pickup-point ₪15 are published next to the product. Rendered anonymous checkout coverage observed 2026-10-12: the door-to-door method requires an exact match from a closed list of 1,269 Israeli localities (Tel Aviv - Yafo and Eilat verified) and the pickup-point method lists 420 localities with pickup spots; see docs/evidence/browser-research/2026-10-12-coffee4u-coverage.json.'
+  },
+  observedFor: {
+    carts: ['1 × 250 g'],
+    destinations: ['Tel Aviv - Yafo', 'Eilat'],
+    note: 'No street address or personal detail was entered and no order was submitted.'
+  },
+  reviewBy: '2026-11-11T00:00:00.000Z'
+};
+
 /** Every validated policy the shared evaluator may apply. */
-export const SHIPPING_POLICIES = [pucksHomeDeliveryPolicy, coffeemanEightPackPolicy];
+export const SHIPPING_POLICIES = [
+  pucksHomeDeliveryPolicy,
+  coffeemanSingleFourPackPolicy,
+  coffeemanEightPackPolicy,
+  coffee4uHomeDeliveryPolicy
+];
 
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;
 
@@ -144,6 +270,24 @@ export function validatePolicy(policy) {
   }
   if (threshold != null && !['above', 'at_least'].includes(policy.rule?.thresholdSemantics)) {
     errors.push('rule.thresholdSemantics must be "above" or "at_least" when a free threshold is present');
+  }
+  if (policy.alternatives != null) {
+    if (!Array.isArray(policy.alternatives)) {
+      errors.push('alternatives must be an array when present');
+    } else {
+      policy.alternatives.forEach((alternative, index) => {
+        if (!alternative || typeof alternative !== 'object') { errors.push(`alternatives[${index}] is not an object`); return; }
+        if (!alternative.id || typeof alternative.id !== 'string') errors.push(`alternatives[${index}].id is required`);
+        if (!alternative.label || typeof alternative.label !== 'string') errors.push(`alternatives[${index}].label is required`);
+        const altAmount = alternative.amount;
+        if (!altAmount || !Number.isFinite(altAmount.amount) || !CURRENCY_PATTERN.test(String(altAmount.currency ?? ''))) {
+          errors.push(`alternatives[${index}].amount must carry a numeric amount and a 3-letter currency`);
+        }
+        if (alternative.maxTotalGrams != null && (!Number.isFinite(alternative.maxTotalGrams) || alternative.maxTotalGrams <= 0)) {
+          errors.push(`alternatives[${index}].maxTotalGrams must be a positive number when present`);
+        }
+      });
+    }
   }
   if (!policy.evidence?.url || !policy.evidence?.retrievedAt) errors.push('evidence.url and evidence.retrievedAt are required');
   if (!policy.reviewBy || Number.isNaN(Date.parse(policy.reviewBy))) errors.push('reviewBy must be an ISO date');
@@ -173,10 +317,11 @@ function policyMatches(policy, observation) {
   return true;
 }
 
-function ruleKey(rule) {
+function ruleKey(rule, alternatives = []) {
   const amount = rule?.amount ? `${rule.amount.amount}${rule.amount.currency}` : '-';
   const threshold = rule?.freeThreshold ? `${rule.freeThreshold.amount}${rule.freeThreshold.currency}` : '-';
-  return `${amount}/${threshold}/${rule?.minOrder?.amount ?? '-'}`;
+  const alternativesKey = alternatives.map(alternative => `${alternative.id}:${alternative.amount?.amount ?? '-'}${alternative.amount?.currency ?? ''}`).join(',');
+  return `${amount}/${threshold}/${rule?.minOrder?.amount ?? '-'}/${alternativesKey}`;
 }
 
 /**
@@ -206,7 +351,7 @@ export function resolveShippingPolicy({ observation, policies = SHIPPING_POLICIE
     if (!current || policy.version > current.version) latestById.set(policy.id, policy);
   }
   const effective = [...latestById.values()];
-  const keys = new Set(effective.map(policy => ruleKey(policy.rule)));
+  const keys = new Set(effective.map(policy => ruleKey(policy.rule, policy.alternatives ?? [])));
   if (keys.size > 1) return { status: 'inconsistent', policy: null, policies: effective };
   return { status: 'applied', policy: effective.sort((a, b) => b.version - a.version)[0] };
 }
@@ -250,6 +395,13 @@ export function enrichObservationShipping(observation, options = {}) {
     shipping.service = policy.service;
     changed = true;
   }
+  if ((shipping.alternatives == null || shipping.alternatives.length === 0) && policy.alternatives?.length) {
+    // Secondary delivery methods (for example a cheaper distribution-center or
+    // pickup-point service) are display-only alternatives: they are added when
+    // the stored row has none, and they never replace the ranked amount.
+    shipping.alternatives = policy.alternatives.map(alternative => ({ ...alternative, amount: { ...alternative.amount } }));
+    changed = true;
+  }
   if (shipping.destination == null && policy.destination) {
     shipping.destination = { ...policy.destination };
     changed = true;
@@ -291,6 +443,8 @@ export function policySummary(now = Date.now(), policies = SHIPPING_POLICIES) {
     vendorId: policy.vendorId,
     origin: policy.origin,
     certainty: policy.certainty,
+    service: policy.service ?? null,
+    alternatives: (policy.alternatives ?? []).map(alternative => alternative.id),
     observedAt: policy.evidence?.retrievedAt ?? null,
     reviewBy: policy.reviewBy,
     expired: Date.parse(policy.reviewBy) < now
