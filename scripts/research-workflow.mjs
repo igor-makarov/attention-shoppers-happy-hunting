@@ -95,23 +95,30 @@ export const RECIPES = {
     vendorId: 'coffee4u',
     vendorName: 'Coffee4U',
     productUrl: 'https://www.coffee4u.co.il/product/lavazza-crema-e-gusto-250-gr-%D7%98%D7%97%D7%95%D7%9F',
-    cartUrl: 'https://www.coffee4u.co.il/cart.asp',
+    cartUrl: 'https://www.coffee4u.co.il/Checkout.asp',
     allowedHosts: ['www.coffee4u.co.il', 'coffee4u.co.il'],
     packGrams: 250,
     parseTotals: parseCoffee4uTotals,
     steps: [
       { action: 'goto', url: '{productUrl}' },
       { action: 'waitText', text: 'crema', timeout: 20000 },
-      { action: 'clickText', text: 'הוסף לעגלה', optional: true },
-      { action: 'clickText', text: 'הוספה לסל', optional: true },
-      { action: 'goto', url: '{cartUrl}', optional: true },
-      { action: 'waitText', text: 'סל', timeout: 20000, optional: true },
+      // The live add-to-cart control is a#Product_AddToCart_Button labelled
+      // "הוסף לסל" (not "הוספה לסל"), and clicking it navigates straight to the
+      // public checkout estimator. A run that cannot add the item is blocked
+      // with the exact step instead of quoting an empty cart.
+      { action: 'clickAnyText', texts: ['הוסף לסל', 'הוספה לסל'], optional: false },
+      { action: 'gotoUnlessText', url: '{cartUrl}', text: 'שיטת משלוח', optional: true },
+      { action: 'waitText', text: 'שיטת משלוח', timeout: 20000, optional: true },
       { action: 'setQuantity', target: '{grams}', optional: true },
-      { action: 'selectLabel', selector: 'select', label: '{locality}', optional: true, verifies: 'destination' },
-      { action: 'fill', selector: 'input[name*="zip" i], input[name*="postal" i], input[id*="zip" i], input[id*="postal" i]', value: '{postcode}', optional: true, verifies: 'destination' },
-      // Choose the door-to-door method when it is offered; the pickup-point and
-      // self-pickup alternatives are recorded separately from the ranked rate.
-      { action: 'clickAnyText', texts: ['משלוח עד הבית'], optional: true },
+      // Destination: the checkout renders one closed locality list
+      // (select#u_city, 1,269 options on 2026-10-12). It is a required step so a
+      // run that cannot set the locality is blocked instead of attributed to it.
+      { action: 'selectLabel', selector: '#u_city', label: '{locality}', optional: false, verifies: 'destination' },
+      // The delivery methods are a select (#delivery): pickup point ₪15,
+      // door-to-door courier ₪30, self-pickup ₪0. The ranked method is the
+      // door-to-door courier; the fee reaches the summary only after it is
+      // selected, so the step is required.
+      { action: 'selectLabel', selector: '#delivery', label: 'שליחות מדלת', optional: false },
       { action: 'sleep', ms: 1500 },
       { action: 'readTotals' }
     ]
