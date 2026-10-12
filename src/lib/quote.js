@@ -32,6 +32,7 @@ const AVAILABILITY_LABELS = {
 export function quoteBoard({
   observations = [],
   productId,
+  variantId = null,
   targetGrams = 500,
   destination = DESTINATIONS[0],
   fx = null,
@@ -40,9 +41,12 @@ export function quoteBoard({
 } = {}) {
   const grams = clampGrams(targetGrams);
   const quotes = [];
+  const variants = new Set();
   for (const observation of observations) {
     if (productId && observation?.product?.productId !== productId) continue;
     if (observation?.product?.form !== 'ground') continue;
+    variants.add(observation?.product?.variantId ?? 'unspecified');
+    if (variantId && (observation?.product?.variantId ?? 'unspecified') !== variantId) continue;
     quotes.push(quoteOffer(observation, { grams, destination, fx, now, staleAfterMs }));
   }
   const ranked = quotes.filter(quote => quote.rankable).sort(compareQuotes);
@@ -52,6 +56,8 @@ export function quoteBoard({
   const unknown = [...unrankable, ...staleOrUnavailable];
   return {
     productId,
+    variantId,
+    variants: [...variants].sort(),
     targetGrams: grams,
     destination,
     generatedAt: new Date(now).toISOString(),
@@ -119,6 +125,8 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
       minOrder: shipping.minOrder?.amount ?? null,
       minOrderCurrency: shipping.minOrder?.currency ?? null,
       destination: shipping.destination ?? { scope: 'country', country: 'IL' },
+      deliveryTime: shipping.deliveryTime ?? null,
+      pickup: shipping.pickup ?? null,
       note: shipping.note ?? null,
       evidence: shipping.evidence ?? null
     },
@@ -135,8 +143,12 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
   if (observation.shipping?.mode === 'pickup') {
     base.group = 'pickup';
     base.labels.push('Pickup only — not a delivered offer');
-    const pickupTotal = toIls(price.amount, price.currency, fx);
-    if (pickupTotal.known && product.totalGrams) {
+    if (product.totalGrams) {
+      base.units = Math.max(1, Math.ceil(grams / product.totalGrams));
+      base.orderedGrams = base.units * product.totalGrams;
+    }
+    const pickupTotal = toIls(price.amount == null ? null : price.amount * (base.units ?? 1), price.currency, fx);
+    if (pickupTotal.known) {
       base.itemTotalIls = round2(pickupTotal.amount);
       base.labels.push('Shown for pickup comparison only');
     }
@@ -166,7 +178,7 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
   if (itemTotal.converted) base.estimate = true;
 
   if (shipping.minOrder != null) {
-    const min = toIls(shipping.minOrder, shipping.minOrderCurrency ?? price.currency, fx);
+    const min = toIls(shipping.minOrder.amount, shipping.minOrder.currency ?? price.currency, fx);
     if (min.known && base.itemTotalIls < min.amount - 0.005) {
       reasons.push(`Order is below the vendor minimum order of ${formatAmount(min.amount, 'ILS')}`);
       return base;
@@ -204,7 +216,7 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
   let shippingIls = null;
   if (shipping.certainty === 'unknown' || shipping.amount == null) {
     reasons.push(shipping.note
-      ? `Shipping is not published before checkout (${shipping.note})`
+      ? `Shipping is not published before checkout, so it is treated as unknown, not free (${shipping.note})`
       : 'Shipping is not published before checkout, so it is treated as unknown, not free');
     return base;
   }

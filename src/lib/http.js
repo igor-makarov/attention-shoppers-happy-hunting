@@ -24,12 +24,13 @@ export function hostAllowed(url, allowedHosts) {
  * Create a fetch helper restricted to an explicit host allowlist.
  * Errors are returned, never thrown, so a broken source cannot abort a refresh.
  */
-export function createBoundedFetcher({ fetchImpl = globalThis.fetch, allowedHosts = [], ...overrides } = {}) {
+export function createBoundedFetcher({ fetchImpl = globalThis.fetch, allowedHosts = [], onRequest, ...overrides } = {}) {
   const options = { ...DEFAULT_HTTP_OPTIONS, ...overrides };
   return async function fetchText(url, { accept, headers = {}, maxBytes } = {}) {
     if (!hostAllowed(url, allowedHosts)) {
       return { ok: false, status: 0, error: `host not allowed: ${safeHost(url)}`, bytes: 0 };
     }
+    onRequest?.(url);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort('timeout'), options.timeoutMs);
     const limit = maxBytes ?? options.maxBytes;
