@@ -125,7 +125,10 @@ The real deployment is owner-controlled. The Actions loop has no direct administ
    checks, the persisted 15:52:12.546Z refresh, five observations, freshness ageHours 1.0/stale false; see
    docs/evidence/production-verification-20261012T1554Z.json and
    docs/evidence/production-probe-20261012T1653Z.json. The deployed `/health` also carries
-   `lastObservationAt`, so the 3-61 freshness fallback is live.)
+   `lastObservationAt`, so the 3-61 freshness fallback is live. The 3-64 read-only checks at 17:26-17:31 UTC
+   passed 18/18 probe checks and 59/59 live browser checks, and found the deployed board quotes carrying the
+   new `lastAttemptFailed`/`lastError` fields with the matching UI labels, so the 3-64 build also reached
+   production through the main-push Workers Builds path.)
 2. Confirm a scheduled refresh populated the Durable Object with the five Crema e Gusto offers and that a
    later main push is picked up by Workers Builds. (The request-triggered initial refresh and the
    main-push deploy were verified on 2026-10-12; the scheduled ticks themselves had not fired by 16:53 UTC.

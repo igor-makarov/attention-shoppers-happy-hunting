@@ -43,7 +43,9 @@ re-checked. Verified locally with **94/94** `node:test` cases, `wrangler deploy 
 gzip 20.60 KiB), the fixture refresh (6 bounded requests, five offers), a live `check:sources` pass at
 17:22 UTC (five listings unchanged), a live `cron:local -- --fresh` pass at 17:24 UTC (6 requests, five
 offers, USD 3.078), **63/63** offline and **59/59** live browser checks including six new failed-attempt
-checks.
+checks. The same 3-64 code is live in production: read-only GETs at 17:31 UTC found the production board
+quotes carrying `lastAttemptFailed`/`lastError` and the deployed `app.js` containing the failed-attempt
+labels, and live browser QA against the production URL passed **59/59** with zero console errors.
 
 The 2026-10-12 owner correction retired Qualità Oro, Qualità Rossa, Suerte and every other Lavazza
 product line. They are no longer catalog entries, fetch targets or UI options. Their names survive only
@@ -388,9 +390,9 @@ labels and the next-source-check footer line, recorded in
 | Production scope | **Independently verified**: `/api/catalog` listed exactly one product (`lavazza-crema-e-gusto-vacuum-ground`) and three vendors; no retired line appeared in any board payload, and the retired Qualità Oro URL returned `requestedRetiredProduct` with the Crema e Gusto board. Re-verified by the 3-63 probe at 16:53 UTC (17/17 scope checks; `docs/evidence/production-probe-20261012T1653Z.json`). |
 | Production refresh / persistence | **Independently verified**: the probe's first `/health` GET started the documented initial refresh (15:51:52.931Z → 15:52:12.546Z, 4 bounded requests, CoffeeMan saved 3; Pucks/Coffee4U inside their backoff window). `/api/status` then showed `lastRefreshAt` 15:52:12.546Z, fresh, five observations and the Bank of Israel table asOf 12:23:04.599Z. The post-deploy probe, the 16:53 probe and the 3-64 probe at 17:26 UTC found the same persisted store with the same timestamps (ageHours 1.0, stale false) and the same three vendor `nextAttemptAt` values (19:34/19:46/21:52 UTC). The 6-hour cron trigger itself has not been observed firing; the first tick after the store state was written is 18:17 UTC (expected to skip every vendor) and the 00:17 UTC tick should refresh. |
 | Production board values | **Independently verified**: 500 g best ₪91.00 (CoffeeMan 2 × ₪33 + ₪25), 1 kg best ₪149.00 (4-pack), unstated variant ₪106.00 (Coffee4U), matching the local runs and unchanged in the 16:53 probe. |
-| Production UI | **Independently verified**: the fixture-free live browser QA mode drove the deployed site in headless Chrome — **53/53** checks passed with zero console errors on 2026-10-12 16:20 UTC and again at 17:05 UTC after the 3-63 push (evidence `docs/evidence/browser-qa-production-20261012T1620Z.json`, `docs/evidence/browser-qa-production-20261012T1705Z.json`). |
-| Deployed build version | **The 3-61 build is live** (verified 16:17-16:18 UTC: `/health` carries `lastObservationAt`, a 3-61-only field; `/api/status` reports `freshness.dataAsOf`). The 3-62 phase-lock change has no public-API marker (it only changes vendor due-time evaluation), so the 16:53 probe cannot confirm which build serves it; the first observable difference is the **06:17 UTC tick on 2026-10-13**, which should refresh instead of skipping. |
-| Main-push auto-deploy | **Independently verified for the 3-61 push**: after the supervisor published the 3-61 commits to main, the serving production build changed to one that includes the 3-61 fields, with the Durable Object store persisting across the deploy. The 3-62 push is on main and is expected to deploy the same way, but its effect is only observable through a cron tick. The 6-hour cron trigger and future builds still need the owner's dashboard confirmation. |
+| Production UI | **Independently verified**: the fixture-free live browser QA mode drove the deployed site in headless Chrome — **53/53** checks passed with zero console errors on 2026-10-12 16:20 UTC, again at 17:05 UTC after the 3-63 push, and **59/59** at 17:31 UTC after the failed-attempt build deployed (evidence `docs/evidence/browser-qa-production-20261012T1620Z.json`, `docs/evidence/browser-qa-production-20261012T1705Z.json`, `docs/evidence/browser-qa-production-20261012T1731Z.json`). |
+| Deployed build version | **The 3-61 build is live** (verified 16:17-16:18 UTC: `/health` carries `lastObservationAt`, a 3-61-only field; `/api/status` reports `freshness.dataAsOf`). **The failed-attempt build (3-63 save / 3-64) is also live**: the production `/api/board` quotes now carry `lastAttemptFailed`/`lastError` (a public field added in commit da47521) and the deployed `public/app.js` contains the `Last attempt failed` / `showing the last successful observation` strings (read-only GETs at 17:31 UTC). The 3-62 phase-lock change has no public-API marker (it only changes vendor due-time evaluation), so the probe cannot confirm which build serves it; the first observable difference is the **06:17 UTC tick on 2026-10-13**, which should refresh instead of skipping. |
+| Main-push auto-deploy | **Independently verified for the 3-61 push and again for the 3-64 build**: after the supervisor published the 3-61 commits to main, the serving production build changed to one that includes the 3-61 fields, with the Durable Object store persisting across the deploy; after the da47521/3-64 commits, the production board API began returning the new `lastAttemptFailed`/`lastError` quote fields and the deployed `app.js` gained the failed-attempt labels (read-only GETs at 17:31 UTC). The 3-62 phase-lock push is on main and is expected to deploy the same way, but its effect is only observable through a cron tick. The 6-hour cron trigger and future builds still need the owner's dashboard confirmation. |
 | Local refresh-while-no-browser-open | Verified locally through `wrangler dev` + the documented scheduled trigger (item 6 above) and again with the 3-61 fresh store (item 11). |
 | No Cloudflare administration | Maintained: no CF API calls, deploys, logins or token discovery in this repository or its history. The production probe used plain public HTTPS GETs only. |
 
@@ -401,7 +403,9 @@ the runner on 2026-10-12: `/health` reports a non-null `lastRefreshAt` and `last
 `/api/catalog` lists exactly one product, the board shows the five Crema e Gusto offers, and the 3-61
 build is live after the push. The 3-63 read-only probe re-verified all of that at 16:53 UTC (17/17 scope
 checks) and the 3-64 baseline probe at 17:26 UTC passed 18/18 checks against the same persisted
-15:52:12.546Z store, whose run history still contained only the initial run (no cron tick observed yet). The 3-62 phase-lock fix is on main; the expected
+15:52:12.546Z store, whose run history still contained only the initial run (no cron tick observed yet).
+The 17:31 UTC read-only checks additionally confirmed that the production build now serves the
+failed-attempt quote fields and UI labels (a 3-64-only public shape), with **59/59** live browser checks. The 3-62 phase-lock fix is on main; the expected
 production sequence for the stored state is: the **18:17 UTC tick** records a run that fetches nothing
 while every vendor is inside its six-hour window (does not advance `lastRefreshAt`, expected), the
 **00:17 UTC tick** refreshes all three vendors, and the **06:17 UTC tick on 2026-10-13** is the first
@@ -415,6 +419,11 @@ Cloudflare error back to the loop without pasting credentials.
 
 Current-scope evidence (committed for review, not live data):
 
+- `docs/evidence/browser-qa-production-20261012T1731Z.json` — **59/59** live browser checks driven
+  directly against https://attention-shoppers.igormaka.workers.dev at 17:31 UTC with zero console
+  errors, including the failed-attempt scenario against its own fixture server: the deployed site serves
+  the tracked board, the retired-URL fallback, the comparison deltas and the freshness footer with the
+  final 3-64 UI code.
 - `docs/evidence/browser-qa-fixtures-20261012T1723Z.json` — **63/63** offline browser checks with the
   final 3-64 code, including six new failed-attempt checks (a failed last attempt keeps its last
   successful observation ranked; the best card, comparison row, unknown list and footer all disclose the
@@ -578,7 +587,11 @@ UTC, 6 requests, five observations, all three vendors) and, in a second runtime 
 tick at 17:29:06 UTC that recorded a **0-request** run with all three vendors skipped and left
 `lastRefreshAt` at the 17:28:40.918Z initial refresh
 (`docs/evidence/worker-runtime-status-2026-10-12T1729Z-scheduled.json`); `npm run qa:browser` — **63/63** offline and
-**59/59** live against the local Worker, zero console errors. Evidence:
+**59/59** live against the local Worker, zero console errors; and `npm run qa:browser --
+https://attention-shoppers.igormaka.workers.dev` — **59/59** against the deployed site at 17:31 UTC, zero
+console errors. Read-only GETs at 17:31 UTC also showed the production board quotes carrying the new
+`lastAttemptFailed`/`lastError` fields and the deployed `app.js` containing the failed-attempt labels, so
+the 3-64 build reached Workers Builds through the main push. Evidence:
 `docs/evidence/browser-qa-fixtures-20261012T1723Z.json`,
 `docs/evidence/browser-qa-live-20261012T1722Z.json`, `docs/evidence/source-check-20261012T1722Z.json`.
 The 3-62 cron fix still has no public-API marker, so its production effect remains expected at the 06:17
@@ -769,7 +782,9 @@ any adapter.
   multi-tick cron cadence test on a deterministic timeline; session 3-64 completed and verified the
   failed-attempt disclosure whose code session 3-63 saved just before its timeout — the failure stamps the
   offer's last successful observation row, the offline QA server can simulate it, and six browser checks
-  plus one unit test cover the ranking, labels and footer.
+  plus one unit test cover the ranking, labels and footer; the 3-64 session also verified that the deployed
+  production build serves the new `lastAttemptFailed` quote fields and UI labels (59/59 live browser
+  checks against the production URL at 17:31 UTC).
 - Next useful task for the loop: improve only Crema e Gusto coverage, shipping evidence, freshness and
   comparison quality. Candidates, in order: (a) observe the production cron ticks with the read-only
   probe (`npm run probe:production`) — no cron-tick run had been observed as of the 3-64 checks; the
