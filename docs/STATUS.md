@@ -92,7 +92,9 @@ Observed board results (local Worker, 13:01 UTC):
    all listed in stock, verified ₪25 courier on four CoffeeMan pages, verified ₪30 door-to-door plus a
    ₪15 pickup-point alternative on the Coffee4U page, unknown shipping on both 8-packs and both Pucks
    pages. The same adapters fetched the same pages during the live local refresh at 12:59 UTC and
-   parsed identically.
+   parsed identically. The Pucks unknown-shipping label was reconfirmed the same day against the
+   public terms page (delivery fees "according to rates set by Pucks from time to time", no amount or
+   free threshold published): `docs/evidence/vendor-research-2026-10-12T1305Z-pucks-shipping.json`.
 4. `npm run cron:offline` — full refresh pipeline against recorded Windows-1255/JSON-LD fixtures: 10
    bounded requests, 9 offers persisted (CoffeeMan 6, Pucks 2, Coffee4U 1) and the FX table. The command
    was run twice in a row with identical results; `tests/simulate-cron.test.js` now runs it twice in a
@@ -185,6 +187,8 @@ Historical evidence snapshots are committed for review and are not live data:
 - `docs/evidence/worker-runtime-status-2026-10-12T1301Z.json` — `/health`, `/api/status`, `/api/catalog`
   and both product boards from the local Worker after its no-browser initial refresh (three vendors, 9
   observations, fresh, `nextAttemptAt` +6 h).
+- `docs/evidence/vendor-research-2026-10-12T1305Z-pucks-shipping.json` — public-product-page, cart and
+  terms-page quotes supporting the Pucks unknown-shipping label instead of a guessed amount.
 - Earlier snapshots from iterations 3-49 to 3-52 remain in `docs/evidence/` as history.
 
 ## Repository and security checks

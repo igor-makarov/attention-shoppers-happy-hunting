@@ -53,11 +53,12 @@ Tracked listings (two offers, never merged):
   - Retrieved: 2026-10-12 11:04, 11:20, 11:29 and 12:57 UTC (adapters `pucks/1` and `pucks/2`)
   - Establishes: name "lavazza crema e gusto classico-250 גרם קפה טחון", SKU Lav69, GTIN 8000070038769, variant Classico, ground, 250 g single pack, price ₪30.00, schema.org JSON-LD availability `InStock`.
   - Shipping certainty: **unknown** — the page states shipping is calculated at checkout, so the offer stays visible and unranked. It is never treated as free.
+  - Shipping research (2026-10-12 13:05 UTC): the public terms page `https://pucks.co.il/terms-and-privacy-policy` was also checked. Its "משלוחים והחזרות" section says the customer is charged delivery fees "according to rates set by Pucks from time to time" and promises delivery within 7 business days, but publishes no amount or free-shipping threshold; the cart widget repeats "המשלוח מחושב בתשלום" (shipping is calculated at payment). The unknown label is therefore evidence-based. Excerpt quotes: `docs/evidence/vendor-research-2026-10-12T1305Z-pucks-shipping.json`.
 - **Qualità Oro 250 g** — `https://pucks.co.il/product/lavazza-qualita-oro-ground-coffee-250gr`
   - Retrieved: 2026-10-12 12:57 UTC (adapter `pucks/2`)
   - Establishes: name "Lavazza Qualità Oro ground coffee -קפה טחון 250 גרם", SKU lav11, GTIN 8000070019911, ground coffee, 250 g single pack, price ₪35.00, schema.org JSON-LD availability `InStock`.
   - Variant: the page states no blend variant, so the listing is stored as *Variant not stated* and is only compared on the Qualità Oro board.
-  - Shipping certainty: **unknown** — shipping is calculated at checkout; never treated as free.
+  - Shipping certainty: **unknown** — shipping is calculated at checkout; never treated as free. The 2026-10-12 terms-page check above applies to this listing too.
 - Parser: `application/ld+json` Product/Offer block on the public product pages.
 - Fixtures: `tests/fixtures/pucks-product.html` (plus a derived out-of-stock variant and a preorder variant) and `tests/fixtures/pucks-qualita-oro-product.html`, minimized excerpts of the pages retrieved on 2026-10-12.
 

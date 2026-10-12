@@ -1,0 +1,39 @@
+{
+  "kind": "vendor-research",
+  "vendor": "Pucks (פאקס)",
+  "vendorId": "pucks",
+  "topic": "Why the Pucks offers have unknown shipping, reconfirmed against public pages",
+  "checkedAt": "2026-10-12T13:05:00Z",
+  "fetcher": "curl -sS -m 20 -A 'attention-shoppers-happy-hunting/0.1 (local research)' (manual research; the adapter uses the bounded fetcher)",
+  "robots": {
+    "url": "https://pucks.co.il/robots.txt",
+    "retrievedAt": "2026-10-12T13:05:20Z",
+    "note": "User-agent * Allow: / with /backend/, /payment/ and /account/ disallowed. The pages below are publicly allowed; no cart, payment or account endpoint was touched."
+  },
+  "sources": [
+    {
+      "url": "https://pucks.co.il/product/lavazza-crema-e-gusto-ground-coffee-250g",
+      "retrievedAt": "2026-10-12T12:57:23Z",
+      "observation": "Product JSON-LD publishes price ₪30.00 and availability InStock; no shipping amount. Cart widget on the page repeats 'המשלוח מחושב בתשלום'.",
+      "quoteHebrew": "המשלוח מחושב בתשלום",
+      "translation": "Shipping is calculated at payment."
+    },
+    {
+      "url": "https://pucks.co.il/product/lavazza-qualita-oro-ground-coffee-250gr",
+      "retrievedAt": "2026-10-12T12:57:23Z",
+      "observation": "Product JSON-LD publishes price ₪35.00 and availability InStock; no shipping amount.",
+      "quoteHebrew": "המשלוח מחושב בתשלום",
+      "translation": "Shipping is calculated at payment."
+    },
+    {
+      "url": "https://pucks.co.il/terms-and-privacy-policy",
+      "retrievedAt": "2026-10-12T13:05:38Z",
+      "observation": "The public 'משלוחים והחזרות' (shipping and returns) section states delivery fees are charged according to rates Pucks sets from time to time, and promises delivery within 7 business days, but publishes no fee amount or free-shipping threshold.",
+      "quoteHebrew": "עבור משלוח המוצרים יחויב הלקוח בדמי משלוח בהתאם לתעריפים שיקבעו על ידי פאקס מעת לעת.",
+      "translation": "For the delivery of products the customer will be charged delivery fees according to rates set by Pucks from time to time.",
+      "deliveryTimeQuoteHebrew": "מוצרים שהוזמנו אמורים להמסר ללקוחות תוך 7 ימים עסקים מהיום שלמחרת מועד ההזמנה.",
+      "deliveryTimeTranslation": "Ordered products are to be delivered within 7 business days from the day after the order date."
+    }
+  ],
+  "conclusion": "Pucks publishes prices and availability but no delivery price on the product pages, the cart widget or the public terms page. Its offers therefore keep shippingCertainty 'unknown' and stay visible but unranked; the board never treats the missing amount as zero. No checkout, payment or account path was visited; the shipping amount is not guessed from unrelated vendors."
+}
