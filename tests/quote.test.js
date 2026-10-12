@@ -272,65 +272,81 @@ test('the variant filter keeps variants separate and reports what it excluded', 
   assert.equal(unstatedOnly.counts.excludedByVariant, 1);
 });
 
-const ORO = {
-  productId: 'lavazza-qualita-oro-vacuum-ground',
-  name: 'Lavazza Qualità Oro ground 250 gr',
-  variantId: 'unspecified',
-  variantLabel: 'Variant not stated',
-  sku: '930339'
-};
-
-test('a second tracked product is compared on its own board and never mixed into the first', () => {
+test('the quote engine compares one product id at a time and never mixes another product into it', () => {
+  // The catalog tracks one product line; this synthetic id proves the engine's
+  // product filter is strict, without implying a second tracked product.
+  const otherProduct = {
+    productId: 'demo-other-product',
+    name: 'Demo other product 250 g ground',
+    variantId: 'unspecified',
+    variantLabel: 'Variant not stated',
+    form: 'ground',
+    packGrams: 250,
+    packCount: 1,
+    totalGrams: 250,
+    sku: 'other-1'
+  };
   const cremaOffer = observation({ key: 'crema:1', price: { amount: 33 } });
-  const oroOffer = observation({
-    key: 'oro:1',
-    vendor: { id: 'oro-vendor', name: 'Qualità Oro vendor' },
-    product: ORO,
+  const otherOffer = observation({
+    key: 'other:1',
+    vendor: { id: 'other-vendor', name: 'Demo other vendor' },
+    product: otherProduct,
     price: { amount: 20 },
     shipping: { certainty: 'verified', amount: { amount: 1, currency: 'ILS' } }
   });
-  const cremaBoard = quote([cremaOffer, oroOffer]);
-  assert.equal(cremaBoard.counts.observed, 1, 'the other product is not part of this comparison');
+  const cremaBoard = quote([cremaOffer, otherOffer]);
+  assert.equal(cremaBoard.counts.observed, 1, 'the other product id is not part of this comparison');
   assert.equal(cremaBoard.best.key, 'crema:1');
-  assert.ok(!cremaBoard.ranked.some(item => item.key === 'oro:1'));
+  assert.ok(!cremaBoard.ranked.some(item => item.key === 'other:1'));
 
-  const oroBoard = quote([cremaOffer, oroOffer], { productId: ORO.productId, variantId: 'unspecified' });
-  assert.equal(oroBoard.counts.observed, 1);
-  assert.equal(oroBoard.best.key, 'oro:1');
-  assert.equal(oroBoard.best.totalIls, 41, '₪20 × 2 packs + ₪1 shipping');
-  assert.deepEqual(oroBoard.variants, ['unspecified']);
+  const otherBoard = quote([cremaOffer, otherOffer], { productId: otherProduct.productId, variantId: 'unspecified' });
+  assert.equal(otherBoard.counts.observed, 1);
+  assert.equal(otherBoard.best.key, 'other:1');
+  assert.equal(otherBoard.best.totalIls, 41, '₪20 × 2 packs + ₪1 shipping');
+  assert.deepEqual(otherBoard.variants, ['unspecified']);
 });
 
-test('the second product changes winner with quantity: multipack beats singles once shipping is counted', () => {
+test('the engine changes winner with quantity: a multipack beats singles once shipping is counted', () => {
+  const otherProduct = {
+    productId: 'demo-other-product',
+    name: 'Demo other product 250 g ground',
+    variantId: 'unspecified',
+    variantLabel: 'Variant not stated',
+    form: 'ground',
+    packGrams: 250,
+    packCount: 1,
+    totalGrams: 250,
+    sku: 'other-1'
+  };
   const single = observation({
-    key: 'oro-single',
+    key: 'other-single',
     vendor: { id: 'coffeeman', name: 'CoffeeMan' },
-    product: ORO,
+    product: otherProduct,
     price: { amount: 37 },
     shipping: { certainty: 'verified', amount: { amount: 25, currency: 'ILS' } }
   });
   const fourPack = observation({
-    key: 'oro-4pack',
+    key: 'other-4pack',
     vendor: { id: 'coffeeman', name: 'CoffeeMan' },
-    product: { ...ORO, sku: '930340', name: '4 אריזות 250 גרם Lavazza Qualità Oro קפה טחון', packCount: 4, totalGrams: 1000 },
+    product: { ...otherProduct, sku: 'other-4', packCount: 4, totalGrams: 1000 },
     price: { amount: 125 },
     shipping: { certainty: 'verified', amount: { amount: 25, currency: 'ILS' } }
   });
   const unknownShipping = observation({
-    key: 'oro-pucks',
+    key: 'other-pucks',
     vendor: { id: 'pucks', name: 'Pucks' },
-    product: { ...ORO, sku: 'lav11' },
+    product: { ...otherProduct, sku: 'other-2' },
     price: { amount: 35 },
     shipping: { certainty: 'unknown', amount: null, note: 'Calculated at checkout' }
   });
-  const board500 = quote([single, fourPack, unknownShipping], { productId: ORO.productId, variantId: 'unspecified', targetGrams: 500 });
-  assert.equal(board500.best.key, 'oro-single');
+  const board500 = quote([single, fourPack, unknownShipping], { productId: otherProduct.productId, variantId: 'unspecified', targetGrams: 500 });
+  assert.equal(board500.best.key, 'other-single');
   assert.equal(board500.best.totalIls, 99, '2 × ₪37 + ₪25');
   assert.equal(board500.best.ilsPerKg, 198);
-  assert.ok(board500.unknown.some(item => item.key === 'oro-pucks'), 'cheaper item with unknown shipping cannot win');
+  assert.ok(board500.unknown.some(item => item.key === 'other-pucks'), 'cheaper item with unknown shipping cannot win');
 
-  const board1000 = quote([single, fourPack, unknownShipping], { productId: ORO.productId, variantId: 'unspecified', targetGrams: 1000 });
-  assert.equal(board1000.best.key, 'oro-4pack');
+  const board1000 = quote([single, fourPack, unknownShipping], { productId: otherProduct.productId, variantId: 'unspecified', targetGrams: 1000 });
+  assert.equal(board1000.best.key, 'other-4pack');
   assert.equal(board1000.best.totalIls, 150, '₪125 + ₪25');
-  assert.equal(board1000.ranked.find(item => item.key === 'oro-single').totalIls, 173, '4 × ₪37 + ₪25');
+  assert.equal(board1000.ranked.find(item => item.key === 'other-single').totalIls, 173, '4 × ₪37 + ₪25');
 });
