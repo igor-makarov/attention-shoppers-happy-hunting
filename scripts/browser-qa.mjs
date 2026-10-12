@@ -162,7 +162,8 @@ async function webdriver(method, path, body) {
 }
 
 async function evaluate(wd, script) {
-  const result = await wd('POST', '/execute/sync', { script, args: [] });
+  const expression = script.trim().startsWith('return') ? script : `return ${script}`;
+  const result = await wd('POST', '/execute/sync', { script: expression, args: [] });
   return result.value;
 }
 
