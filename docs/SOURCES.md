@@ -52,6 +52,9 @@ Tracked listings (three separate offers, never merged):
 | tivtaam.co.il | HTTP 200 but an AngularJS/ZuZ single-page shell with no product data in the HTML | Product data only appears after client-side API calls; not a stable public product page or documented API. |
 | espresso-international.co.uk (Shopify suggest API) | Reachable 2026-10-12; does not carry Lavazza Crema e Gusto | No matching product. |
 | eBay / iHerb | HTTP 403 from the runner during earlier research | Anti-bot protection; not bypassed. |
+| lavazza.co.il | Official Israeli Lavazza brand site; the Crema e Gusto ground collection page has no price, cart or shipping terms (content only) | Not an e-commerce source, so it cannot produce a delivered total. |
+| coffeepoint.co.il | Wix store (Pepyaka server); product and price data is client-rendered and shipping is only calculated at checkout | No stable public product page with published structured data. |
+| Bing / DuckDuckGo HTML search | DuckDuckGo returned an anti-bot challenge (HTTP 202); Bing returned a page whose result targets were not extractable | Used only to look for further Israeli vendors; no new viable source found. |
 
 Two independent adapters (CoffeeMan and Pucks) meet the "at least two" requirement with four real
 listings: three CoffeeMan offers with observed prices and stock, two of them with a verified ₪25 courier

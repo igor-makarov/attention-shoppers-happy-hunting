@@ -125,7 +125,8 @@ try {
     hasSkipLink: !!document.querySelector('.skip'),
     hasMain: !!document.querySelector('main'),
     quantityPressed: [...document.querySelectorAll('#quantity-group button')].map(b => [b.textContent.trim(), b.getAttribute('aria-pressed')]),
-    destinationOptions: [...document.querySelectorAll('#destination option')].map(o => o.textContent.trim())
+    destinationOptions: [...document.querySelectorAll('#destination option')].map(o => o.textContent.trim()),
+    footerStatus: document.getElementById('footer-status')?.textContent ?? null
   }))()`);
   check('desktop: best vendor matches the API ranking', desktop.bestVendor === best.vendor.name, `${desktop.bestVendor} vs ${best.vendor.name}`);
   check(`desktop: delivered total for 500 g is ${expected500}`, desktop.bestTotal === expected500, desktop.bestTotal);
@@ -142,6 +143,9 @@ try {
   check('desktop: no emoji in visible text', !EMOJI.test(desktop.visibleText), 'emoji scan');
   check('desktop: Hebrew vendor text is direction-isolated', desktop.bidiFragments >= 1, String(desktop.bidiFragments));
   check('desktop: skip link and main landmark are present', desktop.hasSkipLink && desktop.hasMain, `skip=${desktop.hasSkipLink} main=${desktop.hasMain}`);
+  check('desktop: footer reports the last completed refresh instead of a static waiting message',
+    /Last completed refresh:/.test(desktop.footerStatus ?? '') && !/Waiting for the first refresh/.test(desktop.footerStatus ?? ''),
+    desktop.footerStatus);
   await screenshot(wd, 'desktop-1440.png');
 
   // Quantity interaction: click "1 kg".

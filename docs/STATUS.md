@@ -70,7 +70,7 @@ FX reference table from the Bank of Israel dated 2026-10-09.
    vendors saved, 4 observations persisted, `nextAttemptAt` +6 h, FX fetched. A following
    `/cdn-cgi/local/scheduled` made 0 requests and skipped both vendors on backoff. `/api/board` then
    served the ranked board from storage. This is the refresh-while-no-browser-open path.
-7. `npm run qa:browser` — headless Chrome (chromedriver 154) QA: **34/34 checks pass offline, exit 0**,
+7. `npm run qa:browser` — headless Chrome (chromedriver 154) QA: **35/35 checks pass offline, exit 0**,
    desktop 1440 px and mobile 390 px, screenshots and JSON report in `.shurik-local/qa/`. The command is
    self-contained: it starts `scripts/qa-server.mjs` on an ephemeral port, which serves `public/` plus the
    read-only API computed from `tests/fixtures/` by the production quote engine, so no Worker, network or
@@ -78,13 +78,14 @@ FX reference table from the Bank of Israel dated 2026-10-09.
    include: best delivered total and per-kg math, written stock labels, unknown-shipping reason, pickup
    shown separately, destination and quantity controls, shareable URL updates, keyboard Tab focus with a
    visible 3 px focus outline and Enter activation, Hebrew text isolated with `dir="auto"`, no emoji
-   anywhere in the visible text, no horizontal overflow, and 44 px touch targets on mobile. Six more
+   anywhere in the visible text, no horizontal overflow, 44 px touch targets on mobile, and a footer that
+   reports the last completed refresh instead of the static "waiting" message. Seven more
    checks run against a second fixture server with one clearly labelled QA-only demo offer to verify that
    minimum order, free-shipping threshold, free-shipping-met labelling and a locality delivery restriction
    are rendered, and that the restriction moves the offer to the unknown list for an excluded destination.
    The comparison table is checked against every ranked offer from the API. Live mode
-   (`npm run qa:browser -- http://127.0.0.1:8789`) passed **32/32** against a real `wrangler dev` Worker on
-   2026-10-12 11:49 UTC (fixture-only checks are skipped in live mode); the run also re-verified the
+   (`npm run qa:browser -- http://127.0.0.1:8789`) passed **33/33** against a real `wrangler dev` Worker on
+   2026-10-12 11:54 UTC (fixture-only checks are skipped in live mode); the run also re-verified the
    no-browser refresh path described in item 6.
 
 This iteration (3-49) fixed three real defects found by the new QA: quantity buttons were dead because
@@ -113,10 +114,11 @@ allowlisted URL with its own price, availability, SKU and shipping terms. The 8-
 courier price, so it stays unranked. This turns the board into a real comparison with a quantity-dependent
 winner: 2 single packs deliver for ₪91 at 500 g, while the 4-pack delivers for ₪149 at 1 kg versus ₪157
 for four single packs. New minimized Windows-1255 fixtures and parser/worker tests cover both multipacks.
+The site footer now reports the last completed refresh instead of a static waiting message.
 
 Static evidence snapshots are committed for review: `docs/evidence/source-check-2026-10-12T1148Z.json`
-(live adapter observations for all four offers), `docs/evidence/browser-qa-fixtures-2026-10-12T1151Z.json`
-(34 offline browser checks), `docs/evidence/browser-qa-live-2026-10-12T1149Z.json` (32 live browser
+(live adapter observations for all four offers), `docs/evidence/browser-qa-fixtures-2026-10-12T1155Z.json`
+(35 offline browser checks), `docs/evidence/browser-qa-live-2026-10-12T1154Z.json` (33 live browser
 checks) and `docs/evidence/worker-runtime-status-2026-10-12T1149Z.json` (initial-refresh and backoff run
 records from the local Worker). They are historical evidence, not live data.
 

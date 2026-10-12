@@ -85,6 +85,7 @@ async function load() {
 
 function render() {
   renderControls();
+  updateFooterStatus();
   const board = document.getElementById('board');
   board.replaceChildren();
   if (state.error) {
@@ -100,6 +101,19 @@ function render() {
   if (boardData.pickup.length) board.append(renderPickupSection(boardData.pickup));
   if (state.showUnknown) board.append(renderUnknownSection(boardData));
   board.append(renderFooterStatus(boardData));
+}
+
+function updateFooterStatus() {
+  const node = document.getElementById('footer-status');
+  if (!node) return;
+  if (state.error) {
+    node.textContent = 'The board could not be loaded from the snapshot API. Stored observations are safe; try again in a moment.';
+    return;
+  }
+  const last = state.board?.freshness?.lastRefreshAt;
+  node.textContent = last
+    ? `Last completed refresh: ${timeLabel(last)}.`
+    : 'No completed refresh yet; the first scheduled run will populate the board.';
 }
 
 function renderControls() {
