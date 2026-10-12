@@ -2,7 +2,7 @@
 
 A public online shopping board for delivery in Israel tracking **one product**: **Lavazza Crema e Gusto vacuum-packed ground coffee** (Classico, Forte and other blend variants and every pack size or multipack kept separate). The board compares actual availability and item price plus shipping for a selected quantity and Israeli locality, with visible source evidence and freshness. Unknown shipping is never silently treated as free.
 
-The 2026-10-12 owner correction retired the earlier multi-product scope: Lavazza Qualità Oro, Qualità Rossa and Suerte are no longer fetched, culled or shown. Their old listings survive only as historical evidence in [docs/SOURCES.md](docs/SOURCES.md), labelled as such, and as negative fixtures that prove the adapters refuse them. Re-adding any product line needs an explicit new owner instruction.
+The 2026-10-12 owner correction retired the earlier multi-product scope: Lavazza Qualità Oro, Qualità Rossa and Suerte are no longer fetched, ranked or shown. Their old listings survive only as historical evidence in [docs/SOURCES.md](docs/SOURCES.md), labelled as such, and as negative fixtures that prove the adapters refuse them. Re-adding any product line needs an explicit new owner instruction.
 
 Three Israeli vendor adapters currently observe **five real Crema e Gusto listings**: CoffeeMan single 250 g, 4 × 250 g and 8 × 250 g, Pucks 250 g and Coffee4U 250 g. Swiss signage design, meaningful status colors, no emoji typography.
 
