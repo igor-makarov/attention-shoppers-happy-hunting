@@ -8,9 +8,9 @@ This initial commit is a deployable scaffold, not a completed price tracker. Shu
 
 ## Coding loop
 
-The workflow uses [igor-makarov/shurik@v1](https://github.com/igor-makarov/shurik), opencode-go/step-5-preview-free and high reasoning. The owner chose direct work on main. It remains paused at the first owner handoff: add the OPENCODE_API_KEY Actions secret. No model requests have been made.
+The workflow uses [igor-makarov/shurik@v1](https://github.com/igor-makarov/shurik), opencode-go/step-5-preview-free and high reasoning. The owner chose direct work on main and has added the OPENCODE_API_KEY Actions secret. The first handoff is complete; the main loop will develop the tracker while Cloudflare remains disconnected. Check the Actions page and shurik-control/main for live loop state.
 
-The shared action's model catalog compatibility must be resolved before launch; see status. No paid-model fallback is permitted.
+Shurik v1.1.10 accepts the exact model ID even when it is absent from Pi AI's bundled catalog, using the native OpenCode Go transport and explicit high reasoning. It does not auto-refresh the catalog. No paid-model fallback is permitted.
 
 ## Deployment and refreshing
 

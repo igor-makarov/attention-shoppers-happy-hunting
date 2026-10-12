@@ -4,7 +4,7 @@
 
 Add OPENCODE_API_KEY under repository Settings → Secrets and variables → Actions → New repository secret. Paste it only in GitHub's secret form, never into chat, a prompt, a dispatch input or a commit.
 
-The repository variable SHURIK_ENABLED starts false, so scheduled recovery and manual dispatch cannot start a model loop before setup is finished. After the key is present and model compatibility is verified, the maintainer sets it true and dispatches:
+The repository variable SHURIK_ENABLED starts false, so scheduled recovery and manual dispatch cannot start a model loop before setup is finished. Shurik v1.1.10 accepts the requested unlisted Step 5 ID through the native provider transport without a catalog refresh. After the key is present, the maintainer sets SHURIK_ENABLED true and dispatches:
 
 ```sh
 gh workflow run shurik.yml --repo igor-makarov/attention-shoppers-happy-hunting --ref main \
