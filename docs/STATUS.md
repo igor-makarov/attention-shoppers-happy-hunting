@@ -806,3 +806,45 @@ any adapter.
   owner instruction.
 - Keep `npm run check:sources` green against live pages and re-run both `npm run qa:browser` modes after
   any UI change.
+
+## Iteration 3-67 (in progress) — browser shipping quotes and the Canton Zürich UI
+
+Browser research (immediate owner task) was completed with the real headless Chrome/ChromeDriver session kept alive by
+`scripts/browser-research.mjs`. Anonymous carts were used only to read public shipping estimators; no order, payment,
+login, account, street address or bot-challenge bypass was involved. Evidence matrix and screenshots:
+`docs/evidence/browser-research/2026-10-12-vendor-shipping-quotes.json` plus four PNGs in the same directory.
+Observed quotes (2026-10-12 18:07-18:19 UTC):
+
+- **Pucks** (Tel Aviv / 6100000, `https://pucks.co.il/payment/request`): home delivery ₪30 for 1 × 250 g (₪30 → ₪60) and
+  2 × 250 g (₪60 → ₪90); free above the published ₪100 item subtotal, so 4 × 250 g (₪120) is ₪120 delivered. The fee did
+  not change for Eilat / 8800000. The estimator exposed home delivery only.
+- **CoffeeMan 8 × 250 g (2 kg)**: the anonymous checkout quoted ₪20 home courier and ₪20 distribution-center delivery
+  (₪240 → ₪260); self-pickup ₪0 with a required branch choice. No free-delivery threshold was displayed. The product page
+  still publishes no courier price for the 8-pack and ₪25 for the single/4-pack panels (both re-read in the browser).
+- **Coffee4U** (1 × 250 g ₪38): door-to-door courier ₪30 (₪68 delivered), Chiita Shops pickup point ₪15 (₪53), free
+  self-pickup at the Tel Aviv shop (₪38). The pickup flow requires a city + spot from a 421-city list (Tel Aviv and Eilat
+  present); the courier city list has 1,270 entries. The vendor page title tag still says "Lavazza Qualita Oro Beans 1 kg"
+  while the body is the Crema e Gusto 250 g listing.
+- **Tool limitation**: the available file-read tool rejects PNG input ("reading images is not supported"), so the saved
+  screenshots could not be machine-inspected; every quote above is backed by captured rendered text/DOM excerpts. This is
+  recorded in the evidence JSON instead of claiming an image review.
+
+The evidenced rates are now integrated: `pucks/6` carries the ₪30 / free-over-₪100 checkout quote with its coverage
+caveat, `coffeeman/6` carries the ₪20 two-kilogram-cart quote (`maxTotalGrams: 2000`, so larger carts stay unrankable
+with the exact reason), and the quote engine refuses to stretch a cart quote beyond the observed cart size. All 95 unit
+tests pass, including new tests for the quote limit and the changed fixture ranking (Pucks now wins at 500 g/1 kg/2 kg).
+
+The shopping page was redesigned on the Canton Zürich design system: self-hosted Inter (`public/fonts/InterVariable.woff2`,
+SIL OFL text alongside), Blau #0070B4 / Softblau #EDF5FA for the selected controls and the best known delivered offer,
+neutral grey/black structure, green/red stock labels, amber uncertainty labels, tabular numerals, flat surfaces and a
+responsive offer-card layout that keeps item subtotal, shipping service/charge and delivered total in one `.totals` row.
+The wide comparison table was removed (the old 2289 px row inside a 1325 px container is gone), the hero is now
+"Attention shoppers" with no trailing period, multipack labels read "8 × 250 g multipack (2000 g)", repeated pickup rows
+were folded into each offer's conditions, and diagnostics moved into disclosures. Measured at 1440 px: delivered total at
+x=906-1276 inside the viewport, best card top at 507 px, no horizontal overflow; at 390 px: no horizontal overflow and the
+page is ~4413 px for five offers (previously ~5491 px).
+
+**Next steps for the next iteration:** update `scripts/browser-qa.mjs` to the redesigned selectors/behavior (it still
+asserts the removed table, Pucks-unknown labels and CoffeeMan ₪91 best), re-run `npm run verify`, both `npm run qa:browser`
+modes and the offline/live cron checks, update `docs/DESIGN.md` and `docs/SOURCES.md` with the new evidence, and record
+the final results here.
