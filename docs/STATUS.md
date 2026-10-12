@@ -1308,9 +1308,17 @@ rule:
   comparison at 500 g — Pucks ₪90, CoffeeMan single ₪91, Coffee4U ₪106, CoffeeMan 4-pack ₪149 and
   CoffeeMan 8-pack **₪260** (₪20 checkout quote, policy `coffeeman-8pack-il-cart-quote`) — and
   `/api/board` reports both policies with their versions, observation times and review dates.
-- `npm run qa:browser` (offline fixtures) **78/78** and `npm run qa:browser -- http://127.0.0.1:8789`
+- `npm run qa:browser` (offline fixtures) **79/79** and `npm run qa:browser -- http://127.0.0.1:8789`
   (local live Worker with real vendor data) **76/76**, zero console errors; the money/method/disclosure
   and unified-comparison checks are unchanged.
+- Two browser-QA defects found while exercising the new production state were fixed in
+  `scripts/browser-qa.mjs`: the home-footer check raced the second async `/api/status` request and could
+  read the "Waiting for the latest observation time…" placeholder (the production run at 22:16 UTC caught
+  it), so `waitForHome()` now waits for the footer request to resolve; and a new check
+  `product: the per-kilogram winner spells out its pack contents and purchased grams` now derives the
+  expected "1 multipack (8 × 250 g) = 2000 g" wording from the flattened `bestPerKg` API summary and
+  asserts the rendered callout against it — the owner's observed defect (a four-pack described as
+  "1 × 250 g") can no longer return unnoticed.
 
 **Production verification (22:14 UTC, read-only public GETs):** the main-push Workers Builds deploy of the
 policy carried the read-time enrichment to the deployed site. The probe reports **ranked=5,
@@ -1322,6 +1330,18 @@ persisted CoffeeMan 8-pack row (observed 2026-10-12T15:51:52.931Z, unchanged) no
 claimed no fresh vendor price/stock check. `/api/board` exposes both policies with their versions,
 observation times and review dates. All 22 probe checks pass; evidence
 `docs/evidence/production-probe-20261012T2214Z.json`.
+
+**Production browser QA (22:27 UTC):** `npm run qa:browser -- https://attention-shoppers.igormaka.workers.dev`
+passed **77/77** checks with zero console errors against the new five-offer board, including the new
+per-kilogram-winner check: the live callout reads
+"Cheapest per kilogram: CoffeeMan (אמיגו) — ₪130.00 per kg (1 multipack (8 × 250 g) = 2000 g, delivered
+₪260.00)". The comparison cards show the 8-pack as "8 × 250 g multipack (2000 g) · 1 multipack
+(8 × 250 g) = 2000 g :: ₪240.00 + ₪20.00 + ₪260.00". Evidence
+`docs/evidence/browser-qa-production-20261012T2227Z.json`; sanitized viewport screenshots under
+`docs/evidence/visual-review/production-*-20261012T2227Z.png` with the coarse token/pixel record
+`docs/evidence/visual-review/2026-10-12-coffeeman-8pack-policy-review.json` (the file-read tool still
+rejects PNG input, so no claim of image-based visual review is made; labels/amounts are corroborated by
+rendered DOM text and the API in the same session).
 
 **Next step:** the **00:17 UTC cron tick** should replace the 15:52 store snapshot with fresh vendor
 observations (Pucks/coffee4u due since 19:34/19:46, coffeeman since 21:51); re-run

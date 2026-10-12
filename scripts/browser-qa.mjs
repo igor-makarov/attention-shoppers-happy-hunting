@@ -304,6 +304,26 @@ try {
     rankedMultipack == null
       || compare.cards.some(card => card.pack === `${packDescription(rankedMultipack)} · ${quantityDescription(rankedMultipack)}` && /multipack/.test(card.pack ?? '')),
     rankedMultipack ? `${packDescription(rankedMultipack)} :: ${compare.cards.map(c => c.pack).join(' | ')}` : 'no ranked multipack in this store');
+  // The per-kilogram winner is often a different offer from the cheapest
+  // delivered total (here the CoffeeMan 8-pack multipack). Its callout must
+  // spell out the multipack contents and purchased grams instead of describing
+  // a four/eight-pack as the old "1 × 250 g".
+  const perKgWinner = api500.bestPerKg && api500.best && api500.bestPerKg.key !== api500.best.key ? api500.bestPerKg : null;
+  // bestPerKg is a flattened summary (packGrams/packCount/units, no nested product).
+  const perKgQuantity = winner => (winner.packCount ?? 1) > 1
+    ? `${winner.units} multipack${winner.units === 1 ? '' : 's'} (${winner.packCount} × ${winner.packGrams} g) = ${winner.orderedGrams} g`
+    : `${winner.units} × ${winner.packGrams} g pack${winner.units === 1 ? '' : 's'} = ${winner.orderedGrams} g`;
+  const perKgLine = await evaluate(wd, `(() => {
+    const line = [...document.querySelectorAll('#decision > .meta-line')].find(node => /Cheapest per kilogram/.test(node.textContent ?? ''));
+    return line ? line.textContent.replace(/\\s+/g, ' ').trim() : null;
+  })()`);
+  check('product: the per-kilogram winner spells out its pack contents and purchased grams',
+    perKgWinner == null
+      ? perKgLine === null
+      : (perKgLine ?? '').includes(`${ils(perKgWinner.ilsPerKg)} per kg`)
+        && (perKgLine ?? '').includes(perKgQuantity(perKgWinner))
+        && ((perKgWinner.packCount ?? 1) > 1 ? /multipack/.test(perKgLine ?? '') : true),
+    perKgWinner ? `${perKgWinner.key} :: ${perKgLine}` : `no separate per-kg winner; line=${perKgLine}`);
   check('compare: every offer states its difference from the best delivered total',
     compare.cards.every((card, index) => card.delta === offerDeltaText(api500.ranked[index + 1], api500)),
     compare.cards.map(c => c.delta).join(' | '));
@@ -758,6 +778,10 @@ async function waitForPage(wd, expression, timeoutMs, label, probe) {
 
 async function waitForHome(wd) {
   await waitFor(async () => evaluate(wd, `!!document.querySelector('#catalog-list .product-card')`), 20_000, 'home catalog render');
+  // The footer observation time comes from a second async request. Wait for that
+  // request to resolve so the footer check reads the rendered result instead of
+  // the loading placeholder (the production run caught that race).
+  await waitFor(async () => evaluate(wd, `!String(document.getElementById('footer-status')?.textContent ?? '').includes('Waiting for the latest observation time')`), 20_000, 'home footer status');
 }
 
 async function waitForProduct(wd) {
