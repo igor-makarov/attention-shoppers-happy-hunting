@@ -7,7 +7,15 @@ Read PROMPT.md, docs/DESIGN.md, docs/ARCHITECTURE.md and docs/STATUS.md before w
 - Track **Lavazza Crema e Gusto vacuum-packed ground coffee only**. Qualità Oro, Qualità Rossa, Suerte
   and every other Lavazza product line are retired: they must not be vendored, fetched, culled or shown
   in the shopping UI. Adding another product line requires an explicit new owner instruction.
-- Keep Crema e Gusto blend variants (Classico, Forte, …) and its pack sizes/multipacks separate.
+- Keep Crema e Gusto pack sizes/multipacks as distinct offers, but there is **no blend/variant feature**
+  (owner correction, 2026-10-12): every eligible Crema e Gusto vacuum-packed ground listing — including
+  a listing that states no blend wording — takes part in one comparison for the selected quantity,
+  locality and delivery method. Do not add a blend selector, unobserved-variant menu entries, variant
+  warnings, "other variant" counts/links or variant-specific product cards. Raw vendor listing wording
+  and any stated blend wording may stay as evidence inside optional offer details, never as a filter or
+  a repeated badge, and an unstated listing must never be relabelled as Classico. Old shared URLs with
+  an obsolete `variant=` parameter keep their product/quantity/locality and resolve to this unified
+  comparison.
 - The production Worker name is `attention-shoppers` and must match `wrangler.jsonc`. The owner reports
   the site deployed at https://attention-shoppers.igormaka.workers.dev; on 2026-10-12 the loop independently
   verified the public URL, one request-triggered refresh and the single-product scope with read-only GETs

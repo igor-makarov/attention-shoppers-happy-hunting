@@ -14,14 +14,15 @@ GitHub normally does not trigger another push workflow for a push using GITHUB_T
 ## Implemented runtime
 
 The tracked scope is one product line: `src/catalog.js` holds Lavazza Crema e Gusto (a ground vacuum
-brick) with its blend variants and strict classification rules. The 2026-10-12 owner correction retired
+brick) with strict classification rules. The 2026-10-12 owner correction retired
 Qualità Oro, Qualità Rossa and Suerte; their ids remain as tombstones so `classifyListing` and
 `resolveProductRequest` reject or explain them instead of reviving them, and each refresh prunes any
 stored observation or attempt marker that belongs to a retired line. Vendor-specific adapters under `src/vendors/` (CoffeeMan, Pucks, Coffee4U)
 fetch fixed allowlisted product URLs through the bounded fetcher in `src/lib/http.js` and return versioned
 observations. `src/lib/quote.js` is a pure, timestamp-aware ranking engine; `src/lib/fx.js` converts
-non-ILS amounts with Bank of Israel reference rates and refuses to guess when a rate is missing. It keeps
-variants separate, reports how many offers a variant filter withheld, and passes every published shipping
+non-ILS amounts with Bank of Israel reference rates and refuses to guess when a rate is missing. It
+compares every eligible tracked listing — including one that states no blend wording — in one board and
+passes every published shipping
 alternative (for example a cheaper pickup-point delivery) through to the UI without using it as the ranked
 amount. A vendor that publishes a courier rate but makes home delivery subject to an unpublished locality
 list keeps a structured coverage caveat, so the board discloses the geographic restriction instead of

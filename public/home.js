@@ -33,8 +33,13 @@ async function main() {
   }
   if (isLegacyBoardLink) {
     // Keep the old selection state (including a retired product request) in the
-    // forwarded URL. The product page resolves it against the tracked catalog.
-    const target = `/product/${encodeURIComponent(products[0].id)}?${params.toString()}`;
+    // forwarded URL, but drop the obsolete variant parameter: the product page
+    // resolves the request against the tracked catalog and shows one unified
+    // comparison. Quantity and locality are preserved.
+    const forwarded = new URLSearchParams(params);
+    forwarded.delete('variant');
+    const query = forwarded.toString();
+    const target = `/product/${encodeURIComponent(products[0].id)}${query ? `?${query}` : ''}`;
     location.replace(target);
     return;
   }

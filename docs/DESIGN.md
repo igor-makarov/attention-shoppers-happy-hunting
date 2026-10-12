@@ -54,12 +54,16 @@ conditional)` label so its quantity/destination condition stays visible.
   Lavazza Crema e Gusto vacuum-packed ground coffee). A card carries identity, packaging, a concise
   summary of the comparison and tracked vendors, and a link to `/product/<id>`. The full comparison
   board is not rendered on the home route. A legacy board link that still carries
-  `product`/`grams`/`dest`/`variant` state is forwarded to the product page with that state intact.
+  `product`/`grams`/`dest` state is forwarded to the product page with that state intact; an obsolete
+  `variant=` parameter is discarded, not forwarded into a second view.
 - **Product `/product/<id>` — decision page.** Directly loadable and shareable; the path plus
-  `?grams=&dest=&variant=` query restores quantity, locality and variant (a retired-line or unknown id
-  falls back to the tracked product with a written notice). Default view: compact product identity and
-  the three controls, then the best eligible offer with vendor, stock, accurate pack/grams, the three
-  money values and a one-line conditional warning. Everything else is progressively disclosed:
+  `?grams=&dest=` query restores quantity and locality (a retired-line or unknown id falls back to the
+  tracked product with a written notice). There is no blend/variant control, menu entry or warning: every
+  eligible tracked listing — including one that states no blend wording — is in the one comparison, and
+  a listing's raw wording and any stated blend wording stay inside `Offer details and check history` as
+  provenance. Default view: compact product identity and the quantity/locality controls, then the best
+  eligible offer with vendor, stock, accurate pack/grams, the three money values and a one-line
+  conditional warning. Everything else is progressively disclosed:
   `Delivery options and conditions` and `Offer details and check history` per offer, one
   `Compare other offers (n)` disclosure for the rest of the ranking, one collapsed
   `Self-pickup options (n)` disclosure, and an `Offers with missing information (n)` disclosure that is

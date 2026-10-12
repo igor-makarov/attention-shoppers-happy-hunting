@@ -144,7 +144,7 @@ was a real board observation at the time but is historical now.
   - door-to-door courier, ₪30 (1-5 business days).
 - Shipping certainty: **verified** for the door-to-door courier rate, which is the ranked delivered amount. The ₪15 pickup-point service is stored as an alternative shipping option and is never used as the ranked total, and free self-pickup stays in the separate pickup list.
 - Rendered checkout confirmation (2026-10-12 18:17-18:19 UTC): the anonymous checkout quoted the 1 × 250 g cart at ₪30 door-to-door without an address; the checkout carries a 1,270-entry destination city list (Tel Aviv–Yafo and Eilat both present). The ₪15 pickup-point method requires a city plus spot from a 421-city list before its fee is shown, and self-pickup shows the shop address. The vendor's page title tag still says "Lavazza Qualita Oro Beans 1 kg" while the rendered body is the Crema e Gusto 250 g listing; the mismatch is a stale vendor-side title and did not change the cart item. Evidence: `docs/evidence/browser-research/2026-10-12-vendor-shipping-quotes.json`. Coverage caveat: the terms page (`https://www.coffee4u.co.il/page/%D7%AA%D7%A7%D7%A0%D7%95%D7%9F-0`, shipping-policy section) states door-to-door delivery is "subject to the company's list of localities where home delivery is performed", which the product page does not enumerate, so the observation carries a structured coverage caveat instead of claiming country-wide coverage.
-- Variant: the page names only "Crema e gusto" and states no Classico, Forte or other blend variant, so the listing is stored as **variant unspecified** and is never merged into the Classico ranking. The board reports how many offers another variant excluded.
+- Blend wording: the page names only "Crema e gusto" and states no Classico, Forte or other blend wording. Under the 2026-10-12 owner correction there is no variant feature: the listing takes part in the same one comparison as the Classico listings, and its unstated wording is kept only as raw listing identity evidence (never relabelled as Classico, never withheld).
 - Parser: schema.org microdata in a legacy Windows-1255 page; the declared charset is decoded before parsing. `robots.txt` allows product pages and asks for `Crawl-delay: 7`; the adapter fetches one fixed URL per six-hour run, so the delay is respected by the refresh interval.
 - Fixtures: `tests/fixtures/coffee4u-product.windows-1255.html` plus a derived out-of-stock variant, both minimized excerpts of the page retrieved on 2026-10-12.
 
@@ -237,7 +237,7 @@ country-wide delivery.
 Fixture-backed quote tests show that the delivered winner changes with the researched rates: Pucks wins at
 500 g (₪90) and 1 kg (₪120, free shipping above the ₪100 threshold) while the CoffeeMan 8 × 250 g pack has
 the lowest price per kilogram at 500 g (₪130/kg) without winning the delivered total. The Coffee4U listing
-is ranked separately from Classico because the vendor does not state the blend variant, with its ₪15
+is part of the same one comparison even though the vendor states no blend wording, with its ₪15
 pickup-point delivery labelled as an alternative rather than merged into the ranked total. Unknown
 shipping can never win: a no-rate offer stays visible and unranked, covered by the quote-engine tests and
 a QA-only browser fixture.
@@ -263,7 +263,9 @@ The board compares **one product line: Lavazza Crema e Gusto vacuum-packed groun
 whose name cannot be tied to that line is rejected instead of being merged, and the retired lines
 (Qualità Oro, Qualità Rossa, Suerte) are rejected with an explicit reason even if a historical page or an
 old `?product=` URL still names them. Beans, capsules, pods and machines are rejected by
-`classifyListing` in `src/catalog.js`, and blend variants (Classico, Forte, Ricco, Risveglio, decaf,
-unspecified) are kept as separate variants so they are never merged into one comparison. Pack weight and pack
+`classifyListing` in `src/catalog.js`. Blend wording is not a shopper-facing variant (owner correction,
+2026-10-12): every eligible Crema e Gusto ground listing — including one that states no blend wording —
+is compared in one board, and the wording a vendor prints stays attached to that offer only as raw
+listing identity evidence. Pack weight and pack
 count are parsed per listing and normalized to delivered ILS per kilogram; multipacks are never merged
 with single packs into one offer.

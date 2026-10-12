@@ -21,6 +21,16 @@ const GRAMS_OPTIONS = [250, 500, 750, 1000, 2000];
 const params = new URLSearchParams(location.search);
 const pathProduct = decodeURIComponent(location.pathname.replace(/^\/product\/?/, '')) || null;
 
+// Old shared URLs may still carry an obsolete `variant=` parameter. Discard it
+// from the address bar (quantity and locality stay) so the URL resolves to the
+// one unified comparison instead of implying a second, filtered view.
+if (params.has('variant')) {
+  const cleaned = new URLSearchParams(params);
+  cleaned.delete('variant');
+  const query = cleaned.toString();
+  history.replaceState(null, '', `${location.pathname}${query ? `?${query}` : ''}`);
+}
+
 const state = {
   grams: Number(params.get('grams')) || 500,
   destination: params.get('dest') || 'tel-aviv',

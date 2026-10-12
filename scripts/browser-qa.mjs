@@ -13,8 +13,10 @@
 //
 // The checks cover the owner-requested behavior: the home index links to a
 // directly loadable product page, the product page keeps the decision values in
-// the first mobile viewport, disclosures open and close, quantity/destination/
-// variant changes recalculate, vendors are named, unknowns stay honest and no
+// the first mobile viewport, disclosures open and close, quantity/destination
+// changes recalculate, every eligible listing (including Coffee4U's unstated
+// blend wording) is in one comparison with no blend control or variant warning,
+// vendors are named, unknowns stay honest and no
 // "[object HTMLSpanElement]" artifact appears. The script is dependency-free:
 // it speaks the W3C WebDriver protocol over HTTP and writes screenshots and a
 // JSON report to .shurik-local/qa/.
@@ -31,7 +33,6 @@ const PORT = 9515;
 const EMOJI = /[\u{1F300}-\u{1FAFF}\u{1F000}-\u{1F2FF}\u{2600}-\u{27BF}\u{FE0F}]/u;
 const ILS = new Intl.NumberFormat('en-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 2 });
 const ils = amount => (amount == null ? null : ILS.format(amount));
-const VARIANT_LABELS = { classico: 'Classico (strength 7)', forte: 'Forte', ricco: 'Ricco', risveglio: 'Risveglio', decaf: 'Decaffeinated', unspecified: 'Variant not stated' };
 
 const report = {
   mode: LIVE_BASE ? 'live' : 'fixtures',
@@ -66,9 +67,10 @@ try {
   const api500 = await fetchBoard(base, 500, 'tel-aviv');
   const api1000 = await fetchBoard(base, 1000, 'tel-aviv');
   const api1000Eilat = await fetchBoard(base, 1000, 'eilat');
-  const apiUnstated = await fetchBoard(base, 500, 'tel-aviv', 'unspecified');
   const best = api500.best;
   if (!best) throw new Error('the board API has no ranked offer, so UI comparison checks cannot run');
+  const coffee4uQuote = api500.ranked.find(quote => quote.vendor.id === 'coffee4u') ?? null;
+  if (!coffee4uQuote) throw new Error('the fixture board must include the Coffee4U listing in the one comparison');
   const expected500 = ils(best.totalIls);
   const expected1000 = ils(api1000.best?.totalIls);
   const expected1000Eilat = ils(api1000Eilat.best?.totalIls);
@@ -124,7 +126,10 @@ try {
   report.home = { heading: home.heading, cardCount: home.cardCount, cardHref: home.cardHref };
   check('home: title is "Attention shoppers" without a trailing period', home.heading === 'Attention shoppers', home.heading);
   check('home: the catalog renders exactly the tracked product as a card', home.cardCount === 1 && home.cardName === `${product.brand} ${product.line}`, `${home.cardCount} × ${home.cardName}`);
-  check('home: the card summarizes identity, packaging and vendors', /vacuum brick/.test(home.cardMeta ?? '') && /vendor/i.test(home.cardSummary ?? ''), `${home.cardMeta} :: ${home.cardSummary}`);
+  check('home: the card summarizes identity, packaging, vendors and the one comparison',
+    /vacuum brick/.test(home.cardMeta ?? '') && /one comparison/i.test(home.cardMeta ?? '')
+      && /vendor/i.test(home.cardSummary ?? '') && !/blend variant/i.test(home.bodyText ?? ''),
+    `${home.cardMeta} :: ${home.cardSummary}`);
   check('home: the card links to the directly loadable product page', home.cardHref === productPath, `${home.cardHref} vs ${productPath}`);
   check('home: the full vendor comparison board is not rendered on the home route', home.comparisonOnHome === false, 'no offer cards or totals on /');
   check('home: no emoji in visible text', !EMOJI.test(home.visibleText), 'emoji scan');
@@ -168,11 +173,9 @@ try {
       pickupSummary: text(document.querySelector('#pickup-options summary')),
       quantityPressed: [...document.querySelectorAll('#quantity-group button')].map(b => [b.textContent.trim(), b.getAttribute('aria-pressed')]),
       destinationOptions: [...document.querySelectorAll('#destination option')].map(o => o.textContent.trim()),
-      variantOptions: [...document.querySelectorAll('#variant option')].map(o => o.textContent.trim()),
-      variantHint: text(document.getElementById('variant-hint')),
+      variantControls: document.querySelectorAll('#variant, #variant-hint, [data-variant-control]').length,
       tableCount: document.querySelectorAll('table').length,
       bodyText: document.body.innerText,
-      objectArtifacts: /\\[object HTML/.test(document.body.innerText),
       pageOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
       bidiFragments: document.querySelectorAll('[dir="auto"][lang="he"]').length,
       hasSkipLink: !!document.querySelector('.skip'),
@@ -192,7 +195,7 @@ try {
     (productView.vendor ?? '').includes(best.vendor.name) && (productView.vendor ?? '').includes(best.availabilityLabel),
     productView.vendor);
   check('product: the best offer shows the accurate pack and purchased grams',
-    productView.pack === `${packDescription(best)} · ${quantityDescription(best)} · ${best.product.variantLabel}`,
+    productView.pack === `${packDescription(best)} · ${quantityDescription(best)}`,
     productView.pack);
   check(`product: item subtotal is ${ils(best.itemTotalIls)}`, productView.totals[0]?.value === ils(best.itemTotalIls), productView.totals[0]?.value);
   check(`product: shipping shows ${ils(best.shipping.amountIls)} with the named method and certainty`,
@@ -219,10 +222,12 @@ try {
     JSON.stringify({ rects: productView.totals.map(t => t.rect), overflow: productView.pageOverflow }));
   check('product: quantity 500 g is the pressed default', productView.quantityPressed.some(([label, pressed]) => label === '500 g' && pressed === 'true'), productView.quantityPressed.join(' | '));
   check('product: destination selector lists Israeli localities', productView.destinationOptions.length >= 5, productView.destinationOptions.join(' | '));
-  check('product: the variant control lists "Variant not stated" so the Coffee4U listing is discoverable',
-    productView.variantOptions.some(text => text.startsWith('Variant not stated')), productView.variantOptions.join(' | '));
+  check('product: no blend/variant selector, menu entry or variant warning exists',
+    productView.variantControls === 0 && !/blend variant|another variant/i.test(productView.bodyText ?? ''),
+    `controls=${productView.variantControls}`);
   check('product: no wide comparison table and no "[object HTML…]" artifacts',
-    productView.tableCount === 0 && productView.objectArtifacts === false, `tables=${productView.tableCount} artifacts=${productView.objectArtifacts}`);
+    productView.tableCount === 0 && /\[object HTML/.test(productView.bodyText ?? '') === false,
+    `tables=${productView.tableCount}`);
   check('product: no emoji in visible text', !EMOJI.test(productView.bodyText ?? ''), 'emoji scan');
   check('product: Hebrew vendor text is direction-isolated', productView.bidiFragments >= 1, String(productView.bidiFragments));
   check('product: skip link and main landmark are present', productView.hasSkipLink && productView.hasMain, `skip=${productView.hasSkipLink} main=${productView.hasMain}`);
@@ -274,7 +279,7 @@ try {
         caveatCount: card.querySelectorAll('.caveat').length,
         link: card.querySelector('.offer__links a')?.href ?? null
       })),
-      excludedLine: [...details.querySelectorAll('.meta-line')].map(n => n.innerText).find(line => /another blend variant/.test(line)) ?? null,
+      variantMentions: [...details.querySelectorAll('*')].map(n => n.textContent).filter(text => /another blend variant|Variant not stated|blend variant/i.test(text ?? '')).slice(0, 3),
       bodyText: details.innerText
     };
   })()`);
@@ -287,7 +292,7 @@ try {
     return card.totals[0]?.value === ils(quote.itemTotalIls)
       && card.totals[1]?.value === ils(quote.shipping.amountIls)
       && card.totals[2]?.value === ils(quote.totalIls)
-      && card.pack === `${packDescription(quote)} · ${quantityDescription(quote)} · ${quote.product.variantLabel}`;
+      && card.pack === `${packDescription(quote)} · ${quantityDescription(quote)}`;
   });
   check('compare: each offer shows item subtotal, shipping and delivered total from the API with accurate pack labels', compareMathOk,
     compare.cards.map((card, index) => `${card.pack} :: ${card.totals.map(t => t.value).join(' + ')}`).join(' || '));
@@ -299,10 +304,12 @@ try {
     compare.cards.map(c => c.delta).join(' | '));
   check('compare: each offer discloses its coverage caveat at most once',
     compare.cards.every(card => card.caveatCount <= 1), compare.cards.map(c => c.caveatCount).join(','));
-  check('compare: the unstated-variant listing is reported as excluded, not merged',
-    (compare.excludedLine ?? '').includes(`${api500.counts.excludedByVariant} observed offer(s) for another blend variant`)
-      && (compare.excludedLine ?? '').includes('Variant not stated'),
-    compare.excludedLine);
+  check('compare: the Coffee4U listing with unstated blend wording is in the same comparison, not withheld',
+    compare.cards.some(card => /Coffee4U/.test(card.vendor ?? ''))
+      && compare.cards.some(card => card.totals[2]?.value === ils(coffee4uQuote.totalIls)),
+    compare.cards.map(c => `${c.vendor} ${c.totals[2]?.value}`).join(' | '));
+  check('compare: no variant-exclusion notice or blend wording is repeated on the comparison',
+    compare.variantMentions.length === 0, JSON.stringify(compare.variantMentions));
   await setDetailsOpen(wd, '#compare-other-offers', false);
   check('compare: the disclosure can be closed again', (await evaluate(wd, `document.querySelector('#compare-other-offers')?.open`)) === false, 'closed');
 
@@ -331,34 +338,44 @@ try {
   await setDetailsOpen(wd, '#pickup-options', false);
   check('pickup: the disclosure can be closed again', (await evaluate(wd, `document.querySelector('#pickup-options')?.open`)) === false, 'closed');
 
-  // Variant interaction: switching to the unstated variant ranks Coffee4U and
-  // names the excluded Classico offers.
-  await evaluate(wd, `(() => { const select = document.getElementById('variant'); select.value = 'unspecified'; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
-  await waitForPage(wd, `document.querySelector('#best-offer .offer__vendor')?.innerText.includes('Coffee4U')`, 15_000, 'unstated-variant ranking');
-  const unstated = await evaluate(wd, `(() => {
+  // Obsolete variant URL: the parameter is discarded from the address bar and
+  // the one unified comparison renders, with Coffee4U in it and its published
+  // alternatives intact — no second filtered view.
+  await wd('POST', '/url', { url: `${base}${productPath}?grams=250&dest=tel-aviv&variant=unspecified` });
+  await waitForProduct(wd);
+  const obsoleteVariant = await evaluate(wd, `(() => {
     const card = document.querySelector('#best-offer');
     return {
       vendor: card?.querySelector('.offer__vendor')?.innerText.trim() ?? null,
       total: card?.querySelector('.totals__cell--total .totals__value')?.textContent ?? null,
-      pack: card?.querySelector('.offer__pack')?.textContent ?? null,
-      shippingMethod: card?.querySelector('.totals__meta--method')?.textContent ?? null,
-      conditions: [...card.querySelectorAll('.conditions li')].map(n => n.textContent),
-      hint: document.getElementById('variant-hint')?.textContent ?? null,
-      url: location.pathname + location.search
+      search: location.search,
+      variantControl: document.getElementById('variant')?.tagName ?? null
     };
   })()`);
-  check(`variant: the unstated-variant Coffee4U listing ranks on its own at ${ils(apiUnstated.best?.totalIls)}`,
-    (unstated.vendor ?? '').includes('Coffee4U') && unstated.total === ils(apiUnstated.best?.totalIls) && (unstated.pack ?? '').includes('Variant not stated'),
-    `${unstated.vendor} ${unstated.total} :: ${unstated.pack}`);
-  check('variant: the published pickup-point alternative and free self-pickup are discoverable in its delivery details',
-    unstated.conditions.some(text => /pickup point/i.test(text) && text.includes(ils(15)))
-      && unstated.conditions.some(text => /Self-pickup: .*Free self-pickup at the shop/.test(text)),
-    unstated.conditions.join(' | '));
-  check('variant: the hint names the excluded variant offers and the shareable URL keeps the selection',
-    /another variant/.test(unstated.hint ?? '') && /variant=unspecified/.test(unstated.url ?? ''),
-    `${unstated.hint} :: ${unstated.url}`);
-  await evaluate(wd, `(() => { const select = document.getElementById('variant'); select.value = 'classico'; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
-  await waitForPage(wd, `document.querySelector('#best-offer .offer__vendor')?.innerText.includes('Pucks')`, 15_000, 'restore classico ranking');
+  const best250 = await fetchBoard(base, 250, 'tel-aviv');
+  const coffee4u250 = best250.ranked.find(quote => quote.vendor.id === 'coffee4u') ?? null;
+  check('variant-param: an old variant URL is cleaned up and shows the one unified comparison',
+    obsoleteVariant.variantControl === null && !/variant=/.test(obsoleteVariant.search ?? '')
+      && obsoleteVariant.total === ils(best250.best?.totalIls) && /grams=250/.test(obsoleteVariant.search ?? ''),
+    JSON.stringify(obsoleteVariant));
+  await setDetailsOpen(wd, '#compare-other-offers', true);
+  const coffee4uCard = await evaluate(wd, `(() => {
+    const card = [...document.querySelectorAll('#compare-other-offers .offer')].find(node => node.querySelector('.offer__vendor')?.innerText.includes('Coffee4U'));
+    return card ? {
+      vendor: card.querySelector('.offer__vendor')?.innerText.trim() ?? null,
+      total: card.querySelector('.totals__cell--total .totals__value')?.textContent ?? null,
+      conditions: [...card.querySelectorAll('.conditions li')].map(n => n.textContent),
+      pack: card.querySelector('.offer__pack')?.textContent ?? null
+    } : null;
+  })()`);
+  check('variant-param: Coffee4U stays in the unified comparison with its published alternatives',
+    coffee4uCard != null
+      && coffee4u250 != null
+      && coffee4uCard.total === ils(coffee4u250.totalIls)
+      && coffee4uCard.conditions.some(text => /pickup point/i.test(text) && text.includes(ils(15)))
+      && coffee4uCard.conditions.some(text => /Self-pickup: .*Free self-pickup at the shop/.test(text)),
+    JSON.stringify(coffee4uCard));
+  await setDetailsOpen(wd, '#compare-other-offers', false);
 
   // Quantity and destination interactions with the shareable URL.
   const kgButton = await wd('POST', '/element', { using: 'css selector', value: '#quantity-group button[data-grams="1000"]' });
@@ -455,8 +472,8 @@ try {
     pressed: [...document.querySelectorAll('#quantity-group button')].filter(b => b.getAttribute('aria-pressed') === 'true').map(b => b.textContent.trim()),
     destination: document.getElementById('destination')?.value ?? null
   })`);
-  check('legacy: an old query URL forwards to the product page keeping quantity, locality and variant',
-    legacy.path === productPath && /grams=750/.test(legacy.search) && /dest=haifa/.test(legacy.search) && /variant=classico/.test(legacy.search)
+  check('legacy: an old query URL forwards to the product page keeping quantity and locality, discarding the variant',
+    legacy.path === productPath && /grams=750/.test(legacy.search) && /dest=haifa/.test(legacy.search) && !/variant=/.test(legacy.search)
       && legacy.pressed.includes('750 g') && legacy.destination === 'haifa',
     JSON.stringify(legacy));
 
@@ -478,24 +495,28 @@ try {
   await wd('POST', '/url', { url: `${base}/?grams=500&dest=tel-aviv&variant=nope` });
   await waitForProduct(wd);
   const fallbackVariant = await evaluate(wd, `({
-    variantValue: document.getElementById('variant')?.value ?? null,
+    variantControl: document.getElementById('variant')?.tagName ?? null,
+    search: location.search,
     total: document.querySelector('#best-offer .totals__cell--total .totals__value')?.textContent ?? null
   })`);
-  check('legacy: a URL with an untracked variant id falls back to the product default',
-    fallbackVariant.variantValue === 'classico' && fallbackVariant.total === expected500,
+  check('legacy: a URL with an untracked variant id is ignored, not turned into an empty or filtered board',
+    fallbackVariant.variantControl === null && !/variant=/.test(fallbackVariant.search ?? '') && fallbackVariant.total === expected500,
     JSON.stringify(fallbackVariant));
 
-  // A directly loaded, shareable product URL with all three selections set.
+  // A directly loaded, shareable product URL: quantity and locality are restored
+  // and any obsolete variant parameter is discarded.
   await wd('POST', '/url', { url: `${base}${productPath}?grams=1000&dest=eilat&variant=classico` });
   await waitForProduct(wd);
   const shared = await evaluate(wd, `({
     total: document.querySelector('#best-offer .totals__cell--total .totals__value')?.textContent ?? null,
     pressed: [...document.querySelectorAll('#quantity-group button')].filter(b => b.getAttribute('aria-pressed') === 'true').map(b => b.textContent.trim()),
     destination: document.getElementById('destination')?.value ?? null,
-    variant: document.getElementById('variant')?.value ?? null
+    variantControl: document.getElementById('variant')?.tagName ?? null,
+    search: location.search
   })`);
-  check('shareable: a directly loaded product URL restores quantity, locality and variant',
-    shared.total === expected1000Eilat && shared.pressed.includes('1 kg') && shared.destination === 'eilat' && shared.variant === 'classico',
+  check('shareable: a directly loaded product URL restores quantity and locality with no variant control',
+    shared.total === expected1000Eilat && shared.pressed.includes('1 kg') && shared.destination === 'eilat'
+      && shared.variantControl === null && !/variant=/.test(shared.search ?? ''),
     JSON.stringify(shared));
 
   // --------------------------------------------- freshness and failure scenarios
@@ -659,8 +680,8 @@ async function fetchJson(url) {
   return response.json();
 }
 
-function fetchBoard(baseUrl, grams, dest, variant = 'classico', product = null) {
-  const params = new URLSearchParams({ grams: String(grams), dest, variant });
+function fetchBoard(baseUrl, grams, dest, product = null) {
+  const params = new URLSearchParams({ grams: String(grams), dest });
   if (product) params.set('product', product);
   return fetchJson(`${baseUrl}/api/board?${params}`);
 }
