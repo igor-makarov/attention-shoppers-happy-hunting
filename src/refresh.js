@@ -117,7 +117,13 @@ export async function runRefresh({
       fx: fx ? { ok: fx.ok, asOf: fx.fx?.asOf ?? null, error: fx.error ?? null } : { skipped: true }
     };
     await store.recordRun(summary);
-    await store.setMeta('lastRefreshAt', { value: finishedAt, trigger });
+    // A run that fetched nothing because every vendor is inside its backoff
+    // window is not a completed refresh: leaving lastRefreshAt untouched keeps
+    // the board's freshness label tied to the last real check instead of an
+    // empty run that would silently mask a stalled pipeline.
+    if (requests > 0) {
+      await store.setMeta('lastRefreshAt', { value: finishedAt, trigger });
+    }
     return summary;
   } finally {
     await store.releaseLease('refresh');

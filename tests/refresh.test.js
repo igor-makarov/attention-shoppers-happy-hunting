@@ -189,6 +189,22 @@ test('refresh runs started in the same tick cannot both acquire the lease', asyn
   assert.equal(calls.length, 6, 'the losing run performs no vendor or FX requests');
 });
 
+test('a zero-request run does not claim a completed refresh', async () => {
+  const store = createMemoryStore();
+  const first = await run({ store, fetchImpl: fixtureFetch(), now: NOW });
+  assert.equal(first.requests, 6);
+  const refreshAt = (await store.snapshot()).meta.lastRefreshAt.value;
+
+  // Every vendor is still inside its six-hour window, so this run fetches nothing.
+  const idle = await run({ store, fetchImpl: fixtureFetch(), now: NOW + 60_000 });
+  assert.equal(idle.requests, 0);
+  assert.equal(idle.vendors.filter(vendor => vendor.skipped).length, 3, 'all vendors are backed off');
+  const after = (await store.snapshot()).meta.lastRefreshAt.value;
+  assert.equal(after, refreshAt, 'an empty run must not look like a fresh observation');
+  const runs = await store.listRuns(5);
+  assert.equal(runs[0].requests, 0, 'the empty run is still recorded in the run history');
+});
+
 test('initial refresh runs once and is throttled afterwards', async () => {
   const store = createMemoryStore();
   const started = await maybeInitialRefresh({ store, ctx: null, now: NOW, run: async () => ({ ran: true }), vendors: [], includeFx: false });
