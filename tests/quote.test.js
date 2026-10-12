@@ -230,3 +230,44 @@ test('stale attempts beyond the threshold do not rank even with fresh prices', (
   assert.equal(board.best, null);
   assert.equal(board.staleOrUnavailable[0].ageHours, 51);
 });
+
+test('shipping alternatives are converted but never replace the ranked shipping amount', () => {
+  const withAlternative = observation({
+    key: 'alt:1',
+    shipping: {
+      certainty: 'verified',
+      amount: { amount: 30, currency: 'ILS' },
+      alternatives: [{ id: 'pickup-point', label: 'Delivery to a pickup point', amount: { amount: 15, currency: 'ILS' }, note: 'different service' }]
+    }
+  });
+  const board = quote([withAlternative]);
+  assert.equal(board.best.shipping.amountIls, 30, 'the published door-to-door rate is the ranked shipping amount');
+  assert.equal(board.best.totalIls, 110); // 2 × ₪40 + ₪30
+  assert.equal(board.best.shipping.alternatives[0].amountIls, 15);
+  assert.equal(board.best.shipping.alternatives[0].note, 'different service');
+
+  const usdAlternative = observation({
+    key: 'alt-usd:1',
+    shipping: {
+      certainty: 'verified',
+      amount: { amount: 0, currency: 'ILS' },
+      alternatives: [{ id: 'courier', label: 'Courier', amount: { amount: 5, currency: 'USD' } }]
+    }
+  });
+  const withoutFx = quote([usdAlternative]);
+  assert.equal(withoutFx.best.shipping.alternatives[0].amountIls, null, 'an unconvertible alternative is unknown, not zero');
+});
+
+test('the variant filter keeps variants separate and reports what it excluded', () => {
+  const classico = observation({ key: 'classico:1' });
+  const unstated = observation({ key: 'unstated:1', product: { variantId: 'unspecified', variantLabel: 'Variant not stated' } });
+  const classicoOnly = quote([classico, unstated], { variantId: 'classico' });
+  assert.deepEqual(classicoOnly.ranked.map(q => q.key), ['classico:1']);
+  assert.equal(classicoOnly.counts.excludedByVariant, 1);
+  assert.deepEqual(classicoOnly.counts.excludedVariants, ['unspecified']);
+  assert.deepEqual(classicoOnly.variants, ['classico', 'unspecified'], 'the selector still knows both variants exist');
+
+  const unstatedOnly = quote([classico, unstated], { variantId: 'unspecified' });
+  assert.deepEqual(unstatedOnly.ranked.map(q => q.key), ['unstated:1']);
+  assert.equal(unstatedOnly.counts.excludedByVariant, 1);
+});

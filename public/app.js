@@ -13,6 +13,8 @@ const state = {
 
 const GRAMS_OPTIONS = [250, 500, 750, 1000, 2000];
 
+const VARIANT_LABELS = { classico: 'Classico (strength 7)', forte: 'Forte', ricco: 'Ricco', risveglio: 'Risveglio', decaf: 'Decaffeinated', unspecified: 'Variant not stated' };
+
 const ILS = new Intl.NumberFormat('en-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 2 });
 const IL_TIME = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Asia/Jerusalem', dateStyle: 'medium', timeStyle: 'short'
@@ -149,8 +151,7 @@ function renderControls() {
   const signature = variants.join(',');
   if (variant.dataset.signature !== signature) {
     variant.replaceChildren();
-    const labels = { classico: 'Classico (strength 7)', forte: 'Forte', ricco: 'Ricco', risveglio: 'Risveglio', decaf: 'Decaffeinated', unspecified: 'Variant not stated' };
-    for (const id of variants) variant.append(el('option', { value: id, text: labels[id] ?? id }));
+    for (const id of variants) variant.append(el('option', { value: id, text: VARIANT_LABELS[id] ?? id }));
     variant.dataset.signature = signature;
     variant.addEventListener('change', () => update({ variant: variant.value }));
   }
@@ -208,6 +209,11 @@ function renderRankedSection(board) {
   if (best.shipping.minOrder != null) rows.push(['Minimum order', `${money(best.shipping.minOrder)} ${best.shipping.minOrderCurrency ?? ''}`.trim()]);
   if (best.shipping.freeThreshold != null) rows.push(['Free shipping', `from ${money(best.shipping.freeThreshold)} ${best.shipping.freeThresholdCurrency ?? ''}`.trim()]);
   if (best.shipping.destination?.scope === 'localities') rows.push(['Delivery area', `Only: ${(best.shipping.destination.localities ?? []).join(', ')}`]);
+  for (const alternative of best.shipping.alternatives ?? []) {
+    rows.push([alternative.label, alternative.amountIls != null
+      ? `${money(alternative.amountIls)} (published alternative shipping service)`
+      : `${alternative.amount ?? 'unknown'} ${alternative.currency ?? ''} (not converted)`.trim()]);
+  }
   for (const fee of best.mandatoryFees ?? []) rows.push([fee.label, money(fee.amountIls)]);
   if (best.shipping.deliveryTime) rows.push(['Delivery time', best.shipping.deliveryTime]);
   if (best.shipping.pickup?.available) rows.push(['Pickup', 'Free self-pickup is available and shown separately']);
@@ -226,6 +232,10 @@ function renderRankedSection(board) {
 
   if (board.ranked.length > 1) {
     section.append(renderCompareTable(board.ranked, board));
+  }
+  if (board.counts?.excludedByVariant > 0) {
+    const labels = (board.counts.excludedVariants ?? []).map(id => VARIANT_LABELS[id] ?? id).join(', ');
+    section.append(el('p', { class: 'meta-line', text: `${board.counts.excludedByVariant} observed offer(s) for another blend variant (${labels || 'unspecified'}) stay out of this comparison so variants are never merged. Switch the product variant control to compare them.` }));
   }
   section.append(el('p', { class: 'meta-line', text: `Comparison total = item price + shipping + mandatory fees, converted to ILS where a Bank of Israel reference rate is stored. This is not a personalized checkout quote.` }));
   return section;
@@ -247,6 +257,7 @@ function renderCompareTable(quotes, board) {
     row.append(el('td', { class: 'num' , text: `${money(quote.itemPrice.amount)} ${quote.itemPrice.currency}` }));
     row.append(el('td', { class: 'num' },
       quote.shipping.amountIls === 0 ? 'Free' : money(quote.shipping.amountIls),
+      (quote.shipping.alternatives ?? []).map(alternative => el('div', { class: 'unknown__meta', text: `${alternative.label}: ${alternative.amountIls != null ? money(alternative.amountIls) : 'unknown'}` })),
       quote.shipping.minOrder != null || quote.shipping.freeThreshold != null
         ? el('div', { class: 'unknown__meta', text: [quote.shipping.minOrder != null ? `min ${money(quote.shipping.minOrder)}` : null, quote.shipping.freeThreshold != null ? `free from ${money(quote.shipping.freeThreshold)}` : null].filter(Boolean).join(' · ') })
         : null));
@@ -309,6 +320,7 @@ function renderUnknownSection(board) {
           el('span', {}, statusBadge(quote.availability, quote.availabilityLabel)),
           el('span', { text: `Item price: ${quote.itemPrice.amount != null ? `${money(quote.itemPrice.amount)} ${quote.itemPrice.currency}` : 'unknown'}` }),
           el('span', { text: `Shipping: ${shipped}` }),
+          ...(quote.shipping.alternatives ?? []).map(alternative => el('span', { text: `${alternative.label}: ${alternative.amountIls != null ? money(alternative.amountIls) : 'unknown'}` })),
           el('span', { text: `Last successful check: ${timeLabel(quote.observedAt)}` }),
           el('span', { text: `Last attempt: ${timeLabel(quote.attemptedAt)}` })),
         el('p', { class: 'unknown__reason', text: quote.reasons.join('. ') || quote.labels.join('. ') || 'Not enough verified information yet.' }),

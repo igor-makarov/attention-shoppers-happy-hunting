@@ -17,6 +17,7 @@ import { extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { coffeeman } from '../src/vendors/coffeeman.js';
 import { pucks } from '../src/vendors/pucks.js';
+import { coffee4u } from '../src/vendors/coffee4u.js';
 import { products } from '../src/catalog.js';
 import { quoteBoard, findDestination, DESTINATIONS } from '../src/lib/quote.js';
 import { createObservation, registeredVendors } from '../src/vendors/index.js';
@@ -44,6 +45,7 @@ export async function fixtureObservations(now = Date.now()) {
   const coffeeman4Bytes = await readFile(new URL('coffeeman-4pack-product.windows-1255.html', FIXTURES));
   const coffeeman8Bytes = await readFile(new URL('coffeeman-8pack-product.windows-1255.html', FIXTURES));
   const pucksHtml = await readFile(new URL('pucks-product.html', FIXTURES), 'utf8');
+  const coffee4uBytes = await readFile(new URL('coffee4u-product.windows-1255.html', FIXTURES));
   const fixtureFetch = async url => {
     if (String(url).includes('coffeeman.co.il')) {
       const bytes = String(url).includes('4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA') ? coffeeman4Bytes
@@ -56,10 +58,14 @@ export async function fixtureObservations(now = Date.now()) {
       const buffer = new Uint8Array(Buffer.from(pucksHtml, 'utf8'));
       return { ok: true, status: 200, url, buffer, text: pucksHtml };
     }
+    if (String(url).includes('coffee4u.co.il')) {
+      const buffer = new Uint8Array(coffee4uBytes);
+      return { ok: true, status: 200, url, buffer, text: new TextDecoder('utf-8', { fatal: false }).decode(buffer) };
+    }
     return { ok: false, status: 404, error: 'no fixture for this URL' };
   };
   const observations = [];
-  for (const vendor of [coffeeman, pucks]) {
+  for (const vendor of [coffeeman, pucks, coffee4u]) {
     const outcome = await vendor.observe({ fetchText: fixtureFetch, now, logger: null });
     if (outcome.failures?.length) {
       throw new Error(`${vendor.id}: fixture parse failed: ${JSON.stringify(outcome.failures)}`);

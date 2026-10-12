@@ -25,6 +25,7 @@ if (offline) {
   const coffeeman4Bytes = await readFile(new URL('coffeeman-4pack-product.windows-1255.html', fixtures));
   const coffeeman8Bytes = await readFile(new URL('coffeeman-8pack-product.windows-1255.html', fixtures));
   const pucksHtml = await readFile(new URL('pucks-product.html', fixtures), 'utf8');
+  const coffee4uBytes = await readFile(new URL('coffee4u-product.windows-1255.html', fixtures));
   const boi = {
     exchangeRates: [
       { key: 'USD', currentExchangeRate: 3.0, unit: 1, lastUpdate: '2026-10-09T09:21:04.476265Z' },
@@ -40,6 +41,9 @@ if (offline) {
     }
     if (url.includes('pucks.co.il')) {
       return new Response(pucksHtml, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } });
+    }
+    if (url.includes('coffee4u.co.il')) {
+      return new Response(coffee4uBytes, { status: 200, headers: { 'content-type': 'text/html; charset=windows-1255' } });
     }
     if (url.includes('boi.org.il')) {
       return Response.json(boi);

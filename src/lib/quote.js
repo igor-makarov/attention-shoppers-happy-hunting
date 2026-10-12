@@ -42,11 +42,19 @@ export function quoteBoard({
   const grams = clampGrams(targetGrams);
   const quotes = [];
   const variants = new Set();
+  const excludedVariants = new Set();
+  let excludedByVariant = 0;
   for (const observation of observations) {
     if (productId && observation?.product?.productId !== productId) continue;
     if (observation?.product?.form !== 'ground') continue;
     variants.add(observation?.product?.variantId ?? 'unspecified');
-    if (variantId && (observation?.product?.variantId ?? 'unspecified') !== variantId) continue;
+    if (variantId && (observation?.product?.variantId ?? 'unspecified') !== variantId) {
+      // Kept out of this ranking on purpose: variants are never merged. The
+      // count lets the UI tell the shopper that offers for another variant exist.
+      excludedByVariant += 1;
+      excludedVariants.add(observation?.product?.variantId ?? 'unspecified');
+      continue;
+    }
     quotes.push(quoteOffer(observation, { grams, destination, fx, now, staleAfterMs }));
   }
   const ranked = quotes.filter(quote => quote.rankable).sort(compareQuotes);
@@ -77,7 +85,9 @@ export function quoteBoard({
       observed: quotes.length,
       ranked: ranked.length,
       pickup: pickup.length,
-      unknown: unknown.length
+      unknown: unknown.length,
+      excludedByVariant,
+      excludedVariants: [...excludedVariants].sort()
     }
   };
 }
@@ -132,6 +142,17 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
       destination: shipping.destination ?? { scope: 'country', country: 'IL' },
       deliveryTime: shipping.deliveryTime ?? null,
       pickup: shipping.pickup ?? null,
+      alternatives: (shipping.alternatives ?? []).map(alternative => {
+        const converted = toIls(alternative.amount?.amount ?? null, alternative.amount?.currency ?? price.currency, fx);
+        return {
+          id: alternative.id ?? null,
+          label: alternative.label ?? 'Alternative shipping option',
+          amount: alternative.amount?.amount ?? null,
+          currency: alternative.amount?.currency ?? price.currency ?? null,
+          amountIls: converted.known ? round2(converted.amount) : null,
+          note: alternative.note ?? null
+        };
+      }),
       note: shipping.note ?? null,
       evidence: shipping.evidence ?? null
     },

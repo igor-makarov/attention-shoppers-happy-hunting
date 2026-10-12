@@ -7,7 +7,7 @@ import { startQaServer, fixtureObservations } from '../scripts/qa-server.mjs';
 
 test('fixture observations parse through the production adapters', async () => {
   const observations = await fixtureObservations(Date.parse('2026-10-12T11:00:00.000Z'));
-  assert.equal(observations.length, 4);
+  assert.equal(observations.length, 5);
   const coffeeman = observations.find(item => item.vendor.id === 'coffeeman');
   assert.equal(coffeeman.product.form, 'ground');
   assert.equal(coffeeman.product.variantId, 'classico');
@@ -18,6 +18,15 @@ test('fixture observations parse through the production adapters', async () => {
   const pucks = observations.find(item => item.vendor.id === 'pucks');
   assert.equal(pucks.shipping.certainty, 'unknown');
   assert.equal(pucks.product.packGrams, 250);
+  const coffee4u = observations.find(item => item.vendor.id === 'coffee4u');
+  assert.equal(coffee4u.product.form, 'ground');
+  assert.equal(coffee4u.product.variantId, 'unspecified');
+  assert.equal(coffee4u.product.packGrams, 250);
+  assert.equal(coffee4u.price.amount, 38);
+  assert.equal(coffee4u.availability, 'in_stock');
+  assert.equal(coffee4u.shipping.certainty, 'verified');
+  assert.equal(coffee4u.shipping.amount.amount, 30);
+  assert.equal(coffee4u.shipping.alternatives[0].amount.amount, 15);
 });
 
 test('QA fixture server can add the labelled terms-demo offer without touching the default board', async () => {
@@ -61,9 +70,16 @@ test('QA fixture server serves the board API and static assets offline', async (
     assert.equal(board.best.ilsPerKg, 182);
     assert.equal(board.ranked.length, 2);
     assert.match(board.unrankable[0].reasons.join(' '), /unknown, not free/);
+    assert.equal(board.counts.excludedByVariant, 1, 'the unstated-variant listing is not merged into the Classico ranking');
+    assert.deepEqual(board.counts.excludedVariants, ['unspecified']);
+
+    const unstatedVariant = await (await fetch(`${server.url}/api/board?grams=250&dest=tel-aviv&variant=unspecified`)).json();
+    assert.equal(unstatedVariant.best.vendor.id, 'coffee4u');
+    assert.equal(unstatedVariant.best.totalIls, 68);
+    assert.equal(unstatedVariant.best.shipping.alternatives[0].amountIls, 15, 'the pickup-point delivery shows as an alternative');
 
     const catalog = await (await fetch(`${server.url}/api/catalog`)).json();
-    assert.deepEqual(catalog.vendors.map(vendor => vendor.id).sort(), ['coffeeman', 'pucks']);
+    assert.deepEqual(catalog.vendors.map(vendor => vendor.id).sort(), ['coffee4u', 'coffeeman', 'pucks']);
     assert.ok(catalog.destinations.length >= 5);
 
     const index = await fetch(`${server.url}/`);

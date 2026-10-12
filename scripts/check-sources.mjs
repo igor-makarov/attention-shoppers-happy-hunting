@@ -34,6 +34,10 @@ const fixtureFetch = async url => {
     const html = await readFile(new URL('../tests/fixtures/pucks-product.html', import.meta.url), 'utf8');
     return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } });
   }
+  if (url.includes('coffee4u.co.il')) {
+    const bytes = await readFile(new URL('../tests/fixtures/coffee4u-product.windows-1255.html', import.meta.url));
+    return new Response(bytes, { status: 200, headers: { 'content-type': 'text/html; charset=windows-1255' } });
+  }
   return new Response('not found', { status: 404 });
 };
 

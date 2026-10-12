@@ -11,6 +11,8 @@ const coffeeman4Bytes = readFileSync(new URL('coffeeman-4pack-product.windows-12
 const coffeeman8Bytes = readFileSync(new URL('coffeeman-8pack-product.windows-1255.html', fixtures));
 const coffeemanOosBytes = readFileSync(new URL('coffeeman-product.outofstock.windows-1255.html', fixtures));
 const pucksHtml = readFileSync(new URL('pucks-product.html', fixtures), 'utf8');
+const coffee4uBytes = readFileSync(new URL('coffee4u-product.windows-1255.html', fixtures));
+const coffee4uOosBytes = readFileSync(new URL('coffee4u-product.outofstock.windows-1255.html', fixtures));
 
 const BOI = {
   exchangeRates: [
@@ -32,6 +34,9 @@ function fixtureFetch({ coffeeman = coffeemanBytes, fourPack = coffeeman4Bytes, 
     if (url.includes('pucks.co.il')) {
       return new Response(pucksHtml, { status: 200, headers: { 'content-type': 'text/html' } });
     }
+    if (url.includes('coffee4u.co.il')) {
+      return new Response(coffee4uBytes, { status: 200, headers: { 'content-type': 'text/html; charset=windows-1255' } });
+    }
     if (url.includes('boi.org.il')) {
       if (failFx) return new Response('fx down', { status: 500 });
       return Response.json(BOI);
@@ -47,10 +52,10 @@ test('scheduled refresh persists observations without a browser', async () => {
   const calls = [];
   const summary = await runRefresh({ store, fetchImpl: fixtureFetch({ calls }), now: NOW, trigger: 'cron' });
   assert.equal(summary.trigger, 'cron');
-  assert.equal(summary.vendors.length, 2);
-  assert.equal(summary.requests, 5, 'three CoffeeMan listings plus Pucks and one FX request');
+  assert.equal(summary.vendors.length, 3);
+  assert.equal(summary.requests, 6, 'three CoffeeMan listings plus Pucks, Coffee4U and one FX request');
   const snapshot = await store.snapshot();
-  assert.equal(snapshot.observations.length, 4);
+  assert.equal(snapshot.observations.length, 5);
   const coffeeman = snapshot.observations.find(o => o.vendor.id === 'coffeeman');
   assert.equal(coffeeman.price.amount, 33);
   assert.equal(coffeeman.attemptedAt, new Date(NOW).toISOString());
@@ -127,6 +132,38 @@ test('out-of-stock observation replaces the price but never claims availability'
   assert.equal(observation.availability, 'out_of_stock');
 });
 
+test('Coffee4U is persisted with its published courier rate and an unstated blend variant', async () => {
+  const store = createMemoryStore();
+  await runRefresh({ store, fetchImpl: fixtureFetch(), now: NOW });
+  const observation = (await store.snapshot()).observations.find(o => o.vendor.id === 'coffee4u');
+  assert.ok(observation, 'the third vendor is persisted');
+  assert.equal(observation.product.productId, 'lavazza-crema-e-gusto-vacuum-ground');
+  assert.equal(observation.product.form, 'ground');
+  assert.equal(observation.product.variantId, 'unspecified', 'the vendor does not state the blend variant');
+  assert.equal(observation.product.packGrams, 250);
+  assert.equal(observation.product.sku, '2010561');
+  assert.equal(observation.price.amount, 38);
+  assert.equal(observation.availability, 'in_stock');
+  assert.equal(observation.shipping.certainty, 'verified');
+  assert.equal(observation.shipping.amount.amount, 30);
+  assert.equal(observation.shipping.alternatives[0].amount.amount, 15, 'the cheaper pickup-point delivery stays an alternative, not the ranked rate');
+  assert.equal(observation.shipping.pickup.available, true);
+  assert.equal(observation.attemptedAt, new Date(NOW).toISOString());
+});
+
+test('an out-of-stock Coffee4U page stays visible and unranked', async () => {
+  const store = createMemoryStore();
+  await runRefresh({
+    store,
+    fetchImpl: async url => url.includes('coffee4u.co.il')
+      ? new Response(coffee4uOosBytes, { status: 200, headers: { 'content-type': 'text/html; charset=windows-1255' } })
+      : fixtureFetch()(url),
+    now: NOW
+  });
+  const observation = (await store.snapshot()).observations.find(o => o.vendor.id === 'coffee4u');
+  assert.equal(observation.availability, 'out_of_stock');
+});
+
 test('leases prevent concurrent refresh runs', async () => {
   const store = createMemoryStore();
   const gate = new Promise(resolve => setTimeout(resolve, 15));
@@ -150,8 +187,8 @@ test('refresh runs started in the same tick cannot both acquire the lease', asyn
   ]);
   const summaries = [first, second];
   assert.equal(summaries.filter(summary => summary.skipped).length, 1, 'exactly one run is skipped');
-  assert.equal(summaries.find(summary => !summary.skipped).requests, 5);
-  assert.equal(calls.length, 5, 'the losing run performs no vendor or FX requests');
+  assert.equal(summaries.find(summary => !summary.skipped).requests, 6);
+  assert.equal(calls.length, 6, 'the losing run performs no vendor or FX requests');
 });
 
 test('initial refresh runs once and is throttled afterwards', async () => {

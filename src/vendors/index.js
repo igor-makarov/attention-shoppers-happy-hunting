@@ -10,9 +10,10 @@
 
 import { pucks } from './pucks.js';
 import { coffeeman } from './coffeeman.js';
+import { coffee4u } from './coffee4u.js';
 
 export function registeredVendors() {
-  return [coffeeman, pucks];
+  return [coffeeman, pucks, coffee4u];
 }
 
 /** Every host any adapter may contact. Used for the refresh-time allowlist. */

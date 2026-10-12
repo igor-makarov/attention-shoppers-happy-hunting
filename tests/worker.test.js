@@ -9,6 +9,7 @@ const coffeemanBytes = readFileSync(new URL('coffeeman-product.windows-1255.html
 const coffeeman4Bytes = readFileSync(new URL('coffeeman-4pack-product.windows-1255.html', fixtures));
 const coffeeman8Bytes = readFileSync(new URL('coffeeman-8pack-product.windows-1255.html', fixtures));
 const pucksHtml = readFileSync(new URL('pucks-product.html', fixtures), 'utf8');
+const coffee4uBytes = readFileSync(new URL('coffee4u-product.windows-1255.html', fixtures));
 const BOI = {
   exchangeRates: [{ key: 'USD', currentExchangeRate: 3.05, unit: 1, lastUpdate: '2026-10-09T09:21:04.476265Z' }]
 };
@@ -22,6 +23,9 @@ function fixtureFetch(url) {
   }
   if (url.includes('pucks.co.il')) {
     return new Response(pucksHtml, { status: 200, headers: { 'content-type': 'text/html' } });
+  }
+  if (url.includes('coffee4u.co.il')) {
+    return new Response(coffee4uBytes, { status: 200, headers: { 'content-type': 'text/html; charset=windows-1255' } });
   }
   if (url.includes('boi.org.il')) return Response.json(BOI);
   return new Response('unexpected ' + url, { status: 404 });
@@ -68,7 +72,9 @@ test('catalog route lists the product, destinations and vendor allowlist without
   assert.equal(body.products[0].id, 'lavazza-crema-e-gusto-vacuum-ground');
   assert.ok(body.destinations.length >= 5);
   const vendorIds = body.vendors.map(vendor => vendor.id).sort();
-  assert.deepEqual(vendorIds, ['coffeeman', 'pucks']);
+  assert.deepEqual(vendorIds, ['coffee4u', 'coffeeman', 'pucks']);
+  const coffee4u = body.vendors.find(vendor => vendor.id === 'coffee4u');
+  assert.match(coffee4u.offers[0].url, /^https:\/\/www\.coffee4u\.co\.il\/product\//);
   assert.match(body.vendors[0].offers[0].url, /^https:\/\//);
 });
 
@@ -93,6 +99,24 @@ test('board ranks the offer with a verified delivered total and labels the unkno
   const eightPack = board.unknown.find(quote => quote.product.packCount === 8);
   assert.equal(eightPack.totalIls, null, 'the 8-pack page publishes no courier price');
   assert.match(board.freshness.vendors.map(v => v.vendorId).join(','), /coffeeman/);
+  assert.equal(board.counts.excludedByVariant, 1, 'the Coffee4U listing states no blend variant, so it is not merged into Classico');
+  assert.deepEqual(board.counts.excludedVariants, ['unspecified']);
+});
+
+test('a listing without a stated blend variant is compared separately and keeps its shipping alternatives', async () => {
+  const store = await seededStore();
+  const response = await worker.fetch(new Request('https://example.test/api/board?grams=250&dest=tel-aviv&variant=unspecified'), envWith(store), {});
+  const board = await response.json();
+  assert.equal(board.ranked.length, 1);
+  assert.equal(board.best.vendor.id, 'coffee4u');
+  assert.equal(board.best.product.variantLabel, 'Variant not stated');
+  assert.equal(board.best.totalIls, 68, '₪38 item + ₪30 published door-to-door courier');
+  assert.equal(board.best.ilsPerKg, 272);
+  assert.equal(board.best.shipping.alternatives[0].amountIls, 15);
+  assert.equal(board.best.shipping.pickup.available, true);
+  const classico = await (await worker.fetch(new Request('https://example.test/api/board?grams=250&dest=tel-aviv&variant=classico'), envWith(store), {})).json();
+  assert.equal(classico.best.vendor.id, 'coffeeman');
+  assert.ok(!classico.ranked.some(quote => quote.vendor.id === 'coffee4u'));
 });
 
 test('board response is public-cacheable and reflects quantity and destination', async () => {
@@ -143,12 +167,12 @@ test('scheduled handler refreshes and persists through the BOARD binding', async
     globalThis.fetch = originalFetch;
   }
   const snapshot = await store.snapshot();
-  assert.equal(snapshot.observations.length, 4);
+  assert.equal(snapshot.observations.length, 5);
   assert.equal(snapshot.meta.lastRefreshAt.trigger, 'cron');
   assert.equal(snapshot.meta.fx.rates.USD.rate, 3.05);
   const run = snapshot.runs[0];
   assert.equal(run.trigger, 'cron');
-  assert.equal(run.requests, 5);
+  assert.equal(run.requests, 6);
 });
 
 test('board without a storage binding explains the deployment requirement', async () => {

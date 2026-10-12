@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { decodeBuffer, decodeHtml } from '../src/lib/text.js';
 import { parseCoffeemanProduct, parseShippingOptions } from '../src/vendors/coffeeman.js';
 import { parsePucksProduct } from '../src/vendors/pucks.js';
+import { parseCoffee4uProduct, parseCoffee4uShipping } from '../src/vendors/coffee4u.js';
 import { classifyListing } from '../src/catalog.js';
 
 const fixtures = new URL('./fixtures/', import.meta.url);
@@ -100,6 +101,58 @@ test('shipping option parser tolerates a missing delivery list', () => {
   assert.equal(result.deliveryCents, null);
   assert.equal(result.pickupFree, false);
   assert.match(result.note, /unknown/);
+});
+
+test('coffee4u fixture decodes windows-1255 and parses price, stock, SKU and delivery options', () => {
+  const bytes = read('coffee4u-product.windows-1255.html');
+  const html = decodeHtml(bytes);
+  assert.match(html, /Lavazza Crema e gusto/);
+  assert.match(html, /טחון בוואקום/);
+
+  const observation = parseCoffee4uProduct(html, { now });
+  assert.equal(observation.product.productId, 'lavazza-crema-e-gusto-vacuum-ground');
+  assert.equal(observation.product.form, 'ground');
+  assert.equal(observation.product.variantId, 'unspecified', 'the vendor does not state Classico, Forte or another blend variant');
+  assert.equal(observation.product.variantLabel, 'Variant not stated');
+  assert.equal(observation.product.packGrams, 250);
+  assert.equal(observation.product.packCount, 1);
+  assert.equal(observation.product.totalGrams, 250);
+  assert.equal(observation.product.sku, '2010561');
+  assert.equal(observation.price.amount, 38);
+  assert.equal(observation.price.currency, 'ILS');
+  assert.equal(observation.availability, 'in_stock');
+  assert.equal(observation.shipping.certainty, 'verified');
+  assert.equal(observation.shipping.amount.amount, 30, 'ranked shipping is the published door-to-door courier rate');
+  assert.equal(observation.shipping.alternatives[0].amount.amount, 15, 'the pickup-point delivery is an alternative, never the ranked rate');
+  assert.equal(observation.shipping.pickup.available, true);
+  assert.equal(observation.shipping.pickup.amount.amount, 0);
+  assert.match(observation.shipping.note, /₪30\.00/);
+  assert.match(observation.shipping.note, /₪15\.00/);
+  assert.equal(observation.observedAt, new Date(now).toISOString());
+  assert.equal(observation.evidence[0].url, observation.itemUrl);
+});
+
+test('coffee4u out-of-stock fixture never claims availability', () => {
+  const html = decodeHtml(read('coffee4u-product.outofstock.windows-1255.html'));
+  const observation = parseCoffee4uProduct(html, { now });
+  assert.equal(observation.availability, 'out_of_stock');
+  assert.equal(observation.price.amount, 38, 'the price is still observed; availability is what changed');
+});
+
+test('coffee4u parser refuses a page without a courier rate instead of guessing zero', () => {
+  const html = decodeHtml(read('coffee4u-product.windows-1255.html')).replace(/<li[^>]*>[\s\S]*?שליחות[\s\S]*?<\/li>/, '');
+  const observation = parseCoffee4uProduct(html, { now });
+  assert.equal(observation.shipping.certainty, 'unknown');
+  assert.equal(observation.shipping.amount, null);
+});
+
+test('coffee4u shipping parser reports self-pickup and the pickup-point option separately', () => {
+  const html = decodeHtml(read('coffee4u-product.windows-1255.html'));
+  const parsed = parseCoffee4uShipping(html);
+  assert.equal(parsed.courierAmount, 30);
+  assert.equal(parsed.pickupPointAmount, 15);
+  assert.equal(parsed.selfPickup, true);
+  assert.match(parsed.deliveryTime, /ימי עסקים/);
 });
 
 test('variant classification keeps Forte separate from Classico', () => {
