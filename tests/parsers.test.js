@@ -210,6 +210,68 @@ test('pucks Qualità Oro fixture is observed with its own SKU, GTIN and unknown 
   assert.equal(observation.itemUrl, 'https://pucks.co.il/product/lavazza-qualita-oro-ground-coffee-250gr');
 });
 
+test('coffeeman Qualità Rossa fixture parses the third product with its published courier rate', () => {
+  const single = parseCoffeemanProduct(decodeHtml(read('coffeeman-qualita-rossa-product.windows-1255.html')), { now, productId: 'lavazza-qualita-rossa-vacuum-ground' });
+  assert.equal(single.product.productId, 'lavazza-qualita-rossa-vacuum-ground');
+  assert.equal(single.product.variantId, 'unspecified', 'the Qualità Rossa page states no blend variant');
+  assert.equal(single.product.form, 'ground');
+  assert.equal(single.product.packGrams, 250);
+  assert.equal(single.product.packCount, 1);
+  assert.equal(single.product.sku, '930336');
+  assert.equal(single.price.amount, 33);
+  assert.equal(single.price.currency, 'ILS');
+  assert.equal(single.availability, 'in_stock');
+  assert.equal(single.shipping.certainty, 'verified');
+  assert.equal(single.shipping.amount.amount, 25);
+  assert.equal(single.shipping.pickup.available, true);
+});
+
+test('pucks Qualità Rossa fixtures keep the in-stock and out-of-stock listings apart', () => {
+  const inStock = parsePucksProduct(read('pucks-qualita-rossa-product.html').toString('utf8'), {
+    now,
+    url: 'https://pucks.co.il/product/lavazza-qualita-rossa-ground-coffee-250g',
+    productId: 'lavazza-qualita-rossa-vacuum-ground'
+  });
+  assert.equal(inStock.product.productId, 'lavazza-qualita-rossa-vacuum-ground');
+  assert.equal(inStock.product.variantId, 'unspecified');
+  assert.equal(inStock.product.packGrams, 250);
+  assert.equal(inStock.product.sku, 'Lav80');
+  assert.equal(inStock.product.gtin, '8000070035980');
+  assert.equal(inStock.price.amount, 30);
+  assert.equal(inStock.availability, 'in_stock');
+  assert.equal(inStock.shipping.certainty, 'unknown');
+
+  const outOfStock = parsePucksProduct(read('pucks-qualita-rossa-outofstock-product.html').toString('utf8'), {
+    now,
+    url: 'https://pucks.co.il/product/lavazza-qualita-rossa-ground-coffee-powder-250g',
+    productId: 'lavazza-qualita-rossa-vacuum-ground'
+  });
+  assert.equal(outOfStock.product.sku, 'Lav35');
+  assert.equal(outOfStock.product.gtin, '8000070035935');
+  assert.equal(outOfStock.price.amount, 35, 'the price is still observed; only availability changed');
+  assert.equal(outOfStock.availability, 'out_of_stock');
+});
+
+test('Qualità Rossa is classified as its own tracked line, never as Oro or Crema e Gusto', () => {
+  const rossa = classifyListing('250 גרם קפה טחון Lavazza Qualita Rossa- חוזק 5');
+  assert.equal(rossa.matched, true);
+  assert.equal(rossa.productId, 'lavazza-qualita-rossa-vacuum-ground');
+  assert.equal(rossa.variantId, 'unspecified');
+  assert.equal(rossa.packGrams, 250);
+  const hebrew = classifyListing('Lavazza Qualita Rossa- לווצה רוסה 250 גרם קפה טחון');
+  assert.equal(hebrew.productId, 'lavazza-qualita-rossa-vacuum-ground');
+  const entity = classifyListing('Lavazza Qualit&#224; Rossa 250 גרם טחון');
+  assert.equal(entity.productId, 'lavazza-qualita-rossa-vacuum-ground');
+  assert.equal(entity.packGrams, 250, 'the entity-encoded name still parses the pack weight');
+
+  const scoped = classifyListing('Lavazza Qualita Rossa-250 גרם קפה טחון', { productId: 'lavazza-qualita-oro-vacuum-ground' });
+  assert.equal(scoped.matched, false, 'a Rossa listing never matches the Qualità Oro adapter');
+  assert.match(scoped.reasons.join(' '), /Qualità Oro/);
+  const rossaBeans = classifyListing('Lavazza Qualita Rossa פולי קפה 1 ק"ג');
+  assert.equal(rossaBeans.matched, false);
+  assert.match(rossaBeans.reasons.join(' '), /whole beans/);
+});
+
 test('a listing is refused when it belongs to another tracked line', () => {
   const html = decodeHtml(read('coffeeman-qualita-oro-product.windows-1255.html'));
   assert.throws(

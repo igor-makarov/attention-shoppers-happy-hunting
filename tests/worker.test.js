@@ -184,18 +184,18 @@ test('scheduled handler refreshes and persists through the BOARD binding', async
     globalThis.fetch = originalFetch;
   }
   const snapshot = await store.snapshot();
-  assert.equal(snapshot.observations.length, 9);
+  assert.equal(snapshot.observations.length, 12);
   assert.equal(snapshot.meta.lastRefreshAt.trigger, 'cron');
   assert.equal(snapshot.meta.fx.rates.USD.rate, 3.05);
   const run = snapshot.runs[0];
   assert.equal(run.trigger, 'cron');
-  assert.equal(run.requests, 10);
+  assert.equal(run.requests, 13);
 });
 
 test('the second tracked product has its own board and its own default variant', async () => {
   const store = await seededStore();
   const catalog = await (await worker.fetch(new Request('https://example.test/api/catalog'), envWith(createMemoryStore()), {})).json();
-  assert.equal(catalog.products.length, 2, 'both tracked products are listed for the selector');
+  assert.equal(catalog.products.length, 3, 'every tracked product is listed for the selector');
   const oro = catalog.products.find(item => item.id === 'lavazza-qualita-oro-vacuum-ground');
   assert.equal(oro.line, 'Qualità Oro');
   assert.deepEqual(oro.variants.map(item => item.id), ['unspecified']);
@@ -217,6 +217,29 @@ test('the second tracked product has its own board and its own default variant',
   assert.ok(board.unknown.some(quote => quote.vendor.id === 'pucks'), 'Pucks stays visible with unknown shipping');
   const wrongVariant = await (await worker.fetch(new Request('https://example.test/api/board?product=lavazza-qualita-oro-vacuum-ground&grams=1000&dest=tel-aviv&variant=classico'), envWith(store), {})).json();
   assert.equal(wrongVariant.ranked.length, 0, 'a variant of another line never matches Qualità Oro offers');
+});
+
+test('the third tracked product ranks its own delivered total and keeps its out-of-stock offer honest', async () => {
+  const store = await seededStore();
+  const catalog = await (await worker.fetch(new Request('https://example.test/api/catalog'), envWith(createMemoryStore()), {})).json();
+  const rossa = catalog.products.find(item => item.id === 'lavazza-qualita-rossa-vacuum-ground');
+  assert.equal(rossa.line, 'Qualità Rossa');
+  assert.equal(rossa.defaultVariant, 'unspecified');
+
+  const board = await (await worker.fetch(new Request('https://example.test/api/board?product=lavazza-qualita-rossa-vacuum-ground&grams=500&dest=tel-aviv'), envWith(store), {})).json();
+  assert.equal(board.product.id, 'lavazza-qualita-rossa-vacuum-ground');
+  assert.equal(board.counts.observed, 3, 'only Qualità Rossa offers are compared');
+  // 2 × ₪33 CoffeeMan single packs + ₪25 verified courier
+  assert.equal(board.best.vendor.id, 'coffeeman');
+  assert.equal(board.best.totalIls, 91);
+  assert.equal(board.best.ilsPerKg, 182);
+  const unknown = board.unknown.find(quote => quote.product.sku === 'Lav80');
+  assert.equal(unknown.totalIls, null, 'the cheaper Pucks item cannot win with unknown shipping');
+  assert.match(unknown.reasons.join(' '), /unknown, not free/);
+  const oos = board.staleOrUnavailable.find(quote => quote.product.sku === 'Lav35');
+  assert.equal(oos.availability, 'out_of_stock');
+  assert.match(oos.labels.join(' '), /Out of stock/);
+  assert.equal(oos.totalIls, null, 'an out-of-stock page is never ranked as available');
 });
 
 test('an unknown variant id falls back to the product default instead of an empty board', async () => {

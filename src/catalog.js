@@ -18,6 +18,12 @@ const LINE_PATTERNS = {
     /qualit[aà]\s*oro/i,
     /קוואליטה\s*אורו/,
     /קווליטה\s*אורו/
+  ],
+  'lavazza-qualita-rossa': [
+    /qualit[aàáy]\s*rossa/i,
+    /קוואליטה\s*רוסה/,
+    /קווליטה\s*רוסה/,
+    /לווצה\s*רוסה/
   ]
 };
 
@@ -45,6 +51,18 @@ export const PRODUCTS = [
     variants: ['unspecified'],
     linePatterns: LINE_PATTERNS['lavazza-qualita-oro'],
     notes: 'Second tracked product: Lavazza Qualità Oro ground coffee in a vacuum brick. The line publishes no blend variant, so listings are stored as "Variant not stated"; beans, capsules and multipacks of another line stay separate.'
+  },
+  {
+    id: 'lavazza-qualita-rossa-vacuum-ground',
+    brand: 'Lavazza',
+    line: 'Qualità Rossa',
+    form: 'ground',
+    packaging: 'vacuum brick',
+    targetMarket: 'IL',
+    defaultVariant: 'unspecified',
+    variants: ['unspecified'],
+    linePatterns: LINE_PATTERNS['lavazza-qualita-rossa'],
+    notes: 'Third tracked product: Lavazza Qualità Rossa ground coffee in a vacuum brick. The line publishes no blend variant, so listings are stored as "Variant not stated". A second Pucks listing (SKU Lav35) was observed out of stock on 2026-10-12 and stays visible as an unranked offer instead of being dropped or shown as available.'
   }
 ];
 
