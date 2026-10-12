@@ -59,6 +59,9 @@ try {
     pickupRows: document.querySelectorAll('.pickup-row').length,
     rankedRows: document.querySelectorAll('table.compare tbody tr').length,
     visibleText: document.body.innerText,
+    bidiFragments: document.querySelectorAll('[dir="auto"][lang="he"]').length,
+    hasSkipLink: !!document.querySelector('.skip'),
+    hasMain: !!document.querySelector('main'),
     quantityPressed: [...document.querySelectorAll('#quantity-group button')].map(b => [b.textContent.trim(), b.getAttribute('aria-pressed')]),
     destinationOptions: [...document.querySelectorAll('#destination option')].map(o => o.textContent.trim())
   }))()`);
@@ -71,6 +74,8 @@ try {
   check('desktop: destination selector lists Israeli localities', desktop.destinationOptions.length >= 5, desktop.destinationOptions.join(' | '));
   check('desktop: quantity control marks 500 g pressed', desktop.quantityPressed.some(([label, pressed]) => label === '500 g' && pressed === 'true'), desktop.quantityPressed.join(' | '));
   check('desktop: no emoji in visible text', !EMOJI.test(desktop.visibleText), 'emoji scan');
+  check('desktop: Hebrew vendor text is direction-isolated', desktop.bidiFragments >= 1, String(desktop.bidiFragments));
+  check('desktop: skip link and main landmark are present', desktop.hasSkipLink && desktop.hasMain, `skip=${desktop.hasSkipLink} main=${desktop.hasMain}`);
   await screenshot(wd, 'desktop-1440.png');
 
   // Quantity interaction: click "1 kg".
@@ -100,16 +105,20 @@ try {
   await evaluate(wd, `(() => { const box = document.getElementById('show-unknown'); box.checked = true; box.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
   await waitForPage(wd, `!!document.getElementById('unknown')`, 15_000, 'unknown section restored');
 
-  // Keyboard: focus the second quantity button and activate it with Enter.
+  // Keyboard: focus the first quantity button, Tab to the next, then activate it with Enter.
+  await evaluate(wd, `(() => { document.querySelector('#quantity-group button[data-grams="250"]').focus(); return true; })()`);
+  await wd('POST', '/actions', { actions: [{ type: 'key', id: 'keyboard', actions: [{ type: 'keyDown', value: '\uE004' }, { type: 'keyUp', value: '\uE004' }] }] });
   const keyboard = await evaluate(wd, `(() => {
-    const buttons = [...document.querySelectorAll('#quantity-group button')];
-    const target = buttons.find(b => b.dataset.grams === '2000');
-    target.focus();
-    const focused = document.activeElement === target;
-    target.click();
-    return { focused, label: target.textContent };
+    const active = document.activeElement;
+    const style = getComputedStyle(active);
+    return { tag: active.tagName, label: active.textContent, outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth };
   })()`);
-  check('keyboard: quantity buttons are focusable', keyboard.focused === true, JSON.stringify(keyboard));
+  check('keyboard: Tab moves focus to the next quantity button', keyboard.tag === 'BUTTON' && keyboard.label === '500 g', JSON.stringify(keyboard));
+  check('keyboard: focused control shows a visible outline', keyboard.outlineStyle !== 'none' && parseFloat(keyboard.outlineWidth) >= 2, `${keyboard.outlineStyle} ${keyboard.outlineWidth}`);
+  await wd('POST', '/actions', { actions: [{ type: 'key', id: 'keyboard', actions: [{ type: 'keyDown', value: '\uE007' }, { type: 'keyUp', value: '\uE007' }] }] });
+  await waitForPage(wd, `document.querySelector('.best__total')?.textContent === '₪91.00'`, 15_000, 'keyboard activation of the 500 g quantity', `({total: document.querySelector('.best__total')?.textContent ?? null, search: location.search})`);
+  check('keyboard: Enter activates the focused quantity and updates the total', true, 'total ₪91.00');
+  await wd('DELETE', '/actions');
 
   // Mobile scenario.
   await wd('POST', '/window/rect', { width: 390, height: 844, x: 0, y: 0 });

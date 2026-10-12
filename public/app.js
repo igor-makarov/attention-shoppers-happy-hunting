@@ -40,8 +40,13 @@ function money(amount) {
   return amount == null ? null : ILS.format(amount).replace('₪', '₪');
 }
 
-function hebrew(text) {
-  return el('span', { class: 'hebrew', attrs: { dir: 'auto', lang: 'he' }, text });
+const HEBREW = /[\u0590-\u05FF]/;
+
+/** Wrap Hebrew-containing text in an isolated dir="auto" span so mixed IL/Latin names render correctly. */
+function bidi(text) {
+  const value = text == null ? '' : String(text);
+  if (!HEBREW.test(value)) return value;
+  return el('span', { class: 'bidi', attrs: { dir: 'auto', lang: 'he' }, text: value });
 }
 
 function timeLabel(iso) {
@@ -172,8 +177,8 @@ function renderRankedSection(board) {
 
   const best = board.best;
   const main = el('div', { class: 'best__main' },
-    el('div', { class: 'best__vendor', text: best.vendor.name }),
-    el('h3', { class: 'best__product', text: best.product.name ?? 'Lavazza Crema e Gusto' }),
+    el('div', { class: 'best__vendor' }, bidi(best.vendor.name)),
+    el('h3', { class: 'best__product' }, bidi(best.product.name ?? 'Lavazza Crema e Gusto')),
     el('p', { class: 'best__variant', text: `${best.product.packCount > 1 ? `${best.product.packCount} × ` : ''}${best.product.packGrams} g vacuum brick · ${best.product.variantLabel}` }),
     el('div', { class: 'best__total-label', text: 'Delivered total for the selected quantity' }),
     el('div', { class: 'best__total', text: money(best.totalIls) }),
@@ -218,7 +223,7 @@ function renderCompareTable(quotes, board) {
   const body = el('tbody');
   for (const quote of quotes) {
     const row = el('tr');
-    row.append(el('td', {}, el('span', { class: 'vendor-name', text: quote.vendor.name }), el('br'), offerLink(quote, 'Vendor page')));
+    row.append(el('td', {}, el('span', { class: 'vendor-name' }, bidi(quote.vendor.name)), el('br'), offerLink(quote, 'Vendor page')));
     row.append(el('td', { class: 'num', text: `${quote.units} × ${quote.product.packGrams} g = ${quote.orderedGrams} g` }));
     row.append(el('td', { class: 'num' , text: `${money(quote.itemPrice.amount)} ${quote.itemPrice.currency}` }));
     row.append(el('td', { class: 'num', text: quote.shipping.amountIls === 0 ? 'Free' : money(quote.shipping.amountIls) }));
@@ -241,7 +246,7 @@ function renderPickupSection(pickup) {
       el('p', { class: 'section__intro', text: 'Pickup is not a delivered price and never competes in the delivered ranking.' }))));
   for (const quote of pickup) {
     section.append(el('div', { class: 'pickup-row' },
-      el('div', {}, el('span', { class: 'vendor-name', text: quote.vendor.name }), el('div', { class: 'unknown__meta', text: quote.product.name ?? '' })),
+      el('div', {}, el('span', { class: 'vendor-name' }, bidi(quote.vendor.name)), el('div', { class: 'unknown__meta' }, bidi(quote.product.name ?? ''))),
       el('div', {},
         el('div', { class: 'unknown__grid' },
           el('span', { text: `Item total for ${quote.units ?? 1} pack(s): ${money(quote.itemTotalIls) ?? 'unknown'}` }),
@@ -273,8 +278,8 @@ function renderUnknownSection(board) {
       : (quote.shipping.amount != null ? `${money(quote.shipping.amount)} ${quote.shipping.currency} (not converted)` : 'Unknown');
     list.append(el('article', { class: 'unknown' },
       el('div', {},
-        el('div', { class: 'unknown__vendor', text: quote.vendor.name }),
-        el('div', { class: 'unknown__meta', text: quote.product.name ?? '' }),
+        el('div', { class: 'unknown__vendor' }, bidi(quote.vendor.name)),
+        el('div', { class: 'unknown__meta' }, bidi(quote.product.name ?? '')),
         el('div', { class: 'unknown__meta', text: `Variant: ${quote.product.variantLabel} · Pack: ${quote.product.packCount} × ${quote.product.packGrams ?? '?'} g` })),
       el('div', {},
         el('div', { class: 'unknown__grid' },

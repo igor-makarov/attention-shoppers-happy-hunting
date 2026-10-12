@@ -17,27 +17,55 @@ To stop, dispatch command=stop and loop_id=main. Record the durable stop before 
 
 ## 2. Cloudflare Git integration
 
-Wait until the maintainer verifies the agent's Ready for Cloudflare handoff status, then stop the coding loop for the owner setup. The owner connects the repo from the Cloudflare dashboard, not through Shurik.
+When the maintainer verifies the agent's Ready for Cloudflare handoff status, stop the coding loop for the owner setup. The owner connects the repo from the Cloudflare dashboard, not through Shurik.
 
 - Workers & Pages → Create application → Import a repository.
 - Select igor-makarov/attention-shoppers-happy-hunting.
-- Worker name: attention-shoppers-happy-hunting (must match wrangler.jsonc).
+- Worker name: attention-shoppers-happy-hunting (must match `name` in wrangler.jsonc).
 - Production branch: main. Root directory: repository root.
-- Build command: npm run verify. Confirm the build installs the pinned package-lock.json with npm ci and includes dev dependencies. Use Node 24.14.0 where supported.
-- Deploy command: npx --no-install wrangler deploy.
-- Disable builds/previews for non-production branches, especially shurik-control/*.
-- Keep CF credentials inside Cloudflare. Use a build token scoped only to this Worker and the minimum permissions required for any configured storage. Do not add CLOUDFLARE_API_TOKEN or CF account secrets to GitHub.
+- Build command: `npm ci --ignore-scripts && npm run verify`. The verify script runs the node:test suite and `wrangler deploy --dry-run --outdir dist`, which builds the Worker bundle locally without any Cloudflare credential. Confirm Node 24.14.0 where supported.
+- Deploy command: `npx --no-install wrangler deploy`.
+- Disable builds and previews for non-production branches, especially `shurik-control/*`.
+- Keep CF credentials inside Cloudflare. No CLOUDFLARE_API_TOKEN or CF account secret belongs in GitHub.
+- Minimum token scope for Workers Builds: Workers Scripts:Edit for this Worker only (the deploy command creates/updates the script and applies the Durable Object migration). No account-wide or unrelated permissions are needed. The runtime needs no administrative credential at all.
 
-The scaffold currently needs only the ASSETS binding declared in wrangler.jsonc; Wrangler packages the public directory. It has no persistence or scheduled refresh yet. Shurik must update this document with the final bindings, migration/provisioning steps, cron expression and local refresh proof before claiming readiness.
+## Required bindings and provisioning
 
-Do not configure a bare deploy command that skips verification. A failed test or dry-run build must prevent production deployment. Validate one actual Shurik-authored main push after connecting CF, then confirm /health, the board and the scheduled refresh in the Cloudflare dashboard. CF Git integration is documented at https://developers.cloudflare.com/workers/ci-cd/builds/.
+`wrangler.jsonc` declares everything; the owner needs no manual dashboard resource creation:
 
-Local checks require no CF account:
+| Binding | Type | Provisioning |
+| --- | --- | --- |
+| `env.BOARD` | Durable Object, class `BoardStore`, SQLite-backed | Created by migration tag `v1` (`new_sqlite_classes: ["BoardStore"]`) during `wrangler deploy` |
+| `env.ASSETS` | Static assets from `public/` | Packaged from the repository |
+
+Nothing else is required: the Worker persists observations, vendor refresh state, FX rates and run history in the Durable Object's SQLite tables (`observations`, `vendor_state`, `meta`, `runs`; refresh leases live under `meta` as `lease:*` keys) and reads vendor pages over plain outbound HTTPS.
+
+Alternative storage was considered and rejected: KV or R2 would add a separate consistency problem and still need a migration path for the lease/last-known-good semantics; the SQLite-backed Durable Object is created by the deployment itself with no extra credential.
+
+## Cron behavior
+
+- `wrangler.jsonc` triggers the scheduled handler on `17 */6 * * *` (UTC), about every six hours.
+- The first `GET /health` or `GET /api/board` after a deployment starts one initial refresh in the background so the board is not empty until the first cron tick. It is lease- and throttle-protected (10 minutes) and can never be triggered repeatedly by public traffic.
+- Each run fetches at most one URL per tracked offer plus the Bank of Israel rate file, capped at two vendors concurrently, 12 s per request and 1.5 MB per response, with hosts restricted to each adapter's allowlist.
+- Failures keep the previous good observation, back off (30 min doubling to 12 h) and are surfaced in `/api/status` and the board footer. One broken vendor cannot stop the others.
+
+## Local verification without a Cloudflare account
 
 ```sh
 npm ci --ignore-scripts
-npm run verify
-npm run dev
+npm run verify          # node:test suite + wrangler deploy --dry-run
+npm run check:sources   # live fetch + parse of every tracked vendor page
+npm run cron:offline    # full refresh pipeline against recorded fixtures
+npm run cron:local      # full refresh pipeline against the live vendor pages
+npm run dev             # local Worker with a local SQLite Durable Object
+```
+
+With `npm run dev` running on port 8789, the same commands used during development are:
+
+```sh
+curl -s http://127.0.0.1:8789/api/board?grams=500\&dest=tel-aviv
+curl -s http://127.0.0.1:8789/cdn-cgi/local/scheduled   # simulate the cron trigger (wrangler dev only)
+npm run qa:browser http://127.0.0.1:8789
 ```
 
 The real deployment remains disabled until the owner enables it from Cloudflare. The Actions loop has no direct administrative CF access, but its main code pushes become production changes once automatic deployment is enabled.
