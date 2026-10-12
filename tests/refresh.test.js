@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { runRefresh, maybeInitialRefresh, backoffMs, refreshFreshness, REFRESH_INTERVAL_MS, REFRESH_STALE_MS, BACKOFF_BASE_MS } from '../src/refresh.js';
 import { createMemoryStore } from '../src/store.js';
 import { registeredVendors } from '../src/vendors/index.js';
-import { readFixtureForUrl } from './fixtures/vendor-fixtures.mjs';
+import { readFixtureForUrl, createFixtureFetch, trackedOffers } from './fixtures/vendor-fixtures.mjs';
 
 const fixtures = new URL('./fixtures/', import.meta.url);
 const coffeemanOosBytes = readFileSync(new URL('coffeeman-product.outofstock.windows-1255.html', fixtures));

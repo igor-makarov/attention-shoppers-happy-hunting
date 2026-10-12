@@ -89,7 +89,7 @@ Observed board results on the local Worker after the fresh scheduled refresh (14
 ## Verification performed (2026-10-12, all local)
 
 1. `npm ci --ignore-scripts` — clean install from the pinned lockfile, 0 vulnerabilities.
-2. `npm run verify` — **68/68** `node:test` cases pass, then `wrangler deploy --dry-run` builds the
+2. `npm run verify` — **69/69** `node:test` cases pass, then `wrangler deploy --dry-run` builds the
    Worker bundle with no Cloudflare credential (71.93 KiB, gzip 18.53 KiB; bindings `BOARD` + `ASSETS`).
    Covered acceptance cases include: shipping changes the winner; unknown shipping cannot win;
    stale/out-of-stock/unknown availability stay unranked; variants and multipacks stay separate;
@@ -99,7 +99,8 @@ Observed board results on the local Worker after the fresh scheduled refresh (14
    leases; backoff; allowlist; crawl-delay pacing; retired fixtures are refused by both adapters;
    retired ids fall back with an explicit reason; the catalog exposes exactly one product; a retired
    `?product=` URL falls back to Crema e Gusto and never mixes a retired observation into the board;
-   retired observations and attempt markers are pruned from the store; the fixture-backed QA server
+   retired observations and attempt markers are pruned from the store; retired product URLs have no
+   fixture route, so the offline tools cannot serve them; the fixture-backed QA server
    keeps the browser harness aligned with the production quote engine.
 3. `npm run check:sources` (live, 14:15 UTC) — CoffeeMan (three listings), Pucks (one) and Coffee4U
    (one) PASS against the real pages: ₪33 / ₪124 / ₪240 / ₪30 / ₪38, all five observed **in stock**.
