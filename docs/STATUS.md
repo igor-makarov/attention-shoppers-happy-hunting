@@ -1,12 +1,15 @@
 # Project status
 
 Stage: **Crema e Gusto scope enforced; the Canton Zürich shopping board, the browser-researched
-shipping rates and the redesigned UI validated locally (98/98 tests, 81/81 offline and 77/77 live browser
+shipping rates and the redesigned UI validated locally (99/99 tests, 82/82 offline and 77/77 live browser
 checks); production serves the redesigned assets, the first production cron tick was observed at
 18:17:55 UTC (0 requests, exactly as expected) and its stored observations pick up the researched rates
 at the 00:17 UTC cron tick; a fresh 19:07-19:16 UTC browser session independently reproduced all three
 vendors' rendered shipping quotes; iteration 3-70 labels cart-observed rates as conditional checkout
-rates and halves the pickup-row space.**
+rates and halves the pickup-row space; iteration 3-71 resolved the CoffeeMan single/4-pack delivery
+methods in a fresh anonymous cart (₪25 courier / ₪15 distribution-center for 0.5-1 kg carts), recorded
+the cart-dependent free-delivery behavior without inventing a threshold, and surfaced the adapter
+shipping terms in the offer disclosure.**
 The Worker implements the self-updating board for exactly one product line — **Lavazza Crema e Gusto
 vacuum-packed ground coffee** — with three independent Israeli vendor adapters and five observed
 listings. The owner reports the site deployed at
@@ -147,8 +150,8 @@ of the CoffeeMan 8-pack page and the Pucks cart again found no published shippin
 
 | Vendor | Listing | Price | Stock | Shipping | Certainty |
 | --- | --- | --- | --- | --- | --- |
-| CoffeeMan (IL) | Crema e Gusto Classico 250 g ground, SKU 930333 | ₪33 (regular ₪36) | in stock (schema.org microdata) | ₪25 courier; free self-pickup | verified |
-| CoffeeMan (IL) | Crema e Gusto Classico 4 × 250 g ground, SKU 930334 | ₪124.00 | in stock | ₪25 courier; free self-pickup | verified |
+| CoffeeMan (IL) | Crema e Gusto Classico 250 g ground, SKU 930333 | ₪33 (regular ₪36) | in stock (schema.org microdata) | ₪25 courier; ₪15 distribution-center alternative (cart-observed for 0.5-1 kg carts); free self-pickup | verified |
+| CoffeeMan (IL) | Crema e Gusto Classico 4 × 250 g ground, SKU 930334 | ₪124.00 | in stock | ₪25 courier; ₪15 distribution-center alternative (cart-observed for the 1 kg cart); free self-pickup | verified |
 | CoffeeMan (IL) | Crema e Gusto Classico 8 × 250 g ground, SKU 930335 | ₪240.00 | in stock | ₪20 home courier / ₪20 distribution-center / free self-pickup on the observed 2 kg cart | checkout_quote (conditional, cart ≤ 2000 g) |
 | Pucks (IL) | Crema e Gusto Classico 250 g ground, SKU Lav69, GTIN 8000070038769 | ₪30.00 | in stock (JSON-LD) | ₪30 home delivery, free above ₪100 item subtotal (observed 1-4 packs) | checkout_quote (conditional) |
 | Coffee4U (IL) | Crema e gusto 250 g ground, SKU 2010561, variant not stated | ₪38.00 | in stock (schema.org microdata) | ₪30 door-to-door courier; ₪15 pickup-point alternative; free self-pickup | verified |
@@ -438,6 +441,20 @@ Cloudflare error back to the loop without pasting credentials.
 
 Current-scope evidence (committed for review, not live data):
 
+- `docs/evidence/browser-research/2026-10-12-coffeeman-cart-single-4pack.json` — the 19:56-20:09 UTC
+  anonymous-cart batch for CoffeeMan: the single/4-pack carts quote ₪25 home courier and ₪15
+  distribution-center delivery, the distribution-center fee went free at ₪198 and the courier at ₪231,
+  but the ₪240 8-pack cart still charged ₪20/₪20; includes the rendered Hebrew excerpts, the locality
+  blocker and two cart screenshots. No cart/session identifiers are recorded.
+- `docs/evidence/worker-runtime-status-2026-10-12T2016Z.json` — the 3-71 fresh-store `wrangler dev`
+  runtime: the request-triggered initial refresh (20:13:39.288Z → 20:13:59.647Z, 6 requests, five
+  observations), the ₪90/₪120/₪240 Pucks boards and the CoffeeMan distribution-center alternatives.
+- `docs/evidence/browser-qa-fixtures-20261012T2017Z.json` — **82/82** offline browser checks with the
+  3-71 code, including the new adapter-shipping-terms disclosure check.
+- `docs/evidence/browser-qa-live-20261012T2015Z.json` — **78/78** live browser checks against the
+  fresh-store `wrangler dev` Worker with real vendor data.
+- `docs/evidence/source-check-20261012T2014Z.json` — the 20:14-20:15 UTC live adapter check of the five
+  active Crema e Gusto offers with the new distribution-center alternatives.
 - `docs/evidence/production-build-marker-20261012T1733Z.json` — read-only public GETs at 17:33 UTC showing
   the deployed board quotes carrying `lastAttemptFailed`/`lastError` (ranked and unrankable), the deployed
   `app.js` containing the failed-attempt labels, and the intact store (five observations, the 15:52:12.546Z
@@ -815,8 +832,10 @@ any adapter.
   18:17Z tick should record a 0-observation run without moving `lastRefreshAt`, the 00:17Z tick should
   refresh all three vendors, and the **06:17Z tick on 2026-10-13** is the first place the 3-62 phase-lock
   fix is observable (it should save observations even though it lands seconds before the stored due
-  time); (b) re-check whether Pucks or CoffeeMan starts publishing a rate for the currently unrankable
-  offers (the 3-60 probe and the 16:50/17:22 UTC live checks found none);
+  time) — the 18:17:55.845Z tick was then observed at 19:24 UTC with 0 requests, exactly as predicted;
+  (b) re-check whether Pucks or CoffeeMan starts publishing a rate for the currently unrankable
+  offers (the 3-60 probe and the 16:50/17:22 UTC live checks found none; the 3-71 CoffeeMan cart batch
+  resolved the single/4-pack distribution-center method and left the free-delivery rule open);
   (c) another bounded re-probe of the recorded blocked vendors at a later date for a fourth adapter. The
   2026-10-12 probes (14:25, 14:39-14:58, 15:19 and 15:35-15:41 UTC, the last via Zap and its
   FreshCafe/Brioso leads, plus the 3-63 17:05 UTC search-engine and 17:07 UTC direct-domain batches) found
@@ -1052,3 +1071,76 @@ label and the compact pickup rows; this file records the first observed producti
 **Next step:** after the 00:17 UTC tick, re-run `npm run probe:production` to confirm the researched
 rates (and the new labels once this commit is deployed) reach the production store; then continue within
 Crema e Gusto coverage, shipping evidence, freshness and comparison quality.
+
+## Iteration 3-71 — CoffeeMan single/4-pack cart delivery methods resolved in a fresh browser session
+
+**Browser research (immediate owner task, continued).** A fresh live headless Chrome 154 + ChromeDriver
+154 session (`scripts/browser-research.mjs`) built temporary anonymous CoffeeMan carts on 2026-10-12
+19:56-20:09 UTC and read the public checkout method picker. No order, payment, login, account, street
+address or bot-challenge bypass was involved, and cart/session identifiers are not recorded. The batch
+resolves what the 18:16 UTC research had left open for the single and 4-pack listings:
+
+- **2 × 250 g (500 g, ₪66)** and **4 × 250 g (1 kg, ₪132)**: ₪25 home courier (matching the published
+  page rate) and **₪15 distribution-center delivery up to 5 kg** — a method the product page lists
+  without a price. The **1 × 4-pack (1 kg, ₪124)** cart quoted the same ₪25/₪15.
+- **Free-delivery behavior (not published)**: the distribution-center fee became free at a ₪198
+  (6 × 250 g) cart and the courier at ₪231 (7 × 250 g); a 2 kg two-4-pack cart (₪248) was free too.
+  But the **8-pack SKU cart (₪240) was charged ₪20/₪20 again** in a fresh cart at 20:07 UTC, so free
+  delivery is cart/product dependent and is **not a published single threshold** — the board keeps the
+  published ₪25 ranked rate and never assumes free shipping.
+- **Coverage blocker**: the method picker displays both priced methods and self-pickup without asking
+  for a locality, city or postcode, so the public flow cannot confirm or exclude any locality before
+  personal order details. The recorded terms-page caveat (home delivery subject to Amigo's unpublished
+  locality list) remains the only coverage evidence; testing a specific destination would require
+  personal delivery details, which this research does not do.
+
+Evidence: `docs/evidence/browser-research/2026-10-12-coffeeman-cart-single-4pack.json` plus the
+`coffeeman-8pack-cart-recheck-20261012T2008Z.png` and `coffeeman-4pack-cart-20261012T2009Z.png`
+screenshots. **Tool limitation (unchanged):** the file-read tool rejects PNG input, so screenshots could
+not be machine-inspected; every amount is backed by rendered visible text captured in the same session.
+
+**Integrated:** `coffeeman/6` now stores the cart-observed ₪15 distribution-center alternative for the
+single and 4-pack offers (₪20 for the 8-pack cart) with its cart condition in the label and the full
+observation in the note; the ranked rate stays the published ₪25. The offer disclosure now renders the
+adapter shipping terms (`Shipping terms: …`), so the cart observations and the free-delivery caveat are
+accessible without putting them on the card face.
+
+**Verification (2026-10-12 UTC):**
+
+- `npm run verify` — **99/99** `node:test` cases pass (one new parser test for the alternatives and the
+  unchanged ranked rate); `wrangler deploy --dry-run` builds the bundle (86.31 KiB, gzip 22.20 KiB;
+  bindings `BOARD` + `ASSETS`).
+- `npm run qa:browser` — **82/82** offline checks pass, including a new check that every offer's adapter
+  shipping terms stay accessible in its disclosure. The fixture board renders the distribution-center
+  alternative on the CoffeeMan single/4-pack/8-pack cards with its cart condition
+  (`Distribution-center delivery up to 5 kg (cart-observed for 0.5–1 kg carts): ₪15.00`).
+- `npm run qa:browser -- http://127.0.0.1:8789` — **78/78** live checks pass against a fresh-store
+  `wrangler dev` Worker with real vendor data, zero console errors. The fresh store's first `/health`
+  started the documented initial refresh (20:13:39.288Z → 20:13:59.647Z): **6 bounded requests**, all
+  three vendors saved (CoffeeMan 3, Pucks 1, Coffee4U 1), five observations; the live board ranks Pucks
+  ₪90 at 500 g, ₪120 at 1 kg and ₪240 at 2 kg, and the CoffeeMan cards expose the ₪15/₪15/₪20
+  distribution-center alternatives. Evidence:
+  `docs/evidence/worker-runtime-status-2026-10-12T2016Z.json`,
+  `docs/evidence/browser-qa-fixtures-20261012T2017Z.json`,
+  `docs/evidence/browser-qa-live-20261012T2015Z.json`.
+- `npm run cron:offline` — 6 bounded requests, five offers persisted, `pruned: 0`.
+- `npm run check:sources` (live, 20:14-20:15 UTC) — all five listings pass; the CoffeeMan single and
+  8-pack observations carry the new distribution-center alternatives with their cart conditions and the
+  free-shipping caveat in the note. Evidence: `docs/evidence/source-check-20261012T2014Z.json`.
+- The production read-only probe at 19:53 UTC passed all checks against the persisted 15:52:12.546Z
+  store (5 observations, ₪91.00/₪149.00/₪106.00 boards, retired-URL fallback, the 18:17:55.845Z
+  0-request cron run); production still serves the pre-research observations, so the researched rates
+  and this build reach the store at the 00:17 UTC tick.
+- The deployed `public/app.js`/`style.css` already contain the 3-70 compact pickup-row markup
+  (`pickup-row__facts`, `Pickup terms`), so the 3-70 build reached Workers Builds; the 3-71 additions are
+  on main and deploy the same way.
+
+**Docs:** `docs/SOURCES.md` gains the single/4-pack cart rows, the cart-dependent free-delivery finding
+and the updated 8-pack re-check; this file records the verification counts and the remaining production
+check.
+
+**Next step:** after the 00:17 UTC tick, re-run `npm run probe:production` to confirm the researched
+rates and this build reach the production store; then continue within Crema e Gusto coverage, shipping
+evidence, freshness and comparison quality. One open question for a later session: decide whether the
+cart-dependent free-delivery observations should become a structured condition (the rule is not
+published, so no threshold is invented now).

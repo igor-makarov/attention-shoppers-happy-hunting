@@ -385,6 +385,16 @@ try {
   check('desktop: every offer disclosure states its last successful check',
     desktop.cards.every(card => /Last successful check:/.test(card.disclosure ?? '')),
     desktop.cards.map(card => card.disclosure?.split('\n')[0]).join(' | '));
+  // Adapter shipping notes carry observed conditions (cart sizes, free-shipping
+  // caveats, thresholds) that are not decision values; they must stay accessible
+  // in the collapsed disclosure rather than being dropped from the board.
+  const shippingTermsOk = api500.ranked.every((quote, index) => {
+    const disclosure = desktop.cards[index]?.disclosure ?? '';
+    const note = quote.shipping?.note;
+    return !note || (disclosure.includes('Shipping terms:') && disclosure.includes(note.slice(0, 60)));
+  });
+  check('desktop: adapter shipping terms stay accessible in each offer disclosure', shippingTermsOk,
+    api500.ranked.map((quote, index) => `${quote.key}:${(desktop.cards[index]?.disclosure ?? '').includes('Shipping terms:')}`).join(' | '));
 
   // Variant scenario: the Coffee4U listing has no stated blend variant, so it is
   // compared on its own instead of being merged into Classico. Its published

@@ -65,9 +65,11 @@ conditional)` label so its quantity/destination condition stays visible.
   Pickup-only entries are one compact row each (vendor, pack/quantity, item subtotal, pickup fee and the
   written "Delivered total: Not applicable"), with the repeated pickup terms behind a `Pickup terms`
   disclosure, so three pickup offers cost about half the vertical space they used to.
-- Debug/provenance metadata (previous checks, failed attempts, shipping evidence, FX, per-vendor
-  refresh state, next source check) lives behind `Check history and evidence` / `Refresh diagnostics`
-  disclosures instead of the first screen.
+- Debug/provenance metadata (previous checks, failed attempts, the adapter's shipping terms,
+  shipping evidence, FX, per-vendor refresh state, next source check) lives behind
+  `Check history and evidence` / `Refresh diagnostics` disclosures instead of the first screen.
+  A cart-observed alternative (for example CoffeeMan's distribution-center delivery) carries its
+  cart condition in the short label and its full observation in the disclosure.
 - Unknown shipping says **"Shipping not published"** with the exact reason and is never shown as zero;
   a published rate with unconfirmed destination coverage is labelled as such, not as a guaranteed
   checkout total.
@@ -79,7 +81,7 @@ conditional)` label so its quantity/destination condition stays visible.
   green/green-soft 4.61:1, red/white 4.55:1, cyan/white 3.01:1 (non-text only).
 - Rendered contrast: `scripts/browser-qa.mjs` walks visible text in the offer cards, controls, hero,
   footer, pickup and unknown sections and compares the computed text color with the effective
-  background; the check passes with no violations (81/81 offline checks).
+  background; the check passes with no violations (82/82 offline checks, 2026-10-12 iteration 3-71).
 - Keyboard: Tab reaches the quantity controls, the focus outline is 3 px `rgb(0, 112, 180)` and Enter
   activates the focused quantity; the total recalculates. Skip link and `main` landmark are present.
 - Layout: production (read-only GET) at 1440 px has no table, no horizontal overflow and the delivered
