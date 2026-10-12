@@ -30,7 +30,11 @@ retrieval time of the page they came from. Each refresh also keeps one step of c
 previous successful price, stock and pack weight of the same offer — so the board can show the unit-price
 change since the last check in ILS (and says why when a comparison is impossible), and it advances the
 board's `lastRefreshAt` only when at least one vendor actually saved an observation, so a run that fetched
-only the exchange-rate table cannot look like a fresh offer check. `src/refresh.js` is the deterministic scheduled pipeline (leases, bounded concurrency, per-vendor
+only the exchange-rate table cannot look like a fresh offer check. Board freshness also reports the newest
+saved observation and falls back to it for the age when no completion marker exists, so an interrupted run
+(for example a redeploy stopping the background job) with fresh saved offers is not labelled never
+refreshed, while a recorded but old completion still reports the scheduled pipeline as stopped.
+`src/refresh.js` is the deterministic scheduled pipeline (leases, bounded concurrency, per-vendor
 backoff, last-known-good retention) and the same function runs in the Worker's `scheduled` handler, the
 local cron simulation and tests. `src/store.js` defines the SQLite-backed `BoardStore` Durable Object plus
 in-memory and file-backed stores with the same interface. Public routes in `src/index.js` are read-only

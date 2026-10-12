@@ -1,13 +1,20 @@
 # Project status
 
-Stage: **Crema e Gusto scope enforced and verified locally; production refresh awaiting owner evidence.**
+Stage: **Crema e Gusto scope enforced; production deployment and refresh independently verified from the
+runner by read-only public GETs; the 3-61 freshness fallback awaits the owner-side build.**
 The Worker implements the self-updating board for exactly one product line — **Lavazza Crema e Gusto
 vacuum-packed ground coffee** — with three independent Israeli vendor adapters and five observed
 listings. The owner reports the site deployed at
 **https://attention-shoppers.igormaka.workers.dev** with Worker name `attention-shoppers` and main-push
-auto-deploy through Cloudflare Workers Builds. That is an owner report: the coding loop has no Cloudflare
-credentials and has **not** independently verified a production refresh. Outstanding production checks
-are listed below. Iteration 3-59 kept the single-product scope and improved freshness honesty and
+auto-deploy through Cloudflare Workers Builds. On 2026-10-12 15:51-15:54 UTC the coding loop independently
+verified the public site from the runner with read-only GETs (no Cloudflare credentials, no admin API, no
+deploy): `/health`, `/api/status`, `/api/catalog` and `/api/board` answered HTTP 200, the catalog exposed
+exactly one product, the store held five observations, and the probe's first `/health` GET started the
+site's documented initial refresh, which completed at 15:52:12.546 UTC and advanced `lastRefreshAt`. That
+probe also exposed the gap iteration 3-61 fixes: before it, production had five saved observations and
+vendor successes from 13:34/13:46 UTC but `lastRefreshAt` was null (an interrupted run), so the board read
+as never refreshed even though its offers were recent. Outstanding production checks are listed below.
+Iteration 3-59 kept the single-product scope and improved freshness honesty and
 comparison quality: the board's `lastRefreshAt` now advances only when at least one vendor actually saved
 an observation (an FX-only or empty run can no longer look freshly checked), every offer stores one
 step of previous-check evidence so the UI shows the unit-price change since the last successful check in
@@ -15,7 +22,9 @@ ILS (or explains why the comparison is impossible), and the cheapest per-kilogra
 when it differs from the cheapest delivered total. Iteration 3-60 adds written shipping-certainty labels
 next to every ranked rate, a `+₪ vs best` line on each comparison row, an approximate next-source-check
 time in the board footer, and records the fresh vendor-coverage probes (Zap, FreshCafe, Brioso) that
-found no fourth vendor carrying the tracked ground listing.
+found no fourth vendor carrying the tracked ground listing. Iteration 3-61 adds a board-freshness fallback
+so an interrupted refresh with fresh saved observations is not reported as never refreshed, and records the
+first independently verified production refresh from the runner.
 
 The 2026-10-12 owner correction retired Qualità Oro, Qualità Rossa, Suerte and every other Lavazza
 product line. They are no longer catalog entries, fetch targets or UI options. Their names survive only
@@ -72,7 +81,11 @@ product line requires an explicit new owner instruction.
   completed refresh is recent. A run only advances `lastRefreshAt` when at least one vendor actually saved
   an observation, so neither an empty run (every vendor inside its backoff window) nor a run that fetched
   only the exchange-rate table can mask a stalled pipeline as fresh; both are still recorded in the run
-  history. The board footer also names the earliest vendor `nextAttemptAt` as an approximate next source
+  history. When no completion marker exists (a run interrupted after saving observations, for example by a
+  redeploy), the board falls back to the newest saved observation for the age, exposes it as
+  `lastObservationAt`/`freshness.dataAsOf`, and names it in the footer instead of claiming no refresh ever
+  happened; a recorded but old completion still reads as stale, because that is the scheduled pipeline
+  having stopped. The board footer also names the earliest vendor `nextAttemptAt` as an approximate next source
   check time, so a shopper can see the board is scheduled to keep updating.
 - **Bounded fetching**: host allowlists per adapter, 12 s timeout, 1.5 MB response cap, max two vendors
   in flight, one attempt per offer per run, published crawl delays honoured (`Crawl-delay: 7` on
@@ -86,7 +99,7 @@ product line requires an explicit new owner instruction.
 
 Retrieved 2026-10-12 15:39 UTC with `npm run check:sources` (bounded fetcher + production parsers) and
 stored under `.shurik-local/sources/`; review copy in
-`docs/evidence/source-check-2026-10-12T1544Z.json`. Full source record: docs/SOURCES.md. Exactly five
+`docs/evidence/source-check-20261012T1544Z.json`. Full source record: docs/SOURCES.md. Exactly five
 listings are active; no retired line is fetched. Prices and stock were unchanged from the 15:12 UTC check,
 and the 3-60 re-check of the CoffeeMan 8-pack page and the Pucks cart again found no published shipping
 rate (`docs/evidence/vendor-probe-2026-10-12T1536Z.json`).
@@ -158,7 +171,7 @@ labels and the next-source-check footer line, recorded in
    4-pack pages, unknown shipping on the 8-pack page and the Pucks page, and ₪30 door-to-door plus a
    ₪15 pickup-point alternative on the Coffee4U page. The check output also prints the structured
    coverage caveat for each offer: Amigo's and Coffee4U's terms pages make home delivery subject to an
-   unpublished locality list. Review copy: `docs/evidence/source-check-2026-10-12T1544Z.json`.
+   unpublished locality list. Review copy: `docs/evidence/source-check-20261012T1544Z.json`.
 4. `npm run cron:offline` — full refresh pipeline against the recorded fixtures: **6 bounded requests**,
    five offers persisted (CoffeeMan 3, Pucks 1, Coffee4U 1) and the fixture FX table.
    `tests/simulate-cron.test.js` runs it twice in a temporary directory with identical results and
@@ -207,13 +220,13 @@ labels and the next-source-check footer line, recorded in
    server with one clearly labelled QA-only demo offer to verify minimum order, free-shipping threshold,
    free-shipping-met labelling and a locality delivery restriction, plus one check that a board whose
    scheduled refresh stopped for 30 hours is labelled in the footer. Evidence:
-   `docs/evidence/browser-qa-fixtures-2026-10-12T1544Z.json`.
+   `docs/evidence/browser-qa-fixtures-20261012T1544Z.json`.
 8. `npm run qa:browser -- http://127.0.0.1:8789` — live mode passed **51/51** against the local
    `wrangler dev` Worker at 15:43 UTC with the real persisted observations, including the retired-URL
    notice, the unstated-variant ranking, the disclosed coverage caveat, the written shipping-certainty
    labels, the item-price arithmetic, the `+₪ vs best` rows, the next-check footer line and the
    per-kilogram callout (the fixture-only previous-check and demo-offer checks are skipped or conditional
-   in live mode). Evidence: `docs/evidence/browser-qa-live-2026-10-12T1544Z.json`.
+   in live mode). Evidence: `docs/evidence/browser-qa-live-20261012T1544Z.json`.
 9. 3-59 record (kept as history): local Worker runtime re-run with the 3-59 code (`npx wrangler dev
    --port 8789`, **fresh** SQLite Durable Object state, no browser opened, 15:13-15:15 UTC): the first
    `/health` started the initial refresh, which ran 15:13:59.987 → 15:14:17.855 UTC with **6 bounded
@@ -237,17 +250,47 @@ labels and the next-source-check footer line, recorded in
    evidence. No fourth vendor found, so the board stays with the three observed adapters. Evidence:
    `docs/evidence/vendor-probe-2026-10-12T1519Z.json` and
    `docs/evidence/vendor-probe-2026-10-12T1536Z.json`.
+11. 3-61 local re-run with the freshness fallback: `npm run verify` — **86/86** `node:test` cases pass
+    (two new refresh tests for the interrupted-run fallback and `newestObservationAt`, one new worker test
+    for board/health freshness without a completion marker), then `wrangler deploy --dry-run` builds the
+    bundle (78.48 KiB, gzip 20.05 KiB; bindings `BOARD` + `ASSETS`). `npm run cron:offline` — **6 bounded
+    requests**, all three vendors saved (CoffeeMan 3, Pucks 1, Coffee4U 1), five offers persisted,
+    `pruned: 0`. `npm run qa:browser` — **57/57** offline checks pass, including two new checks that a store
+    with fresh observations but no completion marker stays out of the stale state and the footer says
+    `Last offer observation: …` instead of a never-refreshed message. `npm run qa:browser --
+    http://127.0.0.1:8789` — **53/53** live checks pass against a fresh-store `wrangler dev` Worker
+    (`--persist-to .shurik-local/wrangler-3-61`, no browser opened): the first `/health` started the initial
+    refresh (16:01:28.782 → 16:01:48.231 UTC, 6 bounded requests, five observations, Bank of Israel table),
+    `/health` reported `lastRefreshAt` **and** `lastObservationAt`, and the boards matched ₪91.00 / ₪149.00 /
+    ₪106.00 with the retired URL falling back. Evidence:
+    `docs/evidence/worker-runtime-status-2026-10-12T1602Z.json`,
+    `docs/evidence/browser-qa-fixtures-20261012T1603Z.json`,
+    `docs/evidence/browser-qa-live-20261012T1602Z.json`.
+12. 3-61 production verification (read-only, from the runner; no Cloudflare credentials, admin API or
+    deploy): ten GETs against https://attention-shoppers.igormaka.workers.dev returned HTTP 200. Before the
+    probe `/health` reported `lastRefreshAt: null` while `/api/status` held five observations with
+    Pucks/Coffee4U successes at 13:34:41Z/13:46:30Z. The first `/health` GET started the documented initial
+    refresh; the persisted run finished 15:51:52.931Z → 15:52:12.546Z with 4 bounded requests (CoffeeMan
+    saved 3; Pucks/Coffee4U skipped inside their backoff window). `/api/catalog` listed exactly one product
+    and three vendors; the 500 g board best was ₪91.00 (CoffeeMan 2 × 250 g + ₪25), 1 kg best ₪149.00
+    (4-pack), unstated variant ₪106.00 (Coffee4U), and the retired Qualità Oro URL returned
+    `requestedRetiredProduct` with the Crema e Gusto board and no retired offer in the payload. The deployed
+    build predates 3-61, so its `/health` did not yet carry `lastObservationAt`; that field arrives with the
+    owner-side build of this push. Evidence: `docs/evidence/production-verification-20261012T1554Z.json`.
 
 ## Owner-reported deployment vs independently verified
 
 | Item | Status |
 | --- | --- |
 | Worker name in `wrangler.jsonc` | `attention-shoppers` (aligned with the owner correction) |
-| Production URL reported by owner | https://attention-shoppers.igormaka.workers.dev — **owner report, not independently verified by the loop** |
-| Production refresh / cron evidence | **Not verified from this runner.** The loop has no Cloudflare credentials and does not call the production URL. |
+| Production URL reported by owner | https://attention-shoppers.igormaka.workers.dev — **independently verified reachable from the runner** (HTTP 200, 2026-10-12 15:51-15:54 UTC, read-only GETs, no credentials) |
+| Production scope | **Independently verified**: `/api/catalog` listed exactly one product (`lavazza-crema-e-gusto-vacuum-ground`) and three vendors; no retired line appeared in any board payload, and the retired Qualità Oro URL returned `requestedRetiredProduct` with the Crema e Gusto board. |
+| Production refresh / persistence | **Independently verified once**: the probe's first `/health` GET started the documented initial refresh (15:51:52.931Z → 15:52:12.546Z, 4 bounded requests, CoffeeMan saved 3; Pucks/Coffee4U inside their backoff window). `/api/status` then showed `lastRefreshAt` 15:52:12.546Z, fresh, five observations and the Bank of Israel table asOf 12:23:04.599Z. The 6-hour cron trigger itself has not been observed firing. |
+| Production board values | **Independently verified**: 500 g best ₪91.00 (CoffeeMan 2 × ₪33 + ₪25), 1 kg best ₪149.00 (4-pack), unstated variant ₪106.00 (Coffee4U), matching the local runs. |
+| Deployed build version | The verified production build predates iteration 3-61 (its `/health` has no `lastObservationAt`); the 3-61 freshness fallback needs the owner-side Workers Builds run after this push. |
 | Main-push auto-deploy | Owner reports Workers Builds connected; a later push still needs the owner's confirmation that a build ran. |
-| Local refresh-while-no-browser-open | Verified locally through `wrangler dev` + the documented scheduled trigger (item 6 above). |
-| No Cloudflare administration | Maintained: no CF API calls, deploys, logins or token discovery in this repository or its history. |
+| Local refresh-while-no-browser-open | Verified locally through `wrangler dev` + the documented scheduled trigger (item 6 above) and again with the 3-61 fresh store (item 11). |
+| No Cloudflare administration | Maintained: no CF API calls, deploys, logins or token discovery in this repository or its history. The production probe used plain public HTTPS GETs only. |
 
 Outstanding production checks for the owner: `/health` should report a non-null `lastRefreshAt`;
 `/api/catalog` should list exactly one product; the board should show the five Crema e Gusto offers;
@@ -258,7 +301,23 @@ Workers Builds. Report any Cloudflare error back to the loop without pasting cre
 
 Current-scope evidence (committed for review, not live data):
 
-- `docs/evidence/source-check-2026-10-12T1544Z.json` — the 15:39 UTC live adapter check of the five
+- `docs/evidence/production-verification-20261012T1554Z.json` — the 3-61 read-only production probe from
+  the runner: ten HTTP 200 GETs against https://attention-shoppers.igormaka.workers.dev, the interrupted
+  state before the probe (`lastRefreshAt` null with five saved observations), the initial refresh the probe
+  started (15:51:52.931Z → 15:52:12.546Z, 4 requests), the completed status (fresh, five observations, FX
+  asOf 12:23:04.599Z) and the 500 g / 1 kg / unstated / retired-URL board summaries.
+- `docs/evidence/worker-runtime-status-2026-10-12T1602Z.json` — `/health`, `/api/status`, `/api/catalog`,
+  the 500 g / 1 kg / unstated-variant boards and the retired-URL fallback from the 3-61 local Worker run on
+  a fresh Durable Object store (`--persist-to .shurik-local/wrangler-3-61`, no browser opened): a 6-request
+  initial refresh, five observations, `/health` reporting both `lastRefreshAt` and `lastObservationAt`, and
+  `freshness.dataAsOf` in the board payload.
+- `docs/evidence/browser-qa-fixtures-20261012T1603Z.json` — **57/57** offline browser checks with the 3-61
+  code, including the two new interrupted-refresh checks (fresh observations without a completion marker
+  stay out of the stale state; the footer names the last offer observation).
+- `docs/evidence/browser-qa-live-20261012T1602Z.json` — **53/53** live browser checks against the 3-61
+  fresh-store `wrangler dev` Worker with real observations, including the same two interrupted-refresh
+  checks against the local fixture server.
+- `docs/evidence/source-check-20261012T1544Z.json` — the 15:39 UTC live adapter check of the five
   active Crema e Gusto offers (₪33 / ₪124 / ₪240 / ₪30 / ₪38, all in stock) with coverage caveats and
   evidence timestamps; this is the evidence behind the table above.
 - `docs/evidence/worker-runtime-status-2026-10-12T1543Z.json` — `/health`, `/api/status`, `/api/catalog`,
@@ -266,10 +325,10 @@ Current-scope evidence (committed for review, not live data):
   on a fresh Durable Object store: a 6-request initial refresh, five observations, fresh, every quote
   carrying `shipping.certaintyLabel`, and the board footer rendering the approximate next source check
   from the stored vendor `nextAttemptAt`.
-- `docs/evidence/browser-qa-fixtures-2026-10-12T1544Z.json` — 55 offline browser checks with the final
+- `docs/evidence/browser-qa-fixtures-20261012T1544Z.json` — 55 offline browser checks with the final
   3-60 code, including the three new checks for written shipping-certainty labels, `+₪ vs best`
   comparison rows and the next-source-check footer line.
-- `docs/evidence/browser-qa-live-2026-10-12T1544Z.json` — 51 live browser checks against the 3-60 local
+- `docs/evidence/browser-qa-live-20261012T1544Z.json` — 51 live browser checks against the 3-60 local
   `wrangler dev` Worker with real observations, including the new certainty labels, comparison deltas
   and next-check line.
 - `docs/evidence/vendor-probe-2026-10-12T1536Z.json` — the 15:35-15:41 UTC coverage probe (Zap exact
@@ -336,7 +395,25 @@ Historical evidence (recorded before the owner correction; kept clearly labelled
 
 ## Iteration notes (historical unless marked current)
 
-Current iteration (3-60): improved Crema e Gusto shipping evidence, freshness and comparison quality
+Current iteration (3-61): fixed the board-freshness gap that the production probe exposed and recorded
+the first independently verified production refresh. Board freshness now reports the newest saved
+observation (`lastObservationAt`, `freshness.dataAsOf`) and uses it as the age anchor only when no
+completed refresh exists, so an interrupted run (for example a redeploy stopping the background job) with
+fresh saved offers is not labelled never refreshed; a recorded but old completion still reads as stale
+because the scheduled pipeline stopped. `/health` now reports `lastObservationAt` too. Two refresh tests,
+one worker test and two browser QA checks cover the fallback; `npm run verify` passes **86/86** with the
+Worker bundle building (78.48 KiB, gzip 20.05 KiB), `npm run cron:offline` saves five offers with 6 bounded
+requests, offline browser QA is **57/57** and live browser QA against a fresh-store `wrangler dev` is
+**53/53**. Read-only production GETs from the runner independently verified the deployed site (one product,
+five observations, a completed initial refresh at 15:52:12.546Z, ₪91.00/₪149.00/₪106.00 boards,
+retired-URL fallback) and exposed the interrupted-run state that motivated the fix. Also repaired three
+broken evidence-file references in this document. Evidence:
+`docs/evidence/production-verification-20261012T1554Z.json`,
+`docs/evidence/worker-runtime-status-2026-10-12T1602Z.json`,
+`docs/evidence/browser-qa-fixtures-20261012T1603Z.json`,
+`docs/evidence/browser-qa-live-20261012T1602Z.json`.
+
+Iteration 3-60: improved Crema e Gusto shipping evidence, freshness and comparison quality
 inside the single-product scope, and ran a fresh bounded vendor-coverage hunt. The quote engine now
 exposes a written `shipping.certaintyLabel` (`Published rate (verified)` / `Estimated rate` /
 `Not published before checkout`), the best-offer card and every comparison row show it, each comparison
@@ -427,9 +504,11 @@ any adapter.
 
 ## Remaining owner steps
 
-1. Confirm the reported production deployment answers `/health` with a non-null `lastRefreshAt`,
-   `/api/catalog` lists exactly one product, and the board shows the five Crema e Gusto offers.
-2. Confirm the 6-hour cron trigger is listed and that one later main push is picked up by Workers Builds.
+1. After the 3-61 push, confirm Workers Builds picked it up and the deployed `/health` now reports both
+   `lastRefreshAt` and `lastObservationAt` (the verified pre-3-61 build had no `lastObservationAt`).
+2. Confirm the 6-hour cron trigger is listed in the Cloudflare dashboard and that one scheduled tick is
+   observed; the loop has observed a request-triggered initial refresh and persisted vendor state from
+   earlier production runs, but never a cron tick itself.
 3. If anything fails, report the Cloudflare error back to the loop; do not paste credentials.
 
 ## Loop notes
@@ -440,14 +519,16 @@ any adapter.
   the shipping-evidence and comparison-quality improvements; session 3-59 added the previous-check price
   comparison and the honest `lastRefreshAt` rule above; session 3-60 added the written shipping-certainty
   labels, the `+₪ vs best` comparison rows, the approximate next-source-check footer line and the fresh
-  vendor-coverage probes.
+  vendor-coverage probes; session 3-61 added the interrupted-refresh freshness fallback and independently
+  verified the production deployment and its request-triggered initial refresh from the runner.
 - Next useful task for the loop: improve only Crema e Gusto coverage, shipping evidence, freshness and
-  comparison quality. A fourth vendor carrying this product is still the main candidate; the 2026-10-12
-  probes (14:25, 14:39-14:58, 15:19 and 15:35-15:41 UTC, the last via Zap and its FreshCafe/Brioso
-  leads) found no viable new one, so candidate domains and their blockers stay recorded in
-  docs/SOURCES.md instead of guessed. Re-checking whether Pucks or CoffeeMan starts publishing a rate for
-  the currently unrankable offers is another candidate, as is another bounded re-probe of the recorded
-  blocked vendors at a later date. Adding another product line requires an explicit new owner
-  instruction.
+  comparison quality. Candidates, in order: (a) after the owner-side build of this push, re-verify
+  production `/health` reports `lastObservationAt` and that the deployed board still matches the documented
+  values; (b) re-check whether Pucks or CoffeeMan starts publishing a rate for the currently unrankable
+  offers (the 3-60 probe found none); (c) another bounded re-probe of the recorded blocked vendors at a
+  later date for a fourth adapter. The 2026-10-12 probes (14:25, 14:39-14:58, 15:19 and 15:35-15:41 UTC,
+  the last via Zap and its FreshCafe/Brioso leads) found no viable new vendor, so candidate domains and
+  their blockers stay recorded in docs/SOURCES.md instead of guessed. Adding another product line requires
+  an explicit new owner instruction.
 - Keep `npm run check:sources` green against live pages and re-run both `npm run qa:browser` modes after
   any UI change.
