@@ -565,3 +565,33 @@ test('the per-kilogram winner is the delivered best when no bulk offer beats it'
   assert.equal(board.bestPerKg.key, board.best.key);
   assert.equal(board.bestPerKg.ilsPerKg, board.best.ilsPerKg);
 });
+
+test('the quote names the delivery method separately from the certainty label', () => {
+  const courier = observation({ key: 'courier:1', shipping: { service: 'home_delivery', certainty: 'verified', amount: { amount: 20, currency: 'ILS' } } });
+  const pickupPoint = observation({
+    key: 'pickup-point:1',
+    vendor: { id: 'pp', name: 'Pickup point vendor' },
+    shipping: { service: 'pickup_point', certainty: 'checkout_quote', amount: { amount: 15, currency: 'ILS' } }
+  });
+  const board = quote([courier, pickupPoint]);
+  const courierQuote = board.ranked.find(item => item.key === 'courier:1');
+  const pickupQuote = board.ranked.find(item => item.key === 'pickup-point:1');
+  assert.equal(courierQuote.shipping.serviceLabel, 'Home delivery');
+  assert.equal(courierQuote.shipping.certaintyLabel, 'Published rate (verified)');
+  assert.equal(pickupQuote.shipping.serviceLabel, 'Pickup-point delivery');
+  assert.equal(pickupQuote.shipping.certaintyLabel, 'Checkout rate (observed, conditional)');
+});
+
+test('an unstated delivery method says so instead of borrowing the certainty label', () => {
+  const board = quote([observation({ key: 'unstated-method:1' })]);
+  assert.equal(board.best.shipping.service, null);
+  assert.equal(board.best.shipping.serviceLabel, 'Delivery method not stated');
+  const pickupOnly = quoteBoard({
+    observations: [observation({ key: 'pickup-only:1', shipping: { mode: 'pickup', certainty: 'verified', amount: null } })],
+    productId: 'lavazza-crema-e-gusto-vacuum-ground',
+    targetGrams: 250,
+    destination: findDestination('tel-aviv'),
+    now: NOW
+  });
+  assert.equal(pickupOnly.pickup[0].shipping.serviceLabel, 'Self-pickup');
+});

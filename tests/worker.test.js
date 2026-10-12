@@ -300,3 +300,13 @@ test('board without a storage binding explains the deployment requirement', asyn
   assert.match(body.message, /BOARD Durable Object binding/);
   assert.deepEqual(body.offers, []);
 });
+
+test('product pages are directly loadable and served the product page asset', async () => {
+  const env = envWith(createMemoryStore());
+  const named = await worker.fetch(new Request('https://example.test/product/lavazza-crema-e-gusto-vacuum-ground?grams=750&dest=haifa'), env, {});
+  assert.equal(await named.text(), 'asset:/product.html');
+  const bare = await worker.fetch(new Request('https://example.test/product'), env, {});
+  assert.equal(await bare.text(), 'asset:/product.html');
+  const home = await worker.fetch(new Request('https://example.test/'), env, {});
+  assert.equal(await home.text(), 'asset:/');
+});

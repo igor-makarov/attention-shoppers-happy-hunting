@@ -40,6 +40,14 @@ export default {
     if (url.pathname.startsWith('/api/')) {
       return json({ error: 'Not found' }, 404);
     }
+    // Product-detail pages are directly loadable: /product/<id> is served the
+    // product page asset, which resolves the id (including a retired-line
+    // fallback) against the tracked catalog through the read-only API.
+    if (url.pathname === '/product' || /^\/product\/[^/]+\/?$/.test(url.pathname)) {
+      if (!env.ASSETS) return new Response('Not found', { status: 404 });
+      const assetUrl = new URL('/product.html', url.origin);
+      return env.ASSETS.fetch(new Request(assetUrl, { method: request.method, headers: request.headers }));
+    }
     if (env.ASSETS) return env.ASSETS.fetch(request);
     return new Response('Not found', { status: 404 });
   },

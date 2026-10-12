@@ -273,6 +273,24 @@ async function handle(request, response, { observations, now, withTermsDemo, wit
       }
     });
   }
+  if (url.pathname === '/api/status') {
+    const lastObservationAt = newestObservationAt(observations, TRACKED_PRODUCT_IDS);
+    return json(response, {
+      lastRefreshAt,
+      lastObservationAt,
+      freshness: refreshFreshness(lastRefreshAt, now, lastObservationAt),
+      fx: null,
+      vendors: registeredVendors().map(vendor => ({
+        vendorId: vendor.id,
+        lastAttemptAt: new Date(now).toISOString(),
+        lastSuccessAt: new Date(now).toISOString(),
+        consecutiveFailures: 0,
+        nextAttemptAt: new Date(now + 6 * 60 * 60 * 1000).toISOString(),
+        lastErrors: []
+      })),
+      observations: observations.length
+    });
+  }
   if (url.pathname.startsWith('/api/')) {
     return json(response, { error: 'Not found' }, 404);
   }
@@ -280,7 +298,10 @@ async function handle(request, response, { observations, now, withTermsDemo, wit
 }
 
 async function serveStatic(response, pathname) {
-  const relative = pathname === '/' ? 'index.html' : decodeURIComponent(pathname).replace(/^\/+/, '');
+  let relative = pathname === '/' ? 'index.html' : decodeURIComponent(pathname).replace(/^\/+/, '');
+  // Mirror the Worker: /product and /product/<id> serve the product page asset,
+  // which resolves the id against the tracked catalog in the browser.
+  if (relative === 'product' || /^product\/[^/]+\/?$/.test(relative)) relative = 'product.html';
   const target = resolve(PUBLIC_DIR, relative);
   if (target !== PUBLIC_DIR && !target.startsWith(`${PUBLIC_DIR}${sep}`)) {
     return json(response, { error: 'Not found' }, 404);
