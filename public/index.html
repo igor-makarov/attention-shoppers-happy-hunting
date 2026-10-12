@@ -3,52 +3,25 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="Delivered-price board for ordering online in Israel. Compares item subtotal, shipping service and charge, and the delivered total for Lavazza Crema e Gusto vacuum-packed ground coffee.">
-  <title>Attention shoppers — Lavazza Crema e Gusto delivered prices</title>
+  <meta name="description" content="Attention shoppers — a product index for ordering Lavazza Crema e Gusto vacuum-packed ground coffee with delivery in Israel, comparing item subtotal, shipping service and delivered total.">
+  <title>Attention shoppers — product index</title>
   <link rel="stylesheet" href="/style.css">
 </head>
-<body>
-  <a class="skip" href="#board">Skip to the comparison board</a>
+<body data-view="home">
+  <a class="skip" href="#catalog">Skip to the products</a>
   <header class="masthead">
-    <span class="masthead__brand">Attention shoppers</span>
+    <a class="masthead__brand" href="/">Attention shoppers</a>
     <span class="masthead__scope">Crema e Gusto · ground · vacuum brick · delivery in Israel</span>
   </header>
 
   <main>
-    <section class="hero" aria-labelledby="page-title">
+    <section class="catalog" aria-labelledby="page-title">
       <h1 id="page-title">Attention shoppers</h1>
-    </section>
-
-    <section class="controls" aria-label="Shopping controls">
-      <div class="controls__group">
-        <span class="controls__label">Product</span>
-        <select id="product" aria-label="Tracked product" aria-describedby="product-note"></select>
-        <span id="product-static" class="field__static" hidden></span>
-        <p id="product-note" class="controls__note">Crema e Gusto vacuum-packed ground coffee only. Other Lavazza lines stay out.</p>
-      </div>
-      <div class="controls__group">
-        <span class="controls__label">Destination → Israel</span>
-        <select id="destination" aria-label="Delivery locality" aria-describedby="destination-note"></select>
-        <p id="destination-note" class="controls__note">Locality only. No street address is collected or stored.</p>
-      </div>
-      <div class="controls__group">
-        <span class="controls__label">Quantity</span>
-        <div class="segmented" role="group" aria-label="Target quantity in grams" id="quantity-group"></div>
-        <p class="controls__note" id="quantity-note">Packs are rounded up to whole packs.</p>
-      </div>
-      <div class="controls__group">
-        <span class="controls__label">Blend variant</span>
-        <select id="variant" aria-label="Blend variant"></select>
-        <label class="check">
-          <input type="checkbox" id="show-unknown">
-          <span>Show offers that cannot be ranked</span>
-        </label>
+      <p class="catalog__intro">Tracked products and where to compare their delivered prices. Choose a product to set the quantity, destination and blend variant.</p>
+      <div id="catalog-list" class="catalog__list" aria-live="polite">
+        <p class="loading">Loading the product index…</p>
       </div>
     </section>
-
-    <div id="board" class="board" aria-live="polite">
-      <p class="loading" id="loading">Loading the latest observations…</p>
-    </div>
   </main>
 
   <footer class="site-footer">
@@ -56,12 +29,12 @@
       <strong>Attention shoppers. Happy hunting.</strong>
       <p>Item prices and published rates come from vendor pages and public shipping estimators, not personalized checkout quotes. A cart quote is conditional on its quantity and destination; confirm the final total at the vendor's checkout.</p>
     </div>
-    <div id="footer-status" class="site-footer__status">Waiting for the first refresh.</div>
+    <div id="footer-status" class="site-footer__status">Waiting for the latest observation time…</div>
   </footer>
 
   <noscript>
-    <p class="noscript">This board needs JavaScript to calculate delivered totals. The underlying data is also available as JSON at <a href="/api/board">/api/board</a>.</p>
+    <p class="noscript">This index needs JavaScript. The underlying data is also available as JSON at <a href="/api/catalog">/api/catalog</a> and <a href="/api/board">/api/board</a>.</p>
   </noscript>
-  <script src="/app.js" type="module"></script>
+  <script src="/home.js" type="module"></script>
 </body>
 </html>

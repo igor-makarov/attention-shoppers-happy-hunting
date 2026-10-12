@@ -110,6 +110,7 @@ export function parseCoffee4uProduct(html, { now, url = PRODUCT_URL, productId =
     },
     shipping: {
       mode: 'delivery',
+      service: 'home_delivery',
       certainty: shipping.courierAmount == null ? 'unknown' : 'verified',
       amount: shipping.courierAmount == null ? null : { amount: shipping.courierAmount, currency },
       // The product page publishes the door-to-door rate but not the locality list;

@@ -162,6 +162,7 @@ export function parseCoffeemanProduct(html, { now, url = PRODUCT_URL, productId 
     },
     shipping: {
       mode: 'delivery',
+      service: 'home_delivery',
       certainty: shipping.deliveryCents != null ? 'verified' : checkoutQuote ? 'checkout_quote' : 'unknown',
       amount: shipping.deliveryCents != null
         ? { amount: shipping.deliveryCents, currency }

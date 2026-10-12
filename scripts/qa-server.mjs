@@ -118,6 +118,7 @@ export function termsDemoObservation(now = Date.now()) {
     },
     shipping: {
       mode: 'delivery',
+      service: 'home_delivery',
       certainty: 'verified',
       amount: { amount: 15, currency: 'ILS' },
       destination: { scope: 'localities', localities: ['tel-aviv', 'eilat'] },

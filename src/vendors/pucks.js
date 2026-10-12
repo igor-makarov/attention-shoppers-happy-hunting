@@ -112,6 +112,9 @@ export function parsePucksProduct(html, { now, url = PRODUCT_URL, productId = nu
     },
     shipping: {
       mode: 'delivery',
+      // The estimator offered home delivery only; the method is named separately
+      // from the certainty of the rate.
+      service: 'home_delivery',
       // The browser-researched estimator quote is a verified observed rate for
       // the quantities and destination recorded in the evidence; it is not a
       // nationwide guarantee, it was never published on the product page, and

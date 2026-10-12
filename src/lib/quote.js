@@ -49,6 +49,26 @@ export function shippingCertaintyLabel(certainty) {
   return SHIPPING_CERTAINTY_LABELS[certainty] ?? SHIPPING_CERTAINTY_LABELS.unknown;
 }
 
+/**
+ * The delivery method a charge buys. This is deliberately separate from the
+ * certainty label: a shopper must be able to tell whether ₪30 buys home
+ * courier delivery, pickup-point delivery or a distribution-center service,
+ * and how well that rate is evidenced.
+ */
+const SHIPPING_SERVICE_LABELS = {
+  home_delivery: 'Home delivery',
+  courier: 'Home courier delivery',
+  pickup_point: 'Pickup-point delivery',
+  distribution_center: 'Distribution-center delivery',
+  self_pickup: 'Self-pickup',
+  locker: 'Locker delivery'
+};
+
+export function shippingServiceLabel(service, mode = 'delivery') {
+  if (service && SHIPPING_SERVICE_LABELS[service]) return SHIPPING_SERVICE_LABELS[service];
+  return mode === 'pickup' ? SHIPPING_SERVICE_LABELS.self_pickup : 'Delivery method not stated';
+}
+
 export function quoteBoard({
   observations = [],
   productId,
@@ -176,6 +196,8 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
     itemTotalIls: null,
     shipping: {
       mode: shipping.mode ?? 'delivery',
+      service: shipping.service ?? null,
+      serviceLabel: shippingServiceLabel(shipping.service ?? null, shipping.mode ?? 'delivery'),
       certainty: shipping.certainty ?? 'unknown',
       certaintyLabel: shippingCertaintyLabel(shipping.certainty ?? 'unknown'),
       amount: shipping.amount?.amount ?? null,
