@@ -46,7 +46,8 @@ Tracked listings (seven offers across the three tracked products, never merged):
 - Fixtures: `tests/fixtures/coffeeman-product.windows-1255.html` (single, plus derived out-of-stock variant),
   `coffeeman-4pack-product.windows-1255.html` and `coffeeman-8pack-product.windows-1255.html` for Crema e Gusto,
   plus `coffeeman-qualita-oro-product.windows-1255.html`, `coffeeman-qualita-oro-4pack-product.windows-1255.html`
-  and `coffeeman-qualita-oro-8pack-product.windows-1255.html` for Qualità Oro; all are minimized
+  and `coffeeman-qualita-oro-8pack-product.windows-1255.html` for Qualità Oro, and
+  `coffeeman-qualita-rossa-product.windows-1255.html` for Qualità Rossa; all are minimized
   excerpts of the pages retrieved on 2026-10-12.
 
 ### Pucks — pucks.co.il (Ramla, Israel)
@@ -72,7 +73,7 @@ Tracked listings (four offers, never merged):
   - Establishes: name "Lavazza Qualita Rossa- לווצה רוסה 250 גרם קפה טחון", SKU Lav35, GTIN 8000070035935, ground, 250 g single pack, price ₪35.00, schema.org JSON-LD availability `OutOfStock`.
   - The price is still an observation; the listing is kept visible and unranked and is never reported as available. This is the board's real out-of-stock example, alongside the derived parser fixtures.
 - Parser: `application/ld+json` Product/Offer block on the public product pages.
-- Fixtures: `tests/fixtures/pucks-product.html` (plus a derived out-of-stock variant and a preorder variant) and `tests/fixtures/pucks-qualita-oro-product.html`, minimized excerpts of the pages retrieved on 2026-10-12.
+- Fixtures: `tests/fixtures/pucks-product.html` (plus a derived out-of-stock variant and a preorder variant), `tests/fixtures/pucks-qualita-oro-product.html`, `tests/fixtures/pucks-qualita-rossa-product.html` and `tests/fixtures/pucks-qualita-rossa-outofstock-product.html`, minimized excerpts of the pages retrieved on 2026-10-12.
 
 ### Coffee4U / קופי פור יו — coffee4u.co.il (Tel Aviv, Israel)
 
