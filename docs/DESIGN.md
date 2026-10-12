@@ -29,7 +29,10 @@ Primary references read before implementation:
 | Focus | `#0070B4` | 3 px outline on every focusable control (5.28:1 on white, 4.79:1 on Softblau). |
 
 Meaning is never carried by color alone: every status keeps a written label (`In stock (observed)`,
-`Shipping not published`, `Published rate (verified)`, `Coverage: …`) and the selected state is distinct.
+`Shipping not published`, `Published rate (verified)`, `Checkout rate (observed, conditional)`,
+`Coverage: …`) and the selected state is distinct. A rate that exists only in the vendor's anonymous
+cart/checkout estimator is never called a published rate: it uses the `Checkout rate (observed,
+conditional)` label so its quantity/destination condition stays visible.
 
 ## Typography
 
@@ -56,6 +59,9 @@ Meaning is never carried by color alone: every status keeps a written label (`In
 - Conditions are one short list per offer (free-shipping threshold, minimum order, delivery area,
   alternative services, self-pickup, delivery time, cart-size limit). A coverage caveat is written once
   on its card; pickup-only offers live in their own section and never compete in the delivered ranking.
+  Pickup-only entries are one compact row each (vendor, pack/quantity, item subtotal, pickup fee and the
+  written "Delivered total: Not applicable"), with the repeated pickup terms behind a `Pickup terms`
+  disclosure, so three pickup offers cost about half the vertical space they used to.
 - Debug/provenance metadata (previous checks, failed attempts, shipping evidence, FX, per-vendor
   refresh state, next source check) lives behind `Check history and evidence` / `Refresh diagnostics`
   disclosures instead of the first screen.
