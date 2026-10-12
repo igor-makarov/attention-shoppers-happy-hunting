@@ -181,7 +181,7 @@ the 8-pack page does not), one Pucks offer (₪30, in stock, shipping calculated
 unknown) and one Coffee4U offer (₪38, in stock, with a published ₪30 door-to-door courier rate and a
 ₪15 pickup-point alternative). The 2026-10-12 15:39 UTC live check re-observed exactly these five
 listings with the same prices and stock as 15:12 UTC:
-`docs/evidence/source-check-2026-10-12T1544Z.json`.
+`docs/evidence/source-check-20261012T1544Z.json`.
 A bounded 15:19 UTC re-probe of previously blocked or unreachable candidates found no new viable vendor:
 espressocoffeeshop.com's robots file allows only whitelisted crawlers (not bypassed), coffeecircle.com's
 1,535-URL sitemap has no Lavazza product, bringit.co.il is not a store, and the other re-probed hosts are
