@@ -7,7 +7,10 @@ listings. The owner reports the site deployed at
 **https://attention-shoppers.igormaka.workers.dev** with Worker name `attention-shoppers` and main-push
 auto-deploy through Cloudflare Workers Builds. That is an owner report: the coding loop has no Cloudflare
 credentials and has **not** independently verified a production refresh. Outstanding production checks
-are listed below.
+are listed below. Iteration 3-58 improved shipping evidence and comparison readability without changing
+the tracked scope: both ranked courier rates now carry a structured locality-list coverage caveat from the
+vendors' terms pages, availability/shipping evidence carry their retrieval timestamps, and every ranked
+row shows unit price × packs bought = ILS line total.
 
 The 2026-10-12 owner correction retired Qualità Oro, Qualità Rossa, Suerte and every other Lavazza
 product line. They are no longer catalog entries, fetch targets or UI options. Their names survive only
@@ -39,6 +42,12 @@ product line requires an explicit new owner instruction.
 - **Provenance**: every offer keeps its vendor link, product identity (variant, form, pack grams, pack
   count, SKU/GTIN), availability with its structured-data evidence URL, last successful check, last
   attempt, parser version and shipping certainty.
+- **Shipping evidence, honestly framed**: both ranked courier rates carry a structured coverage caveat
+  taken from the vendor's terms page — home delivery is subject to a locality list the product page does
+  not publish — so the board discloses the geographic restriction instead of claiming country-wide
+  delivery. Availability and shipping evidence are stamped with the retrieval time of the page they came
+  from, and the best-offer card and comparison table show unit price × packs bought = ILS line total so
+  the delivered total is auditable. Pucks publishes no rate at all and keeps no invented caveat.
 - **Self-updating runtime**: `wrangler.jsonc` triggers `17 */6 * * *` (about every six hours); the first
   `/health` or `/api/board` after deployment starts one throttled initial refresh. Observations, vendor
   state, FX rates, run history and leases persist in the SQLite-backed `BoardStore` Durable Object. The

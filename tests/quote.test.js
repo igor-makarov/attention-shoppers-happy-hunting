@@ -192,6 +192,70 @@ test('destination restrictions are enforced for coverage lists', () => {
   assert.equal(haifa.ranked.length, 1);
 });
 
+test('a published rate with an unpublished locality list ranks with a disclosed coverage caveat', () => {
+  const caveat = 'Home delivery is limited to the localities on the vendor home-delivery list, which the product page does not publish.';
+  const withCaveat = observation({
+    key: 'caveat:1',
+    shipping: {
+      certainty: 'verified',
+      amount: { amount: 25, currency: 'ILS' },
+      destination: { scope: 'country', country: 'IL', caveat, caveatSource: 'https://vendor.test/terms' }
+    }
+  });
+  const board = quote([withCaveat]);
+  assert.equal(board.ranked.length, 1, 'a disclosed caveat does not block ranking');
+  assert.equal(board.best.totalIls, 105); // 2 × ₪40 + ₪25
+  assert.equal(board.best.shipping.coverageCaveat, caveat);
+  assert.match(board.best.labels.join(' '), /Delivery coverage caveat/);
+  assert.equal(board.best.shipping.destination.caveatSource, 'https://vendor.test/terms', 'the caveat keeps its source link');
+
+  const plain = quote([observation({ key: 'plain:1' })]);
+  assert.equal(plain.best.shipping.coverageCaveat, undefined);
+  assert.doesNotMatch(plain.best.labels.join(' '), /coverage caveat/i);
+});
+
+test('a locality list that excludes the destination still blocks ranking even with a caveat', () => {
+  const blocked = observation({
+    key: 'blocked:1',
+    shipping: {
+      certainty: 'verified',
+      amount: { amount: 10, currency: 'ILS' },
+      destination: { scope: 'localities', localities: ['haifa'], caveat: 'List published in the terms.' }
+    }
+  });
+  const board = quote([blocked]);
+  assert.equal(board.ranked.length, 0);
+  assert.match(board.unrankable[0].reasons.join(' '), /does not include Tel Aviv/);
+});
+
+test('the delivery coverage caveat stays off pickup rows', () => {
+  const withPickup = observation({
+    key: 'both-caveat:1',
+    shipping: {
+      certainty: 'verified',
+      amount: { amount: 25, currency: 'ILS' },
+      destination: { scope: 'country', country: 'IL', caveat: 'Locality list unpublished.' },
+      pickup: { available: true, amount: { amount: 0, currency: 'ILS' } }
+    }
+  });
+  const board = quote([withPickup]);
+  assert.equal(board.pickup.length, 1);
+  assert.doesNotMatch(board.pickup[0].labels.join(' '), /coverage caveat/i, 'self-pickup does not depend on the delivery locality list');
+  assert.match(board.ranked[0].labels.join(' '), /coverage caveat/i);
+});
+
+test('a stale pickup observation is labelled stale and never ranked', () => {
+  const stalePickup = observation({
+    key: 'pickup-stale:1',
+    observedAt: STALE,
+    shipping: { mode: 'pickup', certainty: 'unknown', amount: null, pickup: { available: true, amount: { amount: 0, currency: 'ILS' } } }
+  });
+  const board = quote([stalePickup]);
+  assert.equal(board.ranked.length, 0);
+  assert.equal(board.pickup.length, 1);
+  assert.match(board.pickup[0].labels.join(' '), /Stale observation/);
+});
+
 test('pickup offers are kept separate from delivered ranking', () => {
   const pickupOnly = observation({
     key: 'pickup:1',

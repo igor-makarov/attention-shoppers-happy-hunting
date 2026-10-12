@@ -23,7 +23,10 @@ observations. `src/lib/quote.js` is a pure, timestamp-aware ranking engine; `src
 non-ILS amounts with Bank of Israel reference rates and refuses to guess when a rate is missing. It keeps
 variants separate, reports how many offers a variant filter withheld, and passes every published shipping
 alternative (for example a cheaper pickup-point delivery) through to the UI without using it as the ranked
-amount. `src/refresh.js` is the deterministic scheduled pipeline (leases, bounded concurrency, per-vendor
+amount. A vendor that publishes a courier rate but makes home delivery subject to an unpublished locality
+list keeps a structured coverage caveat, so the board discloses the geographic restriction instead of
+claiming unconditional country-wide delivery; availability and shipping evidence are stamped with the
+retrieval time of the page they came from. `src/refresh.js` is the deterministic scheduled pipeline (leases, bounded concurrency, per-vendor
 backoff, last-known-good retention) and the same function runs in the Worker's `scheduled` handler, the
 local cron simulation and tests. `src/store.js` defines the SQLite-backed `BoardStore` Durable Object plus
 in-memory and file-backed stores with the same interface. Public routes in `src/index.js` are read-only

@@ -120,6 +120,9 @@ try {
     unknownReasons: [...document.querySelectorAll('.unknown__reason')].map(n => n.textContent.trim()),
     pickupRows: document.querySelectorAll('.pickup-row').length,
     rankedRows: document.querySelectorAll('table.compare tbody tr').length,
+    bestTerms: [...document.querySelectorAll('.best__side dt')].map(n => n.textContent),
+    bestValues: [...document.querySelectorAll('.best__side dd')].map(n => n.textContent),
+    compareItemCells: [...document.querySelectorAll('table.compare tbody tr td:nth-child(3)')].map(n => n.innerText),
     visibleText: document.body.innerText,
     bidiFragments: document.querySelectorAll('[dir="auto"][lang="he"]').length,
     hasSkipLink: !!document.querySelector('.skip'),
@@ -146,6 +149,18 @@ try {
   check('desktop: footer reports the last completed refresh instead of a static waiting message',
     /Last completed refresh:/.test(desktop.footerStatus ?? '') && !/Waiting for the first refresh/.test(desktop.footerStatus ?? ''),
     desktop.footerStatus);
+  const coverageCaveat = best.shipping?.coverageCaveat ?? null;
+  check('desktop: a published rate without a published locality list is disclosed as a coverage caveat',
+    coverageCaveat
+      ? desktop.bestTerms.includes('Delivery coverage')
+        && (desktop.bestValues[desktop.bestTerms.indexOf('Delivery coverage')] ?? '').includes('localities')
+      : true,
+    coverageCaveat ? `${desktop.bestTerms.join(' | ')} :: ${desktop.bestValues.join(' | ')}` : 'no caveat in the API payload');
+  const itemMathOk = api500.ranked.length >= 2 && api500.ranked.every((quote, index) => {
+    const cell = desktop.compareItemCells[index] ?? '';
+    return cell.includes(`${ils(quote.itemPrice.amount)} ${quote.itemPrice.currency} × ${quote.units} = ${ils(quote.itemTotalIls)}`);
+  });
+  check('desktop: item-price cells show unit price × packs bought = ILS line total', itemMathOk, desktop.compareItemCells.join(' | '));
 
   // Unstated variant: the Coffee4U listing is never merged into the Classico
   // ranking. It is selectable on its own, ranked with the published door-to-door

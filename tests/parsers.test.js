@@ -35,6 +35,10 @@ test('coffeeman parser observes price, currency, availability and published deli
   assert.equal(observation.shipping.amount.amount, 25);
   assert.equal(observation.shipping.pickup.available, true);
   assert.match(observation.shipping.note, /distribution-center/);
+  assert.match(observation.shipping.destination.caveat, /home-delivery list/, 'the terms-page locality-list restriction is structured, not hidden in a note');
+  assert.match(observation.shipping.destination.caveatSource, /coffeeman\.co\.il/);
+  assert.equal(observation.shipping.evidence.retrievedAt, observation.observedAt, 'shipping evidence carries its retrieval time');
+  assert.equal(observation.availabilityEvidence.retrievedAt, observation.observedAt, 'availability evidence carries its retrieval time');
   assert.equal(observation.observedAt, new Date(now).toISOString());
   assert.equal(observation.evidence[0].url, observation.itemUrl);
 });
@@ -64,6 +68,7 @@ test('coffeeman 4-pack and 8-pack fixtures keep pack count, price and shipping s
   assert.equal(eight.shipping.certainty, 'unknown', 'the 8-pack page publishes no courier price');
   assert.equal(eight.shipping.amount, null);
   assert.equal(eight.availability, 'in_stock');
+  assert.match(eight.shipping.destination.caveat, /home-delivery list/, 'even an unrankable offer keeps the documented coverage caveat');
 });
 
 test('pucks parser reads the product JSON-LD and leaves shipping unknown', () => {
@@ -76,6 +81,8 @@ test('pucks parser reads the product JSON-LD and leaves shipping unknown', () =>
   assert.equal(observation.shipping.certainty, 'unknown');
   assert.equal(observation.shipping.amount, null);
   assert.match(observation.shipping.note, /checkout/);
+  assert.equal(observation.shipping.destination.caveat, undefined, 'no coverage caveat is invented for a vendor that publishes no rate');
+  assert.equal(observation.shipping.evidence.retrievedAt, observation.observedAt, 'unknown shipping evidence still records when it was checked');
 });
 
 test('pucks derived fixtures map out-of-stock and unlisted availability honestly', () => {
@@ -128,6 +135,9 @@ test('coffee4u fixture decodes windows-1255 and parses price, stock, SKU and del
   assert.equal(observation.shipping.pickup.amount.amount, 0);
   assert.match(observation.shipping.note, /₪30\.00/);
   assert.match(observation.shipping.note, /₪15\.00/);
+  assert.match(observation.shipping.destination.caveat, /home-delivery list/, 'the terms-page locality-list restriction is structured, not hidden in a note');
+  assert.match(observation.shipping.destination.caveatSource, /coffee4u\.co\.il/);
+  assert.equal(observation.shipping.evidence.retrievedAt, observation.observedAt, 'shipping evidence carries its retrieval time');
   assert.equal(observation.observedAt, new Date(now).toISOString());
   assert.equal(observation.evidence[0].url, observation.itemUrl);
 });
