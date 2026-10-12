@@ -139,7 +139,9 @@ is recorded in docs/SOURCES.md.
 Historical evidence snapshots are committed for review and are not live data:
 
 - `docs/evidence/source-check-2026-10-12T1209Z.json` — live adapter observations for all five offers from
-  CoffeeMan, Pucks and Coffee4U (12:09 UTC).
+  CoffeeMan, Pucks and Coffee4U (12:09 UTC). A later live check at 12:23 UTC re-passed all three adapters
+  after the Coffee4U shipping-block parser was made tolerant of a longer delivery list
+  (`docs/evidence/source-check-2026-10-12T1223Z.json`).
 - `docs/evidence/browser-qa-fixtures-2026-10-12T1224Z.json` — 41 offline browser checks, including the
   unstated-variant ranking, the labelled shipping alternative and the stale-refresh footer warning.
 - `docs/evidence/browser-qa-live-2026-10-12T1222Z.json` — 39 live browser checks against a local

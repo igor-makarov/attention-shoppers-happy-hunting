@@ -121,8 +121,15 @@ export function parseCoffee4uProduct(html, { now, url = PRODUCT_URL } = {}) {
 }
 
 export function parseCoffee4uShipping(html) {
+  // The delivery list lives in one "delivery-price-product" block. Read to the end of
+  // its <ul> so a longer list is still parsed, with a hard cap for untrusted markup.
   const start = html.indexOf('delivery-price-product');
-  const block = start >= 0 ? html.slice(start, start + 2500) : '';
+  let block = '';
+  if (start >= 0) {
+    const listEnd = html.indexOf('</ul>', start);
+    const end = listEnd >= 0 ? Math.min(listEnd + 5, start + 4000) : start + 4000;
+    block = html.slice(start, end);
+  }
   const items = [...block.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)].map(match => ({
     html: match[1],
     text: collapse(stripTags(match[1]))
