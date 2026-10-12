@@ -1312,7 +1312,18 @@ rule:
   (local live Worker with real vendor data) **76/76**, zero console errors; the money/method/disclosure
   and unified-comparison checks are unchanged.
 
-**Next step:** the production build deployed from main should now enrich the old persisted 8-pack row to
-₪260 at read time; verify with `npm run probe:production` after the push deploys. Then re-run the probe
-after the **00:17 UTC cron tick**, which should also replace the 15:52 store snapshot with fresh vendor
-observations. Continue within Crema e Gusto coverage, shipping evidence, freshness and comparison quality.
+**Production verification (22:14 UTC, read-only public GETs):** the main-push Workers Builds deploy of the
+policy carried the read-time enrichment to the deployed site. The probe reports **ranked=5,
+unrankable=0** for 500 g, 1 kg, the obsolete-variant URL and the retired-product fallback: the old
+persisted CoffeeMan 8-pack row (observed 2026-10-12T15:51:52.931Z, unchanged) now ranks at **₪260**
+(₪240 + ₪20, `checkout_quote`, service `Home delivery`, `maxTotalGrams: 2000`, policy
+`coffeeman-8pack-il-cart-quote` v1, locality-list caveat intact). `lastRefreshAt` stayed
+**15:52:12.546Z** and `lastObservationAt` stayed 15:51:52.931Z, so applying the newer shipping rule
+claimed no fresh vendor price/stock check. `/api/board` exposes both policies with their versions,
+observation times and review dates. All 22 probe checks pass; evidence
+`docs/evidence/production-probe-20261012T2214Z.json`.
+
+**Next step:** the **00:17 UTC cron tick** should replace the 15:52 store snapshot with fresh vendor
+observations (Pucks/coffee4u due since 19:34/19:46, coffeeman since 21:51); re-run
+`npm run probe:production` after that tick. Then continue within Crema e Gusto coverage, shipping
+evidence, freshness and comparison quality.
