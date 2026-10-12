@@ -1,10 +1,23 @@
 # Attention shoppers. Happy hunting.
 
-Build a public, self-updating website on Cloudflare Workers that finds ways to order products online for delivery in Israel and compares the item price plus shipping. Start with Lavazza Crema e Gusto vacuum-packed ground coffee, then make it straightforward to add other products and vendors. This is a working shopping tool, not a marketing landing page.
+## Owner correction — 2026-10-12
+
+This is the current task priority and supersedes the older multi-product plans in repository docs and session history.
+
+1. Align the production Cloudflare Worker name with `attention-shoppers` in Wrangler and all deployment/project instructions. The owner reports the site is already deployed at https://attention-shoppers.igormaka.workers.dev. Update the documented status accordingly, while distinguishing that report from independently verified production refreshes.
+2. Restrict the tracker to **Lavazza Crema e Gusto vacuum-packed ground coffee only**. Remove Qualità Oro, Qualità Rossa, Suerte and every other product line from the active catalog, vendor fetch targets and shopping UI. Keep Crema e Gusto blend variants separate and keep its pack sizes and multipacks. Preserve all viable vendors carrying this product.
+3. Ensure historical observations and old product query URLs cannot display retired product lines or mix them into Crema e Gusto comparisons. Update the tests and browser QA to verify this narrowed scope, while preserving stock, shipping, quantity, persistence and scheduled-refresh behavior.
+4. Update AGENTS.md, README and current status/architecture/deployment docs so future iterations stay within this scope. Historical source evidence may remain clearly labelled as historical and does not authorize re-adding other product lines.
+5. Run `npm run verify`, the fixture refresh and relevant browser QA; record the actual results in docs/STATUS.md. Commit useful verified checkpoints on main. Do not administer or deploy Cloudflare directly.
+6. After these corrections, improve only Crema e Gusto vendor coverage, shipping evidence, freshness and comparison quality. Adding another product line requires an explicit new owner instruction.
+
+Shurik is responsible for implementation, tests and code fixes. The overseer changes the loop prompt, checks its progress and controls the loop; it does not implement parallel code changes. Re-read the current PROMPT.md and AGENTS.md before starting each iteration, and treat this owner correction as the active objective.
+
+Build a public, self-updating website on Cloudflare Workers that finds ways to order products online for delivery in Israel and compares the item price plus shipping. Track only Lavazza Crema e Gusto vacuum-packed ground coffee; make it straightforward to add vendors carrying this product. Do not expand into other product lines. This is a working shopping tool, not a marketing landing page.
 
 The owner chose Shurik v1 and explicitly switched the coding loop to opencode-go/deepseek-v4.1-flash at its maximum supported reasoning, max, after repeated Step 5 endpoint errors. Use concrete milestones, short feedback cycles and verifiable evidence. This specific model switch is authorized; do not change provider/model or add another fallback without the owner's instruction. If the provider becomes unavailable, record the issue for the maintainer.
 
-The coding loop writes directly to main. After the owner connects Cloudflare Workers Builds, main pushes will auto-deploy. Shurik has no Cloudflare credentials, API access or deployment tools. All development and integration validation must work locally. Read AGENTS.md and the design/architecture docs.
+The coding loop writes directly to main. The owner reports deployment at https://attention-shoppers.igormaka.workers.dev. The production Worker name is attention-shoppers; main pushes are intended to auto-deploy through Cloudflare Workers Builds. Shurik has no Cloudflare credentials, API access or deployment tools. All development and integration validation must work locally. Read AGENTS.md and the design/architecture docs.
 
 ## Required shopping behavior
 
@@ -28,7 +41,7 @@ Follow docs/DESIGN.md: Swiss transport/wayfinding signage, strict grid, large ne
 
 ## Acceptance and handoff
 
-The initial checkout is only a deployable scaffold. Complete real functionality before marking it ready.
+Maintain the implemented Crema e Gusto board and keep these acceptance checks passing.
 
 - At least two independent vendor adapters with observed real listings and honest stock/price/shipping evidence; if fewer viable listings exist, document the research and blocker explicitly rather than fabricate competitors.
 - A fixture-backed comparison verifies that shipping can change the winner; unknown shipping cannot win; stale/out-of-stock offers cannot appear as confirmed available; variants/multipacks are not merged incorrectly; thresholds and quantity changes calculate correctly.
@@ -36,6 +49,6 @@ The initial checkout is only a deployable scaffold. Complete real functionality 
 - Responsive desktop/mobile UI with tested filters/quantity controls, readable status labels and no emoji. Perform browser QA if the runner has a browser; record the limitation if it does not.
 - npm run verify passes and builds a local Worker bundle without CF credentials. No account IDs, tokens or user checkout sessions enter source/history.
 - docs/STATUS.md records the precise completed checks and observed data dates. docs/DEPLOYMENT.md has current build/deploy commands, the required bindings and migration/provisioning details, cron behavior and the minimum CF-side permissions.
-- Set docs/STATUS.md to Ready for Cloudflare handoff and list any remaining owner steps. Never deploy or connect Cloudflare yourself. Continue useful local verification and repair; the maintainer controls stopping/resuming the outer Shurik loop.
+- Keep docs/STATUS.md aligned with the owner-reported deployment and record any outstanding production verification. Never deploy or connect Cloudflare yourself. Continue useful local verification and repair; the maintainer controls stopping/resuming the outer Shurik loop.
 
 Keep progress across iterations using repository docs and Shurik's history tools. Choose the next small, useful task, verify it, and leave a clear next step. Avoid rewriting working components just to change frameworks.
