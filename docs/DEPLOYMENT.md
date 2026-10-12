@@ -61,6 +61,11 @@ npm run cron:local      # full refresh pipeline against the live vendor pages
 npm run dev             # local Worker with a local SQLite Durable Object
 ```
 
+`cron:offline` runs the whole fixture pipeline from a clean `.shurik-local/board-offline.json` every
+time, so it is repeatable and never consumes the live run's backoff window; `cron:local` keeps
+`.shurik-local/board.json` and honours the same six-hour vendor schedule as the deployed cron, with
+`npm run cron:local -- --fresh` as the override for a manual live check.
+
 With `npm run dev` running on port 8789, the same commands used during development are:
 
 ```sh
