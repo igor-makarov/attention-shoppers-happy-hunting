@@ -10,7 +10,7 @@
 import { runRefresh } from '../src/refresh.js';
 import { createFileStore } from '../src/store.js';
 import { registeredVendors } from '../src/vendors/index.js';
-import { readFile } from 'node:fs/promises';
+import { createFixtureFetch } from '../tests/fixtures/vendor-fixtures.mjs';
 
 const args = new Set(process.argv.slice(2));
 const offline = args.has('--offline');
@@ -20,39 +20,23 @@ const now = args.has('--simulate-failure-now') ? Date.now() + 24 * 60 * 60 * 100
 const store = await createFileStore(storePath);
 
 if (offline) {
-  const fixtures = new URL('../tests/fixtures/', import.meta.url);
-  const coffeemanBytes = await readFile(new URL('coffeeman-product.windows-1255.html', fixtures));
-  const coffeeman4Bytes = await readFile(new URL('coffeeman-4pack-product.windows-1255.html', fixtures));
-  const coffeeman8Bytes = await readFile(new URL('coffeeman-8pack-product.windows-1255.html', fixtures));
-  const pucksHtml = await readFile(new URL('pucks-product.html', fixtures), 'utf8');
-  const coffee4uBytes = await readFile(new URL('coffee4u-product.windows-1255.html', fixtures));
+  const fixtureFetch = createFixtureFetch();
   const boi = {
     exchangeRates: [
       { key: 'USD', currentExchangeRate: 3.0, unit: 1, lastUpdate: '2026-10-09T09:21:04.476265Z' },
       { key: 'EUR', currentExchangeRate: 3.5, unit: 1, lastUpdate: '2026-10-09T09:21:04.476265Z' }
     ]
   };
-  globalThis.__offlineFetch = async url => {
-    if (url.includes('coffeeman.co.il')) {
-      const bytes = url.includes('4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA') ? coffeeman4Bytes
-        : url.includes('8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA') ? coffeeman8Bytes
-        : coffeemanBytes;
-      return new Response(bytes, { status: 200, headers: { 'content-type': 'text/html; charset=windows-1255' } });
-    }
-    if (url.includes('pucks.co.il')) {
-      return new Response(pucksHtml, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } });
-    }
-    if (url.includes('coffee4u.co.il')) {
-      return new Response(coffee4uBytes, { status: 200, headers: { 'content-type': 'text/html; charset=windows-1255' } });
-    }
-    if (url.includes('boi.org.il')) {
-      return Response.json(boi);
-    }
-    return new Response('not found', { status: 404 });
+  globalThis.__offlineFetch = async (url, init) => {
+    if (String(url).includes('boi.org.il')) return Response.json(boi);
+    return fixtureFetch(url, init);
   };
 }
 
 const fetchImpl = offline ? globalThis.__offlineFetch : globalThis.fetch;
+// Offline runs use recorded pages, so the crawl-delay wait would only slow the
+// test down; the pacing itself is covered by tests/http fixtures in unit tests.
+const sleep = offline ? async () => {} : undefined;
 const logger = { info: message => process.stderr.write(`${message}\n`), warn: message => process.stderr.write(`${message}\n`) };
 
 try {
@@ -61,6 +45,7 @@ try {
     vendors: registeredVendors(),
     fetchImpl,
     now,
+    sleep,
     trigger: offline ? 'cron-simulation-offline' : 'cron-simulation',
     logger
   });
@@ -72,6 +57,7 @@ try {
     summary,
     offers: snapshot.observations.map(observation => ({
       key: observation.key,
+      productId: observation.product?.productId ?? null,
       vendor: observation.vendor?.name,
       price: observation.price,
       availability: observation.availability,

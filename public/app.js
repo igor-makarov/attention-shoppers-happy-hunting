@@ -4,7 +4,8 @@
 const state = {
   grams: 500,
   destination: 'tel-aviv',
-  variant: 'classico',
+  product: null,
+  variant: null,
   showUnknown: true,
   catalog: null,
   board: null,
@@ -71,11 +72,11 @@ function offerLink(quote, label = 'Open the vendor page') {
 
 async function load() {
   try {
-    const [catalog, board] = await Promise.all([
-      fetch('/api/catalog').then(response => response.json()),
-      fetch(`/api/board?grams=${state.grams}&dest=${encodeURIComponent(state.destination)}&variant=${encodeURIComponent(state.variant)}`).then(response => response.json())
-    ]);
-    state.catalog = catalog;
+    const catalogResponse = await fetch('/api/catalog').then(response => response.json());
+    state.catalog = catalogResponse;
+    applyProductDefaults();
+    const params = new URLSearchParams({ product: state.product, grams: String(state.grams), dest: state.destination, variant: state.variant });
+    const board = await fetch(`/api/board?${params}`).then(response => response.json());
     state.board = board;
     state.error = null;
   } catch (error) {
@@ -83,6 +84,20 @@ async function load() {
   }
   document.body.dataset.boardState = state.error ? 'error' : 'ready';
   render();
+}
+
+/** Keep the selected product and variant valid for the catalog's tracked products. */
+function applyProductDefaults() {
+  const catalogProducts = state.catalog?.products ?? [];
+  if (!catalogProducts.length) return;
+  if (!catalogProducts.some(item => item.id === state.product)) state.product = catalogProducts[0].id;
+  const product = currentProduct();
+  const variants = (product?.variants ?? []).map(item => item.id);
+  if (!variants.includes(state.variant)) state.variant = product?.defaultVariant ?? variants[0] ?? 'unspecified';
+}
+
+function currentProduct() {
+  return (state.catalog?.products ?? []).find(item => item.id === state.product) ?? null;
 }
 
 function render() {
@@ -149,17 +164,37 @@ function renderControls() {
     destination.addEventListener('change', () => update({ destination: destination.value }));
   }
   destination.value = state.destination;
-
   const variant = document.getElementById('variant');
-  const variants = state.board?.variants?.length ? state.board.variants : ['classico'];
-  const signature = variants.join(',');
+  const product = currentProduct();
+  const labels = new Map((product?.variants ?? []).map(item => [item.id, item.label]));
+  const observed = state.board?.variants ?? [];
+  // Show every variant the product can be compared under; mark which ones were
+  // actually observed so an empty result is explained rather than silently empty.
+  const variants = (product?.variants ?? []).map(item => item.id);
+  for (const id of observed) if (!variants.includes(id)) variants.push(id);
+  const signature = `${product?.id ?? ''}|${variants.join(',')}`;
   if (variant.dataset.signature !== signature) {
     variant.replaceChildren();
-    for (const id of variants) variant.append(el('option', { value: id, text: VARIANT_LABELS[id] ?? id }));
+    for (const id of variants) {
+      const suffix = observed.includes(id) ? '' : ' — not observed yet';
+      variant.append(el('option', { value: id, text: `${labels.get(id) ?? VARIANT_LABELS[id] ?? id}${suffix}` }));
+    }
     variant.dataset.signature = signature;
     variant.addEventListener('change', () => update({ variant: variant.value }));
   }
-  variant.value = state.variant;
+  variant.value = state.variant ?? '';
+
+  const productSelect = document.getElementById('product');
+  const productSignature = (state.catalog?.products ?? []).map(item => item.id).join(',');
+  if (productSelect && productSelect.dataset.signature !== productSignature) {
+    productSelect.replaceChildren();
+    for (const item of state.catalog?.products ?? []) {
+      productSelect.append(el('option', { value: item.id, text: `${item.brand} ${item.line} · ${item.form} ${item.packaging}` }));
+    }
+    productSelect.dataset.signature = productSignature;
+    productSelect.addEventListener('change', () => update({ product: productSelect.value }));
+  }
+  if (productSelect && state.product) productSelect.value = state.product;
 
   const showUnknown = document.getElementById('show-unknown');
   showUnknown.checked = state.showUnknown;
@@ -168,10 +203,18 @@ function renderControls() {
 
 function update(patch) {
   Object.assign(state, patch);
+  // Changing the product resets the variant to that product's default so a
+  // Classico selection is never silently applied to a different line.
+  if (patch.product) {
+    const product = (state.catalog?.products ?? []).find(item => item.id === patch.product);
+    state.variant = product?.defaultVariant ?? null;
+  }
+  applyProductDefaults();
   const params = new URLSearchParams({
+    product: state.product ?? '',
     grams: String(state.grams),
     dest: state.destination,
-    variant: state.variant,
+    variant: state.variant ?? '',
     unknown: state.showUnknown ? '1' : '0'
   });
   history.replaceState(null, '', `?${params}`);
@@ -181,11 +224,12 @@ function update(patch) {
 
 function renderRankedSection(board) {
   const section = el('section', { class: 'section', attrs: { id: 'ranked', 'aria-labelledby': 'ranked-title' } });
+  const product = currentProduct();
   section.append(el('div', { class: 'section__head' },
     el('div', { class: 'section__number', text: '01 / Best known delivered choice' }),
     el('div', {},
       el('h2', { attrs: { id: 'ranked-title' }, text: 'Delivered total, item plus shipping' }),
-      el('p', { class: 'section__intro', text: `For ${board.targetGrams} g to ${board.destination.label}. Pack sizes are rounded up to whole packs; the board shows the packs you would actually buy.` }))));
+      el('p', { class: 'section__intro', text: `For ${board.product?.line ?? product?.line ?? 'the tracked product'} (${board.product?.form ?? 'ground'}, ${board.product?.packaging ?? 'vacuum brick'}), ${board.targetGrams} g to ${board.destination.label}. Pack sizes are rounded up to whole packs; the board shows the packs you would actually buy.` }))));
 
   if (!board.best) {
     section.append(el('div', { class: 'empty' },
@@ -197,7 +241,7 @@ function renderRankedSection(board) {
   const best = board.best;
   const main = el('div', { class: 'best__main' },
     el('div', { class: 'best__vendor' }, bidi(best.vendor.name)),
-    el('h3', { class: 'best__product' }, bidi(best.product.name ?? 'Lavazza Crema e Gusto')),
+    el('h3', { class: 'best__product' }, bidi(best.product.name ?? 'Tracked product')),
     el('p', { class: 'best__variant', text: `${best.product.packCount > 1 ? `${best.product.packCount} × ` : ''}${best.product.packGrams} g vacuum brick · ${best.product.variantLabel}` }),
     el('div', { class: 'best__total-label', text: 'Delivered total for the selected quantity' }),
     el('div', { class: 'best__total', text: money(best.totalIls) }),
@@ -366,6 +410,7 @@ function renderFooterStatus(board) {
 const params = new URLSearchParams(location.search);
 state.grams = Number(params.get('grams')) || 500;
 state.destination = params.get('dest') || 'tel-aviv';
-state.variant = params.get('variant') || 'classico';
+state.product = params.get('product') || null;
+state.variant = params.get('variant') || null;
 state.showUnknown = params.get('unknown') !== '0';
 load();

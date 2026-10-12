@@ -22,11 +22,11 @@ import { products } from '../src/catalog.js';
 import { quoteBoard, findDestination, DESTINATIONS } from '../src/lib/quote.js';
 import { createObservation, registeredVendors } from '../src/vendors/index.js';
 import { refreshFreshness } from '../src/refresh.js';
+import { publicProducts, publicVendors } from '../src/index.js';
+import { readFixtureForUrl } from '../tests/fixtures/vendor-fixtures.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PUBLIC_DIR = resolve(ROOT, 'public');
-const FIXTURES = new URL('../tests/fixtures/', import.meta.url);
-const DEFAULT_VARIANT = 'classico';
 const PUBLIC_CACHE = 'public, max-age=300, stale-while-revalidate=3600';
 
 const MIME = {
@@ -42,28 +42,18 @@ const MIME = {
 
 /** Parse the recorded vendor pages with the production adapters (no network). */
 export async function fixtureObservations(now = Date.now()) {
-  const coffeemanBytes = await readFile(new URL('coffeeman-product.windows-1255.html', FIXTURES));
-  const coffeeman4Bytes = await readFile(new URL('coffeeman-4pack-product.windows-1255.html', FIXTURES));
-  const coffeeman8Bytes = await readFile(new URL('coffeeman-8pack-product.windows-1255.html', FIXTURES));
-  const pucksHtml = await readFile(new URL('pucks-product.html', FIXTURES), 'utf8');
-  const coffee4uBytes = await readFile(new URL('coffee4u-product.windows-1255.html', FIXTURES));
   const fixtureFetch = async url => {
-    if (String(url).includes('coffeeman.co.il')) {
-      const bytes = String(url).includes('4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA') ? coffeeman4Bytes
-        : String(url).includes('8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA') ? coffeeman8Bytes
-        : coffeemanBytes;
-      const buffer = new Uint8Array(bytes);
-      return { ok: true, status: 200, url, buffer, text: new TextDecoder('utf-8', { fatal: false }).decode(buffer) };
-    }
-    if (String(url).includes('pucks.co.il')) {
-      const buffer = new Uint8Array(Buffer.from(pucksHtml, 'utf8'));
-      return { ok: true, status: 200, url, buffer, text: pucksHtml };
-    }
-    if (String(url).includes('coffee4u.co.il')) {
-      const buffer = new Uint8Array(coffee4uBytes);
-      return { ok: true, status: 200, url, buffer, text: new TextDecoder('utf-8', { fatal: false }).decode(buffer) };
-    }
-    return { ok: false, status: 404, error: 'no fixture for this URL' };
+    const hit = await readFixtureForUrl(url);
+    if (!hit) return { ok: false, status: 404, error: 'no fixture for this URL' };
+    const buffer = new Uint8Array(hit.bytes);
+    return {
+      ok: true,
+      status: 200,
+      url,
+      buffer,
+      contentType: hit.contentType,
+      text: new TextDecoder('utf-8', { fatal: false }).decode(buffer)
+    };
   };
   const observations = [];
   for (const vendor of [coffeeman, pucks, coffee4u]) {
@@ -151,25 +141,20 @@ async function handle(request, response, { observations, now, withTermsDemo, las
   const url = new URL(request.url, 'http://127.0.0.1');
   if (url.pathname === '/api/catalog') {
     return json(response, {
-      products,
+      products: publicProducts(),
       destinations: DESTINATIONS,
-      vendors: registeredVendors().map(vendor => ({
-        id: vendor.id,
-        name: vendor.name,
-        homepage: vendor.homepage,
-        offers: vendor.offers.map(offer => ({ id: offer.id, url: offer.url, kind: offer.kind }))
-      }))
+      vendors: publicVendors()
     });
   }
   if (url.pathname === '/api/board') {
-    const productId = url.searchParams.get('product') ?? products[0].id;
-    const variantId = url.searchParams.get('variant') ?? DEFAULT_VARIANT;
+    const product = products.find(item => item.id === url.searchParams.get('product')) ?? products[0];
+    const variantId = url.searchParams.get('variant') ?? product.defaultVariant;
     const grams = url.searchParams.get('grams') ?? '500';
     const destination = findDestination(url.searchParams.get('dest'));
-    const board = quoteBoard({ observations, productId, variantId, targetGrams: grams, destination, fx: null, now });
+    const board = quoteBoard({ observations, productId: product.id, variantId, targetGrams: grams, destination, fx: null, now });
     return json(response, {
       ...board,
-      product: products.find(item => item.id === productId) ?? null,
+      product: publicProducts().find(item => item.id === product.id) ?? null,
       freshness: {
         ...refreshFreshness(lastRefreshAt, now),
         fx: null,

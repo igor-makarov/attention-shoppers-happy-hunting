@@ -10,9 +10,10 @@
 // Evidence is written to .shurik-local/sources/<timestamp>.json unless
 // --no-save is passed. Exit code 1 when any vendor produced no observation.
 
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { registeredVendors } from '../src/vendors/index.js';
 import { createBoundedFetcher } from '../src/lib/http.js';
+import { createFixtureFetch } from '../tests/fixtures/vendor-fixtures.mjs';
 
 const args = new Set(process.argv.slice(2));
 const asJson = args.has('--json');
@@ -22,31 +23,18 @@ const vendors = registeredVendors();
 const now = Date.now();
 const startedAt = new Date(now).toISOString();
 
-const fixtureFetch = async url => {
-  if (url.includes('coffeeman.co.il')) {
-    const name = url.includes('4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA') ? 'coffeeman-4pack-product.windows-1255.html'
-      : url.includes('8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA') ? 'coffeeman-8pack-product.windows-1255.html'
-      : 'coffeeman-product.windows-1255.html';
-    const bytes = await readFile(new URL(`../tests/fixtures/${name}`, import.meta.url));
-    return new Response(bytes, { status: 200, headers: { 'content-type': 'text/html; charset=windows-1255' } });
-  }
-  if (url.includes('pucks.co.il')) {
-    const html = await readFile(new URL('../tests/fixtures/pucks-product.html', import.meta.url), 'utf8');
-    return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } });
-  }
-  if (url.includes('coffee4u.co.il')) {
-    const bytes = await readFile(new URL('../tests/fixtures/coffee4u-product.windows-1255.html', import.meta.url));
-    return new Response(bytes, { status: 200, headers: { 'content-type': 'text/html; charset=windows-1255' } });
-  }
-  return new Response('not found', { status: 404 });
-};
-
-const fetchImpl = useFixtures ? fixtureFetch : globalThis.fetch;
+const fetchImpl = useFixtures ? createFixtureFetch() : globalThis.fetch;
 const results = [];
 let failed = false;
 
 for (const vendor of vendors) {
-  const fetchText = createBoundedFetcher({ fetchImpl, allowedHosts: vendor.allowedHosts });
+  // The live check honours the vendor's published crawl delay, so a source check
+  // against real pages spaces its requests exactly like the scheduled refresh.
+  const fetchText = createBoundedFetcher({
+    fetchImpl,
+    allowedHosts: vendor.allowedHosts,
+    minIntervalMs: useFixtures ? 0 : (vendor.crawlDelayMs ?? 0)
+  });
   const vendorStarted = Date.now();
   let outcome;
   try {

@@ -144,7 +144,7 @@ async function handleStatus(env) {
   });
 }
 
-function publicVendors() {
+export function publicVendors() {
   return registeredVendors().map(vendor => ({
     id: vendor.id,
     name: vendor.name,
@@ -154,7 +154,7 @@ function publicVendors() {
 }
 
 /** Public product shape: identity, packaging and the selectable variants. */
-function publicProduct(product) {
+export function publicProduct(product) {
   if (!product) return null;
   return {
     id: product.id,
@@ -169,7 +169,7 @@ function publicProduct(product) {
   };
 }
 
-function publicProducts() {
+export function publicProducts() {
   return products.map(publicProduct);
 }
 
