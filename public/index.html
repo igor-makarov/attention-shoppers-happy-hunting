@@ -3,22 +3,74 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="Online shopping availability and delivered prices for Israel. Starting with Lavazza Crema e Gusto vacuum-packed ground coffee.">
+  <meta name="description" content="Delivered-price board for ordering online in Israel. Compares item price plus shipping for Lavazza Crema e Gusto vacuum-packed ground coffee.">
   <title>Attention shoppers. Happy hunting.</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <header class="masthead"><span>IL / ONLINE ORDER BOARD</span><span>01 → COFFEE</span></header>
+  <a class="skip" href="#board">Skip to the comparison board</a>
+  <header class="masthead">
+    <span>IL / ONLINE ORDER BOARD</span>
+    <span>01 → COFFEE / GROUND</span>
+  </header>
+
   <main>
-    <section class="headline"><div class="arrow" aria-hidden="true">↘</div><h1>Attention<br>shoppers.</h1><p>Happy hunting.<br>Find your way to a better delivered price.</p></section>
-    <section class="destination" aria-label="Shopping destination"><strong>Destination → Israel</strong><span>Item price + shipping. Every unknown stays visible.</span></section>
-    <section class="board" aria-labelledby="coffee-title">
-      <div class="section-label">01 / FIRST ON THE BOARD</div>
-      <h2 id="coffee-title">Lavazza<br>Crema e Gusto</h2>
-      <p class="product-form">Vacuum-packed ground coffee</p>
-      <div class="notice"><strong>Research in progress</strong><p>No verified offers yet. Vendor availability, pack sizes and shipping to Israel will appear here after the first successful checks.</p></div>
+    <section class="hero" aria-labelledby="page-title">
+      <div class="hero__arrow" aria-hidden="true">
+        <svg viewBox="0 0 100 100" role="presentation" focusable="false">
+          <path d="M8 8h84v84" fill="none" stroke="currentColor" stroke-width="7"/>
+          <path d="M92 8 12 88" fill="none" stroke="currentColor" stroke-width="7"/>
+        </svg>
+      </div>
+      <div>
+        <h1 id="page-title">Attention shoppers.</h1>
+        <p class="hero__sub">Find the best known delivered price. Item price + shipping, normalized to ILS per kilogram. Unknown shipping is never treated as free.</p>
+      </div>
     </section>
+
+    <section class="controls" aria-label="Shopping controls">
+      <div class="controls__group">
+        <span class="controls__label">Destination → Israel</span>
+        <label class="field">
+          <span>Delivery locality</span>
+          <select id="destination" aria-describedby="destination-note"></select>
+        </label>
+        <p id="destination-note" class="controls__note">No street address is collected or stored. The locality is used to check documented delivery coverage.</p>
+      </div>
+      <div class="controls__group">
+        <span class="controls__label">Quantity</span>
+        <div class="segmented" role="group" aria-label="Target quantity in grams" id="quantity-group"></div>
+        <p class="controls__note" id="quantity-note">Packs are rounded up to whole packs. The board shows what you would actually buy.</p>
+      </div>
+      <div class="controls__group">
+        <span class="controls__label">Product variant</span>
+        <label class="field">
+          <span>Variant</span>
+          <select id="variant"></select>
+        </label>
+        <label class="check">
+          <input type="checkbox" id="show-unknown">
+          <span>Show offers that cannot be ranked</span>
+        </label>
+      </div>
+    </section>
+
+    <div id="board" class="board" aria-live="polite">
+      <p class="loading" id="loading">Loading the latest observations…</p>
+    </div>
   </main>
-  <footer><span>Attention shoppers. Happy hunting.</span><span>Prices must be checked at checkout.</span></footer>
+
+  <footer class="site-footer">
+    <div>
+      <strong>Attention shoppers. Happy hunting.</strong>
+      <p>Prices are observations from vendor product pages, not personalized checkout quotes. Confirm the final total at the vendor's checkout.</p>
+    </div>
+    <div id="footer-status" class="site-footer__status">Waiting for the first refresh.</div>
+  </footer>
+
+  <noscript>
+    <p class="noscript">This board needs JavaScript to calculate delivered totals. The underlying data is also available as JSON at <a href="/api/board">/api/board</a>.</p>
+  </noscript>
+  <script src="/app.js" type="module"></script>
 </body>
 </html>

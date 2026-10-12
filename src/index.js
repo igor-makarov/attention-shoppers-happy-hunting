@@ -22,14 +22,14 @@ export default {
       return Response.json({ error: 'Method not allowed' }, { status: 405, headers: { allow: 'GET, HEAD' } });
     }
     if (url.pathname === '/health') {
-      triggerInitialRefreshIfNeeded(env, ctx).catch(() => null);
+      triggerInitialRefreshIfNeeded(env, ctx).catch(error => console.warn('initial refresh trigger failed:', error?.stack ?? error));
       return handleHealth(env);
     }
     if (url.pathname === '/api/catalog') {
       return json({ products, destinations: DESTINATIONS, vendors: publicVendors() });
     }
     if (url.pathname === '/api/board') {
-      triggerInitialRefreshIfNeeded(env, ctx).catch(() => null);
+      triggerInitialRefreshIfNeeded(env, ctx).catch(error => console.warn('initial refresh trigger failed:', error?.stack ?? error));
       return handleBoard(request, env, ctx, url);
     }
     if (url.pathname === '/api/status') {
