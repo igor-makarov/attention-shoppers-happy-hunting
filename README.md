@@ -1,6 +1,6 @@
 # Attention shoppers. Happy hunting.
 
-A public online shopping board for delivery in Israel tracking **one product**: **Lavazza Crema e Gusto vacuum-packed ground coffee** (Classico, Forte and other blend variants and every pack size or multipack kept separate). The board compares actual availability and item price plus shipping for a selected quantity and Israeli locality, with visible source evidence and freshness. Unknown shipping is never silently treated as free.
+A public online shopping board for delivery in Israel tracking **one product**: **Lavazza Crema e Gusto vacuum-packed ground coffee** (Classico, Forte and other blend variants and every pack size or multipack kept separate). The board compares actual availability and item price plus shipping for a selected quantity and Israeli locality, with visible source evidence and freshness. Unknown shipping is never silently treated as free, and a published courier rate that the vendor's terms make subject to an unpublished locality list is disclosed as a coverage caveat instead of being assumed country-wide.
 
 The 2026-10-12 owner correction retired the earlier multi-product scope: Lavazza Qualità Oro, Qualità Rossa and Suerte are no longer fetched, ranked or shown. Their old listings survive only as historical evidence in [docs/SOURCES.md](docs/SOURCES.md), labelled as such, and as negative fixtures that prove the adapters refuse them. Re-adding any product line needs an explicit new owner instruction.
 
