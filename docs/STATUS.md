@@ -1261,6 +1261,8 @@ while keeping its 13:34 UTC observation time. Sanitized viewport screenshots are
 rejects PNG input, so they were reviewed with coarse token/pixel maps only, and all labels/amounts are
 corroborated by rendered DOM text and the API in the same session.
 
+A final `npm run verify` after removing the now-unused variant-hint CSS rules stayed **124/124** (98.42 KiB bundle) and the offline browser QA stayed **78/78**.
+
 **Next step:** the variant removal is already confirmed live in production (probes above). The remaining
 production check is the **00:17 UTC cron tick**, which should refresh the store itself so the researched
 observations replace the 15:52 snapshot (the read-time policy enrichment already covers Pucks; the
