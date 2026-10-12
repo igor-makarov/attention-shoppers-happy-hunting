@@ -125,6 +125,8 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
     observedAt: observation.observedAt ?? null,
     attemptedAt: observation.attemptedAt ?? null,
     evidence: observation.evidence ?? [],
+    previous: summarizePrevious(observation.previous),
+    priceChange: priceChangeOf({ current: price, previous: observation.previous, product, fx }),
     units: null,
     orderedGrams: null,
     itemPrice: { amount: price.amount ?? null, currency: price.currency ?? null },
@@ -288,6 +290,63 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
   base.group = 'ranked';
   if (base.estimate) labels.push('Estimate — includes a converted or estimated component');
   return base;
+}
+
+/** Shape the stored previous-check snapshot for the API without leaking raw payloads. */
+function summarizePrevious(previous) {
+  if (!previous || typeof previous !== 'object') return null;
+  const availability = previous.availability ?? 'unknown';
+  return {
+    observedAt: previous.observedAt ?? null,
+    priceAmount: previous.price?.amount ?? null,
+    priceCurrency: previous.price?.currency ?? null,
+    availability,
+    availabilityLabel: AVAILABILITY_LABELS[availability] ?? AVAILABILITY_LABELS.unknown
+  };
+}
+
+/**
+ * Compare the unit price with the previous successful check.
+ * The comparison is in ILS using the stored Bank of Israel rate when needed, is
+ * only made between equal pack weights, and is never reported as "no change"
+ * when a conversion is impossible.
+ */
+function priceChangeOf({ current, previous, product, fx }) {
+  const previousPrice = previous?.price;
+  if (!previous?.observedAt || previousPrice?.amount == null || current?.amount == null) return null;
+  const previousObservedAt = previous.observedAt;
+  const previousAmount = previousPrice.amount;
+  const previousCurrency = previousPrice.currency ?? current.currency ?? null;
+  if (previous.totalGrams != null && product.totalGrams != null && previous.totalGrams !== product.totalGrams) {
+    return {
+      comparable: false,
+      reason: 'the pack size changed since the previous check, so the unit prices are not comparable',
+      previousObservedAt,
+      previousAmount,
+      previousCurrency
+    };
+  }
+  const before = toIls(previousAmount, previousCurrency, fx);
+  const after = toIls(current.amount, current.currency ?? previousCurrency, fx);
+  if (!before.known || !after.known) {
+    return {
+      comparable: false,
+      reason: 'a stored exchange rate is needed to compare the previous price',
+      previousObservedAt,
+      previousAmount,
+      previousCurrency
+    };
+  }
+  const delta = round2(after.amount - before.amount);
+  return {
+    comparable: true,
+    direction: delta < 0 ? 'down' : delta > 0 ? 'up' : 'same',
+    deltaIls: Math.abs(delta),
+    previousAmount,
+    previousCurrency,
+    previousIls: round2(before.amount),
+    previousObservedAt
+  };
 }
 
 function coverageProblem(shippingDestination, destination) {

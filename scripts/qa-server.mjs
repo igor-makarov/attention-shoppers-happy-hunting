@@ -63,6 +63,19 @@ export async function fixtureObservations(now = Date.now()) {
     }
     observations.push(...outcome.observations);
   }
+  // QA-only previous-check metadata: one recorded offer is given a synthetic
+  // earlier price and timestamp so the browser harness can verify the price-change
+  // rendering without a second live refresh. It is fixture metadata for the offline
+  // QA server, not evidence about any real vendor price change.
+  const coffeemanSingle = observations.find(item => item.vendor.id === 'coffeeman' && item.product.packCount === 1);
+  if (coffeemanSingle) {
+    coffeemanSingle.previous = {
+      observedAt: new Date(now - 6 * 60 * 60 * 1000).toISOString(),
+      price: { amount: 35, currency: coffeemanSingle.price.currency },
+      availability: 'in_stock',
+      totalGrams: coffeemanSingle.product.totalGrams
+    };
+  }
   return observations;
 }
 
@@ -175,9 +188,10 @@ async function handle(request, response, { observations, now, withTermsDemo, las
         mode: 'fixtures',
         demoOffers: withTermsDemo ? 1 : 0,
         staleRefresh,
+        previousCheckMetadata: 1,
         note: withTermsDemo
-          ? 'Offline browser QA server. Recorded fixtures plus one clearly labelled QA-only terms demo offer (not a real vendor).'
-          : 'Offline browser QA server. Data comes from tests/fixtures, not a live refresh.'
+          ? 'Offline browser QA server. Recorded fixtures plus one clearly labelled QA-only terms demo offer (not a real vendor) and one synthetic previous-check price for change rendering.'
+          : 'Offline browser QA server. Data comes from tests/fixtures, not a live refresh; one offer carries synthetic previous-check metadata for change rendering.'
       }
     });
   }

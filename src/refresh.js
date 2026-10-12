@@ -77,6 +77,12 @@ export async function runRefresh({
   const fxHosts = FX_HOSTS;
   const results = [];
   try {
+    // Read the stored observations once, before any vendor writes, so each new
+    // observation can carry the previous successful price and stock as
+    // comparison evidence. The map is anchored to the pre-run state.
+    const previousByKey = new Map();
+    for (const row of await store.listObservations()) previousByKey.set(row.key, row);
+
     const queued = [];
     for (const vendor of vendors) {
       const state = await store.getVendorState(vendor.id);
@@ -89,7 +95,7 @@ export async function runRefresh({
 
     for (let index = 0; index < queued.length; index += MAX_CONCURRENCY) {
       const batch = queued.slice(index, index + MAX_CONCURRENCY);
-      const batchResults = await Promise.all(batch.map(({ vendor, state }) => refreshVendor({ store, vendor, state, fetchImpl, now, counter, logger, sleep, clock })));
+      const batchResults = await Promise.all(batch.map(({ vendor, state }) => refreshVendor({ store, vendor, state, fetchImpl, now, counter, logger, sleep, clock, previousByKey })));
       results.push(...batchResults);
     }
 
@@ -117,11 +123,12 @@ export async function runRefresh({
       fx: fx ? { ok: fx.ok, asOf: fx.fx?.asOf ?? null, error: fx.error ?? null } : { skipped: true }
     };
     await store.recordRun(summary);
-    // A run that fetched nothing because every vendor is inside its backoff
-    // window is not a completed refresh: leaving lastRefreshAt untouched keeps
-    // the board's freshness label tied to the last real check instead of an
-    // empty run that would silently mask a stalled pipeline.
-    if (requests > 0) {
+    // A completed refresh means at least one vendor actually produced a saved
+    // observation. A run that fetched only the exchange-rate table (every vendor
+    // still inside its backoff window) or fetched nothing at all must not make
+    // the board look freshly checked when no offer was re-observed.
+    const savedAny = results.some(result => (result.saved ?? 0) > 0);
+    if (savedAny) {
       await store.setMeta('lastRefreshAt', { value: finishedAt, trigger });
     }
     return summary;
@@ -130,7 +137,7 @@ export async function runRefresh({
   }
 }
 
-async function refreshVendor({ store, vendor, state, fetchImpl, now, counter, logger, sleep, clock }) {
+async function refreshVendor({ store, vendor, state, fetchImpl, now, counter, logger, sleep, clock, previousByKey = null }) {
   const fetchText = createBoundedFetcher({
     fetchImpl,
     allowedHosts: vendor.allowedHosts ?? vendorHosts([vendor]),
@@ -149,6 +156,18 @@ async function refreshVendor({ store, vendor, state, fetchImpl, now, counter, lo
     for (const observation of outcome.observations ?? []) {
       observation.attemptedAt = attemptedAt;
       observation.lastError = null;
+      // Keep one step of comparison evidence: what the same offer showed at the
+      // previous successful check. Attempt markers have no observedAt and are
+      // skipped, so a failed refresh never fabricates a previous price.
+      const previous = previousByKey?.get(observation.key);
+      if (previous?.observedAt && previous?.price?.amount != null) {
+        observation.previous = {
+          observedAt: previous.observedAt,
+          price: { amount: previous.price.amount, currency: previous.price.currency ?? null },
+          availability: previous.availability ?? 'unknown',
+          totalGrams: previous.product?.totalGrams ?? null
+        };
+      }
       await store.putObservation(observation);
       saved += 1;
     }

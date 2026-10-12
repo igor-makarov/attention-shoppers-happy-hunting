@@ -46,6 +46,26 @@ function money(amount) {
 const HEBREW = /[\u0590-\u05FF]/;
 
 /**
+ * Plain-language price comparison against the previous successful check of the
+ * same offer. Rendered as text only when the quote actually carries previous
+ * evidence; an impossible comparison says why instead of claiming "no change".
+ */
+function priceChangeText(quote) {
+  const change = quote?.priceChange;
+  if (!change) return null;
+  const when = timeLabel(change.previousObservedAt);
+  if (!change.comparable) return `Previous price not compared: ${change.reason} (previous check ${when})`;
+  if (change.direction === 'same') return `Unit price unchanged since the previous check (${when})`;
+  return `Unit price ${change.direction === 'down' ? 'down' : 'up'} ${money(change.deltaIls)} since the previous check (${when})`;
+}
+
+function stockChangeText(quote) {
+  const previous = quote?.previous;
+  if (!previous || previous.availability === quote.availability) return null;
+  return `Stock changed since the previous check: was ${previous.availabilityLabel ?? previous.availability}`;
+}
+
+/**
  * Plain-language item-price arithmetic for one quote: unit price × packs bought,
  * with the ILS line total when the quote has one. Keeps the delivered total
  * auditable in the UI instead of showing a bare unit price next to a sum.
@@ -301,6 +321,10 @@ function renderRankedSection(board) {
   ];
   if (best.shipping.minOrder != null) rows.push(['Minimum order', `${money(best.shipping.minOrder)} ${best.shipping.minOrderCurrency ?? ''}`.trim()]);
   if (best.shipping.freeThreshold != null) rows.push(['Free shipping', `from ${money(best.shipping.freeThreshold)} ${best.shipping.freeThresholdCurrency ?? ''}`.trim()]);
+  const bestChange = priceChangeText(best);
+  if (bestChange) rows.push(['Price change', bestChange]);
+  const bestStockChange = stockChangeText(best);
+  if (bestStockChange) rows.push(['Stock change', bestStockChange]);
   if (best.shipping.destination?.scope === 'localities') rows.push(['Delivery area', `Only: ${(best.shipping.destination.localities ?? []).join(', ')}`]);
   if (best.shipping.coverageCaveat) rows.push(['Delivery coverage', best.shipping.coverageCaveat]);
   for (const alternative of best.shipping.alternatives ?? []) {
@@ -348,7 +372,8 @@ function renderCompareTable(quotes, board) {
     const row = el('tr');
     row.append(el('td', {}, el('span', { class: 'vendor-name' }, bidi(quote.vendor.name)), el('br'), offerLink(quote, 'Vendor page')));
     row.append(el('td', { class: 'num', text: `${quote.units} × ${quote.product.packGrams} g = ${quote.orderedGrams} g` }));
-    row.append(el('td', { class: 'num', text: itemPriceLine(quote) }));
+    row.append(el('td', { class: 'num' }, itemPriceLine(quote),
+      priceChangeText(quote) ? el('div', { class: 'unknown__meta', text: priceChangeText(quote) }) : null));
     row.append(el('td', { class: 'num' },
       quote.shipping.amountIls === 0 ? 'Free' : money(quote.shipping.amountIls),
       (quote.shipping.alternatives ?? []).map(alternative => el('div', { class: 'unknown__meta', text: `${alternative.label}: ${alternative.amountIls != null ? money(alternative.amountIls) : 'unknown'}` })),
@@ -417,7 +442,9 @@ function renderUnknownSection(board) {
           el('span', { text: `Shipping: ${shipped}` }),
           ...(quote.shipping.alternatives ?? []).map(alternative => el('span', { text: `${alternative.label}: ${alternative.amountIls != null ? money(alternative.amountIls) : 'unknown'}` })),
           el('span', { text: `Last successful check: ${timeLabel(quote.observedAt)}` }),
-          el('span', { text: `Last attempt: ${timeLabel(quote.attemptedAt)}` })),
+          el('span', { text: `Last attempt: ${timeLabel(quote.attemptedAt)}` }),
+          priceChangeText(quote) ? el('span', { text: priceChangeText(quote) }) : null,
+          stockChangeText(quote) ? el('span', { text: stockChangeText(quote) }) : null),
         quote.shipping.coverageCaveat ? el('p', { class: 'unknown__meta', text: `Delivery coverage: ${quote.shipping.coverageCaveat}` }) : null,
         el('p', { class: 'unknown__reason', text: quote.reasons.join('. ') || quote.labels.join('. ') || 'Not enough verified information yet.' }),
         quote.labels.length ? el('p', { class: 'unknown__meta', text: quote.labels.join(' · ') }) : null,
