@@ -1,9 +1,9 @@
 # Project status
 
 Stage: **Crema e Gusto scope enforced; the Canton Zürich shopping board, the browser-researched
-shipping rates and the redesigned UI validated locally (95/95 tests, 81/81 offline and 76/76 live browser
+shipping rates and the redesigned UI validated locally (95/95 tests, 81/81 offline and 77/77 live browser
 checks); production serves the redesigned assets and its stored observations pick up the researched rates
-at each vendor's next scheduled refresh.**
+at the 00:17 UTC cron tick.**
 The Worker implements the self-updating board for exactly one product line — **Lavazza Crema e Gusto
 vacuum-packed ground coffee** — with three independent Israeli vendor adapters and five observed
 listings. The owner reports the site deployed at
