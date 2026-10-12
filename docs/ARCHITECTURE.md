@@ -26,7 +26,11 @@ alternative (for example a cheaper pickup-point delivery) through to the UI with
 amount. A vendor that publishes a courier rate but makes home delivery subject to an unpublished locality
 list keeps a structured coverage caveat, so the board discloses the geographic restriction instead of
 claiming unconditional country-wide delivery; availability and shipping evidence are stamped with the
-retrieval time of the page they came from. `src/refresh.js` is the deterministic scheduled pipeline (leases, bounded concurrency, per-vendor
+retrieval time of the page they came from. Each refresh also keeps one step of comparison evidence — the
+previous successful price, stock and pack weight of the same offer — so the board can show the unit-price
+change since the last check in ILS (and says why when a comparison is impossible), and it advances the
+board's `lastRefreshAt` only when at least one vendor actually saved an observation, so a run that fetched
+only the exchange-rate table cannot look like a fresh offer check. `src/refresh.js` is the deterministic scheduled pipeline (leases, bounded concurrency, per-vendor
 backoff, last-known-good retention) and the same function runs in the Worker's `scheduled` handler, the
 local cron simulation and tests. `src/store.js` defines the SQLite-backed `BoardStore` Durable Object plus
 in-memory and file-backed stores with the same interface. Public routes in `src/index.js` are read-only
