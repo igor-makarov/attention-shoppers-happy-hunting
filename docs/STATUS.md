@@ -662,11 +662,16 @@ any adapter.
 
 ## Remaining owner steps
 
-1. The 3-61 push was verified serving in production on 2026-10-12 16:17 UTC (deployed `/health` reports
-   both `lastRefreshAt` and `lastObservationAt`). No action needed unless a later build is expected.
+1. The 3-61 build was verified serving in production on 2026-10-12 16:17 UTC (deployed `/health` reports
+   both `lastRefreshAt` and `lastObservationAt`). The 3-62 and 3-63 commits are on main and are expected
+   to reach Workers Builds the same way, but neither changes a public response shape, so their effect is
+   only observable through cron ticks; no action needed unless a later build is expected.
 2. Confirm the 6-hour cron trigger is listed in the Cloudflare dashboard and that one scheduled tick is
    observed; the loop has observed request-triggered refreshes and persisted vendor state from earlier
-   production runs, but never a cron tick itself.
+   production runs, but never a cron tick itself. The expected sequence for the persisted store is
+   18:17 UTC (skip, 0 observations), 00:17 UTC (refresh all three vendors) and 06:17 UTC on 2026-10-13
+   (first observable effect of the 3-62 phase-lock fix). The loop will re-run `npm run probe:production`
+   (read-only) after those ticks.
 3. If anything fails, report the Cloudflare error back to the loop; do not paste credentials.
 
 ## Loop notes
@@ -683,16 +688,20 @@ any adapter.
   reproduced and fixed the cron phase-lock that would have drifted the production cadence to twelve hours
   (successful vendors now count as due up to 15 minutes before their stored due time, failure backoff
   stays strict), with pre-fix/fixed pipeline evidence in
-  `docs/evidence/cron-phase-lock-20261012T163945Z.json`.
+  `docs/evidence/cron-phase-lock-20261012T163945Z.json`; session 3-63 added the repeatable read-only
+  production probe, re-verified production and the live sources at 16:50-16:53 UTC, and added the
+  multi-tick cron cadence test on a deterministic timeline.
 - Next useful task for the loop: improve only Crema e Gusto coverage, shipping evidence, freshness and
-  comparison quality. Candidates, in order: (a) once the 3-62 push is deployed, observe the production
-  cron ticks with read-only `/api/status` GETs and confirm a `cron`-triggered run saves observations and
-  keeps the six-hour cadence (the 18:17Z tick may legitimately skip while every vendor is inside its
-  window; the 00:17Z tick should refresh); (b) re-check whether Pucks or CoffeeMan starts publishing a
-  rate for the currently unrankable offers (the 3-60 probe found none); (c) another bounded re-probe of the
-  recorded blocked vendors at a later date for a fourth adapter. The 2026-10-12 probes (14:25,
-  14:39-14:58, 15:19 and 15:35-15:41 UTC, the last via Zap and its FreshCafe/Brioso leads) found no viable
-  new vendor, so candidate domains and their blockers stay recorded in docs/SOURCES.md instead of guessed.
-  Adding another product line requires an explicit new owner instruction.
+  comparison quality. Candidates, in order: (a) observe the production cron ticks with the read-only
+  probe (`npm run probe:production`) — the 18:17Z tick should record a 0-observation run without moving
+  `lastRefreshAt`, the 00:17Z tick should refresh all three vendors, and the **06:17Z tick on 2026-10-13**
+  is the first place the 3-62 phase-lock fix is observable (it should save observations even though it
+  lands seconds before the stored due time); (b) re-check whether Pucks or CoffeeMan starts publishing a
+  rate for the currently unrankable offers (the 3-60 probe and the 16:50 UTC live check found none);
+  (c) another bounded re-probe of the recorded blocked vendors at a later date for a fourth adapter. The
+  2026-10-12 probes (14:25, 14:39-14:58, 15:19 and 15:35-15:41 UTC, the last via Zap and its
+  FreshCafe/Brioso leads) found no viable new vendor, so candidate domains and their blockers stay
+  recorded in docs/SOURCES.md instead of guessed. Adding another product line requires an explicit new
+  owner instruction.
 - Keep `npm run check:sources` green against live pages and re-run both `npm run qa:browser` modes after
   any UI change.

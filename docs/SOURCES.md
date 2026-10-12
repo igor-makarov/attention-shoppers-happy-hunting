@@ -18,15 +18,15 @@ each run writes its evidence to `.shurik-local/sources/<timestamp>.json`; review
 Tracked listings (three Crema e Gusto offers, never merged):
 
 - **250 g single pack** — `https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico`
-  - Retrieved: 2026-10-12 11:04, 11:20, 11:29, 11:48, 12:57 and 15:12 UTC (adapters `coffeeman/1` to `coffeeman/5`)
+  - Retrieved: 2026-10-12 11:04, 11:20, 11:29, 11:48, 12:57, 15:12 and 16:50 UTC (adapters `coffeeman/1` to `coffeeman/5`)
   - Establishes: name "250 גרם קפה טחון lavazza Crema e Gusto Classico חוזק 7", SKU 930333, variant Classico, ground, 250 g single pack, price ₪33 (regular ₪36), schema.org availability `InStock`, and the published delivery options on the page: courier delivery ₪25, free self-pickup, plus a distribution-center option whose price is not published.
   - Shipping certainty: **verified** for the published courier rate. Coverage caveat: the terms page (`https://www.coffeeman.co.il/page/%D7%AA%D7%A0%D7%90%D7%99-%D7%A9%D7%99%D7%9E%D7%95%D7%A9`, section 4) states home delivery is performed "subject to Amigo's list of localities where home delivery is performed", and the product page does not publish that list, so the observation carries a structured coverage caveat instead of claiming country-wide coverage. A shipping-policy page (`page.asp?page=237`) linked from the terms now returns HTTP 404, so no additional flat rate is available.
 - **4 × 250 g multipack** — `https://www.coffeeman.co.il/product/4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico`
-  - Retrieved: 2026-10-12 11:46, 11:48, 12:57 and 15:12 UTC (adapters `coffeeman/1` to `coffeeman/5`)
+  - Retrieved: 2026-10-12 11:46, 11:48, 12:57, 15:12 and 16:50 UTC (adapters `coffeeman/1` to `coffeeman/5`)
   - Establishes: name "4 אריזות 250 גרם קפה טחון lavazza Crema e Gusto Classico", SKU 930334, variant Classico, ground, 4 × 250 g = 1000 g, price ₪124.00, schema.org availability `InStock`, courier ₪25 published on the page.
   - Shipping certainty: **verified** (₪25 courier; the same terms-page locality-list caveat applies).
 - **8 × 250 g multipack** — `https://www.coffeeman.co.il/product/8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico`
-  - Retrieved: 2026-10-12 11:46, 11:48, 12:57 and 15:12 UTC (adapters `coffeeman/1` to `coffeeman/5`)
+  - Retrieved: 2026-10-12 11:46, 11:48, 12:57, 15:12 and 16:50 UTC (adapters `coffeeman/1` to `coffeeman/5`)
   - Establishes: name "8 אריזות 250 גרם קפה טחון lavazza Crema e Gusto Classico", SKU 930335, variant Classico, ground, 8 × 250 g = 2000 g, price ₪240.00, schema.org availability `InStock`.
   - Shipping certainty: **unknown** — the page lists the courier option without a price (only free self-pickup and an unpriced distribution-center option), so the offer stays visible and unranked rather than being treated as free. The same locality-list caveat applies to the courier option if a rate appears.
 
@@ -69,7 +69,7 @@ were removed by the owner correction, and their excerpts now live in
 Tracked listing (one Crema e Gusto offer):
 
 - **Crema e Gusto Classico 250 g** — `https://pucks.co.il/product/lavazza-crema-e-gusto-ground-coffee-250g`
-  - Retrieved: 2026-10-12 11:04, 11:20, 11:29, 12:57 and 15:12 UTC (adapters `pucks/1` to `pucks/5`)
+  - Retrieved: 2026-10-12 11:04, 11:20, 11:29, 12:57, 15:12 and 16:50 UTC (adapters `pucks/1` to `pucks/5`)
   - Establishes: name "lavazza crema e gusto classico-250 גרם קפה טחון", SKU Lav69, GTIN 8000070038769, variant Classico, ground, 250 g single pack, price ₪30.00, schema.org JSON-LD availability `InStock`.
   - Shipping certainty: **unknown** — the page states shipping is calculated at checkout, so the offer stays visible and unranked. It is never treated as free.
   - Shipping research (2026-10-12 13:05 UTC): the public terms page `https://pucks.co.il/terms-and-privacy-policy` was also checked. Its "משלוחים והחזרות" section says the customer is charged delivery fees "according to rates set by Pucks from time to time" and promises delivery within 7 business days, but publishes no amount or free-shipping threshold; the cart widget repeats "המשלוח מחושב בתשלום" (shipping is calculated at payment). The unknown label is therefore evidence-based. Excerpt quotes: `docs/evidence/vendor-research-2026-10-12T1305Z-pucks-shipping.json`.
@@ -101,7 +101,7 @@ was a real board observation at the time but is historical now.
 ### Coffee4U / קופי פור יו — coffee4u.co.il (Tel Aviv, Israel)
 
 - Product page: `https://www.coffee4u.co.il/product/lavazza-crema-e-gusto-250-gr-%D7%98%D7%97%D7%95%D7%9F`
-- Retrieved: 2026-10-12 12:02 (research probe), 12:09, 12:57 and 15:12 UTC (adapter `coffee4u/1` via live `npm run check:sources`)
+- Retrieved: 2026-10-12 12:02 (research probe), 12:09, 12:57, 15:12 and 16:50 UTC (adapter `coffee4u/1` via live `npm run check:sources`)
 - Establishes: name "Lavazza Crema e gusto 250 gr טחון", internal SKU 2010561, ground coffee, 250 g single pack, price ₪38, schema.org availability `InStock`, and the delivery options published next to the product:
   - free self-pickup at the shop;
   - delivery to a צ'יטה שופס pickup point, ₪15 (up to 5 kg, up to 7 business days);
@@ -179,9 +179,9 @@ with five real Crema e Gusto listings: three CoffeeMan offers (single 250 g ₪3
 8 × 250 g ₪240, all observed in stock; the two single/4-pack pages publish a verified ₪25 courier rate,
 the 8-pack page does not), one Pucks offer (₪30, in stock, shipping calculated at checkout and therefore
 unknown) and one Coffee4U offer (₪38, in stock, with a published ₪30 door-to-door courier rate and a
-₪15 pickup-point alternative). The 2026-10-12 15:39 UTC live check re-observed exactly these five
-listings with the same prices and stock as 15:12 UTC:
-`docs/evidence/source-check-20261012T1544Z.json`.
+₪15 pickup-point alternative). The 2026-10-12 15:39 and 16:50 UTC live checks re-observed exactly these five
+listings with the same prices, stock and published shipping evidence as 15:12 UTC:
+`docs/evidence/source-check-20261012T1544Z.json` and `docs/evidence/source-check-20261012T1650Z.json`.
 A bounded 15:19 UTC re-probe of previously blocked or unreachable candidates found no new viable vendor:
 espressocoffeeshop.com's robots file allows only whitelisted crawlers (not bypassed), coffeecircle.com's
 1,535-URL sitemap has no Lavazza product, bringit.co.il is not a store, and the other re-probed hosts are

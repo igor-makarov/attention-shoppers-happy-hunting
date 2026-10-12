@@ -48,8 +48,14 @@ npm run verify          # node:test suite + wrangler deploy --dry-run
 npm run check:sources   # live fetch + parse of every tracked vendor page
 npm run cron:offline    # full refresh pipeline against recorded fixtures
 npm run cron:local      # full refresh pipeline against the live vendor pages
+npm run probe:production # read-only GETs against the deployed board (no credentials, no deploy)
 npm run dev             # local Worker with a local SQLite Durable Object
 ```
+
+`probe:production` checks the deployed site from the outside with fixed public GETs only: one catalog
+product, no retired row in any board, the retired-URL fallback, freshness and the ranked totals. It never
+authenticates or deploys, and it saves a JSON snapshot under `.shurik-local/production/` (or `--out`) so a
+later iteration can diff production state; pass `--url http://127.0.0.1:8789` to check a local Worker.
 
 `cron:offline` starts from a clean `.shurik-local/board-offline.json` on every run, so the fixture
 pipeline is repeatable and never consumes the live run's schedule. `cron:local` keeps

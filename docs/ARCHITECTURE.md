@@ -47,7 +47,10 @@ Verification is layered: `tests/*.test.js` covers parsers, quote edge cases, the
 Worker routes against recorded fixtures; `scripts/check-sources.mjs` re-checks the live vendor pages;
 `scripts/simulate-cron.mjs` runs the full refresh offline or live; `scripts/qa-server.mjs` serves the
 production front-end against fixture-backed API data so `npm run qa:browser` drives headless Chrome
-offline and derives its expectations from the API. Browser QA also loads an old
+offline and derives its expectations from the API; `scripts/probe-production.mjs`
+(`npm run probe:production`) re-checks a deployed (or local) Worker from the outside with fixed public
+GETs only — one catalog product, no retired row in any board, the retired-URL fallback, freshness and the
+ranked totals — and writes a snapshot for the status docs. Browser QA also loads an old
 `?product=lavazza-qualita-oro-vacuum-ground` URL and checks that the page shows the Crema e Gusto board
 with a written retired-line notice rather than reviving the retired line. See docs/STATUS.md for the
 latest recorded results.

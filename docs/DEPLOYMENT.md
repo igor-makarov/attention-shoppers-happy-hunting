@@ -71,6 +71,7 @@ npm run verify          # node:test suite + wrangler deploy --dry-run
 npm run check:sources   # live fetch + parse of every tracked vendor page
 npm run cron:offline    # full refresh pipeline against recorded fixtures
 npm run cron:local      # full refresh pipeline against the live vendor pages
+npm run probe:production # read-only GETs against the deployed board (no credentials, no deploy)
 npm run dev             # local Worker with a local SQLite Durable Object
 ```
 
@@ -78,6 +79,13 @@ npm run dev             # local Worker with a local SQLite Durable Object
 time, so it is repeatable and never consumes the live run's backoff window; `cron:local` keeps
 `.shurik-local/board.json` and honours the same six-hour vendor schedule as the deployed cron, with
 `npm run cron:local -- --fresh` as the override for a manual live check.
+
+`npm run probe:production` sends only public GETs to `/health`, `/api/status`, `/api/catalog` and a few
+`/api/board` queries (including an old retired-product URL). It never authenticates, never deploys and
+never sends a credential; it asserts the single-product scope and writes a JSON snapshot under
+`.shurik-local/production/` (or to `--out <path>`), so production state can be re-checked and diffed
+without re-inventing the probe. Pass `--url http://127.0.0.1:8789` to run the same checks against a local
+Worker.
 
 With `npm run dev` running on port 8789, the same commands used during development are:
 
@@ -111,6 +119,19 @@ The real deployment is owner-controlled. The Actions loop has no direct administ
 
 ## Outstanding production checks (owner or later evidence)
 
-1. Confirm the deployed Worker at https://attention-shoppers.igormaka.workers.dev answers `/health` with a non-null `lastRefreshAt` and `/api/catalog` lists exactly one product. (Verified from the coding runner on 2026-10-12 15:51-15:54 UTC by read-only public GETs: see docs/evidence/production-verification-20261012T1554Z.json. A later owner-side deploy is still needed to pick up the 3-61 freshness fallback, which adds `lastObservationAt` to `/health`.)
-2. Confirm a scheduled refresh populated the Durable Object with the five Crema e Gusto offers and that a later main push is picked up by Workers Builds.
+1. Confirm the deployed Worker at https://attention-shoppers.igormaka.workers.dev answers `/health` with a
+   non-null `lastRefreshAt` and `/api/catalog` lists exactly one product. (Verified from the coding runner
+   on 2026-10-12 15:51-15:54 UTC and re-verified with the 3-63 read-only probe at 16:53 UTC: 17/17 scope
+   checks, the persisted 15:52:12.546Z refresh, five observations, freshness ageHours 1.0/stale false; see
+   docs/evidence/production-verification-20261012T1554Z.json and
+   docs/evidence/production-probe-20261012T1653Z.json. The deployed `/health` also carries
+   `lastObservationAt`, so the 3-61 freshness fallback is live.)
+2. Confirm a scheduled refresh populated the Durable Object with the five Crema e Gusto offers and that a
+   later main push is picked up by Workers Builds. (The request-triggered initial refresh and the
+   main-push deploy were verified on 2026-10-12; the scheduled ticks themselves had not fired by 16:53 UTC.
+   Expected sequence for the persisted store: the 18:17 UTC tick records a run with no vendor fetches and
+   does not advance `lastRefreshAt`; the 00:17 UTC tick refreshes all three vendors; the 06:17 UTC tick on
+   2026-10-13 is the first observable effect of the 3-62 phase-lock fix, because it lands seconds before
+   the stored due time and should still refresh and save observations. Re-check with
+   `npm run probe:production` after those ticks.)
 3. Report any Cloudflare error back to the loop; never paste credentials.
