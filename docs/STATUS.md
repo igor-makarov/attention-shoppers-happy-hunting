@@ -5,7 +5,7 @@ there is no variant selector, menu entry, warning, "other variant" count or vari
 UI, and every eligible tracked Crema e Gusto vacuum-packed ground listing — including the Coffee4U listing
 whose blend wording is not stated — is compared in one board for the selected quantity, locality and
 delivery method. The Canton Zürich product index + dedicated product page, the browser-researched shipping
-policies and the progressive-disclosure layout are validated locally (134/134 tests, 80/80 offline and 78/78
+policies and the progressive-disclosure layout are validated locally (136/136 tests, 80/80 offline and 78/78
 live browser checks) and against the deployed site: the four-policy build is live (production probe 24/24
 at 23:12 UTC, live browser QA 78/78 at 23:12 UTC with zero console errors), the Pucks free-above-₪100 rule
 is applied to the old persisted store at read time, and obsolete `variant=` URLs resolve to that one board.
@@ -1495,17 +1495,31 @@ the researched shipping rates and coverage caveats unchanged. The Coffee4U row s
 `variant=unspecified` as raw listing identity only. Evidence:
 `docs/evidence/source-check-20261012T2314Z.json`.
 
-**Verified locally.** `npm run verify` — 134/134 `node:test` cases pass and `wrangler deploy --dry-run`
-builds the bundle (106.99 KiB / gzip 27.11 KiB, bindings `BOARD` + `ASSETS`); `npm run qa:browser`
-(offline fixtures) **80/80**. A fresh-store local `wrangler dev` Worker (23:20 UTC, no browser opened for
-the refresh) completed the initial refresh in **6 bounded requests** and persisted five observations; at
-500 g the one comparison ranks Pucks ₪90, CoffeeMan single ₪91, Coffee4U ₪106, CoffeeMan 4-pack ₪149 and
-CoffeeMan 8-pack ₪260, at 1 kg Pucks wins with free delivery (₪120), the obsolete `variant=unspecified`
-URL returns the identical ranked list and the retired Qualità Oro URL falls back with the written notice.
-Live browser QA against that local Worker passed **78/78** with zero console errors. Evidence:
+**Parse-time staleness fix (same iteration).** While auditing the policy model, one inconsistency was
+found: the read-time evaluator refused an expired policy, but the adapters stamped their policy-derived
+rates at parse time regardless of `reviewBy`, so an overdue Pucks or CoffeeMan 8-pack quote would have
+survived in freshly parsed rows. `policyIsCurrent()` now gates parse-time application too: an expired
+Pucks policy withholds its ₪30/free-above-₪100 rule, and an expired CoffeeMan cart policy withholds the
+8-pack ₪20 quote and the cart-observed ₪15 distribution-center alternative, so those offers fall back to
+explicit unknown shipping (visible, unrankable, never free) until browser research renews the evidence.
+Page-published rates (CoffeeMan's ₪25, Coffee4U's ₪30/₪15) stay because they come from the vendor page,
+not the policy. Two new tests parse the fixtures after the review date and prove the withholding, the
+unrankable board state and the preserved page rate; the same fixtures still rank while the policy is
+current. This changes nothing before the 2026-11-11 review dates, but makes the documented staleness
+model true end-to-end. The fix is committed on main but is not in the currently deployed 3-77 bundle;
+the next main-push Workers Builds deploy carries it, and it only changes behavior after the review date.
+
+**Verified locally.** `npm run verify` — **136/136** `node:test` cases pass (up from 134 with the two
+parse-time expiry tests) and `wrangler deploy --dry-run` builds the bundle (108.53 KiB / gzip 27.46 KiB,
+bindings `BOARD` + `ASSETS`); `npm run qa:browser` (offline fixtures) **80/80**. A fresh-store local
+`wrangler dev` Worker (23:20 UTC, no browser opened for the refresh) completed the initial refresh in
+**6 bounded requests** and persisted five observations; at 500 g the one comparison ranks Pucks ₪90,
+CoffeeMan single ₪91, Coffee4U ₪106, CoffeeMan 4-pack ₪149 and CoffeeMan 8-pack ₪260, at 1 kg Pucks wins
+with free delivery (₪120), the obsolete `variant=unspecified` URL returns the identical ranked list and
+the retired Qualità Oro URL falls back with the written notice. Live browser QA against that local Worker
+passed **78/78** with zero console errors. Evidence:
 `docs/evidence/worker-runtime-status-2026-10-12T2321Z.json`,
-`docs/evidence/browser-qa-live-20261012T2321Z.json`. The only code change after those runs is the probe
-script's two policy checks and documentation.
+`docs/evidence/browser-qa-live-20261012T2321Z.json`.
 
 **Next step:** the **00:17 UTC cron tick on 2026-10-13** should replace the 15:52 production store
 snapshot (vendor due times 19:34/19:46/21:51 have passed; the 18:17 tick skipped under the phase lock).

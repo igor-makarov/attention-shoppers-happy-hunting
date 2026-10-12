@@ -60,7 +60,11 @@ pickup-point alternative and the observed closed-locality-list coverage shape. S
 methods are part of the policy representation: the evaluator adds them only when a stored row has
 none, and they never replace the ranked amount. Each policy is also the adapter's single source for
 the researched values it describes, so the parsed row, the read-time evaluator and the tests share one
-representation instead of separate hard-coded strings.
+representation instead of separate hard-coded strings. The adapters honor the same `reviewBy` gate at
+parse time (`policyIsCurrent()`): once a policy is past its review date, its researched rate and any
+policy-derived alternative are withheld, so a freshly parsed offer falls back to explicit unknown
+shipping rather than carrying a stale quote forward. Page-published rates (CoffeeMan's ₪25 and
+Coffee4U's ₪30/₪15) are parsed from the vendor page and stay independent of the policy window.
 
 `src/refresh.js` is the deterministic scheduled pipeline (leases, bounded concurrency, per-vendor
 backoff, last-known-good retention) and the same function runs in the Worker's `scheduled` handler, the
