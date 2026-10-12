@@ -1,0 +1,68 @@
+{
+  "kind": "layout-review",
+  "topic": "Rendered production layout of the redesigned shopping board (read-only GET, no login or checkout)",
+  "date": "2026-10-12",
+  "observedAt": "2026-10-12T19:02:00Z",
+  "url": "https://attention-shoppers.igormaka.workers.dev/?grams=500&dest=tel-aviv",
+  "method": "Headless Chrome 154 via scripts/browser-research.mjs; read-only page load, viewport measurements and screenshots. No cart, login or personal data.",
+  "toolingLimitation": "The available file-read tool rejects PNG input ('reading images is not supported'), so the screenshots could not be machine-inspected by the model. The review below is based on rendered layout measurements and DOM text; the screenshots are artifacts for a human reviewer.",
+  "desktop1440": {
+    "viewport": [
+      1440,
+      857
+    ],
+    "pageHeight": 3564,
+    "horizontalOverflow": false,
+    "tables": 0,
+    "rankedOfferCards": 2,
+    "bestCardTop": 507,
+    "totalsCellRects": [
+      [
+        140,
+        523,
+        640
+      ],
+      [
+        523,
+        906,
+        640
+      ],
+      [
+        906,
+        1290,
+        640
+      ]
+    ],
+    "note": "The owner-reported defect had a 2289 px comparison table inside a 1325 px container with 'Delivered total' starting at x=1641. The redesigned page has no table; the delivered-total cell ends at x=1290 inside the 1440 px viewport."
+  },
+  "mobile390": {
+    "viewport": [
+      390,
+      701
+    ],
+    "pageHeight": 5733,
+    "horizontalOverflow": false,
+    "totalsCellRects": [
+      [
+        39,
+        190
+      ],
+      [
+        190,
+        340
+      ],
+      [
+        39,
+        340
+      ]
+    ],
+    "pickupRows": 3,
+    "unknownCards": 2,
+    "minQuantityTapHeight": 44,
+    "note": "No horizontal scrolling; the three decision values stack inside the viewport. The three pickup rows are grouped in the pickup-only section instead of being repeated on every offer card. Production currently shows two unknown cards (Pucks and the CoffeeMan 8-pack) because the stored observations predate the researched rates; they will rank after the next per-vendor refresh."
+  },
+  "screenshots": [
+    "production-1440-20261012.png",
+    "production-390-20261012.png"
+  ]
+}

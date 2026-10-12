@@ -1,7 +1,9 @@
 # Project status
 
-Stage: **Crema e Gusto scope enforced; production deployment, refresh and the 3-61 build independently
-verified from the runner by read-only public GETs.**
+Stage: **Crema e Gusto scope enforced; the Canton Zürich shopping board, the browser-researched
+shipping rates and the redesigned UI validated locally (95/95 tests, 81/81 offline and 76/76 live browser
+checks); production serves the redesigned assets and its stored observations pick up the researched rates
+at each vendor's next scheduled refresh.**
 The Worker implements the self-updating board for exactly one product line — **Lavazza Crema e Gusto
 vacuum-packed ground coffee** — with three independent Israeli vendor adapters and five observed
 listings. The owner reports the site deployed at
@@ -807,7 +809,7 @@ any adapter.
 - Keep `npm run check:sources` green against live pages and re-run both `npm run qa:browser` modes after
   any UI change.
 
-## Iteration 3-67 (in progress) — browser shipping quotes and the Canton Zürich UI
+## Iteration 3-67 (completed in 3-68) — browser shipping quotes and the Canton Zürich UI
 
 Browser research (immediate owner task) was completed with the real headless Chrome/ChromeDriver session kept alive by
 `scripts/browser-research.mjs`. Anonymous carts were used only to read public shipping estimators; no order, payment,
@@ -844,7 +846,63 @@ were folded into each offer's conditions, and diagnostics moved into disclosures
 x=906-1276 inside the viewport, best card top at 507 px, no horizontal overflow; at 390 px: no horizontal overflow and the
 page is ~4413 px for five offers (previously ~5491 px).
 
-**Next steps for the next iteration:** update `scripts/browser-qa.mjs` to the redesigned selectors/behavior (it still
-asserts the removed table, Pucks-unknown labels and CoffeeMan ₪91 best), re-run `npm run verify`, both `npm run qa:browser`
-modes and the offline/live cron checks, update `docs/DESIGN.md` and `docs/SOURCES.md` with the new evidence, and record
-the final results here.
+## Iteration 3-68 — quotes re-verified, redesigned board regression-fixed and fully validated
+
+**Immediate owner task (browser shipping quotes): complete and evidenced.** The 3-67 research was re-verified with a
+fresh interactive-browser session on 2026-10-12 18:54-18:56 UTC: the Pucks product page added 2 × 250 g to a temporary
+anonymous cart, the public estimator at `https://pucks.co.il/payment/request` was opened with only Tel Aviv / 6100000 in
+the locality and postcode fields (name, phone, email, street and building were left empty), and the rendered summary read
+`תשלום סכום ביניים 60 ₪ · משלוח 30 ₪ · סך הכל 90 ₪` with the single method `משלוח עד הבית 30 ₪` and
+`משלוח חינם בהזמנה מעל 100 ₪`. Evidence: `docs/evidence/browser-research/2026-10-12-pucks-recheck.json` plus the
+screenshot `pucks-recheck-2packs-20261012T1855Z.png`. The full 3-67 matrix (Pucks 1/2/4 packs and Eilat, CoffeeMan 8-pack
+₪20 courier/₪20 distribution/₪0 pickup, Coffee4U ₪30 courier/₪15 pickup point/₪0 self-pickup) stays in
+`2026-10-12-vendor-shipping-quotes.json`. No order, payment, login, account, street address or bot-challenge bypass was
+involved and no cart/session identifiers were recorded. **Tool limitation:** the available file-read tool rejects PNG
+input ("reading images is not supported"), so screenshots could not be machine-inspected; every amount is backed by the
+rendered DOM text captured in the same session, with screenshots kept for a human reviewer.
+
+**Three real defects in the redesigned board found and fixed:**
+
+- The pickup-only section never rendered: `renderPickupSection` filtered on `shipping.mode === 'pickup'`, but the quote
+  engine's pickup entries keep `mode: 'delivery'` and carry a top-level `pickup` field. It now renders every entry in
+  `board.pickup`.
+- Pickup rows showed the courier rate as "Shipping" (₪25) next to a "Not calculable" delivered total. They now show
+  `Pickup fee: Free` (or the pickup amount) and `Delivered total: Not applicable — pickup only`.
+- Ranked offers with a confirmed locality-restricted delivery area lost the old "Delivery area" condition in the
+  redesign. Restored with locality labels (`Delivery area: only Tel Aviv–Yafo, Eilat`).
+
+**`scripts/browser-qa.mjs` rewritten for the offer-card DOM** (the removed `table.compare`, `.best__vendor` and
+`.best__total` selectors are gone). It now checks the best card's three decision values in one visible row, pack/quantity
+labels (multipacks never read as a single 250 g pack), per-offer conditions and coverage caveats, `+₪ vs best` deltas, the
+per-kilogram callout with its real multipack contents, variant separation and the unstated-variant card, retired-line
+fallback, quantity/destination/keyboard/mobile behavior, pickup grouping, unknown-shipping text, terms/locality
+restriction, interrupted refresh and failed attempts. A QA-only no-rate fixture (`withUnknownDemo`) keeps the
+"Shipping not published / never counted as free" path browser-tested now that all three vendors carry rates, and a new
+rendered-contrast walker asserts WCAG AA (no violations) with the focus outline in the official Blau `rgb(0, 112, 180)`.
+
+**Verification runs (2026-10-12 UTC):**
+
+- `npm run verify` — 95/95 tests and the `wrangler deploy --dry-run` bundle pass (the fresh workspace needed `npm ci`
+  for the pinned wrangler 4.149.0).
+- `npm run qa:browser` (offline fixtures) — **81/81** checks.
+- `node scripts/browser-qa.mjs http://127.0.0.1:8789` against `wrangler dev` with live vendor data — **76/76** checks;
+  the local scheduled trigger refreshed all three vendors (five observations).
+- `npm run cron:offline` — full fixture pipeline OK; `npm run cron:local` — live vendors + Bank of Israel wrote five
+  observations (Pucks ₪30, CoffeeMan ₪33/₪124/₪240, Coffee4U ₪38; USD 3.078 from the 2026-10-12 BOI table), and the
+  immediate re-run skipped all three vendors with 0 requests under the six-hour backoff.
+- `npm run probe:production` (read-only) — all checks pass; catalog exposes exactly the tracked product.
+- Production read-only GETs: `/app.js` serves the redesigned code (`totals__cell`), `/fonts/InterVariable.woff2` answers
+  200, and the hero has no trailing period. The production store still holds pre-research observations, so Pucks and the
+  CoffeeMan 8-pack appear as unknown there until each vendor's next refresh (probe due times: pucks 19:34, coffee4u
+  19:46, coffeeman 21:51 UTC). This iteration does **not** claim the researched rates are live yet.
+- Production layout measured read-only: 1440 px — no table, no horizontal overflow, delivered-total cell at x=906-1290
+  (the owner-reported defect had it starting at x=1641); 390 px — no horizontal overflow, 44 px quantity taps, pickup rows
+  grouped. Metrics and screenshots: `docs/evidence/visual-review/2026-10-12-production-layout.json`.
+
+**Docs:** `docs/DESIGN.md` rewritten to the Canton Zürich direction (tokens/roles, Inter + features, layout and offer-card
+components, uncertainty semantics, measured contrast and keyboard/layout validation); `docs/SOURCES.md` now carries the
+browser-researched shipping matrix and corrected Pucks / CoffeeMan-8-pack shipping certainty.
+
+**Next steps:** (a) re-run `npm run probe:production` after the per-vendor due times to confirm the researched rates reach
+production; (b) keep `npm run verify` and both `npm run qa:browser` modes green after any UI change; (c) further work stays
+within Crema e Gusto vendor coverage, shipping evidence, freshness and comparison quality.

@@ -1,12 +1,82 @@
-# Swiss signage design
+# Canton Zürich design system (web-application patterns)
 
-The earlier detailed design discussion was not recoverable from the available chat history. This brief records the explicit direction and subsequent owner corrections for this project.
+Owner direction, 2026-10-12. This supersedes the earlier generic Swiss transport-signage brief. The
+shopping board adapts the **Canton Zürich design system** for a compact web service: flat surfaces,
+strict alignment, a responsive grid, a clear type hierarchy and concise disclosures. The product
+identity stays our own; there is no cantonal crest, government wordmark or implied affiliation.
 
-- Use Swiss transport signage as the visual reference: strict alignment, modular grids, numbered sections, clear hierarchy, flat surfaces and strong rules between comparison rows.
-- Helvetica/Arial or an equivalent neutral grotesque. Large, tightly composed headings; tabular numerals for ILS totals; comfortable text sizes for conditions and timestamps. Use local/system fonts initially.
-- Paper/white backgrounds and near-black type form the neutral structure. Color never decorates an arbitrary heading or vendor.
-- Green means verified in-stock availability. Red means out of stock/unavailable. Amber/yellow means pending, uncertain or stale. Always write the status as text; color alone is insufficient. “Best delivered total” should be stated explicitly without a second ambiguous green meaning.
-- No emoji in typography. Arrows and wayfinding marks must be monochrome SVG or unambiguous text glyphs that cannot render as colorful emoji. No flags, shopping-cart emoji, coffee emoji or emoji badges.
-- Clear rows with consistent columns: vendor, pack/quantity, item price, shipping, delivered total, stock and checked time. At narrow widths reflow each row while preserving the same hierarchy; do not hide shipping conditions.
-- Buttons and links require visible keyboard focus. Aim for WCAG AA contrast. Support RTL fragments and Hebrew vendor/product text with correct directionality.
-- Prefer factual shopping copy. Distinguish checked data, inferred estimates, stale observations and unknowns. Avoid fake success counters and invented prices.
+Primary references read before implementation:
+
+- Design system overview — https://www.zh.ch/de/webangebote-entwickeln-und-gestalten.html
+- Colors — https://www.zh.ch/de/webangebote-entwickeln-und-gestalten/inhalt/designsystem/design-grundlagen/farben.html
+- Typography — https://www.zh.ch/de/webangebote-entwickeln-und-gestalten/inhalt/designsystem/design-grundlagen/typografie.html
+- Layout and grid — https://www.zh.ch/de/webangebote-entwickeln-und-gestalten/inhalt/designsystem/design-grundlagen/layout-und-raster.html
+
+## Tokens and roles
+
+| Token | Value | Role |
+| --- | --- | --- |
+| Blau | `#0070B4` | Selected shopping context, the clearly labelled best known delivered offer, links and the focus outline. Used sparingly; vendor names are never painted arbitrary colors. |
+| Softblau | `#EDF5FA` | Panel/background for the selected context and the best-offer rule. |
+| Black | `#000000` | Primary text and neutral structure. |
+| Secondary text | `#666666` | Notes, meta and secondary labels. |
+| Surface | `#F7F7F7` | Subtle section surfaces. |
+| Divider | `#CCCCCC` | Rules and cell borders. |
+| Green | `#1A7F1F` on `#EBF6EB` | Verified in-stock labels only, always with the written status. |
+| Red | `#D93C1A` on white | Unavailable/error labels only. |
+| Amber | `#8A4B00` on `#FFF4E5` | Unknown shipping, unconfirmed coverage and stale evidence. This is a deliberate shopping-specific extension, **not** an official Canton Zürich token; it preserves the owner's uncertainty semantics. |
+| Cyan | `#009EE0` | Non-text active indicator only (3.01:1 on white, so it is never used for small text). |
+| Focus | `#0070B4` | 3 px outline on every focusable control (5.28:1 on white, 4.79:1 on Softblau). |
+
+Meaning is never carried by color alone: every status keeps a written label (`In stock (observed)`,
+`Shipping not published`, `Published rate (verified)`, `Coverage: …`) and the selected state is distinct.
+
+## Typography
+
+- **Inter**, explicitly supported by the official web-app typography guidance, self-hosted at
+  `public/fonts/InterVariable.woff2` under the SIL Open Font License (`public/fonts/Inter-OFL.txt`),
+  with a neutral system fallback (`system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif`).
+- Recommended font features `ss07`, `ss08`, `cv03`, `cv04`, `cv10` are enabled globally; prices and
+  per-kilogram values use tabular numerals (`.num`).
+- Headings are left aligned and compact. The hero reads **"Attention shoppers"** with no trailing
+  period and does not push the offers below the first screen (best card top ≈507 px at 1440×857).
+- No emoji in the typography. Wayfinding uses plain text and monochrome glyphs; Hebrew vendor/product
+  text is wrapped in isolated `dir="auto" lang="he"` spans.
+
+## Layout and components
+
+- A single centered column (max 1240 px) with a responsive control grid that reflows to one column on
+  mobile. No horizontal page scrolling at 1440 px or 390 px.
+- **Offer cards** replace the former wide comparison table. The best known delivered offer carries a
+  blue rule, the written tag "Best known delivered total" and its selection context; other ranked
+  offers state their difference (`+₪x vs best delivered total`).
+- Each card keeps the decision values together in one `.totals` row: **item subtotal**, **shipping
+  charge and service** (with the written certainty label) and the **delivered total** plus per-kilogram
+  normalization. On mobile the three cells stack but remain in the same card, inside the viewport.
+- Conditions are one short list per offer (free-shipping threshold, minimum order, delivery area,
+  alternative services, self-pickup, delivery time, cart-size limit). A coverage caveat is written once
+  on its card; pickup-only offers live in their own section and never compete in the delivered ranking.
+- Debug/provenance metadata (previous checks, failed attempts, shipping evidence, FX, per-vendor
+  refresh state, next source check) lives behind `Check history and evidence` / `Refresh diagnostics`
+  disclosures instead of the first screen.
+- Unknown shipping says **"Shipping not published"** with the exact reason and is never shown as zero;
+  a published rate with unconfirmed destination coverage is labelled as such, not as a guaranteed
+  checkout total.
+
+## Validation (2026-10-12)
+
+- Token contrast (computed): black/white 21.0:1, secondary/white 5.74:1, secondary/surface 5.36:1,
+  Blau/white 5.28:1, white/Blau 5.28:1, Blau/Softblau 4.79:1, amber/amber-soft 6.26:1,
+  green/green-soft 4.61:1, red/white 4.55:1, cyan/white 3.01:1 (non-text only).
+- Rendered contrast: `scripts/browser-qa.mjs` walks visible text in the offer cards, controls, hero,
+  footer, pickup and unknown sections and compares the computed text color with the effective
+  background; the check passes with no violations (81/81 offline checks).
+- Keyboard: Tab reaches the quantity controls, the focus outline is 3 px `rgb(0, 112, 180)` and Enter
+  activates the focused quantity; the total recalculates. Skip link and `main` landmark are present.
+- Layout: production (read-only GET) at 1440 px has no table, no horizontal overflow and the delivered
+  total cell ends at x=1290; at 390 px there is no horizontal overflow, quantity buttons keep a 44 px
+  tap target and pickup rows are grouped. Measurements and screenshots:
+  `docs/evidence/visual-review/2026-10-12-production-layout.json`.
+- The available file-read tool rejects PNG input, so screenshots were not machine-inspected by the
+  model; the visual review above is based on rendered layout/DOM measurements, with screenshots kept
+  as artifacts for a human reviewer.
