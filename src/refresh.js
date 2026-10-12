@@ -203,6 +203,17 @@ async function refreshVendor({ store, vendor, state, fetchImpl, now, counter, lo
   const attemptedAt = new Date(now).toISOString();
   let saved = 0;
   const failures = [];
+  // A failed fetch has no freshly parsed key, so stamp the failure on the offer's
+  // last successful observation row when one exists. The row keeps its observedAt,
+  // price and stock, while `attemptedAt`/`lastError` describe the most recent check
+  // attempt — including a failed one — instead of leaving a detached marker that no
+  // board row can show. Offers that never succeeded keep the marker key.
+  const attemptKeyFor = offer => {
+    const existing = previousByKey
+      ? [...previousByKey.values()].find(row => row?.observedAt && row?.itemUrl === offer?.url)
+      : null;
+    return existing?.key ?? `${vendor.id}:offer:${offer?.id ?? 'unknown'}`;
+  };
   try {
     const outcome = await vendor.observe({ fetchText, now, logger });
     for (const observation of outcome.observations ?? []) {
@@ -225,8 +236,9 @@ async function refreshVendor({ store, vendor, state, fetchImpl, now, counter, lo
     }
     for (const failure of outcome.failures ?? []) {
       failures.push(failure);
+      const offer = (vendor.offers ?? []).find(candidate => candidate.id === failure.offerId);
       await store.markAttempt({
-        key: `${vendor.id}:offer:${failure.offerId}`,
+        key: attemptKeyFor(offer),
         attemptedAt,
         error: failure.error
       });
@@ -234,7 +246,7 @@ async function refreshVendor({ store, vendor, state, fetchImpl, now, counter, lo
   } catch (error) {
     failures.push({ offerId: '*', error: error?.message ?? String(error) });
     for (const offer of vendor.offers ?? []) {
-      await store.markAttempt({ key: `${vendor.id}:offer:${offer.id}`, attemptedAt, error: error?.message ?? String(error) });
+      await store.markAttempt({ key: attemptKeyFor(offer), attemptedAt, error: error?.message ?? String(error) });
     }
   }
   const ok = saved > 0;

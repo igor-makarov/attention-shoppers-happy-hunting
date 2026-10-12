@@ -43,6 +43,12 @@ function money(amount) {
   return amount == null ? null : ILS.format(amount).replace('₪', '₪');
 }
 
+/** Short single-line failure reason for the offer rows; never a raw payload. */
+function truncate(text, max = 120) {
+  const value = String(text ?? '').replace(/\s+/g, ' ').trim();
+  return value.length > max ? `${value.slice(0, max - 1)}…` : value;
+}
+
 const HEBREW = /[\u0590-\u05FF]/;
 
 /**
@@ -338,6 +344,7 @@ function renderRankedSection(board) {
   ];
   if (best.shipping.minOrder != null) rows.push(['Minimum order', `${money(best.shipping.minOrder)} ${best.shipping.minOrderCurrency ?? ''}`.trim()]);
   if (best.shipping.freeThreshold != null) rows.push(['Free shipping', `from ${money(best.shipping.freeThreshold)} ${best.shipping.freeThresholdCurrency ?? ''}`.trim()]);
+  if (best.lastAttemptFailed) rows.push(['Last attempt', `Failed ${timeLabel(best.attemptedAt)} — showing the last successful observation${best.lastError ? ` (${truncate(best.lastError)})` : ''}`]);
   const bestChange = priceChangeText(best);
   if (bestChange) rows.push(['Price change', bestChange]);
   const bestStockChange = stockChangeText(best);
@@ -415,7 +422,8 @@ function renderCompareTable(quotes, board) {
         ? el('div', { class: 'unknown__meta', text: 'Cheapest per kilogram' })
         : null));
     row.append(el('td', {}, statusBadge(quote.availability, quote.availabilityLabel)));
-    row.append(el('td', { class: 'num', text: timeLabel(quote.observedAt) }));
+    row.append(el('td', { class: 'num', text: timeLabel(quote.observedAt) },
+      quote.lastAttemptFailed ? el('div', { class: 'unknown__meta', text: `Last attempt failed ${timeLabel(quote.attemptedAt)}` }) : null));
     body.append(row);
   }
   table.append(body);
@@ -473,7 +481,7 @@ function renderUnknownSection(board) {
           el('span', { text: `Shipping: ${shipped}` }),
           ...(quote.shipping.alternatives ?? []).map(alternative => el('span', { text: `${alternative.label}: ${alternative.amountIls != null ? money(alternative.amountIls) : 'unknown'}` })),
           el('span', { text: `Last successful check: ${timeLabel(quote.observedAt)}` }),
-          el('span', { text: `Last attempt: ${timeLabel(quote.attemptedAt)}` }),
+          el('span', { text: `Last attempt: ${timeLabel(quote.attemptedAt)}${quote.lastError ? ` — failed: ${truncate(quote.lastError)}` : ''}` }),
           priceChangeText(quote) ? el('span', { text: priceChangeText(quote) }) : null,
           stockChangeText(quote) ? el('span', { text: stockChangeText(quote) }) : null),
         quote.shipping.coverageCaveat ? el('p', { class: 'unknown__meta', text: `Delivery coverage: ${quote.shipping.coverageCaveat}` }) : null,

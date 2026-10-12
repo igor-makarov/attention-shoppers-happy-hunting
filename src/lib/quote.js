@@ -157,6 +157,11 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
     ageHours: ageMs == null ? null : Math.round((ageMs / 3_600_000) * 10) / 10,
     observedAt: observation.observedAt ?? null,
     attemptedAt: observation.attemptedAt ?? null,
+    // A failed last attempt keeps the previous good price and stock, but the
+    // board must be able to say that the most recent check failed instead of
+    // presenting the row as freshly re-checked.
+    lastError: observation.lastError ?? null,
+    lastAttemptFailed: Boolean(observation.lastError),
     evidence: observation.evidence ?? [],
     previous: summarizePrevious(observation.previous),
     priceChange: priceChangeOf({ current: price, previous: observation.previous, product, fx }),
