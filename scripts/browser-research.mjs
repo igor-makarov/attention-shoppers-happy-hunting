@@ -385,13 +385,32 @@ function createResearchDriver(session) {
     const element = await wdValue(session, 'POST', '/element', { using: 'css selector', value: css });
     return element['element-6066-11e4-a52e-4f735466cecf'];
   };
+  /** Mark the best matching node, click it and clear the marker. */
+  const clickBest = async (script, args) => {
+    const matched = await evalIn(script, args);
+    if (!matched) return null;
+    const id = await findElement('[data-research-click="1"]');
+    await wdValue(session, 'POST', `/element/${id}/click`, {});
+    await evalIn(`document.querySelector('[data-research-click="1"]')?.removeAttribute('data-research-click');`);
+    await delay(1200);
+    return matched;
+  };
   return {
     async goto(url) {
       await wd(session, 'POST', '/url', { url });
       await delay(1500);
+      return 'navigated';
+    },
+    /** Navigate only when the page does not already show the expected text. */
+    async gotoUnlessText(url, text) {
+      const present = await evalIn(`return (document.body?.innerText ?? '').toLowerCase().includes(String(arguments[0]).toLowerCase())`, [text]);
+      if (present) return 'skipped';
+      await wd(session, 'POST', '/url', { url });
+      await delay(1500);
+      return 'navigated';
     },
     async clickText(text) {
-      const matched = await evalIn(`return (() => {
+      const matched = await clickBest(`return (() => {
         const needle = String(arguments[0]).toLowerCase();
         const candidates = [...document.querySelectorAll('a, button, input[type=submit], input[type=button], [role=button], label')];
         const score = node => {
@@ -409,10 +428,49 @@ function createResearchDriver(session) {
         return (best.node.innerText ?? best.node.value ?? '').slice(0, 120);
       })()`, [text]);
       if (!matched) throw new Error(`no clickable element matched ${JSON.stringify(text)}`);
-      const id = await findElement('[data-research-click="1"]');
-      await wdValue(session, 'POST', `/element/${id}/click`, {});
-      await evalIn(`document.querySelector('[data-research-click="1"]')?.removeAttribute('data-research-click');`);
-      await delay(1200);
+      return matched;
+    },
+    /**
+     * Click the first clickable whose visible text matches one of `texts`.
+     * Returns the matched label; throws when none matches so the runner records
+     * the exact blocker instead of assuming a method was selected.
+     */
+    async clickAnyText(texts) {
+      const matched = await clickBest(`return (() => {
+        const needles = (arguments[0] ?? []).map(value => String(value).toLowerCase());
+        const candidates = [...document.querySelectorAll('a, button, input[type=submit], input[type=button], [role=button], label, [class*="method" i], [class*="delivery" i]')];
+        const score = node => {
+          const value = (node.innerText ?? node.value ?? '').replace(/\\s+/g, ' ').trim().toLowerCase();
+          if (!value) return -1;
+          let best = -1;
+          for (const needle of needles) {
+            if (value === needle) best = Math.max(best, 100);
+            else if (value.includes(needle)) best = Math.max(best, 50 - Math.min(20, value.length - needle.length));
+          }
+          return best;
+        };
+        const best = candidates.map(node => ({ node, score: score(node) })).filter(c => c.score >= 0)
+          .sort((a, b) => b.score - a.score)[0];
+        if (!best) return null;
+        best.node.setAttribute('data-research-click', '1');
+        best.node.scrollIntoView({ block: 'center', inline: 'center' });
+        return (best.node.innerText ?? best.node.value ?? '').replace(/\\s+/g, ' ').trim().slice(0, 120);
+      })()`, [texts]);
+      if (!matched) throw new Error(`no clickable element matched any of ${JSON.stringify(texts)}`);
+      return matched;
+    },
+    /** Click the first matching CSS selector; returns the selector that worked. */
+    async clickSelector(selectors) {
+      for (const selector of selectors ?? []) {
+        if (!selector) continue;
+        const exists = await evalIn(`return !!document.querySelector(arguments[0])`, [selector]);
+        if (!exists) continue;
+        const id = await findElement(selector);
+        await wdValue(session, 'POST', `/element/${id}/click`, {});
+        await delay(1200);
+        return selector;
+      }
+      throw new Error(`no element matched any of ${JSON.stringify(selectors)}`);
     },
     async selectLabel(selector, label) {
       const out = await evalIn(`return (() => {
@@ -438,39 +496,61 @@ function createResearchDriver(session) {
       await delay(500);
     },
     /**
-     * Set a whole-pack quantity in the cart and return how many packs the cart
-     * now shows. Throws when no quantity control is found, so the caller records
-     * a blocker instead of assuming a cart size.
+     * Set a whole-pack quantity in the cart and return how many packs the page
+     * now shows. Handles a classic quantity input and the vendor's stepper
+     * markup (value span + increase/decrease buttons, used by Pucks on both the
+     * product page and the estimator). Throws when no quantity control is found,
+     * so the caller records a blocker instead of assuming a cart size.
      */
     async setQuantity(grams, packGrams) {
-      const out = await evalIn(`return (() => {
-        const grams = Number(arguments[0]);
-        const packGrams = Number(arguments[1]) || 250;
-        const selectors = ['input[name*="qty" i]', 'input[name*="quantity" i]', 'input[id*="qty" i]', 'input[class*="qty" i]'];
-        let input = null;
-        for (const selector of selectors) { input = document.querySelector(selector); if (input) break; }
-        if (!input) return { ok: false, reason: 'no quantity input found' };
-        const current = Number(String(input.value).replace(/[^\\d.]/g, '')) || 1;
-        const packs = Math.max(1, Math.ceil(grams / packGrams));
-        const step = packs - current;
-        if (step !== 0) {
-          const plus = document.querySelector('[class*="plus" i], [aria-label*="+"], button[data-action="increase"]');
-          const minus = document.querySelector('[class*="minus" i], [aria-label*="-"], button[data-action="decrease"]');
-          const button = step > 0 ? plus : minus;
-          if (button) {
-            for (let i = 0; i < Math.abs(step); i += 1) button.click();
-          } else {
-            input.value = String(packs);
+      const target = Math.max(1, Math.ceil(Number(grams) / (Number(packGrams) || 250)));
+      const quantityScript = `return (() => {
+        const apply = arguments[0] === true;
+        const target = Number(arguments[1]) || 1;
+        const readNumber = node => {
+          if (!node) return null;
+          const raw = node.value != null && String(node.value).trim() !== '' ? node.value : (node.innerText ?? node.textContent ?? '');
+          const n = Number(String(raw).replace(/[^\\d]/g, ''));
+          return Number.isFinite(n) && n > 0 ? n : null;
+        };
+        const visible = node => node.getClientRects().length > 0;
+        for (const selector of ['input[name*="qty" i]', 'input[name*="quantity" i]', 'input[id*="qty" i]', 'input[class*="qty" i]']) {
+          const input = [...document.querySelectorAll(selector)].find(visible);
+          if (!input) continue;
+          const before = readNumber(input) ?? 1;
+          if (apply && before !== target) {
+            input.value = String(target);
             input.dispatchEvent(new Event('input', { bubbles: true }));
             input.dispatchEvent(new Event('change', { bubbles: true }));
           }
+          return { ok: true, kind: 'input', before, target, after: readNumber(input) ?? target };
         }
-        const after = Number(String(input.value).replace(/[^\\d.]/g, '')) || packs;
-        return { ok: true, packs: after, requestedPacks: packs };
-      })()`, [grams, packGrams]);
-      if (!out?.ok) throw new Error(out?.reason ?? 'quantity not set');
+        const containers = [...document.querySelectorAll('[class*="qty" i], [class*="quantity" i], [class*="stepper" i]')].filter(visible);
+        for (const container of containers) {
+          const valueNode = [...container.querySelectorAll('input, [class*="val" i], [class*="value" i], [class*="count" i], [class*="num" i], span')].find(node => readNumber(node) != null);
+          const before = readNumber(valueNode);
+          if (before == null) continue;
+          const buttons = [...container.querySelectorAll('button, [role=button], a')].filter(visible);
+          const plus = buttons.find(b => /הגדל|increase|plus|add/i.test((b.getAttribute('aria-label') ?? '') + ' ' + (b.className ?? '')));
+          const minus = buttons.find(b => /הקטן|decrease|minus|reduce/i.test((b.getAttribute('aria-label') ?? '') + ' ' + (b.className ?? '')));
+          if (!plus && !minus) continue;
+          const delta = target - before;
+          if (apply && delta !== 0) {
+            const button = delta > 0 ? plus : minus;
+            if (!button) return { ok: false, reason: `quantity control has no ${delta > 0 ? 'increase' : 'decrease'} button` };
+            for (let i = 0; i < Math.min(Math.abs(delta), 20); i += 1) button.click();
+          }
+          return { ok: true, kind: 'stepper', before, target, after: readNumber(valueNode) ?? before };
+        }
+        return { ok: false, reason: 'no quantity input or stepper found' };
+      })()`;
+      const applied = await evalIn(quantityScript, [true, target]);
+      if (!applied?.ok) throw new Error(applied?.reason ?? 'quantity not set');
       await delay(1200);
-      return out.packs;
+      const verified = await evalIn(quantityScript, [false, target]);
+      const packs = verified?.ok ? verified.after : applied.after;
+      if (!Number.isFinite(packs)) throw new Error('quantity could not be verified after setting it');
+      return packs;
     },
     async waitText(text, timeoutMs) {
       const deadline = Date.now() + timeoutMs;

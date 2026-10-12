@@ -182,6 +182,24 @@ test('free-shipping threshold and minimum order are calculated, not guessed', ()
   assert.match(board.unrankable[0].reasons.join(' '), /minimum order/);
 });
 
+test('a recorded "above" threshold wording excludes the boundary itself', () => {
+  const above = observation({
+    key: 'above:1',
+    price: { amount: 50 },
+    shipping: { certainty: 'verified', amount: { amount: 20, currency: 'ILS' }, freeThreshold: { amount: 100, currency: 'ILS' }, freeThresholdSemantics: 'above' }
+  });
+  const exact = quoteOffer(above, { grams: 500, destination: findDestination('tel-aviv'), now: NOW, staleAfterMs: 1e12 });
+  assert.equal(exact.itemTotalIls, 100);
+  assert.equal(exact.shipping.freeThresholdSemantics, 'above');
+  assert.equal(exact.shipping.amountIls, 20, 'exactly ₪100 is not "above ₪100"');
+  assert.equal(exact.totalIls, 120);
+
+  const over = quoteOffer(above, { grams: 750, destination: findDestination('tel-aviv'), now: NOW, staleAfterMs: 1e12 });
+  assert.equal(over.itemTotalIls, 150);
+  assert.equal(over.shipping.amountIls, 0);
+  assert.match(over.labels.join(' '), /Free shipping threshold met \(above ₪100\.00\)/);
+});
+
 test('a checkout rate observed on a smaller cart never stretches to a larger one', () => {
   const quoted = observation({
     key: 'quoted:8pack',

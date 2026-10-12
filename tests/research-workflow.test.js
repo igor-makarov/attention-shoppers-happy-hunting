@@ -54,9 +54,12 @@ test('recipes cover the three tracked vendors with whole-pack cart steps', () =>
 test('recipe placeholders expand to the run parameters', () => {
   const steps = expandSteps(RECIPES.pucks, { productUrl: 'https://example.test/p', cartUrl: 'https://example.test/c', grams: 500, locality: 'תל אביב', postcode: '6100000' });
   assert.equal(steps[0].url, 'https://example.test/p');
-  assert.equal(steps[4].url, 'https://example.test/c');
+  assert.equal(steps.find(step => step.action === 'gotoUnlessText').url, 'https://example.test/c');
   assert.equal(steps.find(step => step.action === 'selectLabel').label, 'תל אביב');
   assert.equal(steps.find(step => step.action === 'fill').value, '6100000');
+  const method = steps.find(step => step.action === 'clickAnyText');
+  assert.deepEqual(method.texts, ['משלוח עד הבית'], 'the recipe selects the actual delivery method');
+  assert.equal(method.optional, false, 'a quote without a chosen method would not show the fee, so the step is required');
 });
 
 test('Pucks totals parse the subtotal, flat fee and total, and recognize free shipping', () => {
@@ -141,7 +144,10 @@ test('runRecipe records every step and stops at the first required blocker', asy
   const calls = [];
   const driver = {
     goto: async url => { calls.push(['goto', url]); },
+    gotoUnlessText: async url => { calls.push(['gotoUnlessText', url]); return 'navigated'; },
     clickText: async text => { calls.push(['clickText', text]); throw new Error('not found'); },
+    clickAnyText: async texts => { calls.push(['clickAnyText', texts]); return 'משלוח עד הבית 30 ₪'; },
+    clickSelector: async () => { calls.push(['clickSelector']); throw new Error('no element matched'); },
     selectLabel: async () => { calls.push(['selectLabel']); },
     fill: async () => { calls.push(['fill']); },
     setQuantity: async () => { calls.push(['setQuantity']); throw new Error('no quantity input found'); },
@@ -151,19 +157,48 @@ test('runRecipe records every step and stops at the first required blocker', asy
     currentUrl: async () => 'https://pucks.co.il/payment/request'
   };
   const record = await runRecipe({ recipe: RECIPES.pucks, driver, params: { grams: 500, locality: 'תל אביב' }, now: Date.parse('2026-10-12T18:09:20Z') });
-  // The first two clickText steps are optional, so the run reaches the cart and reads the totals.
+  // The two clickText steps and the cart-link click are optional, so the run
+  // reaches the estimator and reads the totals after selecting home delivery.
   assert.equal(record.status, 'partial', 'a read quote without a verified cart quantity is partial, not quoted');
   assert.match(record.qualification, /quantity was not verified/);
   assert.ok(record.steps.some(step => step.step === 'clickText' && step.ok === false && step.optional === true));
+  const methodStep = record.steps.find(step => step.step === 'clickAnyText');
+  assert.equal(methodStep.ok, true);
+  assert.match(methodStep.detail, /clicked: משלוח עד הבית/, 'the evidence records the method that was selected');
   assert.equal(record.itemSubtotalIls, 60);
   assert.equal(record.shippingIls, 30);
+  assert.equal(validateEvidence(record).ok, true);
+});
+
+test('a run blocks when the required delivery method cannot be selected', async () => {
+  const driver = {
+    goto: async () => {},
+    gotoUnlessText: async () => 'navigated',
+    clickText: async () => {},
+    clickAnyText: async () => { throw new Error('no clickable element matched any of ["משלוח עד הבית"]'); },
+    clickSelector: async () => 'a.slide_cart__btn-checkout',
+    selectLabel: async () => {},
+    fill: async () => {},
+    setQuantity: async () => 2,
+    waitText: async () => true,
+    sleep: async () => {},
+    getText: async () => PUCKS_500G,
+    currentUrl: async () => 'https://pucks.co.il/payment/request'
+  };
+  const record = await runRecipe({ recipe: RECIPES.pucks, driver, params: { grams: 500, locality: 'תל אביב' } });
+  assert.equal(record.status, 'blocked');
+  assert.match(record.blocker, /clickAnyText/);
+  assert.equal(record.observedPacks, 2);
   assert.equal(validateEvidence(record).ok, true);
 });
 
 test('runRecipe marks a hard failure as blocked with the exact step', async () => {
   const driver = {
     goto: async () => { throw new Error('navigation timeout'); },
+    gotoUnlessText: async () => 'navigated',
     clickText: async () => {},
+    clickAnyText: async () => 'משלוח עד הבית',
+    clickSelector: async () => 'a.slide_cart__btn-checkout',
     selectLabel: async () => {},
     fill: async () => {},
     setQuantity: async () => 1,

@@ -41,11 +41,17 @@ export const RECIPES = {
       { action: 'waitText', text: 'crema', timeout: 20000 },
       { action: 'clickText', text: 'הוסף לעגלה', optional: true },
       { action: 'clickText', text: 'הוספה לסל', optional: true },
-      { action: 'goto', url: '{cartUrl}' },
-      { action: 'waitText', text: 'סיכום', timeout: 20000, optional: true },
+      // The estimator keeps the anonymous cart only when it is reached through
+      // the cart widget's checkout link; direct navigation loses the cart.
+      { action: 'clickSelector', selectors: ['a.slide_cart__btn-checkout', 'a[href*="payment/request"]'], optional: true },
+      { action: 'gotoUnlessText', url: '{cartUrl}', text: 'סכום ביניים', optional: true },
+      { action: 'waitText', text: 'סכום ביניים', timeout: 20000, optional: true },
       { action: 'setQuantity', target: '{grams}', optional: true },
       { action: 'selectLabel', selector: 'select', label: '{locality}', optional: true },
       { action: 'fill', selector: 'input[name*="zip" i], input[name*="postal" i], input[id*="zip" i], input[id*="postal" i]', value: '{postcode}', optional: true },
+      // The ₪30 home-delivery fee reaches the summary only after the delivery
+      // card is selected, so the recipe must choose the actual method.
+      { action: 'clickAnyText', texts: ['משלוח עד הבית'], optional: false },
       { action: 'sleep', ms: 1500 },
       { action: 'readTotals' }
     ]
@@ -64,10 +70,13 @@ export const RECIPES = {
       { action: 'waitText', text: 'crema', timeout: 20000 },
       { action: 'clickText', text: 'הוסף לעגלה', optional: true },
       { action: 'clickText', text: 'הוספה לסל', optional: true },
-      { action: 'goto', url: '{cartUrl}' },
+      { action: 'goto', url: '{cartUrl}', optional: true },
       { action: 'waitText', text: 'סה"כ', timeout: 20000, optional: true },
       { action: 'setQuantity', target: '{grams}', optional: true },
       { action: 'selectLabel', selector: 'select', label: '{locality}', optional: true },
+      // Select the published home-courier method when the picker offers it, so
+      // the summary reflects a chosen method rather than a pre-selection.
+      { action: 'clickAnyText', texts: ['משלוח לבית הלקוח עם שליח'], optional: true },
       { action: 'sleep', ms: 1500 },
       { action: 'readTotals' }
     ]
@@ -86,10 +95,13 @@ export const RECIPES = {
       { action: 'waitText', text: 'crema', timeout: 20000 },
       { action: 'clickText', text: 'הוסף לעגלה', optional: true },
       { action: 'clickText', text: 'הוספה לסל', optional: true },
-      { action: 'goto', url: '{cartUrl}' },
+      { action: 'goto', url: '{cartUrl}', optional: true },
       { action: 'waitText', text: 'סל', timeout: 20000, optional: true },
       { action: 'setQuantity', target: '{grams}', optional: true },
       { action: 'selectLabel', selector: 'select', label: '{locality}', optional: true },
+      // Choose the door-to-door method when it is offered; the pickup-point and
+      // self-pickup alternatives are recorded separately from the ranked rate.
+      { action: 'clickAnyText', texts: ['משלוח עד הבית'], optional: true },
       { action: 'sleep', ms: 1500 },
       { action: 'readTotals' }
     ]
@@ -267,7 +279,7 @@ export function buildEvidenceRecord({
     qualification: totals.qualification ?? null,
     blocker: blocker ? sanitizeExcerpt(blocker, 300) : null,
     excerpt: totals.excerpt ? sanitizeExcerpt(totals.excerpt) : null,
-    steps: steps.map(step => ({ step: step.step, ok: step.ok, optional: Boolean(step.optional), error: step.error ? sanitizeExcerpt(step.error, 200) : null })),
+    steps: steps.map(step => ({ step: step.step, ok: step.ok, optional: Boolean(step.optional), error: step.error ? sanitizeExcerpt(step.error, 200) : null, detail: step.detail ? sanitizeExcerpt(step.detail, 120) : null })),
     observedAt: new Date(now).toISOString(),
     note: 'Anonymous cart quote recorded by interactive browser research. No order, payment, login, account or street address was involved. Cart/session identifiers are stripped from this record.'
   };
@@ -306,7 +318,10 @@ export function validateEvidence(record) {
  */
 export const DRIVER_INTERFACE = [
   'goto(url)',
+  'gotoUnlessText(url, text)',
   'clickText(text)',
+  'clickAnyText(texts)',
+  'clickSelector(selectors)',
   'selectLabel(selector, label)',
   'fill(selector, value)',
   'setQuantity(grams)',
@@ -328,14 +343,20 @@ export async function runRecipe({ recipe, driver, params = {}, now = Date.now(),
   let status = 'quoted';
   let blocker = null;
   let actualPacks = null;
-  const recordStep = (step, ok, error) => {
-    steps.push({ step: step.action, ok, optional: Boolean(step.optional), error: error ? String(error.message ?? error) : null });
+  const recordStep = (step, ok, error, detail = null) => {
+    steps.push({
+      step: step.action,
+      ok,
+      optional: Boolean(step.optional),
+      error: error ? String(error.message ?? error) : null,
+      detail: detail ? sanitizeExcerpt(String(detail), 120) : null
+    });
   };
   for (const step of expandSteps(recipe, runParams)) {
     try {
       const result = await executeStep(step, driver, runParams);
       if (step.action === 'setQuantity' && Number.isFinite(result)) actualPacks = result;
-      recordStep(step, true);
+      recordStep(step, true, null, stepDetail(step, result));
     } catch (error) {
       recordStep(step, false, error);
       if (step.optional) continue;
@@ -402,8 +423,14 @@ async function executeStep(step, driver, params) {
   switch (step.action) {
     case 'goto':
       return driver.goto(step.url);
+    case 'gotoUnlessText':
+      return driver.gotoUnlessText(step.url, step.text);
     case 'clickText':
       return driver.clickText(step.text);
+    case 'clickAnyText':
+      return driver.clickAnyText(step.texts ?? [step.text]);
+    case 'clickSelector':
+      return driver.clickSelector(step.selectors ?? [step.selector]);
     case 'selectLabel':
       return driver.selectLabel(step.selector, step.label);
     case 'fill':
@@ -419,4 +446,14 @@ async function executeStep(step, driver, params) {
     default:
       throw new Error(`unknown recipe action "${step.action}"`);
   }
+}
+
+/** Short, sanitized note about what a step actually did, for the evidence record. */
+function stepDetail(step, result) {
+  if (step.action === 'clickAnyText') return result ? `clicked: ${result}` : null;
+  if (step.action === 'clickSelector') return result ? `clicked: ${result}` : null;
+  if (step.action === 'gotoUnlessText') return result === 'skipped' ? 'already on the estimator page' : 'navigated';
+  if (step.action === 'setQuantity' && Number.isFinite(result)) return `${result} pack(s) in cart`;
+  if (step.action === 'selectLabel' && result) return `selected: ${result}`;
+  return null;
 }
