@@ -147,6 +147,10 @@ was a real board observation at the time but is historical now.
 | coffeetime.co.il | 2026-10-12: reachable but serves a SeedProd placeholder shell (no product data, no robots rules) | Not an e-commerce source. |
 | kaffeekontor.de | 2026-10-12: the domain redirects to a "domain for sale" page | Not an e-commerce source. |
 | coffeeitalia.co.uk | 2026-10-12: Cloudflare "Just a moment..." challenge on `/robots.txt` | Anti-bot protection; not bypassed. |
+| coffeeplus.co.il (טעמים פלוס) | 2026-10-12: reachable; its Lavazza line is beans and capsules only (Crema E Aroma beans, Gran Espresso, Gusto Forte 6 kg beans, A Modo Mio capsules) | No Crema e Gusto vacuum-packed ground listing, so it cannot carry the tracked product. |
+| cafeneto.co.il | 2026-10-12: reachable; the public `?s=lavazza` search returns no usable product results | Not a source for the tracked product. |
+| coffeexpress.co.il / coffee-shop.co.il / caffeitalia.co.il / espresso.co.il / italcoffee.co.il / coffeeandco.co.il / shop.lavazza.co.il / lavazzashop.co.il / cafeladino.co.il / coffee-world.co.il / coffeestore.co.il | 2026-10-12 probes: the domains do not resolve from the runner | No reachable public product page. |
+| beans.co.il | 2026-10-12: redirects to an unrelated health site (pan-il.org) | Not an e-commerce source. |
 
 Three independent adapters (CoffeeMan, Pucks and Coffee4U) meet and exceed the "at least two" requirement
 with five real Crema e Gusto listings: three CoffeeMan offers (single 250 g ₪33, 4 × 250 g ₪124 and
@@ -163,7 +167,9 @@ the ranked total. Unknown shipping can never win: the cheaper Pucks item and the
 unranked.
 More vendors carrying the tracked product can be added by creating `src/vendors/<id>.js` with an
 allowlisted product URL and a parser, registering it in `src/vendors/index.js`, and adding fixtures under
-`tests/fixtures/`.
+`tests/fixtures/`. A further bounded probe pass on 2026-10-12 (14:25 UTC) found no new viable vendor:
+coffeeplus.co.il carries only Lavazza beans/capsules, cafeneto.co.il returns no usable search results,
+and the other candidate domains do not resolve — all recorded in the table above instead of guessed.
 
 ## Product identity rules
 

@@ -259,9 +259,10 @@ any adapter.
   3-55 and 3-56 ended in timeout/interruption/model error; their committed checkpoints are preserved and
   the owner correction survived them. This session (3-57) completed the correction locally.
 - Next useful task for the loop: improve only Crema e Gusto coverage, shipping evidence, freshness and
-  comparison quality. A fourth vendor carrying this product is the main candidate; the 2026-10-12 probes
-  found no viable new one, so candidate domains and their blockers stay recorded in docs/SOURCES.md
-  instead of guessed. Resolving Pucks shipping if the vendor starts publishing rates is another
-  candidate. Adding another product line requires an explicit new owner instruction.
+  comparison quality. A fourth vendor carrying this product is the main candidate; the 2026-10-12
+  probes (including a further bounded pass at 14:25 UTC) found no viable new one, so candidate domains
+  and their blockers stay recorded in docs/SOURCES.md instead of guessed. Resolving Pucks shipping if
+  the vendor starts publishing rates is another candidate. Adding another product line requires an
+  explicit new owner instruction.
 - Keep `npm run check:sources` green against live pages and re-run both `npm run qa:browser` modes after
   any UI change.
