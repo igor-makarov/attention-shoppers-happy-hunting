@@ -2,7 +2,7 @@
 
 A public online shopping board for delivery in Israel, starting with **Lavazza Crema e Gusto vacuum-packed ground coffee**. The goal is to compare actual availability and item price plus shipping for a selected quantity and destination, with visible source evidence and freshness.
 
-Three Lavazza vacuum-ground products are tracked today — Crema e Gusto, Qualità Oro and Qualità Rossa — across three Israeli vendors, and more products or vendors can be added per adapter. Swiss signage design, meaningful status colors, no emoji typography. Unknown shipping is never silently treated as free.
+Four Lavazza ground products are tracked today — Crema e Gusto, Qualità Oro and Qualità Rossa in vacuum bricks, plus Suerte as a ground pack — across three Israeli vendors, and more products or vendors can be added per adapter. Swiss signage design, meaningful status colors, no emoji typography. Unknown shipping is never silently treated as free.
 
 The board is implemented and self-updating: deterministic vendor adapters observe real product pages, a
 pure quote engine ranks delivered ILS totals, and a scheduled Durable Object refresh keeps the data
