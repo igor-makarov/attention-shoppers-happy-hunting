@@ -1787,6 +1787,18 @@ duplication the correction forbids. This iteration:
 - `scripts/qa-server.mjs` now seeds the QA-only legacy blend-keyed row in the fixture store, and
   `tests/qa-server.test.js` asserts the six stored rows collapse to five ranked offers with distinct
   listing URLs; `scripts/browser-qa.mjs` adds the rendered one-card-per-listing-URL check.
+- `npm run cron:offline` — 6 bounded requests, all three vendors saved (five offers), no failures, FX
+  fixture stored; the repeatable local cron simulation still works with the identity change.
+- `npm run check:sources` (live, 00:55 UTC) — all five listings pass with unchanged prices and stock
+  (CoffeeMan ₪33/₪124/₪240, Pucks ₪30, Coffee4U ₪38, all `in_stock`) and the recorded rates and coverage
+  caveats. This is the runner-side independent check; the CoffeeMan Worker-egress block remains a
+  production-specific condition. Evidence: `docs/evidence/source-check-20261013T0055Z.json`.
+- `npm run probe:production` (read-only public GETs, 00:56 UTC) — **25/25** checks against
+  `https://attention-shoppers.igormaka.workers.dev`: the 00:18 store still serves five ranked offers
+  under the pre-change keys (the read-time collapse matters only once the next refresh writes
+  stable-key rows), the obsolete `?variant=` request returns the identical unified board, no retired
+  row appears, and all four shipping policies plus the promotion are current. CoffeeMan's next attempt
+  is the 06:17 UTC tick. Evidence: `docs/evidence/production-probe-20261013T0056Z.json`.
 - Docs: `docs/ARCHITECTURE.md` documents the offer identity and the read-time collapse;
   `docs/STATUS.md`'s current-state section now states precisely that only the board-level
   `variantId`/`excludedByVariant` fields are gone while per-offer `product.variantId`/`variantLabel`
