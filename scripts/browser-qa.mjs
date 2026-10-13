@@ -780,12 +780,16 @@ try {
     JSON.stringify({ shot: mobileCardShot, card: mobile.card }));
   await wd('POST', '/url', { url: `${base}/` });
   await waitForHome(wd);
-  const homeMobile = await evaluate(wd, `(() => ({
-    overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
-    cardVisible: document.querySelector('#catalog-list .product-card')?.getBoundingClientRect().top < window.innerHeight,
-    height: document.documentElement.scrollHeight
-  }))()`);
-  check('mobile home: the product card is visible on the first screen without horizontal scrolling',
+  const homeMobile = await evaluate(wd, `(() => {
+    const card = document.querySelector('#catalog-list .product-card');
+    const rect = card ? card.getBoundingClientRect() : null;
+    return {
+      overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+      cardVisible: Boolean(rect) && rect.top >= 0 && rect.bottom <= window.innerHeight,
+      height: document.documentElement.scrollHeight
+    };
+  })()`);
+  check('mobile home: the whole product card is visible on the first screen without horizontal scrolling',
     homeMobile.cardVisible === true && homeMobile.overflow === false, JSON.stringify(homeMobile));
   const homeMobileShot = await screenshot(wd, 'home-mobile-390.png');
   check('mobile home: the saved first-screen view is exactly the 390×844 content viewport',
