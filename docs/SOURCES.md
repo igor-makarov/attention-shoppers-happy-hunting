@@ -66,6 +66,19 @@ Tracked listings (three Crema e Gusto offers, never merged):
   - Establishes: name "8 אריזות 250 גרם קפה טחון lavazza Crema e Gusto Classico", SKU 930335, variant Classico, ground, 8 × 250 g = 2000 g, price ₪240.00, schema.org availability `InStock`.
   - Shipping certainty: **checkout_quote** for the researched anonymous-checkout quote, even though the product page still publishes the courier option without a price (only free self-pickup and an unpriced distribution-center option). The interactive browser research quoted the 2 kg cart at ₪20 home courier and ₪20 distribution-center delivery (2026-10-12 18:16 UTC, re-checked in a fresh cart at 20:07 UTC with the same result); self-pickup was ₪0 with a required branch choice, and no free-delivery threshold was displayed. The 2 kg 8-pack cart did not receive the free delivery that the 1.75 kg single-pack and 2 kg two-4-pack carts showed, so no free-shipping rule is inferred from those observations. The adapter stores the ₪20 rate with `maxTotalGrams: 2000` (the observed cart size), so a larger cart stays unranked with the exact reason instead of stretching the quote, plus the same unpublished locality-list caveat. The ₪25 single/4-pack page rate and the ₪20 eight-pack cart quote are both recorded as observed; the difference is not explained publicly and is never averaged or guessed. Since iteration 3-76 the quote is the checked-in policy `coffeeman-8pack-il-cart-quote` v1: the adapter derives its constant from that policy, and the read-time evaluator applies the same rule to an older persisted 8-pack row whose shipping was unknown, without touching its ₪240 price or its 2026-10-12 15:51 UTC observation time.
 
+**Production-egress block observed 2026-10-13 (marked, not bypassed).** The 00:17 UTC scheduled refresh on
+the deployed Worker received **HTTP 403** for all three tracked CoffeeMan product pages (run record
+`cron(6 req, 2026-10-13T00:18:15.896Z)`), while the identical bounded fetcher with the same
+`AttentionShoppersBot/0.1` user agent, accept header and redirect policy fetched all three pages HTTP 200
+from the coding runner at 00:19:37 UTC and parsed the unchanged prices (`npm run check:sources`;
+`docs/evidence/source-check-20261013T0019Z.json`). The block is therefore specific to the Worker's
+Cloudflare egress (or the vendor's WAF treatment of it), not the user agent, headers or parser. Per the
+no-bypass rule the loop did not attempt to evade it: the adapter keeps the last-known-good 15:51:52 UTC
+observations, marks them `lastAttemptFailed`/`lastError: HTTP 403`, schedules the documented 30-minute
+backoff retry and surfaces the failing source in the footer and offer details. CoffeeMan coverage will be
+re-checked after the retry; the runner-side source check remains the independent freshness check for
+research purposes.
+
 ### Historical CoffeeMan listings (retired 2026-10-12 — evidence only, do not re-track)
 
 These pages were observed while earlier iterations tracked other Lavazza lines. Their adapter offers

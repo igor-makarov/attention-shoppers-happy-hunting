@@ -13,7 +13,7 @@ import {
   el, money, bidi, timeLabel, dueLabel, truncate,
   packDescription, quantityDescription, itemSubtotalText,
   totalsBlock, statusBadge, offerLink, conditionsList, caveatBlock,
-  coverageQualifier, diagnosticsDisclosure
+  coverageQualifier, failedCheckNote, diagnosticsDisclosure
 } from './ui.js';
 
 const GRAMS_OPTIONS = [250, 500, 750, 1000, 2000];
@@ -180,6 +180,8 @@ function renderBestOffer(quote, board) {
     el('div', { class: 'offer__vendor' }, bidi(quote.vendor.name), ' ', statusBadge(quote.availability, quote.availabilityLabel))));
   card.append(el('p', { class: 'offer__pack', text: packLine(quote) }));
   card.append(totalsBlock(quote));
+  const failedNote = failedCheckNote(quote);
+  if (failedNote) card.append(el('p', { class: 'qualifier qualifier--failure', text: failedNote }));
   const qualifier = coverageQualifier(quote);
   if (qualifier) card.append(el('p', { class: 'qualifier' }, el('strong', { text: 'Conditional total: ' }), bidi(qualifier)));
   const delivery = deliveryOptionsDisclosure(quote);
@@ -222,6 +224,8 @@ function renderOtherOffer(quote, board) {
     el('div', { class: 'offer__delta', text: offerDeltaText(quote, board) })));
   card.append(el('p', { class: 'offer__pack', text: packLine(quote) }));
   card.append(totalsBlock(quote));
+  const failedNote = failedCheckNote(quote);
+  if (failedNote) card.append(el('p', { class: 'qualifier qualifier--failure', text: failedNote }));
   const qualifier = coverageQualifier(quote);
   if (qualifier) card.append(el('p', { class: 'qualifier', text: qualifier }));
   const delivery = deliveryOptionsDisclosure(quote);

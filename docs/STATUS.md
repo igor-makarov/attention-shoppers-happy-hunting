@@ -17,9 +17,17 @@ multipacks stay undiscounted and no shipping discount is inferred. Production al
 promotion (read-only probe 25/25 at 00:00 UTC; the old persisted store gained the discount at read time
 without a fresh vendor check), and a stale-refresh mobile overflow defect that production browser QA
 surfaced when the store crossed the 8 h stale threshold is fixed and live (production QA 82/82 at
-00:04 UTC after the fix deployed; offline 86/86, live local 82/82). Production's stored vendor snapshot was last refreshed 15:52 UTC; the **00:17 UTC cron tick on 2026-10-13**
-is expected to replace it (the 18:17 tick skipped under the phase lock), after which the read-only probe
-should be re-run.**
+00:04 UTC after the fix deployed; offline 86/86, live local 82/82). Production's stored vendor snapshot was
+refreshed by the **00:17 UTC cron tick on 2026-10-13**: the run completed at 00:18:15.896Z with 6 bounded
+requests, Pucks and Coffee4U saved fresh observations at 00:17:54.216Z (next attempts 06:17:54), and the
+phase-lock fix is confirmed — the tick refreshed instead of skipping. CoffeeMan's three product pages
+answered **HTTP 403 from the Worker's Cloudflare egress** while the identical bounded request with the same
+bot user agent fetched them HTTP 200 from the runner, so that source is marked blocked from production; the
+last-known-good 15:51:52 observations stay ranked with `lastAttemptFailed`/`HTTP 403`, a 30-minute backoff
+retry and no bypass attempt. Iteration 3-80 also makes a failed last check visible on the offer card face
+(not only in the details and footer): `failedCheckNote()` renders one short amber line, covered by a unit
+test and two browser-QA checks (`npm run verify` **150/150** tests plus the dry-run bundle; offline browser
+QA **88/88**).**
 The Worker implements the self-updating board for exactly one product line — **Lavazza Crema e Gusto
 vacuum-packed ground coffee** — with three independent Israeli vendor adapters and five observed
 listings. The owner reports the site deployed at
@@ -442,32 +450,35 @@ labels and the next-source-check footer line, recorded in
 | Worker name in `wrangler.jsonc` | `attention-shoppers` (aligned with the owner correction) |
 | Production URL reported by owner | https://attention-shoppers.igormaka.workers.dev — **independently verified reachable from the runner** (HTTP 200, 2026-10-12 15:51-15:54, 16:17-16:18, 16:53 and 17:26 UTC, read-only GETs, no credentials) |
 | Production scope | **Independently verified**: `/api/catalog` listed exactly one product (`lavazza-crema-e-gusto-vacuum-ground`) and three vendors; no retired line appeared in any board payload, and the retired Qualità Oro URL returned `requestedRetiredProduct` with the Crema e Gusto board. Re-verified by the 3-63 probe at 16:53 UTC (17/17 scope checks; `docs/evidence/production-probe-20261012T1653Z.json`) and by the 3-75 probes at 21:49 UTC (20/20 checks; `docs/evidence/production-probe-20261012T2149Z.json`) and 21:52 UTC (22/22 checks including the new inert-variant-parameter and no-variant-catalog regressions; `docs/evidence/production-probe-20261012T2152Z.json`). |
-| Production refresh / persistence | **Independently verified**: the probe's first `/health` GET started the documented initial refresh (15:51:52.931Z → 15:52:12.546Z, 4 bounded requests, CoffeeMan saved 3; Pucks/Coffee4U inside their backoff window). `/api/status` then showed `lastRefreshAt` 15:52:12.546Z, fresh, five observations and the Bank of Israel table asOf 12:23:04.599Z. The post-deploy probe, the 16:53 probe and the 3-64 probe at 17:26 UTC found the same persisted store with the same timestamps (ageHours 1.0, stale false) and the same three vendor `nextAttemptAt` values (19:34/19:46/21:52 UTC). The 6-hour cron trigger itself has not been observed firing; the first tick after the store state was written is 18:17 UTC (expected to skip every vendor) and the 00:17 UTC tick should refresh. |
+| Production refresh / persistence | **Independently verified**: the probe's first `/health` GET started the documented initial refresh (15:51:52.931Z → 15:52:12.546Z, 4 bounded requests, CoffeeMan saved 3; Pucks/Coffee4U inside their backoff window). `/api/status` then showed `lastRefreshAt` 15:52:12.546Z, fresh, five observations and the Bank of Israel table asOf 12:23:04.599Z. The post-deploy probe, the 16:53 probe and the 3-64 probe at 17:26 UTC found the same persisted store with the same timestamps (ageHours 1.0, stale false) and the same three vendor `nextAttemptAt` values (19:34/19:46/21:52 UTC). The 6-hour cron trigger was independently observed firing on 2026-10-13: the 18:17 UTC tick skipped every vendor inside its window (0 requests, `lastRefreshAt` unchanged, expected) and the **00:17 UTC tick refreshed Pucks and Coffee4U with 6 bounded requests and a completed run at 00:18:15.896Z**; CoffeeMan was blocked from the Worker egress (HTTP 403, see the probe evidence). |
 | Production board values | **Independently verified at 21:49 UTC after the 3-75 build deployed**: 500 g best **Pucks ₪90.00** (2 × ₪30 + the researched ₪30 rule applied at read time), CoffeeMan ₪91.00, **Coffee4U ₪106.00 in the same comparison**, CoffeeMan 4-pack ₪149.00; 1 kg best Pucks ₪120.00 (free above the ₪100 item subtotal); the CoffeeMan 8-pack stays unrankable at ₪240 because its cart-observed ₪20 rate is not a shared policy yet. The old persisted Pucks row (observed 13:34 UTC with unknown shipping) gained the validated rule without a vendor refresh, which independently confirms the read-time policy-enrichment/old-store gap fix in production. |
 | Production UI | **Independently verified**: the fixture-free live browser QA mode drove the deployed site in headless Chrome — **53/53** checks passed with zero console errors on 2026-10-12 16:20 UTC, again at 17:05 UTC after the 3-63 push, and **59/59** at 17:31 UTC after the failed-attempt build deployed (evidence `docs/evidence/browser-qa-production-20261012T1620Z.json`, `docs/evidence/browser-qa-production-20261012T1705Z.json`, `docs/evidence/browser-qa-production-20261012T1731Z.json`). **The 3-75 unified-comparison UI is live and passed 76/76 checks at 21:59 UTC** — no variant control, Coffee4U in the same comparison, home→product navigation, disclosures, quantity/destination changes and mobile first-viewport money values all verified against the deployed site (evidence `docs/evidence/browser-qa-production-20261012T2200Z.json`). |
-| Deployed build version | **The 3-61 build is live** (verified 16:17-16:18 UTC: `/health` carries `lastObservationAt`, a 3-61-only field; `/api/status` reports `freshness.dataAsOf`). **The failed-attempt build (3-63 save / 3-64) is also live**: the production `/api/board` quotes now carry `lastAttemptFailed`/`lastError` (a public field added in commit da47521) and the deployed `public/app.js` contains the `Last attempt failed` / `showing the last successful observation` strings (read-only GETs at 17:31-17:33 UTC; `docs/evidence/production-build-marker-20261012T1733Z.json`). **The 3-75 blend/variant-removal build is live** (verified 21:49-21:52 UTC, read-only GETs): `/api/board` returns no `variantId` and no `counts.excludedByVariant`, `?variant=unspecified` returns the same ranked list as the default request with Coffee4U included, `/api/catalog` notes describe the unified comparison, the served `product.js` strips the obsolete parameter and contains no `#variant` lookup, the served `home.js` says "one comparison for all tracked listings" and drops `variant` when forwarding, and the directly loaded product page contains zero `variant` occurrences. Evidence: `docs/evidence/production-build-marker-20261012T2152Z.json`. The 3-62 phase-lock change has no public-API marker (it only changes vendor due-time evaluation), so the probe cannot confirm which build serves it; the first observable difference is the **06:17 UTC tick on 2026-10-13**, which should refresh instead of skipping. |
+| Deployed build version | **The 3-61 build is live** (verified 16:17-16:18 UTC: `/health` carries `lastObservationAt`, a 3-61-only field; `/api/status` reports `freshness.dataAsOf`). **The failed-attempt build (3-63 save / 3-64) is also live**: the production `/api/board` quotes now carry `lastAttemptFailed`/`lastError` (a public field added in commit da47521) and the deployed `public/app.js` contains the `Last attempt failed` / `showing the last successful observation` strings (read-only GETs at 17:31-17:33 UTC; `docs/evidence/production-build-marker-20261012T1733Z.json`). **The 3-75 blend/variant-removal build is live** (verified 21:49-21:52 UTC, read-only GETs): `/api/board` returns no `variantId` and no `counts.excludedByVariant`, `?variant=unspecified` returns the same ranked list as the default request with Coffee4U included, `/api/catalog` notes describe the unified comparison, the served `product.js` strips the obsolete parameter and contains no `#variant` lookup, the served `home.js` says "one comparison for all tracked listings" and drops `variant` when forwarding, and the directly loaded product page contains zero `variant` occurrences. Evidence: `docs/evidence/production-build-marker-20261012T2152Z.json`. The 3-62 phase-lock change has no public-API marker (it only changes vendor due-time evaluation), but the **00:17 UTC tick on 2026-10-13 refreshed instead of skipping**, which is the behavior the fix introduces; the 06:17 UTC tick is expected to refresh again. |
 | Main-push auto-deploy | **Independently verified for the 3-61 push and again for the 3-64 build**: after the supervisor published the 3-61 commits to main, the serving production build changed to one that includes the 3-61 fields, with the Durable Object store persisting across the deploy; after the da47521/3-64 commits, the production board API began returning the new `lastAttemptFailed`/`lastError` quote fields and the deployed `app.js` gained the failed-attempt labels (read-only GETs at 17:31 UTC). The 3-62 phase-lock push is on main and is expected to deploy the same way, but its effect is only observable through a cron tick. The 6-hour cron trigger and future builds still need the owner's dashboard confirmation. |
 | Local refresh-while-no-browser-open | Verified locally through `wrangler dev` + the documented scheduled trigger (item 6 above) and again with the 3-61 fresh store (item 11). |
 | No Cloudflare administration | Maintained: no CF API calls, deploys, logins or token discovery in this repository or its history. The production probe used plain public HTTPS GETs only. |
 
-Outstanding production checks for the owner: the 6-hour cron trigger should appear in the Cloudflare
-dashboard and one tick should be observed (the loop has only observed request-triggered refreshes); future
-main pushes should keep reaching Workers Builds. The other checks below were independently verified from
+Outstanding production checks for the owner: confirm the 6-hour cron trigger appears in the Cloudflare
+dashboard and that future main pushes keep reaching Workers Builds. The trigger itself was independently
+observed from the runner on 2026-10-13: the **00:17 UTC tick** recorded a run at 00:17:54.216Z that
+completed at 00:18:15.896Z with 6 bounded requests, refreshed Pucks and Coffee4U (fresh observations at
+00:17:54.216Z, next attempts 06:17:54) and thereby confirmed the 3-62 phase-lock fix — without it, the tick
+landing seconds before the stored due time would have skipped every vendor. The same run got **HTTP 403**
+for all three CoffeeMan product pages from the Worker's Cloudflare egress, while the identical bounded
+request with the same bot user agent fetched all three pages HTTP 200 from the runner at 00:19:37 UTC with
+unchanged prices, so the block is specific to the production egress and is not bypassed; the last-known-good
+15:51:52 observations stay ranked with `lastAttemptFailed`/`lastError: HTTP 403`, a 30-minute backoff retry
+at 00:47:54 and the source marked failing in the footer. Evidence:
+`docs/evidence/production-probe-20261013T0019Z.json`,
+`docs/evidence/source-check-20261013T0019Z.json`. The other checks below were independently verified from
 the runner on 2026-10-12: `/health` reports a non-null `lastRefreshAt` and `lastObservationAt`,
 `/api/catalog` lists exactly one product, the board shows the five Crema e Gusto offers, and the 3-61
 build is live after the push. The 3-63 read-only probe re-verified all of that at 16:53 UTC (17/17 scope
 checks) and the 3-64 baseline probe at 17:26 UTC passed 18/18 checks against the same persisted
-15:52:12.546Z store, whose run history still contained only the initial run (no cron tick observed yet).
-The 17:31 UTC read-only checks additionally confirmed that the production build now serves the
-failed-attempt quote fields and UI labels (a 3-64-only public shape), with **59/59** live browser checks. The 3-62 phase-lock fix is on main; the expected
-production sequence for the stored state is: the **18:17 UTC tick** records a run that fetches nothing
-while every vendor is inside its six-hour window (does not advance `lastRefreshAt`, expected), the
-**00:17 UTC tick** refreshes all three vendors, and the **06:17 UTC tick on 2026-10-13** is the first
-place the phase-lock fix is observable: because the run's stored due time lands a few seconds after the
-fixed clock tick, the tick should still refresh and save observations with the fix (without it, that tick
-would skip and the board would drift toward a twelve-hour cadence and report stale for hours). The loop
-can confirm this with `npm run probe:production` (read-only) once the ticks have passed. Report any
-Cloudflare error back to the loop without pasting credentials.
+15:52:12.546Z store, whose run history then contained only the initial run. The 17:31 UTC read-only checks
+additionally confirmed that the production build serves the failed-attempt quote fields and UI labels
+(a 3-64-only public shape), with **59/59** live browser checks. Report any Cloudflare error back to the
+loop without pasting credentials.
 
 The 3-75 read-only probes at 21:49 and 21:52 UTC (20/20 and 22/22 checks, the second with two new
 inert-variant-parameter regressions) additionally verified that the blend/variant-removal

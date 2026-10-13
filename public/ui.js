@@ -156,6 +156,17 @@ export function shippingCertaintyText(quote) {
   return quote.shipping?.certaintyLabel ?? 'Not published before checkout';
 }
 
+/**
+ * Short visible card-face warning when the most recent vendor check failed. The
+ * offer still ranks its last successful observation, but the price and stock may
+ * be out of date, so the shopper must see that before trusting the total. The
+ * attempt time and error stay in the offer details.
+ */
+export function failedCheckNote(quote) {
+  if (!quote?.lastAttemptFailed) return null;
+  return 'Last check failed — showing the last successful observation.';
+}
+
 export function statusBadge(status, label) {
   const kind = status === 'in_stock' ? 'in_stock' : status === 'out_of_stock' ? 'out_of_stock' : 'unknown';
   return el('span', { class: `status status--${kind}`, text: label });

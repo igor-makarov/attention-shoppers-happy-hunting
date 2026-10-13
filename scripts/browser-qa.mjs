@@ -646,6 +646,14 @@ try {
     check('failure: the footer names failing sources with their consecutive failures and last error',
       /consecutive failure\(s\)/i.test(failedUi.footerDetails ?? '') && /last error: HTTP 503/i.test(failedUi.footerDetails ?? ''),
       (failedUi.footerDetails ?? '').split('\n').filter(line => /consecutive|last error/i.test(line)).join(' | '));
+    const failedCardNotes = await evaluate(wd, `(() => ({
+      best: document.querySelector('#best-offer .qualifier--failure')?.textContent?.trim() ?? null,
+      compare: [...document.querySelectorAll('#compare-other-offers .qualifier--failure')].map(node => node.textContent.trim())
+    }))()`);
+    check('failure: the best-offer card face warns visibly that the last check failed',
+      /Last check failed/.test(failedCardNotes.best ?? ''), failedCardNotes.best);
+    check('failure: a ranked offer whose last check failed shows the same warning in the comparison list',
+      failedCardNotes.compare.some(text => /Last check failed/.test(text)), failedCardNotes.compare.join(' | '));
   } finally {
     await failedServer.close();
   }
