@@ -124,7 +124,7 @@ export const RECIPES = {
     // query parameter and names "250 גרם" (one 250 g pack per cart unit). The
     // row also carries the cart quantity input; the runner reads all of it at
     // totals-read time and matches it against this declared listing.
-    cartIdentity: { lineSelectors: ['ul.cart_items_ul > li'], listingPacks: 1, packGrams: 250 },
+    cartIdentity: { lineSelectors: ['ul.cart_items_ul > li:not(.promotion)'], listingPacks: 1, packGrams: 250 },
     parseTotals: parseCoffeemanTotals,
     steps: COFFEEMAN_CHECKOUT_STEPS
   },
@@ -141,7 +141,7 @@ export const RECIPES = {
     cartUrl: 'https://www.coffeeman.co.il/checkout.asp',
     allowedHosts: ['www.coffeeman.co.il', 'coffeeman.co.il'],
     packGrams: 1000,
-    cartIdentity: { lineSelectors: ['ul.cart_items_ul > li'], listingPacks: 4, packGrams: 250 },
+    cartIdentity: { lineSelectors: ['ul.cart_items_ul > li:not(.promotion)'], listingPacks: 4, packGrams: 250 },
     parseTotals: parseCoffeemanTotals,
     steps: COFFEEMAN_CHECKOUT_STEPS
   },
@@ -158,7 +158,7 @@ export const RECIPES = {
     cartUrl: 'https://www.coffeeman.co.il/checkout.asp',
     allowedHosts: ['www.coffeeman.co.il', 'coffeeman.co.il'],
     packGrams: 2000,
-    cartIdentity: { lineSelectors: ['ul.cart_items_ul > li'], listingPacks: 8, packGrams: 250 },
+    cartIdentity: { lineSelectors: ['ul.cart_items_ul > li:not(.promotion)'], listingPacks: 8, packGrams: 250 },
     parseTotals: parseCoffeemanTotals,
     steps: COFFEEMAN_CHECKOUT_STEPS
   },
@@ -656,7 +656,7 @@ export function matchCartIdentity({ recipe, lines = [] } = {}) {
     verified,
     source: verified ? 'rendered-cart-line' : null,
     expected,
-    observed: line ? { ...line, source: 'rendered-cart-line' } : null,
+    observed: verified && line ? { ...line, source: 'rendered-cart-line' } : null,
     lines: observedLines.slice(0, 6),
     reasons
   };
@@ -1088,6 +1088,52 @@ export async function runRecipe({ recipe, driver, params = {}, now = Date.now(),
     }
   }
   let text = '';
+  // Cart-line identity, read at totals-read time (immediately before the page
+  // text is captured) so the evidence describes the cart the amounts belong to.
+  // The driver only reports rendered lines; the matcher interprets them against
+  // the recipe's declared listing. A recipe without a cart-line reader records
+  // `null` (no observation attempted) instead of pretending the declared SKU
+  // was seen.
+  let cartIdentity = null;
+  const lineSelectors = recipe.cartIdentity?.lineSelectors;
+  if (Array.isArray(lineSelectors) && lineSelectors.length && typeof driver.readCartLines === 'function') {
+    try {
+      const lines = await driver.readCartLines(lineSelectors);
+      cartIdentity = matchCartIdentity({ recipe, lines });
+      // The line quantity read at totals-read time must agree with the quantity
+      // the recipe's own step verified; a cart that changed in between is
+      // ambiguous and must not be quoted as the observed size.
+      if (cartIdentity.verified === true && Number.isFinite(actualPacks) && actualPacks > 0
+        && cartIdentity.observed?.quantity != null && cartIdentity.observed.quantity !== actualPacks) {
+        cartIdentity = {
+          ...cartIdentity,
+          verified: false,
+          source: null,
+          observed: null,
+          reasons: [...cartIdentity.reasons, `the rendered cart line holds ${cartIdentity.observed.quantity} pack(s), not the ${actualPacks} the quantity step verified`]
+        };
+      }
+      recordStep({ action: 'readCartLines', optional: true }, true, null,
+        `${cartIdentity.lines.length} rendered line(s); identity ${cartIdentity.verified ? 'verified' : 'not verified'}`);
+    } catch (error) {
+      recordStep({ action: 'readCartLines', optional: true }, false, error);
+      cartIdentity = {
+        verified: false,
+        source: null,
+        expected: expectedCartIdentity(recipe),
+        observed: null,
+        lines: [],
+        reasons: [`the rendered cart identity could not be read: ${error?.message ?? error}`]
+      };
+    }
+    // A rendered cart line that is a different listing (or a mixed/unreadable
+    // cart) must not become a quote for the tracked listing, even when a
+    // shipping row was displayed.
+    if (cartIdentity.verified === false && status === 'quoted') {
+      status = 'blocked';
+      blocker = `Cart identity check failed: ${cartIdentity.reasons.join('; ')}.`;
+    }
+  }
   try {
     text = await driver.getText();
   } catch (error) {
@@ -1123,7 +1169,8 @@ export async function runRecipe({ recipe, driver, params = {}, now = Date.now(),
     destinationVerified,
     actualPacks: Number.isFinite(actualPacks) && actualPacks > 0 ? actualPacks : null,
     requestedPacks,
-    sku: recipe.sku ?? null
+    sku: recipe.sku ?? null,
+    cartIdentity
   });
   if (status === 'quoted' && totals.shippingIls == null && freeDecision.accepted) {
     totals = {
@@ -1174,6 +1221,7 @@ export async function runRecipe({ recipe, driver, params = {}, now = Date.now(),
     service: confirmedService,
     serviceConfirmed: serviceStepSeen ? confirmedService != null : null,
     serviceLabel,
+    cartIdentity,
     now
   });
 }

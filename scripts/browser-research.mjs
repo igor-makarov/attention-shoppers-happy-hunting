@@ -523,6 +523,55 @@ function createResearchDriver(session) {
       return evalIn(`return (() => { const el = document.querySelector(arguments[0]); if (!el || !el.selectedOptions) return null; return el.selectedOptions[0] ? el.selectedOptions[0].textContent.trim() : null; })()`, [selector]);
     },
     /**
+     * Read rendered cart lines without changing the page. Each matched row
+     * reports its visible text, its links and the value of its quantity
+     * control; the runner interprets the listing identity from that rendered
+     * evidence, never from the recipe's declared SKU. Duplicate renders of the
+     * same row (desktop/mobile copies) are folded together.
+     */
+    async readCartLines(selectors) {
+      const out = await evalIn(`return (() => {
+        const wanted = Array.isArray(arguments[0]) ? arguments[0] : [arguments[0]];
+        const lines = [];
+        const seen = new Set();
+        const readQuantity = row => {
+          const inputs = [...row.querySelectorAll('input, select')];
+          const preferred = inputs.find(input => /qty|quantity|כמות/i.test((input.name ?? '') + ' ' + (input.id ?? '') + ' ' + (input.className ?? '')));
+          const candidates = preferred ? [preferred, ...inputs] : inputs;
+          for (const input of candidates) {
+            const raw = String(input.value ?? '').replace(/[^\\d]/g, '');
+            const n = Number(raw);
+            if (Number.isFinite(n) && n > 0) return n;
+          }
+          return null;
+        };
+        for (const selector of wanted) {
+          let nodes = [];
+          try { nodes = [...document.querySelectorAll(String(selector))]; } catch { continue; }
+          for (const node of nodes.slice(0, 40)) {
+            const text = (node.innerText ?? node.textContent ?? '').replace(/\\s+/g, ' ').trim().slice(0, 300);
+            if (!text) continue;
+            const links = [...node.querySelectorAll('a[href]')].map(a => a.getAttribute('href')).filter(Boolean).slice(0, 8);
+            const quantity = readQuantity(node);
+            const attrs = {};
+            const attrNodes = [node, ...node.querySelectorAll('[data-sku],[data-pid],[data-product-id],[data-item-id]')].slice(0, 8);
+            for (const attrNode of attrNodes) {
+              for (const name of ['data-sku', 'data-pid', 'data-product-id', 'data-item-id']) {
+                const value = attrNode.getAttribute?.(name);
+                if (value) attrs[name] = String(value).slice(0, 80);
+              }
+            }
+            const key = [text, links.join('|'), quantity ?? '', JSON.stringify(attrs)].join('\\n');
+            if (seen.has(key)) continue;
+            seen.add(key);
+            lines.push({ selector: String(selector), text, links, quantity, attrs });
+          }
+        }
+        return lines;
+      })()`, [selectors]);
+      return Array.isArray(out) ? out : [];
+    },
+    /**
      * Set a whole-pack quantity in the cart and return how many packs the page
      * now shows. Handles a classic quantity input and the vendor's stepper
      * markup (value span + increase/decrease buttons, used by Pucks on both the

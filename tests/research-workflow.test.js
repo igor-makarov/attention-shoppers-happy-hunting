@@ -13,7 +13,8 @@ import {
   buildEvidenceRecord,
   validateEvidence,
   listRecipes,
-  runRecipe
+  runRecipe,
+  matchCartIdentity
 } from '../scripts/research-workflow.mjs';
 
 const PUCKS_500G = `סיכום הזמנה
@@ -535,8 +536,36 @@ function freeCartDriver(text, locality = 'תל אביב - יפו') {
     sleep: async () => {},
     readValue: async selector => (selector === '#hfd_cities' ? locality : null),
     readSelectedLabel: async selector => (selector === '#hfd_cities' ? locality : null),
+    // The rendered cart row for the tracked single listing: its own link carries
+    // pid=930333 and its wording states the 250 g pack; quantity 8 is the
+    // whole-pack cart size the run set.
+    readCartLines: async () => [singleCartLine()],
     getText: async () => text,
     currentUrl: async () => 'https://www.coffeeman.co.il/checkout.asp'
+  };
+}
+
+/** One rendered CoffeeMan cart row for the tracked single 250 g listing. */
+function singleCartLine(overrides = {}) {
+  return {
+    selector: 'ul.cart_items_ul > li',
+    text: '250 גרם קפה טחון lavazza Crema e Gusto Classico חוזק 7',
+    links: ['https://www.coffeeman.co.il/product.asp?cat2cat1id=106&Cat2ID=280&pid=930333'],
+    quantity: 8,
+    attrs: {},
+    ...overrides
+  };
+}
+
+/** One rendered CoffeeMan cart row for the tracked 8 × 250 g multipack. */
+function eightPackCartLine(overrides = {}) {
+  return {
+    selector: 'ul.cart_items_ul > li',
+    text: '8 אריזות 250 גרם קפה טחון lavazza Crema e Gusto Classico',
+    links: ['https://www.coffeeman.co.il/product.asp?cat2cat1id=106&Cat2ID=280&pid=930335'],
+    quantity: 1,
+    attrs: {},
+    ...overrides
   };
 }
 
@@ -562,8 +591,20 @@ test('the recipe records a schema-valid free quote when the omitted row is indep
     now: Date.parse('2026-10-13T09:30:00Z')
   });
   assert.equal(record.status, 'quoted');
-  assert.equal(record.schemaVersion, 2);
+  assert.equal(record.schemaVersion, EVIDENCE_SCHEMA_VERSION);
   assert.equal(record.sku, '930333');
+  // The observed side is the rendered cart line, not a copy of the declared SKU.
+  assert.equal(record.cartIdentityVerified, true);
+  assert.equal(record.cartIdentitySource, 'rendered-cart-line');
+  assert.equal(record.expectedCartIdentity.sku, '930333');
+  assert.equal(record.expectedCartIdentity.listingPacks, 1);
+  assert.equal(record.expectedCartIdentity.packGrams, 250);
+  assert.equal(record.observedCartIdentity.sku, '930333');
+  assert.equal(record.observedCartIdentity.listingPacks, 1);
+  assert.equal(record.observedCartIdentity.packGrams, 250);
+  assert.equal(record.observedCartIdentity.quantity, 8);
+  assert.match(record.observedCartIdentity.lineText, /250 גרם/);
+  assert.equal(record.cartIdentityNote, null);
   assert.equal(record.itemSubtotalBeforeDiscountIls, 264);
   assert.equal(record.discountIls, -26.4);
   assert.equal(record.discountPercent, 10);
@@ -581,6 +622,105 @@ test('the recipe records a schema-valid free quote when the omitted row is indep
   assert.deepEqual(validateEvidence(record), { ok: true, errors: [] });
   assert.ok(record.steps.some(step => step.step === 'selectLabel' && /selected: .*0 ₪/.test(step.detail ?? '')), 'the method-selection step keeps its displayed zero rate');
   assert.ok(record.moneyLines.some(line => /-26\.40/.test(line)), 'the applied discount line is kept as sanitized evidence');
+});
+
+test('the cart identity matcher verifies the rendered listing, never the declared SKU', () => {
+  const verified = matchCartIdentity({ recipe: RECIPES.coffeeman, lines: [singleCartLine()] });
+  assert.equal(verified.verified, true);
+  assert.equal(verified.source, 'rendered-cart-line');
+  assert.equal(verified.observed.sku, '930333');
+  assert.equal(verified.observed.quantity, 8);
+  assert.deepEqual(verified.reasons, []);
+
+  // Duplicate renders of the same row (desktop/mobile copies) are one line.
+  const duplicates = matchCartIdentity({ recipe: RECIPES.coffeeman, lines: [singleCartLine(), singleCartLine(), singleCartLine()] });
+  assert.equal(duplicates.verified, true, 'identical rendered copies must not read as a mixed cart');
+
+  // Another multipack is not the tracked single listing, even before money.
+  const multipack = matchCartIdentity({ recipe: RECIPES.coffeeman, lines: [eightPackCartLine({ quantity: 8 })] });
+  assert.equal(multipack.verified, false);
+  assert.ok(multipack.reasons.some(reason => /listing 930335, not the tracked 930333/.test(reason)));
+  assert.ok(multipack.reasons.some(reason => /8 × 250 g/.test(reason)));
+  assert.equal(multipack.observed, null, 'a mismatch never records an observed match');
+
+  // The same SKU rendered with multipack wording is still another pack identity.
+  const sameSkuMultipack = matchCartIdentity({ recipe: RECIPES.coffeeman, lines: [singleCartLine({ text: '8 אריזות 250 גרם קפה טחון lavazza Crema e Gusto Classico' })] });
+  assert.equal(sameSkuMultipack.verified, false);
+  assert.ok(sameSkuMultipack.reasons.some(reason => /not the tracked 1 × 250 g listing/.test(reason)));
+
+  // Mixed cart lines stay unverified and record no observed identity.
+  const mixed = matchCartIdentity({ recipe: RECIPES.coffeeman, lines: [singleCartLine(), eightPackCartLine()] });
+  assert.equal(mixed.verified, false);
+  assert.ok(mixed.reasons.some(reason => /distinct rendered lines/.test(reason)));
+  assert.equal(mixed.observed, null);
+
+  // A line with no rendered SKU or no pack wording is ambiguous, not a match.
+  const noSku = matchCartIdentity({ recipe: RECIPES.coffeeman, lines: [singleCartLine({ links: ['https://www.coffeeman.co.il/product.asp?cat2id=280'] })] });
+  assert.equal(noSku.verified, false);
+  assert.ok(noSku.reasons.some(reason => /unambiguous listing SKU/.test(reason)));
+  const noPack = matchCartIdentity({ recipe: RECIPES.coffeeman, lines: [singleCartLine({ text: 'קפה טחון lavazza Crema e Gusto Classico חוזק 7' })] });
+  assert.equal(noPack.verified, false);
+  assert.ok(noPack.reasons.some(reason => /pack identity/.test(reason)));
+
+  // No rendered line at all and no declared SKU are both unverified.
+  const empty = matchCartIdentity({ recipe: RECIPES.coffeeman, lines: [] });
+  assert.equal(empty.verified, false);
+  assert.ok(empty.reasons.some(reason => /no rendered cart line/.test(reason)));
+  const declaredOnly = matchCartIdentity({ recipe: { ...RECIPES.coffeeman, sku: null }, lines: [singleCartLine()] });
+  assert.equal(declaredOnly.verified, false);
+  assert.ok(declaredOnly.reasons.some(reason => /does not declare a tracked listing SKU/.test(reason)));
+});
+
+test('the 8-pack recipe verifies its own multipack line and rejects the single line', () => {
+  const verified = matchCartIdentity({ recipe: RECIPES['coffeeman-8pack'], lines: [eightPackCartLine()] });
+  assert.equal(verified.verified, true);
+  assert.equal(verified.observed.listingPacks, 8);
+  assert.equal(verified.observed.packGrams, 250);
+  const wrong = matchCartIdentity({ recipe: RECIPES['coffeeman-8pack'], lines: [singleCartLine({ quantity: 1 })] });
+  assert.equal(wrong.verified, false);
+  assert.ok(wrong.reasons.some(reason => /not the tracked 8 × 250 g listing/.test(reason)));
+});
+
+test('a run whose rendered cart line is another listing is blocked, never quoted', async () => {
+  const driver = {
+    ...freeCartDriver(COFFEEMAN_8_SINGLES_FREE),
+    readCartLines: async () => [eightPackCartLine({ quantity: 8 })]
+  };
+  const record = await runRecipe({ recipe: RECIPES.coffeeman, driver, params: { grams: 2000, locality: 'תל אביב - יפו' } });
+  assert.equal(record.status, 'blocked');
+  assert.equal(record.shippingIls, null, 'a different listing must not take the omitted-row zero');
+  assert.equal(record.shippingEvidenceSource, null);
+  assert.equal(record.cartIdentityVerified, false);
+  assert.equal(record.observedCartIdentity, null);
+  assert.match(record.blocker, /Cart identity check failed/);
+  assert.ok(record.steps.some(step => step.step === 'readCartLines' && step.ok === true), 'the identity read is recorded as a step');
+  assert.equal(validateEvidence(record).ok, true);
+});
+
+test('a cart line whose quantity disagrees with the recipe step stays blocked', async () => {
+  const driver = {
+    ...freeCartDriver(COFFEEMAN_8_SINGLES_FREE),
+    readCartLines: async () => [singleCartLine({ quantity: 7 })]
+  };
+  const record = await runRecipe({ recipe: RECIPES.coffeeman, driver, params: { grams: 2000, locality: 'תל אביב - יפו' } });
+  assert.equal(record.status, 'blocked');
+  assert.equal(record.cartIdentityVerified, false);
+  assert.match(record.cartIdentityNote, /holds 7 pack\(s\), not the 8/);
+  assert.equal(validateEvidence(record).ok, true);
+});
+
+test('a mismatched rendered identity also blocks an applied-line quote', () => {
+  const record = buildEvidenceRecord({
+    recipe: RECIPES.coffeeman,
+    params: { grams: 2000, locality: 'תל אביב - יפו' },
+    status: 'quoted',
+    totals: parseCoffeemanTotals(COFFEEMAN),
+    cartIdentity: matchCartIdentity({ recipe: RECIPES.coffeeman, lines: [eightPackCartLine({ quantity: 8 })] }),
+    now: Date.parse('2026-10-13T09:30:00Z')
+  });
+  assert.equal(record.status, 'blocked', 'a different listing cannot be published as the tracked listing quote');
+  assert.match(record.blocker, /Cart identity check failed/);
+  assert.equal(validateEvidence(record).ok, true);
 });
 
 test('the checked-in 8-single free-cart records keep the discount and method evidence', () => {
@@ -803,11 +943,13 @@ test('the omitted-row decision rejects each missing piece of independent evidenc
     serviceLabel: 'משלוח לבית הלקוח עם שליח - 0 ₪',
     destinationVerified: true,
     actualPacks: 8,
+    cartIdentity: matchCartIdentity({ recipe: RECIPES.coffeeman, lines: [singleCartLine()] }),
     now: Date.parse('2026-10-13T09:30:00Z')
   };
   const accepted = buildEvidenceRecord(base);
   assert.equal(accepted.status, 'quoted');
   assert.equal(accepted.shippingIls, 0);
+  assert.equal(accepted.cartIdentityVerified, true);
 
   const cases = [
     ['unverified destination', { destinationVerified: false }, /destination was not verified/],
@@ -817,7 +959,9 @@ test('the omitted-row decision rejects each missing piece of independent evidenc
     ['unselected option price', { totals: { ...base.totals, methodOptions: [{ label: 'משלוח לבית הלקוח עם שליח - 25.00 ₪', amountIls: 25 }] } }, /method list did not show the selected method at zero/],
     ['ambiguous promotion', { totals: { ...base.totals, discountIls: null, discountPercent: null, paidItemTotalIls: null, discountAmbiguous: true } }, /promotion could not be read/],
     ['incomplete charges', { totals: { ...base.totals, deliveredTotalIls: 264 } }, /final total is not consistent/],
-    ['missing SKU', { recipe: { ...RECIPES.coffeeman, sku: null } }, /SKU was not recorded/]
+    ['missing SKU', { recipe: { ...RECIPES.coffeeman, sku: null } }, /SKU was not recorded/],
+    ['missing rendered identity', { cartIdentity: null }, /rendered cart line identity was not verified/],
+    ['mismatched rendered identity', { cartIdentity: matchCartIdentity({ recipe: RECIPES.coffeeman, lines: [eightPackCartLine({ quantity: 8 })] }) }, /Cart identity check failed/]
   ];
   for (const [name, overrides, expected] of cases) {
     const record = buildEvidenceRecord({ ...base, ...overrides });
@@ -829,7 +973,7 @@ test('the omitted-row decision rejects each missing piece of independent evidenc
   }
 });
 
-test('schema version 2 rejects a selected-method-option record that drops required evidence', () => {
+test('schema version 3 rejects a selected-method-option record that drops required identity evidence', () => {
   const record = buildEvidenceRecord({
     recipe: RECIPES.coffeeman,
     params: { grams: 2000, locality: 'תל אביב - יפו' },
@@ -840,17 +984,23 @@ test('schema version 2 rejects a selected-method-option record that drops requir
     serviceLabel: 'משלוח לבית הלקוח עם שליח - 0 ₪',
     destinationVerified: true,
     actualPacks: 8,
+    cartIdentity: matchCartIdentity({ recipe: RECIPES.coffeeman, lines: [singleCartLine()] }),
     now: Date.parse('2026-10-13T09:30:00Z')
   });
+  assert.equal(record.schemaVersion, 3);
   assert.equal(validateEvidence(record).ok, true);
-  for (const key of ['shippingEvidenceNote', 'sku', 'observedPacks', 'serviceLabel', 'discountIls']) {
+  for (const key of ['shippingEvidenceNote', 'sku', 'observedPacks', 'serviceLabel', 'discountIls', 'cartIdentityVerified', 'cartIdentitySource', 'observedCartIdentity']) {
     assert.equal(validateEvidence({ ...record, [key]: null }).ok, false, `dropping ${key} must fail validation`);
   }
   assert.equal(validateEvidence({ ...record, shippingIls: 5 }).ok, false, 'a selected-method-option zero cannot carry a charge');
   assert.equal(validateEvidence({ ...record, arithmeticOk: false }).ok, false);
+  assert.equal(validateEvidence({ ...record, cartIdentityVerified: false }).ok, false, 'a selected-method-option zero needs a verified identity');
+  assert.equal(validateEvidence({ ...record, observedCartIdentity: { ...record.observedCartIdentity, sku: '930335' } }).ok, false, 'the observed SKU must match the declared listing');
+  assert.equal(validateEvidence({ ...record, observedCartIdentity: { ...record.observedCartIdentity, listingPacks: 8 } }).ok, false, 'the observed pack count must match the expected listing');
+  assert.equal(validateEvidence({ ...record, expectedCartIdentity: { ...record.expectedCartIdentity, unitGrams: 1000 } }).ok, false, 'the observed pack identity must match the expected cart unit');
 });
 
-test('version-1 records stay valid historical evidence', () => {
+test('version-1 and version-2 records stay valid historical evidence without observed identity', () => {
   const legacy = {
     kind: 'browser-research-quote',
     schemaVersion: 1,
@@ -861,5 +1011,33 @@ test('version-1 records stay valid historical evidence', () => {
     blocker: 'The rendered flow did not display a shipping line for this quantity and destination.'
   };
   assert.deepEqual(validateEvidence(legacy), { ok: true, errors: [] });
-  assert.equal(validateEvidence({ ...legacy, schemaVersion: 3 }).ok, false);
+  assert.equal(validateEvidence({ ...legacy, schemaVersion: 4 }).ok, false);
+
+  // A version-2 free record is preserved as the historical evidence of what was
+  // observed then: it keeps validating under the version-2 rules and is never
+  // relabelled with an observed cart identity it does not contain.
+  const v2 = {
+    ...legacy,
+    schemaVersion: 2,
+    status: 'quoted',
+    itemSubtotalIls: 264,
+    shippingIls: 0,
+    deliveredTotalIls: 237.6,
+    arithmeticOk: true,
+    locality: 'תל אביב - יפו',
+    itemSubtotalBeforeDiscountIls: 264,
+    discountIls: -26.4,
+    paidItemTotalIls: 237.6,
+    shippingEvidenceSource: 'selected-method-option',
+    service: 'home_delivery',
+    serviceConfirmed: true,
+    serviceLabel: 'משלוח לבית הלקוח עם שליח - 0 ₪',
+    destinationVerified: true,
+    observedPacks: 8,
+    sku: '930333',
+    shippingEvidenceNote: 'The checkout omitted the applied shipping row.',
+    blocker: null
+  };
+  assert.deepEqual(validateEvidence(v2), { ok: true, errors: [] }, 'the version-2 rules still apply to historical records');
+  assert.equal(v2.observedCartIdentity, undefined, 'historical records are not retroactively labelled as observed');
 });
