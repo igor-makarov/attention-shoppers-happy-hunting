@@ -5,10 +5,11 @@ there is no variant selector, menu entry, warning, "other variant" count or vari
 UI, and every eligible tracked Crema e Gusto vacuum-packed ground listing — including the Coffee4U listing
 whose blend wording is not stated — is compared in one board for the selected quantity, locality and
 delivery method. The Canton Zürich product index + dedicated product page, the browser-researched shipping
-policies and the progressive-disclosure layout are validated locally (153/153 tests, 89/89 offline and 85/85
-production browser checks) and against the deployed site: the four-policy build is live (production probe 25/25
-at 00:19 UTC, live browser QA 85/85 at 00:28 UTC with zero console errors), the Pucks free-above-₪100 rule
-is applied to the old persisted store at read time, and obsolete `variant=` URLs resolve to that one board.
+policies and the progressive-disclosure layout are validated locally (157/157 tests, 90/90 offline and 86/86
+live-local browser checks) and against the deployed site: the four-policy build is live (production probe 25/25
+at 01:35 UTC, live browser QA 85/85 at 00:28 UTC with zero console errors), the Pucks free-above-₪100 rule
+and its v2 five-locality coverage evidence are applied to the old persisted store at read time, and obsolete
+`variant=` URLs resolve to that one board.
 Iteration 3-81 removes the last variant coupling from the data layer: a stored offer's identity key no
 longer contains the blend wording a listing prints, legacy blend-keyed rows are collapsed at read time
 with their stable-key replacement (newest observation wins), and failure markers plus previous-check
@@ -20,6 +21,13 @@ observed on: the single 250 g and 4 × 250 g listings get free home courier from
 is labelled as a cart-observed condition rather than a published threshold. At 2 kg the board now ranks
 the CoffeeMan 8 × 250 g single-pack cart at its observed delivered **₪237.60** (10% promotion + free
 delivery) instead of ₪262.60, which is the vendor's own anonymous-cart total.
+Iteration 3-83 extends the Pucks estimator evidence to the remaining selectable localities (Haifa /
+3100000 and Be’er Sheva / 8400000 below the threshold, Haifa free above it), promotes
+`pucks-il-home-delivery` to **v2** with the five sampled localities named in its coverage caveat, and
+makes the read-time evaluator refresh the **provenance** of a persisted row stamped by an older version
+of the same policy whose money/scope is identical — so the new coverage evidence reaches the already
+parsed rows immediately instead of waiting for the 06:17 UTC vendor refresh, while a version that
+changes any amount is still never swapped in at read time.
 Iteration 3-79 adds the vendor's **published quantity promotion** (CoffeeMan 10% off the ground-coffee
 item subtotal from a ₪250 subtotal, multipacks excluded), parsed from the product-page banner each
 refresh and applied to the item subtotal with the vendor's own wording disclosed: the 8 × 250 g singles
@@ -1902,3 +1910,80 @@ persisted CoffeeMan rows gained the free condition at read time (`ranked=5`, 2 k
 ₪237.60, policy v2) and after the **06:17 UTC tick** to record whether the CoffeeMan egress block
 persists; then continue within Crema e Gusto coverage, shipping evidence, freshness and comparison
 quality.
+
+## Iteration 3-83 — Pucks destination coverage extended to every selectable locality; same-rule policy updates refresh persisted provenance at read time (2026-10-13)
+
+**The gap.** The checked-in Pucks policy v1 had sampled Tel Aviv / 6100000, Eilat / 8800000 and
+Jerusalem / 9100000 only, while the site offers Haifa / 3100000 and Be’er Sheva / 8400000 as
+destinations with no estimator evidence behind them. The coverage caveat said only "Tel Aviv and
+Eilat carts". Separately, the read-time evaluator filled *unknown* shipping from a validated policy but
+left an already-stamped row's **evidence** untouched, so after a same-rule policy update (newer
+coverage evidence, new retrieval time) the board kept serving the older caveat and the older policy
+version until the next 6-hour vendor refresh — a provenance version of the known-knowledge gap.
+
+**What changed (research + implementation).**
+
+- Three bounded recipe runs through the real Chrome/ChromeDriver workflow
+  (`npm run research:browser -- recipe pucks`) with the destination step verified on the page:
+  a 2 × 250 g cart to Haifa / 3100000 and a 2 × 250 g cart to Be’er Sheva / 8400000 each showed
+  **₪60 + ₪30 = ₪90**, and a 4 × 250 g cart to Haifa showed **₪120 + ₪0 = ₪120** (the free-over-₪100
+  rule reproduced at a third locality). No order, payment, login, account or street address was
+  involved and no bot challenge was bypassed; cart/session identifiers are stripped from the records.
+  Evidence: `docs/evidence/browser-research/2026-10-13-pucks-haifa-500g.json`,
+  `docs/evidence/browser-research/2026-10-13-pucks-beersheva-500g.json`,
+  `docs/evidence/browser-research/2026-10-13-pucks-haifa-1kg.json` and the summary
+  `docs/evidence/browser-research/2026-10-13-pucks-destination-extension.json`.
+- `pucks-il-home-delivery` is now **v2**: the ₪30 / free-above-₪100 rule and its strict `above`
+  semantics are unchanged, the coverage caveat names all five selectable localities with a postcode,
+  and the evidence note/time record the 2026-10-13 re-check. The adapter derives its parsed row from
+  the policy, so a fresh parse carries v2 directly.
+- `enrichObservationShipping()` now distinguishes "fill missing fields" from "refresh stale
+  provenance": when a row already carries a `shipping.policy` stamp for the **same policy id with an
+  older version** and the money/scope is identical (amount, threshold, semantics, origin, min order,
+  max grams and alternatives all equal), the evaluator refreshes only the policy stamp, the coverage
+  caveat and evidence that came from this policy (same evidence URL). A version that changes any
+  amount leaves the row untouched for the next vendor refresh — a parsed rate is never overwritten at
+  read time. The item's `observedAt`, price and stock, and the refresh completion marker, stay
+  untouched.
+
+**Verified locally (2026-10-13 UTC):**
+
+- `npm run verify` — **157/157** `node:test` cases pass (two new: a same-rule policy update refreshes
+  a v1-stamped row's caveat/evidence/policy stamp at read time while the ₪30 rate and the item
+  observation time stay, and a hypothetical v3 that changes the amount does not overwrite a known
+  parsed row). `wrangler deploy --dry-run` builds the bundle (127.74 KiB / gzip 31.50 KiB; bindings
+  `BOARD` + `ASSETS`).
+- **Live local end-to-end:** a fresh `wrangler dev` store parsed its Pucks row at 01:35:05.993Z with
+  the v1 stamp. After the v2 policy was loaded, `/api/board?grams=500&dest=haifa` served the row with
+  policy **v2**, the five-locality caveat, the refreshed evidence time 2026-10-13T01:41:10Z and the
+  unchanged ₪30 rate — with `observedAt` still 01:35:05.993Z and no `lastRefreshAt` change. The
+  rendered details read "Shipping rule: pucks-il-home-delivery v2 (observed anonymous cart quote,
+  observed 13 Oct 2026, 04:41 …)" and "Shipping evidence refreshed from validated policy
+  pucks-il-home-delivery v2 … the rate and its quantity scope are unchanged." Evidence:
+  `docs/evidence/local-provenance-refresh-20261013T0149Z.json`.
+- `npm run qa:browser` (offline fixtures) — **90/90** checks, zero console errors.
+  `npm run qa:browser -- http://127.0.0.1:8789` against the fresh live Worker — **86/86**, zero
+  console errors.
+- `npm run cron:offline` — 6 bounded requests, all three vendors saved (five observations), no
+  failures; the scheduled path is unaffected.
+- `npm run check:sources` (live, 01:50 UTC) — all five listings pass with unchanged prices and stock
+  (CoffeeMan ₪33/₪124/₪240, Pucks ₪30, Coffee4U ₪38, all `in_stock`); the freshly parsed Pucks row
+  carries the v2 coverage caveat and evidence note. Evidence:
+  `docs/evidence/source-check-20261013T0150Z.json`.
+- `npm run probe:production` (read-only public GETs, 01:35 UTC) — **25/25** checks against
+  `https://attention-shoppers.igormaka.workers.dev`: five ranked offers, no retired row, the obsolete
+  `?variant=` URL resolving to the same unified board, all four policies current, CoffeeMan's next
+  attempt still the 06:17 UTC tick (the 00:17 tick's egress block remains). Evidence:
+  `docs/evidence/production-probe-20261013T0135Z.json`.
+- Docs: `docs/SOURCES.md` records the destination extension and the v2 promotion; `docs/ARCHITECTURE.md`
+  documents the provenance-refresh rule.
+
+**Production note:** the change is backwards compatible. The deployed store's Pucks row (parsed
+00:17 UTC with the v1 stamp) gains the v2 coverage caveat, evidence time and policy stamp at read time
+as soon as this build is live, without a vendor refresh and without advancing `lastRefreshAt`; the
+₪30 rate and threshold are unchanged, so no ranked total moves. No Cloudflare administration was used.
+
+**Next step:** after the main-push build deploys, re-run `npm run probe:production` to confirm the
+deployed Pucks offer serves policy v2 / the five-locality caveat from the old persisted row at read
+time, and after the **06:17 UTC tick** record whether the CoffeeMan egress block persists; then
+continue within Crema e Gusto coverage, shipping evidence, freshness and comparison quality.
