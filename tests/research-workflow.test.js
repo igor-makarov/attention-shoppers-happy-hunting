@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync, readdirSync } from 'node:fs';
 import {
   EVIDENCE_SCHEMA_VERSION,
   RECIPES,
@@ -391,6 +392,25 @@ test('a destination step that sets the wrong value blocks the run and is never t
   assert.match(quoted.qualification, /could not be verified/);
   const stripped = { ...quoted, qualification: null };
   assert.equal(validateEvidence(stripped).ok, false, 'an unverified destination must be disclosed');
+});
+
+test('the checked-in quote records carry the confirmed delivery method from their method step', () => {
+  // The Coffee4U destination-extension records were produced before the schema
+  // gained the field and were backfilled from their recorded successful method
+  // step; every checked-in record whose method step succeeded must carry it.
+  const dir = new URL('../docs/evidence/browser-research/', import.meta.url);
+  let checked = 0;
+  for (const name of readdirSync(dir).filter(file => file.endsWith('.json'))) {
+    const record = JSON.parse(readFileSync(new URL(name, dir), 'utf8'));
+    if (record.kind !== 'browser-research-quote') continue;
+    const methodStep = (record.steps ?? []).find(step => step.ok && /selected: .*שליחות|clicked: משלוח עד הבית/.test(step.detail ?? ''));
+    if (!methodStep) continue;
+    checked += 1;
+    assert.equal(record.service, 'home_delivery', `${name} records the method its shipping line belongs to`);
+    assert.equal(record.serviceConfirmed, true, `${name} marks the method confirmed by the page step`);
+    assert.equal(validateEvidence(record).ok, true, `${name} still passes schema validation`);
+  }
+  assert.ok(checked >= 9, `expected at least nine method-confirmed checked-in records, found ${checked}`);
 });
 
 test('runRecipe marks a hard failure as blocked with the exact step', async () => {
