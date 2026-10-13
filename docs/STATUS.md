@@ -57,6 +57,11 @@ helper predicted 18:17 for them). `scripts/cron-schedule.mjs` now imports `isVen
 from `src/refresh.js`, `firstAttemptAtOrAfter` is verified against that runtime rule at the exact boundary
 (due = tick + 15:00 exactly is attempted at the tick; +1 ms waits for the next), failed vendors keep the
 strict deadline, and the production probe records the due-aware attempt tick beside the deadline-only tick.
+The same iteration resolved Coffee4U's last unresolved shopper-facing coverage condition: the published
+₪15 צ'יטה שופס pickup-point alternative was verified in the vendor's anonymous checkout for all five
+selectable destinations (426-locality pickup list, per-locality spot counts 4/18/27/34/3, each quoting
+₪76 + ₪15 = ₪91 for a 500 g cart), and the provenance-only `coffee4u-il-home-delivery` v3 update reaches
+already-stamped persisted rows at read time without changing the ranked ₪30 rate or any observation time.
 Iteration 3-81 removes the last variant coupling from the data layer: a stored offer's identity key no
 longer contains the blend wording a listing prints, legacy blend-keyed rows are collapsed at read time
 with their stable-key replacement (newest observation wins), and failure markers plus previous-check
@@ -2594,8 +2599,23 @@ observations with the visible failed-check warning; no runtime disguise, proxy o
 Evidence: `docs/evidence/browser-research/2026-10-13-coffeeman-runtime-source-investigation.json`;
 source notes updated in `docs/SOURCES.md`.
 
-**Next step:** use the reusable browser research workflow on the remaining shopper-facing coverage
-condition — Coffee4U's ₪15 pickup-point alternative (published for up to 5 kg, 420 localities observed)
-has no per-destination evidence for the five selectable localities, unlike the door-to-door ₪30 rate which
-is verified for all five. After that, the 12:17 UTC cron tick remains the next actual vendor attempt and
-will show whether the CoffeeMan Worker-egress 403 persists.
+**Coffee4U ₪15 pickup-point coverage resolved for all five selectable destinations (browser research).** The
+reusable workflow's Coffee4U recipe built the anonymous 2 × 250 g cart (₪76, door-to-door confirmed), then
+the same live session switched the checkout's `#delivery` select to the pickup-point option (₪15). For each
+selectable locality, the pickup locality select (`#chita_cities`) contained 427 options (426 localities;
+420 were recorded 2026-10-12), the locality synced from the closed destination list, per-locality pickup
+spots were listed (Tel Aviv–Yafo 4, Jerusalem 18, Haifa 27, Be’er Sheva 34, Eilat 3), and the rendered
+summary quoted **₪76 + ₪15 = ₪91**. The ₪15 alternative stays display-only; the ranked ₪30 door-to-door
+rate is unchanged. The policy is now `coffee4u-il-home-delivery` **v3** with identical money/scope, so the
+read-time evaluator refreshes the coverage provenance (426-locality pickup list, verified destinations,
+spot counts) on already-stamped persisted rows without touching price/stock observation times or the
+refresh marker; `npm run verify` passes **182/182** tests plus the dry-run bundle. Evidence:
+`docs/evidence/browser-research/2026-10-13-coffee4u-pickup-point-coverage.json`,
+`coffee4u-pickup-point-beersheva.png` (screenshot artifact; the file-read tool rejects image input, so no
+native image claim is made), and `docs/SOURCES.md`.
+
+**Next step:** the **12:17 UTC cron tick** is the next actual vendor attempt (all three vendors, per the
+due-aware prediction above). Record whether the CoffeeMan Worker-egress 403 persists; if it does, keep the
+last-known-good observation and warning rather than bypassing the vendor control. Verify the Coffee4U v3
+provenance is served after the main-push deploy (read-only `/api/status`), and continue only with verified
+Crema e Gusto coverage/freshness/comparison work rather than repeated unchanged probes.

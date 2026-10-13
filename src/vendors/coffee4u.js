@@ -31,6 +31,10 @@ const CHECKOUT_COVERAGE = {
 // The verified localities are policy provenance, not a hard-coded sentence:
 // extending the checkout research must reach the parsed row's note too.
 const VERIFIED_LOCALITIES = [...(CHECKOUT_COVERAGE.verifiedLocalities ?? [])];
+// Pickup-point coverage is provenance too: the alternative's fee was already
+// published, but the 2026-10-13 research verified that every selectable
+// locality is on the pickup list and quoted the alternative at 500 g.
+const PICKUP_POINT_VERIFIED = [...(CHECKOUT_COVERAGE.pickupPointVerifiedLocalities ?? [])];
 const PICKUP_POINT_ALTERNATIVE = COFFEE4U_POLICY.alternatives.find(alternative => alternative.id === 'pickup-point');
 
 const AVAILABILITY = {
@@ -145,7 +149,9 @@ export function parseCoffee4uProduct(html, { now, url = PRODUCT_URL, productId =
         maxTotalGrams: PICKUP_POINT_ALTERNATIVE.maxTotalGrams ?? null,
         note: PICKUP_POINT_ALTERNATIVE.note
       }],
-      note: `${shipping.note} Rendered anonymous checkout (${CHECKOUT_COVERAGE.observedAt}): the door-to-door method requires an exact match from a closed list of ${new Intl.NumberFormat('en-US').format(CHECKOUT_COVERAGE.courierLocalities)} Israeli localities (${VERIFIED_LOCALITIES.join(', ')} selected, fee unchanged); the ₪15 pickup-point method lists ${CHECKOUT_COVERAGE.pickupPointLocalities} localities with pickup spots.`,
+      note: `${shipping.note} Rendered anonymous checkout (${CHECKOUT_COVERAGE.observedAt}): the door-to-door method requires an exact match from a closed list of ${new Intl.NumberFormat('en-US').format(CHECKOUT_COVERAGE.courierLocalities)} Israeli localities (${VERIFIED_LOCALITIES.join(', ')} selected, fee unchanged); the ₪15 pickup-point method lists ${CHECKOUT_COVERAGE.pickupPointLocalities} localities with pickup spots${PICKUP_POINT_VERIFIED.length
+        ? `, and all five selectable localities (${PICKUP_POINT_VERIFIED.join(', ')}) are on it and quoted ₪76 + ₪15 = ₪91 for a 500 g cart (observed ${CHECKOUT_COVERAGE.pickupPointObservedAt ?? CHECKOUT_COVERAGE.observedAt})`
+        : ''}.`,
       evidence: { url, retrievedAt: null, note: `Delivery options are listed next to the product on the product page. Checkout coverage observed in the rendered anonymous checkout; see ${CHECKOUT_COVERAGE.evidence}.` },
       policy: {
         id: COFFEE4U_POLICY.id,

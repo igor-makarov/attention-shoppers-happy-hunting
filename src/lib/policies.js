@@ -305,7 +305,7 @@ export const coffeemanSingleFourPackPolicy = {
  */
 export const coffee4uHomeDeliveryPolicy = {
   id: 'coffee4u-il-home-delivery',
-  version: 2,
+  version: 3,
   vendorId: 'coffee4u',
   productIds: [PRODUCT_ID],
   itemUrlPrefixes: ['https://www.coffee4u.co.il/product/'],
@@ -324,31 +324,35 @@ export const coffee4uHomeDeliveryPolicy = {
     label: "Delivery to a צ'יטה שופס pickup point",
     amount: { amount: 15, currency: 'ILS' },
     maxTotalGrams: 5000,
-    note: 'Published on the same product page for up to 5 kg; a different service from door-to-door courier delivery. The rendered checkout lists 420 localities with pickup spots (observed 2026-10-12).'
+    note: 'Published on the same product page for up to 5 kg; a different service from door-to-door courier delivery. The rendered checkout lists 426 localities with pickup spots (observed 2026-10-13; 420 on 2026-10-12), and all five selectable localities are on that list and quoted ₪76 + ₪15 = ₪91 for a 500 g cart; pickup spots observed: Tel Aviv–Yafo 4, Jerusalem 18, Haifa 27, Be’er Sheva 34, Eilat 3.'
   }],
   destination: {
     scope: 'country',
     country: 'IL',
-    caveat: 'Door-to-door delivery is limited to the localities on Coffee4U’s home-delivery list, which the product page does not publish. The rendered anonymous checkout requires the destination from a closed list of 1,269 Israeli localities (Tel Aviv - Yafo and Eilat verified 2026-10-12; Jerusalem, Haifa and Be’er Sheva verified 2026-10-13, each ₪30 for a 500 g cart); the ₪15 pickup-point service lists 420 localities with pickup spots. Confirm the destination at checkout.',
+    caveat: 'Door-to-door delivery is limited to the localities on Coffee4U’s home-delivery list, which the product page does not publish. The rendered anonymous checkout requires the destination from a closed list of 1,269 Israeli localities (Tel Aviv - Yafo and Eilat verified 2026-10-12; Jerusalem, Haifa and Be’er Sheva verified 2026-10-13, each ₪30 for a 500 g cart); the ₪15 pickup-point service lists 426 localities with pickup spots (2026-10-13), and all five selectable localities are on it, each quoting ₪76 + ₪15 = ₪91 for a 500 g cart with observed pickup spots (Tel Aviv–Yafo 4, Jerusalem 18, Haifa 27, Be’er Sheva 34, Eilat 3). Confirm the destination and pickup point at checkout.',
     caveatSource: 'https://www.coffee4u.co.il/page/%D7%AA%D7%A7%D7%A0%D7%95%D7%9F-0',
     observed: {
       courierLocalities: 1269,
-      pickupPointLocalities: 420,
+      pickupPointLocalities: 426,
       verifiedLocalities: ['תל אביב - יפו', 'אילת', 'ירושלים', 'חיפה', 'באר שבע'],
+      pickupPointVerifiedLocalities: ['תל אביב - יפו', 'ירושלים', 'חיפה', 'באר שבע', 'אילת'],
+      pickupPointSpotCounts: { 'תל אביב - יפו': 4, 'ירושלים': 18, 'חיפה': 27, 'באר שבע': 34, 'אילת': 3 },
       observedAt: '2026-10-13T02:02:12Z',
+      pickupPointObservedAt: '2026-10-13T08:06:00Z',
       entryUrl: 'https://www.coffee4u.co.il/cart.asp',
-      evidence: 'docs/evidence/browser-research/2026-10-13-coffee4u-destination-extension.json'
+      evidence: 'docs/evidence/browser-research/2026-10-13-coffee4u-destination-extension.json',
+      pickupPointEvidence: 'docs/evidence/browser-research/2026-10-13-coffee4u-pickup-point-coverage.json'
     }
   },
   evidence: {
     url: 'https://www.coffee4u.co.il/product/lavazza-crema-e-gusto-250-gr-%D7%98%D7%97%D7%95%D7%9F',
-    retrievedAt: '2026-10-13T02:02:12Z',
-    note: 'Door-to-door courier ₪30 and pickup-point ₪15 are published next to the product. Rendered anonymous checkout coverage observed 2026-10-12: the door-to-door method requires an exact match from a closed list of 1,269 Israeli localities (Tel Aviv - Yafo and Eilat verified) and the pickup-point method lists 420 localities with pickup spots. Re-checked 2026-10-13 for the remaining selectable localities: Jerusalem, Haifa and Be’er Sheva each quoted ₪76 + ₪30 = ₪106 for a 2 × 250 g cart, so the ₪30 rate and the closed-list shape are unchanged; see docs/evidence/browser-research/2026-10-12-coffee4u-coverage.json and docs/evidence/browser-research/2026-10-13-coffee4u-destination-extension.json.'
+    retrievedAt: '2026-10-13T08:06:00Z',
+    note: 'Door-to-door courier ₪30 and pickup-point ₪15 are published next to the product. Rendered anonymous checkout coverage observed 2026-10-12: the door-to-door method requires an exact match from a closed list of 1,269 Israeli localities (Tel Aviv - Yafo and Eilat verified) and the pickup-point method lists 420 localities with pickup spots. Re-checked 2026-10-13 for the remaining selectable localities: Jerusalem, Haifa and Be’er Sheva each quoted ₪76 + ₪30 = ₪106 for a 2 × 250 g cart, so the ₪30 rate and the closed-list shape are unchanged; see docs/evidence/browser-research/2026-10-12-coffee4u-coverage.json and docs/evidence/browser-research/2026-10-13-coffee4u-destination-extension.json. The pickup-point method was re-checked in the same anonymous cart on 2026-10-13: its locality list held 426 localities, all five selectable localities were present, each quoted ₪76 + ₪15 = ₪91 for the 500 g cart, and pickup spots were listed per locality (Tel Aviv–Yafo 4, Jerusalem 18, Haifa 27, Be’er Sheva 34, Eilat 3); see docs/evidence/browser-research/2026-10-13-coffee4u-pickup-point-coverage.json.'
   },
   observedFor: {
-    carts: ['1 × 250 g', '2 × 250 g (500 g carts to Jerusalem, Haifa and Be’er Sheva, 2026-10-13)'],
+    carts: ['1 × 250 g', '2 × 250 g (500 g carts to Jerusalem, Haifa and Be’er Sheva, 2026-10-13)', '2 × 250 g pickup-point carts to all five selectable localities (2026-10-13)'],
     destinations: ['Tel Aviv - Yafo', 'Eilat', 'ירושלים', 'חיפה', 'באר שבע'],
-    method: 'home_delivery (door-to-door courier, selected in the rendered checkout; each run’s evidence record carries the confirmed service)',
+    method: 'home_delivery (door-to-door courier, selected in the rendered checkout; each run’s evidence record carries the confirmed service) and pickup_point (the ₪15 צ’יטה שופס alternative, selected in the same anonymous cart; each selectable locality was present in the pickup list with spots and quoted ₪76 + ₪15 = ₪91)',
     note: 'No street address or personal detail was entered and no order was submitted.'
   },
   reviewBy: '2026-11-11T00:00:00.000Z'

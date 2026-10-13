@@ -475,12 +475,13 @@ test('an old persisted Coffee4U offer gains the published rate, coverage and pic
   assert.equal(board.best.shipping.alternatives[0].id, 'pickup-point');
   assert.match(board.best.shipping.coverageCaveat, /closed list of 1,269/, 'the enriched rate keeps the observed closed-locality-list caveat');
   assert.equal(board.best.shipping.destination.observed.courierLocalities, 1269);
-  assert.equal(board.best.shipping.destination.observed.pickupPointLocalities, 420);
+  assert.equal(board.best.shipping.destination.observed.pickupPointLocalities, 426);
   assert.deepEqual(board.best.shipping.destination.observed.verifiedLocalities, ['תל אביב - יפו', 'אילת', 'ירושלים', 'חיפה', 'באר שבע']);
+  assert.deepEqual(board.best.shipping.destination.observed.pickupPointVerifiedLocalities, ['תל אביב - יפו', 'ירושלים', 'חיפה', 'באר שבע', 'אילת']);
   assert.equal(board.best.shipping.policy.id, 'coffee4u-il-home-delivery');
   assert.equal(board.best.totalIls, 106, '2 × ₪38 item + ₪30 published courier rate');
   assert.equal(board.best.ilsPerKg, 212);
-  assert.match(board.best.shipping.note, /validated policy coffee4u-il-home-delivery v2/);
+  assert.match(board.best.shipping.note, /validated policy coffee4u-il-home-delivery v3/);
   assert.deepEqual(stored, storedSnapshot, 'the stored observation is never mutated');
 });
 
@@ -746,17 +747,23 @@ test('a same-rule Coffee4U policy update refreshes the persisted row\'s coverage
   const enriched = enrichObservationShipping(stored, { policies: [coffee4uHomeDeliveryPolicy], now: NOW });
   assert.equal(enriched.status, 'applied', 'an older policy version on a known row is refreshed, not ignored');
   assert.equal(enriched.observation.shipping.amount.amount, 30, 'the ₪30 rate is unchanged because the rule is identical');
-  assert.equal(enriched.observation.shipping.policy.version, 2, 'the row carries the newer policy version');
-  assert.equal(enriched.observation.shipping.policy.retrievedAt, '2026-10-13T02:02:12Z');
+  assert.equal(enriched.observation.shipping.policy.version, 3, 'the row carries the newer policy version');
+  assert.equal(enriched.observation.shipping.policy.retrievedAt, '2026-10-13T08:06:00Z');
   assert.match(enriched.observation.shipping.destination.caveat, /Jerusalem, Haifa and Be’er Sheva verified 2026-10-13/, 'the newer coverage caveat replaces the older one');
+  assert.match(enriched.observation.shipping.destination.caveat, /all five selectable localities are on it/, 'the pickup-point coverage extension reaches the persisted row');
   assert.deepEqual(
     enriched.observation.shipping.destination.observed.verifiedLocalities,
     ['תל אביב - יפו', 'אילת', 'ירושלים', 'חיפה', 'באר שבע'],
     'the observed coverage provenance is refreshed too'
   );
+  assert.deepEqual(
+    enriched.observation.shipping.destination.observed.pickupPointVerifiedLocalities,
+    ['תל אביב - יפו', 'ירושלים', 'חיפה', 'באר שבע', 'אילת'],
+    'the pickup-point coverage provenance is refreshed too'
+  );
   assert.equal(enriched.observation.shipping.destination.observed.courierLocalities, 1269, 'the closed-list shape is unchanged');
-  assert.equal(enriched.observation.shipping.evidence.retrievedAt, '2026-10-13T02:02:12Z', 'evidence that came from this policy is refreshed');
-  assert.match(enriched.observation.shipping.note, /evidence refreshed from validated policy coffee4u-il-home-delivery v2/);
+  assert.equal(enriched.observation.shipping.evidence.retrievedAt, '2026-10-13T08:06:00Z', 'evidence that came from this policy is refreshed');
+  assert.match(enriched.observation.shipping.note, /evidence refreshed from validated policy coffee4u-il-home-delivery v3/);
   assert.equal(enriched.observation.observedAt, FRESH, 'the item price/stock observation time is never rewritten');
   assert.deepEqual(stored, storedSnapshot, 'the stored observation is never mutated');
 
@@ -764,7 +771,7 @@ test('a same-rule Coffee4U policy update refreshes the persisted row\'s coverage
   // pickup-point alternative separate from the delivered total.
   const board = quote([stored]);
   assert.equal(board.best.totalIls, 106);
-  assert.equal(board.best.shipping.policy.version, 2);
+  assert.equal(board.best.shipping.policy.version, 3);
   assert.equal(board.best.shipping.alternatives[0].amountIls, 15);
 });
 

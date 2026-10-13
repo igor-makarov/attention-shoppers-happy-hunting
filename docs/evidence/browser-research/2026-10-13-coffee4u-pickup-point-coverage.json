@@ -1,0 +1,45 @@
+{
+  "kind": "browser-research-coverage",
+  "schemaVersion": 1,
+  "topic": "Coffee4U ₪15 צ'יטה שופס pickup-point alternative: locality coverage and rendered fee for the five selectable destinations on the tracked Crema e Gusto 250 g listing",
+  "date": "2026-10-13",
+  "windowUtc": "2026-10-13T08:04:48Z to 2026-10-13T08:07:30Z",
+  "method": "Interactive headless Google Chrome 154.0.8037.97 + ChromeDriver 154.0.8037.92 through scripts/browser-research.mjs (npm run research:browser), one live session kept across steps. The anonymous 2 × 250 g cart (₪76) was built by the checked-in coffee4u recipe (Tel Aviv - Yafo, door-to-door selected and confirmed) and then, in the same session, the checkout's own #delivery select was switched to its pickup-point option (value 2). Each selectable locality was chosen from the vendor's closed #u_city list; the pickup-point city select (#chita_cities), the per-city pickup-spot select (#chita_spots) and the rendered summary were read after each selection. No order, payment, login, account creation or street address was involved, and no bot challenge or access control was bypassed. Cart/session identifiers, cookies and tokens are deliberately not recorded.",
+  "toolingLimitation": "The coding agent's file-read tool rejects PNG input ('reading images is not supported'), so no image-based visual claim is made. Every value below is backed by the rendered DOM/text captured in the same live session; the screenshot is an artifact for a human reviewer.",
+  "productUrl": "https://www.coffee4u.co.il/product/lavazza-crema-e-gusto-250-gr-%D7%98%D7%97%D7%95%D7%9F",
+  "entryUrl": "https://www.coffee4u.co.il/Checkout.asp",
+  "cart": "2 × 250 g = 500 g, item subtotal ₪76",
+  "deliverySelect": {
+    "element": "#delivery",
+    "pickupPointOption": "משלוח לנקודת איסוף צ`יטה שופס (עד 7 ימי עסקים - עד 5 ק\"ג 30*30*30) - 15 ₪",
+    "value": "2",
+    "doorToDoorOption": "שליחות מדלת לדלת עד 1-5 ימי עסקים - 30 ₪ (value 3)"
+  },
+  "renderedSummary": {
+    "text": "משלוח | ₪15 | סכום כולל מע\"מ | ₪91",
+    "shippingIls": 15,
+    "deliveredTotalIls": 91,
+    "arithmetic": "₪76 item subtotal + ₪15 pickup-point = ₪91"
+  },
+  "localityCoverage": [
+    { "locality": "תל אביב - יפו", "pickupCitySelect": "תל אביב - יפו", "pickupLocalityOptions": 427, "pickupSpots": 5, "spotsExcludingPlaceholder": 4, "shippingIls": 15, "deliveredTotalIls": 91 },
+    { "locality": "ירושלים", "pickupCitySelect": "ירושלים", "pickupLocalityOptions": 427, "pickupSpots": 19, "spotsExcludingPlaceholder": 18, "shippingIls": 15, "deliveredTotalIls": 91 },
+    { "locality": "חיפה", "pickupCitySelect": "חיפה", "pickupLocalityOptions": 427, "pickupSpots": 28, "spotsExcludingPlaceholder": 27, "shippingIls": 15, "deliveredTotalIls": 91 },
+    { "locality": "באר שבע", "pickupCitySelect": "באר שבע", "pickupLocalityOptions": 427, "pickupSpots": 35, "spotsExcludingPlaceholder": 34, "shippingIls": 15, "deliveredTotalIls": 91 },
+    { "locality": "אילת", "pickupCitySelect": "אילת", "pickupLocalityOptions": 427, "pickupSpots": 4, "spotsExcludingPlaceholder": 3, "shippingIls": 15, "deliveredTotalIls": 91 }
+  ],
+  "pickupSpotExamplesBeerSheva": [
+    "home&more-באר שבע-קישון 1",
+    "אייס באר שבע-דרך חברון 58",
+    "סלקשן גרנד קניון-*שדרות דוד טוביהו* 125",
+    "ציפופו-לרון אפרים 112"
+  ],
+  "observations": {
+    "localityList": "The pickup-point service keeps its own closed locality select (#chita_cities, 427 options including the 'בחר עיר' placeholder = 426 localities, observed 2026-10-13; 420 were recorded on 2026-10-12). Selecting a main destination in #u_city syncs the pickup city select when that locality is on the pickup list; all five selectable destinations are on it.",
+    "spots": "Choosing the pickup-point method reveals 'בחר נקודת איסוף' (#chita_spots) with the pickup points for the selected locality; the fee (₪15) and total (₪91) are displayed without choosing a specific spot, which is required only before ordering.",
+    "destinationBeyondList": "A destination that is not on the 426-locality pickup list cannot use the ₪15 alternative; the checkout only offers its closed lists, and 'Elsewhere in Israel' is not a selectable locality."
+  },
+  "screenshot": "docs/evidence/browser-research/coffee4u-pickup-point-beersheva.png",
+  "conclusion": "The published ₪15 pickup-point alternative is verified for all five selectable destinations: each is present in the vendor's pickup locality list, has pickup spots (4-34 depending on locality) and quotes ₪76 + ₪15 = ₪91 for the 500 g cart. The ranked door-to-door rate (₪30) is unchanged and remains the ranked amount; the pickup-point service stays a display-only alternative. The earlier 420-locality count is superseded by the 426 observed on 2026-10-13.",
+  "policyImpact": "Provenance-only update to coffee4u-il-home-delivery v3: the money/scope (₪30 ranked, ₪15 alternative, 1,269-locality door-to-door list) is unchanged, so the read-time evaluator refreshes the coverage provenance on already-stamped persisted rows; no price/stock observation time or refresh marker is touched."
+}
