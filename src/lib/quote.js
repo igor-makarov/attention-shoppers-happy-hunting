@@ -274,6 +274,14 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
       // UI never presents an observed free condition as an unconditional rate.
       freeThresholdOrigin: shipping.freeThresholdOrigin ?? shipping.policy?.freeThresholdOrigin ?? null,
       freeThresholdEvidence: shipping.freeThresholdEvidence ?? null,
+      // Scoped cart-observed free conditions (for example CoffeeMan's exact
+      // anonymous carts). These are matched against the current cart, never
+      // applied as a monotone threshold; `freeCondition` is the matched entry.
+      freeCartConditions: (shipping.freeCartConditions ?? []).map(condition => ({
+        ...condition,
+        evidence: condition.evidence ? { ...condition.evidence } : null
+      })),
+      freeCondition: null,
       minOrder: shipping.minOrder?.amount ?? null,
       minOrderCurrency: shipping.minOrder?.currency ?? null,
       destination: shipping.destination ?? { scope: 'country', country: 'IL' },
@@ -461,6 +469,46 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
     }
   }
 
+  // Scoped cart-observed free conditions: the vendor showed free delivery on
+  // exact anonymous carts (listing, whole-pack count, grams and item subtotal),
+  // but never published a threshold. Free delivery is applied only when the
+  // current cart matches an observed free configuration exactly. A larger or
+  // otherwise unobserved cart keeps the published base rate instead of
+  // inheriting zero shipping from its subtotal alone.
+  const freeConditions = base.shipping.freeCartConditions;
+  if (freeConditions.length) {
+    const matched = freeConditions.find(condition => freeCartConditionMatches(condition, observation, base));
+    if (matched) {
+      shippingIls = 0;
+      base.shipping.freeCondition = {
+        id: matched.id,
+        units: matched.units ?? null,
+        packCount: matched.packCount ?? null,
+        orderedGrams: matched.orderedGrams ?? null,
+        itemSubtotalIls: matched.itemSubtotalIls ?? null,
+        discountPercent: matched.discountPercent ?? null,
+        paidItemTotalIls: matched.paidItemTotalIls ?? null,
+        methodLabel: matched.methodLabel ?? 'delivery',
+        observedAt: matched.observedAt ?? null,
+        evidence: matched.evidence ?? null
+      };
+      base.labels.push(`Free ${matched.methodLabel ?? 'delivery'} observed for this exact cart (${freeConditionCartLabel(matched)}) in the vendor's anonymous cart`);
+    } else {
+      const minObserved = freeConditions
+        .map(condition => condition.itemSubtotalIls)
+        .filter(amount => Number.isFinite(amount))
+        .reduce((min, amount) => (min == null || amount < min ? amount : min), null);
+      base.shipping.freeConditionUnmatched = true;
+      base.shipping.freeConditionNote = `The vendor's anonymous cart showed free ${freeConditions[0].methodLabel ?? 'delivery'} only on ${freeConditions.map(freeConditionCartLabel).join(', ')}; this cart keeps the published ${formatAmount(shippingIls, 'ILS')} base rate.`;
+      // Only surprise the shopper when the cart is at or above an observed free
+      // subtotal yet still unverified: then the base fee is visibly conditional.
+      if (minObserved != null && base.itemTotalIls >= minObserved - 0.005) {
+        base.shipping.freeConditionUnmatchedAboveMin = true;
+        base.labels.push('Free delivery was observed only on specific carts; this unobserved cart keeps the published base rate');
+      }
+    }
+  }
+
   base.shipping.amountIls = round2(shippingIls);
   if (stale) {
     labels.push('Stale observation — the last successful check is too old to rank');
@@ -570,6 +618,37 @@ function toPickupEntry(quote) {
     },
     labels: [...quote.labels.filter(label => !label.startsWith('Delivery coverage caveat:')), 'Pickup only — not a delivered offer']
   };
+}
+
+/**
+ * Does the current cart match one observed-free cart configuration exactly?
+ * The listing scope, whole-pack count, ordered grams and item subtotal (before
+ * any applied discount, falling back to the paid total when no discount
+ * applies) must all agree, so an unobserved larger cart can never inherit free
+ * delivery from its subtotal alone.
+ */
+export function freeCartConditionMatches(condition, observation, quote) {
+  if (!condition) return false;
+  if (condition.itemUrlPrefix && !String(observation?.itemUrl ?? '').startsWith(condition.itemUrlPrefix)) return false;
+  if (condition.service && quote?.shipping?.service && condition.service !== quote.shipping.service) return false;
+  if (condition.packCount != null && (quote?.product?.packCount ?? 1) !== condition.packCount) return false;
+  if (condition.units != null && quote?.units !== condition.units) return false;
+  if (condition.orderedGrams != null && quote?.orderedGrams !== condition.orderedGrams) return false;
+  if (condition.itemSubtotalIls != null) {
+    const observedSubtotal = quote?.itemSubtotalBeforeDiscountIls ?? quote?.itemTotalIls;
+    if (!Number.isFinite(observedSubtotal) || Math.abs(observedSubtotal - condition.itemSubtotalIls) > 0.005) return false;
+  }
+  return true;
+}
+
+/** Plain-language label for one observed-free cart configuration. */
+export function freeConditionCartLabel(condition) {
+  const packs = Number.isFinite(condition?.packCount) && condition.packCount > 1
+    ? `${condition.units} × ${condition.packCount} × 250 g multipack${condition.units === 1 ? '' : 's'}`
+    : `${condition?.units ?? '?'} × 250 g`;
+  const grams = Number.isFinite(condition?.orderedGrams) ? ` = ${condition.orderedGrams} g` : '';
+  const subtotal = Number.isFinite(condition?.itemSubtotalIls) ? `, ${formatAmount(condition.itemSubtotalIls, 'ILS')} item subtotal` : '';
+  return `${packs}${grams}${subtotal}`;
 }
 
 function compareQuotes(a, b) {

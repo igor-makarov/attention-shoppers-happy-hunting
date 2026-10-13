@@ -172,19 +172,22 @@ test('quoteBoard discounts 8 single packs with the published promotion but never
   assert.equal(singles.itemDiscount.percent, 10);
   assert.equal(singles.itemDiscount.amountIls, 26.4);
   assert.equal(singles.itemTotalIls, 237.6, 'the observed anonymous cart showed exactly ₪237.60');
-  // The same anonymous cart also showed free home courier from the ₪231 item
-  // subtotal, so the observed free condition applies at its scope.
+  // The same anonymous cart also showed free home courier on exactly the
+  // 8-singles cart, so the observed free cart condition applies at its scope.
   assert.equal(singles.shipping.amountIls, 0, 'the observed ₪237.60 cart gets the cart-observed free courier condition');
-  assert.equal(singles.shipping.freeThresholdOrigin, 'observed_cart');
+  assert.equal(singles.shipping.freeCondition.id, 'singles-8', 'the matched condition is the exact observed cart');
+  assert.equal(singles.shipping.freeCondition.itemSubtotalIls, 264, 'the condition records the pre-discount subtotal');
+  assert.equal(singles.shipping.freeConditionUnmatched, undefined, 'the matched cart has no unmatched note');
   assert.equal(singles.totalIls, 237.6);
   assert.match(singles.labels.join(' '), /Published promotion applied: 10% off the item subtotal/);
-  assert.match(singles.labels.join(' '), /Free shipping threshold met \(from ₪231\.00, observed in the vendor’s anonymous cart\)/);
+  assert.match(singles.labels.join(' '), /Free home courier observed for this exact cart \(8 × 250 g = 2000 g, ₪264\.00 item subtotal\)/);
 
   const fourPack = at2000.ranked.find(quote => quote.key.includes('1000g'));
   const eightPack = at2000.ranked.find(quote => quote.key.includes('2000g'));
   assert.equal(fourPack.itemDiscount, null, 'the 4-pack is a multipack: no promotion');
   assert.equal(eightPack.itemDiscount, null, 'the 8-pack is a multipack: no promotion');
   assert.equal(eightPack.shipping.freeThreshold ?? null, null, 'the 8-pack SKU keeps its own ₪20 quote without the free condition');
+  assert.deepEqual(eightPack.shipping.freeCartConditions, [], 'the 8-pack SKU never carries the single/4-pack free conditions');
   assert.equal(at2000.best.key, singles.key, 'the single-pack offer wins at 2 kg: ₪237.60 free vs the ₪240 Pucks-free and ₪260 8-pack totals');
   assert.equal(at2000.promotions[0].id, coffeemanGroundCoffeePercentPromotion.id);
 });

@@ -51,10 +51,11 @@ test('QA fixture server can add the labelled terms-demo offer without touching t
     const plainBoard = await (await fetch(`${plain.url}/api/board?grams=2000&dest=tel-aviv&variant=classico`)).json();
     assert.equal(plainBoard.qa.demoOffers, 0);
     assert.equal(plainBoard.best.vendor.id, 'coffeeman', 'the promotion plus the observed free condition is the fixture best at 2 kg');
-    assert.equal(plainBoard.best.totalIls, 237.6, '8 × ₪33 with the 10% promotion, delivered free from the observed ₪231 threshold');
+    assert.equal(plainBoard.best.totalIls, 237.6, '8 × ₪33 with the 10% promotion, delivered free by the observed 8-singles cart condition');
     assert.equal(plainBoard.best.shipping.amountIls, 0);
-    assert.equal(plainBoard.best.shipping.freeThreshold, 231);
-    assert.equal(plainBoard.best.shipping.freeThresholdOrigin, 'observed_cart');
+    assert.equal(plainBoard.best.shipping.freeCondition.id, 'singles-8');
+    assert.equal(plainBoard.best.shipping.freeCondition.itemSubtotalIls, 264);
+    assert.equal(plainBoard.best.shipping.freeThreshold, null, 'the superseded monotone threshold is not applied');
 
     const termsBoard = await (await fetch(`${terms.url}/api/board?grams=2000&dest=tel-aviv&variant=classico`)).json();
     assert.equal(termsBoard.qa.demoOffers, 1);

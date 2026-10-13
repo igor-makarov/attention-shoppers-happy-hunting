@@ -389,6 +389,49 @@ export function validatePolicy(policy) {
   if (thresholdOrigin === 'observed_cart' && (!policy.rule?.freeThresholdEvidence?.url || !policy.rule?.freeThresholdEvidence?.retrievedAt)) {
     errors.push('an observed_cart free threshold needs freeThresholdEvidence.url and .retrievedAt');
   }
+  // Scoped cart-observed free conditions: the exact cart a vendor showed free,
+  // with its listing scope, whole-pack count, ordered grams, subtotal and method.
+  // A threshold and scoped conditions are mutually exclusive so a rule cannot
+  // silently become a monotone threshold again.
+  const freeCartConditions = policy.rule?.freeCartConditions;
+  if (freeCartConditions != null) {
+    if (!Array.isArray(freeCartConditions) || freeCartConditions.length === 0) {
+      errors.push('rule.freeCartConditions must be a non-empty array when present');
+    } else if (threshold != null) {
+      errors.push('rule.freeThreshold and rule.freeCartConditions cannot both be present');
+    } else {
+      freeCartConditions.forEach((condition, index) => {
+        const at = `rule.freeCartConditions[${index}]`;
+        if (!condition || typeof condition !== 'object') { errors.push(`${at} is not an object`); return; }
+        if (!condition.id || typeof condition.id !== 'string') errors.push(`${at}.id is required`);
+        if (!condition.service || typeof condition.service !== 'string') errors.push(`${at}.service is required`);
+        if (!condition.itemUrlPrefix || typeof condition.itemUrlPrefix !== 'string') errors.push(`${at}.itemUrlPrefix is required`);
+        if (!Number.isInteger(condition.packCount) || condition.packCount < 1) errors.push(`${at}.packCount must be a positive integer`);
+        if (!Number.isInteger(condition.units) || condition.units < 1) errors.push(`${at}.units must be a positive integer`);
+        if (!Number.isFinite(condition.orderedGrams) || condition.orderedGrams <= 0) errors.push(`${at}.orderedGrams must be a positive number`);
+        if (!Number.isFinite(condition.itemSubtotalIls)) errors.push(`${at}.itemSubtotalIls must be a number`);
+        if (condition.discountPercent != null && (!Number.isFinite(condition.discountPercent) || condition.discountPercent <= 0 || condition.discountPercent > 90)) {
+          errors.push(`${at}.discountPercent must be between 0 and 90 when present`);
+        }
+        if (!Number.isFinite(condition.paidItemTotalIls)) errors.push(`${at}.paidItemTotalIls must be a number`);
+        if (!condition.methodLabel || typeof condition.methodLabel !== 'string') errors.push(`${at}.methodLabel is required`);
+        if (!condition.observedAt || Number.isNaN(Date.parse(condition.observedAt))) errors.push(`${at}.observedAt must be an ISO date`);
+        if (!condition.evidence?.url || !condition.evidence?.note) errors.push(`${at}.evidence.url and .note are required`);
+      });
+    }
+  }
+  // A superseded rule is an explicit migration instruction for rows stamped by
+  // an older version of the same policy; it must name the exact old amount and
+  // semantics so only the superseded threshold is migrated.
+  const supersedes = policy.supersedes?.freeThreshold;
+  if (supersedes != null) {
+    if (!Number.isFinite(supersedes.amount) || !CURRENCY_PATTERN.test(String(supersedes.currency ?? ''))) {
+      errors.push('supersedes.freeThreshold must carry a numeric amount and a 3-letter currency');
+    }
+    if (!['above', 'at_least'].includes(supersedes.semantics)) errors.push('supersedes.freeThreshold.semantics must be "above" or "at_least"');
+    if (!['published', 'observed_cart'].includes(supersedes.origin)) errors.push('supersedes.freeThreshold.origin must be "published" or "observed_cart"');
+    if (!Number.isInteger(supersedes.policyVersion) || supersedes.policyVersion < 1) errors.push('supersedes.freeThreshold.policyVersion must be a positive integer');
+  }
   if (policy.alternatives != null) {
     if (!Array.isArray(policy.alternatives)) {
       errors.push('alternatives must be an array when present');
@@ -453,8 +496,11 @@ function ruleKey(rule, alternatives = []) {
   const amount = rule?.amount ? `${rule.amount.amount}${rule.amount.currency}` : '-';
   const threshold = rule?.freeThreshold ? `${rule.freeThreshold.amount}${rule.freeThreshold.currency}` : '-';
   const thresholdScope = `${rule?.thresholdSemantics ?? '-'}/${rule?.freeThresholdOrigin ?? '-'}`;
+  const conditionsKey = (rule?.freeCartConditions ?? [])
+    .map(condition => `${condition.id}:${condition.units}x${condition.packCount}:${condition.itemSubtotalIls}`)
+    .join(',');
   const alternativesKey = alternatives.map(alternative => `${alternative.id}:${alternative.amount?.amount ?? '-'}${alternative.amount?.currency ?? ''}`).join(',');
-  return `${amount}/${threshold}/${thresholdScope}/${rule?.minOrder?.amount ?? '-'}/${alternativesKey}`;
+  return `${amount}/${threshold}/${thresholdScope}/${conditionsKey}/${rule?.minOrder?.amount ?? '-'}/${alternativesKey}`;
 }
 
 /**
@@ -472,6 +518,11 @@ function policyRuleMatchesShipping(policy, shipping) {
   if ((rule.freeThresholdOrigin ?? null) !== (shipping?.freeThresholdOrigin ?? null)) return false;
   if ((rule.minOrder?.amount ?? null) !== (shipping?.minOrder?.amount ?? null)) return false;
   if ((rule.maxTotalGrams ?? null) !== (shipping?.maxTotalGrams ?? null)) return false;
+  const policyConditions = (rule.freeCartConditions ?? [])
+    .map(condition => `${condition.id}:${condition.units}x${condition.packCount}:${condition.itemSubtotalIls}`).join(',');
+  const rowConditions = (shipping?.freeCartConditions ?? [])
+    .map(condition => `${condition.id}:${condition.units}x${condition.packCount}:${condition.itemSubtotalIls}`).join(',');
+  if (policyConditions !== rowConditions) return false;
   const policyAlternatives = (policy?.alternatives ?? [])
     .map(alternative => `${alternative.id}:${alternative.amount?.amount ?? '-'}${alternative.amount?.currency ?? ''}`).join(',');
   const rowAlternatives = (shipping?.alternatives ?? [])
@@ -523,6 +574,34 @@ export function enrichObservationShipping(observation, options = {}) {
   const shipping = { ...(observation.shipping ?? {}) };
   let changed = false;
 
+  // A rule correction (not new knowledge): the v2 policy applied an
+  // unconditional free threshold from ₪231, but the free carts were observed
+  // exactly, not as a threshold. A row stamped by that older version of the
+  // same policy must stop applying the superseded threshold at read time — the
+  // threshold itself came from this policy id, so removing it is not
+  // overwriting a fresher vendor parse. The published base amount, the price,
+  // the stock and the observation time stay untouched.
+  const stampBefore = shipping.policy;
+  const superseded = policy.supersedes?.freeThreshold;
+  const supersedesRow = Boolean(superseded
+    && stampBefore?.id === policy.id
+    && Number(stampBefore.version) < policy.version
+    && shipping.freeThreshold != null
+    && Number(shipping.freeThreshold.amount) === superseded.amount
+    && (shipping.freeThreshold.currency ?? null) === superseded.currency
+    && (shipping.freeThresholdSemantics ?? null) === superseded.semantics
+    && (shipping.freeThresholdOrigin ?? null) === superseded.origin
+    && policy.rule?.freeThreshold == null);
+  let supersededNote = null;
+  if (supersedesRow) {
+    delete shipping.freeThreshold;
+    delete shipping.freeThresholdSemantics;
+    delete shipping.freeThresholdOrigin;
+    delete shipping.freeThresholdEvidence;
+    supersededNote = `The earlier cart-observed free threshold (from ${superseded.amount} ${superseded.currency}) was superseded by policy ${policy.id} v${policy.version}: free delivery now applies only to the exact carts observed free (${(policy.rule?.freeCartConditions ?? []).map(condition => condition.id).join(', ')}), and a cart that matches none of them keeps the published base rate.`;
+    changed = true;
+  }
+
   if ((shipping.certainty === 'unknown' || shipping.amount == null) && policy.rule?.amount?.amount != null) {
     shipping.amount = { ...policy.rule.amount };
     shipping.certainty = policy.certainty;
@@ -547,6 +626,16 @@ export function enrichObservationShipping(observation, options = {}) {
   }
   if (shipping.freeThresholdEvidence == null && shipping.freeThresholdOrigin === 'observed_cart' && policy.rule?.freeThresholdEvidence) {
     shipping.freeThresholdEvidence = { ...policy.rule.freeThresholdEvidence };
+    changed = true;
+  }
+  // Scoped cart-observed free conditions travel with the policy the same way a
+  // published threshold does; they are only ever applied when the current cart
+  // matches one exactly (see the quote engine), never as a monotone threshold.
+  if (shipping.freeCartConditions == null && policy.rule?.freeCartConditions?.length) {
+    shipping.freeCartConditions = policy.rule.freeCartConditions.map(condition => ({
+      ...condition,
+      evidence: { ...condition.evidence }
+    }));
     changed = true;
   }
   if (shipping.minOrder == null && policy.rule?.minOrder?.amount != null) {
@@ -632,14 +721,15 @@ export function enrichObservationShipping(observation, options = {}) {
     retrievedAt: policy.evidence.retrievedAt,
     reviewBy: policy.reviewBy,
     thresholdSemantics: policy.rule?.thresholdSemantics ?? null,
-    freeThresholdOrigin: policy.rule?.freeThresholdOrigin ?? null
+    freeThresholdOrigin: policy.rule?.freeThresholdOrigin ?? null,
+    freeCartConditionIds: (policy.rule?.freeCartConditions ?? []).map(condition => condition.id)
   };
   if (shipping.evidence == null) shipping.evidence = { ...policy.evidence };
   const originText = policy.origin === 'observed_cart' ? 'observed anonymous cart quote' : 'published rule';
   const appliedText = provenanceRefresh
     ? `Shipping evidence refreshed from validated policy ${policy.id} v${policy.version} (observed ${policy.evidence.retrievedAt}); the rate and its quantity scope are unchanged.`
     : `Shipping rule applied from validated policy ${policy.id} v${policy.version} (${originText}, observed ${policy.evidence.retrievedAt}); confirm at checkout.`;
-  shipping.note = [shipping.note, appliedText].filter(Boolean).join(' ');
+  shipping.note = [shipping.note, supersededNote, appliedText].filter(Boolean).join(' ');
   return { observation: { ...observation, shipping }, status: 'applied', policy };
 }
 
@@ -656,6 +746,17 @@ export function policySummary(now = Date.now(), policies = SHIPPING_POLICIES) {
     freeThreshold: policy.rule?.freeThreshold?.amount ?? null,
     thresholdSemantics: policy.rule?.thresholdSemantics ?? null,
     freeThresholdOrigin: policy.rule?.freeThresholdOrigin ?? null,
+    freeCartConditions: (policy.rule?.freeCartConditions ?? []).map(condition => ({
+      id: condition.id,
+      units: condition.units,
+      packCount: condition.packCount,
+      orderedGrams: condition.orderedGrams,
+      itemSubtotalIls: condition.itemSubtotalIls,
+      discountPercent: condition.discountPercent ?? null,
+      paidItemTotalIls: condition.paidItemTotalIls,
+      service: condition.service,
+      observedAt: condition.observedAt
+    })),
     observedAt: policy.evidence?.retrievedAt ?? null,
     reviewBy: policy.reviewBy,
     expired: Date.parse(policy.reviewBy) < now

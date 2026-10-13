@@ -134,7 +134,10 @@ export function promotionDetailText(quote) {
 export function shippingValueText(quote) {
   const shipping = quote.shipping ?? {};
   if (shipping.amountIls != null) {
-    if (shipping.amountIls === 0) return shipping.freeThreshold != null ? 'Free (threshold met)' : 'Free';
+    if (shipping.amountIls === 0) {
+      if (shipping.freeCondition) return 'Free (observed for this cart)';
+      return shipping.freeThreshold != null ? 'Free (threshold met)' : 'Free';
+    }
     return money(shipping.amountIls);
   }
   if (shipping.amount != null) return `${money(shipping.amount)} ${shipping.currency ?? ''} (not converted)`.trim();
@@ -157,6 +160,9 @@ export function shippingCertaintyText(quote) {
   // A published base rate can carry a cart-observed free condition. The free
   // application is conditional, so it must not read as part of the verified
   // rate; the written qualifier on the card explains it in full.
+  if (quote.shipping?.freeCondition) {
+    return `${label} · free condition cart-observed`;
+  }
   if (quote.shipping?.freeThresholdOrigin === 'observed_cart' && quote.shipping?.amountIls === 0) {
     return `${label} · free condition cart-observed`;
   }
@@ -221,6 +227,18 @@ export function stockChangeText(quote) {
   return `Stock changed since the previous check: was ${previous.availabilityLabel ?? previous.availability}`;
 }
 
+/** Plain-language description of one observed-free cart configuration. */
+export function freeConditionText(condition) {
+  if (!condition) return 'unrecorded cart';
+  const packs = (condition.packCount ?? 1) > 1
+    ? `${condition.units ?? '?'} × ${condition.packCount} × 250 g multipack${condition.units === 1 ? '' : 's'}`
+    : `${condition.units ?? '?'} × 250 g pack${condition.units === 1 ? '' : 's'}`;
+  const grams = condition.orderedGrams != null ? ` = ${condition.orderedGrams} g` : '';
+  const subtotal = condition.itemSubtotalIls != null ? `, ${money(condition.itemSubtotalIls)} item subtotal` : '';
+  const discount = condition.discountPercent ? ` before the ${condition.discountPercent}% quantity discount` : '';
+  return `${packs}${grams}${subtotal}${discount}`;
+}
+
 /** Short conditions shown on a card face; the full list goes in a details block. */
 export function conditionsList(quote, destinationLabelFn = id => id) {
   const shipping = quote.shipping ?? {};
@@ -239,6 +257,18 @@ export function conditionsList(quote, destinationLabelFn = id => id) {
       items.push(observed
         ? `Free shipping ${wording} ${money(shipping.freeThreshold)} item subtotal (observed in the vendor's anonymous cart, not published)`
         : `Free shipping ${wording} ${money(shipping.freeThreshold)} item subtotal`);
+    }
+  }
+  // Scoped cart-observed free conditions: name the exact carts the vendor
+  // showed free, so a shopper can see why this cart did (or did not) match one
+  // instead of reading a threshold the vendor never published.
+  const freeConditions = shipping.freeCartConditions ?? [];
+  if (freeConditions.length) {
+    const observedCarts = freeConditions.map(condition => freeConditionText(condition)).join('; ');
+    if (shipping.freeCondition) {
+      items.push(`Free ${shipping.freeCondition.methodLabel ?? 'delivery'} observed for this exact cart (${freeConditionText(shipping.freeCondition)}) in the vendor's anonymous cart`);
+    } else {
+      items.push(`Free ${freeConditions[0].methodLabel ?? 'delivery'} was observed only on these exact carts: ${observedCarts}. Other cart sizes keep the published base rate.`);
     }
   }
   if (shipping.minOrder != null) items.push(`Minimum order ${money(shipping.minOrder)}`);
@@ -270,7 +300,11 @@ export function coverageQualifier(quote) {
   const parts = [];
   // An observed free condition changes the money on the card, so it is stated
   // first even when the offer also carries a coverage caveat.
-  if (shipping.freeThresholdOrigin === 'observed_cart' && shipping.amountIls === 0) {
+  if (shipping.freeCondition) {
+    parts.push('Free delivery applied from an anonymous-cart observation of this exact cart; confirm it at checkout.');
+  } else if (shipping.freeConditionUnmatchedAboveMin) {
+    parts.push('Free delivery was observed only on specific carts; this unobserved cart keeps the published base rate.');
+  } else if (shipping.freeThresholdOrigin === 'observed_cart' && shipping.amountIls === 0) {
     parts.push('Free delivery applied from an anonymous-cart observation; confirm it at checkout.');
   }
   if (shipping.coverageCaveat) parts.push('Coverage not confirmed for every locality — full terms under Delivery options.');
@@ -306,6 +340,14 @@ export function diagnosticsDisclosure(quote) {
   if (quote.shipping?.freeThreshold != null && quote.shipping.freeThresholdOrigin === 'observed_cart') {
     const wording = quote.shipping.freeThresholdSemantics === 'above' ? 'above' : 'from';
     rows.push(`Free-shipping condition: observed ${wording} ${money(quote.shipping.freeThreshold)} item subtotal in the vendor's anonymous cart${thresholdEvidence?.retrievedAt ? ` (retrieved ${timeLabel(thresholdEvidence.retrievedAt)})` : ''}; the product page does not publish this threshold.`);
+  }
+  const freeConditions = quote.shipping?.freeCartConditions ?? [];
+  if (freeConditions.length) {
+    if (quote.shipping.freeCondition) {
+      rows.push(`Free-delivery condition: the vendor's anonymous cart showed free ${quote.shipping.freeCondition.methodLabel ?? 'delivery'} on exactly this cart (${freeConditionText(quote.shipping.freeCondition)}${quote.shipping.freeCondition.observedAt ? `, observed ${timeLabel(quote.shipping.freeCondition.observedAt)}` : ''}).`);
+    } else {
+      rows.push(`Free-delivery conditions: the vendor's anonymous cart showed free delivery only on ${freeConditions.map(condition => freeConditionText(condition)).join('; ')}. No threshold is published, so a cart that matches none of them keeps the base rate${quote.shipping.freeConditionUnmatchedAboveMin ? ' (this cart is at or above an observed free subtotal but was not itself observed free)' : ''}.`);
+    }
   }
   if (quote.shipping?.note) rows.push(`Shipping terms: ${quote.shipping.note}`);
   const evidence = quote.shipping?.evidence;

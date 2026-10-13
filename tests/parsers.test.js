@@ -78,7 +78,7 @@ test('coffeeman 4-pack and 8-pack fixtures keep pack count, price and shipping s
   assert.match(eight.shipping.destination.caveat, /home-delivery list/, 'even an unrankable offer keeps the documented coverage caveat');
 });
 
-test('coffeeman cart research adds the distribution-center alternative and the observed free condition at its scope', () => {
+test('coffeeman cart research adds the distribution-center alternative and the observed free cart conditions at their scope', () => {
   const single = parseCoffeemanProduct(decodeHtml(read('coffeeman-product.windows-1255.html')), { now });
   assert.equal(single.shipping.amount.amount, 25, 'the ranked base amount stays the published courier rate');
   assert.equal(single.shipping.certainty, 'verified', 'the ranked rate is still the published one, not a cart quote');
@@ -86,31 +86,35 @@ test('coffeeman cart research adds the distribution-center alternative and the o
   assert.equal(single.shipping.alternatives[0].id, 'distribution-center');
   assert.equal(single.shipping.alternatives[0].amount.amount, 15);
   assert.match(single.shipping.alternatives[0].label, /cart-observed for 0\.5–1 kg carts/);
-  assert.match(single.shipping.alternatives[0].note, /free condition is applied from ₪231/);
+  assert.match(single.shipping.alternatives[0].note, /Free home courier was observed only on the exact/);
   assert.match(single.shipping.note, /distribution-center/);
   assert.equal(single.shipping.policy.id, coffeemanSingleFourPackPolicy.id, 'the parsed row names the validated single/4-pack policy');
   assert.equal(single.shipping.policy.version, coffeemanSingleFourPackPolicy.version);
   assert.equal(single.shipping.policy.origin, 'published');
-  // The free condition is an anonymous-cart observation applied at the scope it
-  // was observed on; it is never presented as a published threshold.
-  assert.equal(single.shipping.freeThreshold.amount, 231);
-  assert.equal(single.shipping.freeThresholdSemantics, 'at_least');
-  assert.equal(single.shipping.freeThresholdOrigin, 'observed_cart');
-  assert.match(single.shipping.freeThresholdEvidence.url, /coffeeman\.co\.il\/checkout\.asp/);
-  assert.equal(single.shipping.freeThresholdEvidence.retrievedAt, '2026-10-12T20:09:00Z');
+  // The free observations are exact anonymous-cart conditions, never a
+  // published or inferred threshold.
+  assert.equal(single.shipping.freeThreshold ?? null, null, 'no monotone threshold is recorded');
+  assert.deepEqual(single.shipping.freeCartConditions.map(condition => condition.id), ['singles-7', 'singles-8', 'fourpack-2']);
+  assert.equal(single.shipping.freeCartConditions[0].itemSubtotalIls, 231);
+  assert.equal(single.shipping.freeCartConditions[0].units, 7);
+  assert.equal(single.shipping.freeCartConditions[1].discountPercent, 10, 'the 8-singles condition records the automatic 10% discount');
+  assert.equal(single.shipping.freeCartConditions[1].paidItemTotalIls, 237.6);
+  assert.match(single.shipping.freeCartConditions[0].evidence.url, /coffeeman\.co\.il\/checkout\.asp/);
+  assert.equal(single.shipping.freeCartConditions[0].observedAt, '2026-10-12T20:09:00Z');
 
   const four = parseCoffeemanProduct(decodeHtml(read('coffeeman-4pack-product.windows-1255.html')), { now, url: 'https://example.test/4pack' });
   assert.equal(four.shipping.amount.amount, 25, 'the 4-pack ranked base rate is unchanged');
   assert.equal(four.shipping.alternatives[0].amount.amount, 15, 'the 4-pack cart observation resolves by pack shape too');
   assert.match(four.shipping.alternatives[0].label, /cart-observed for 0\.5–1 kg carts/);
   assert.equal(four.shipping.policy.id, coffeemanSingleFourPackPolicy.id, 'the 4-pack row names the same validated policy');
-  assert.equal(four.shipping.freeThreshold.amount, 231, 'the 4-pack listing shares the observed free condition');
+  assert.deepEqual(four.shipping.freeCartConditions.map(condition => condition.id), ['singles-7', 'singles-8', 'fourpack-2'], 'the 4-pack listing shares the observed free cart conditions');
 
   const eight = parseCoffeemanProduct(decodeHtml(read('coffeeman-8pack-product.windows-1255.html')), { now, url: 'https://example.test/8pack' });
   assert.equal(eight.shipping.amount.amount, 20, 'the 8-pack cart quote is unchanged');
   assert.equal(eight.shipping.alternatives[0].amount.amount, 20, 'the 8-pack distribution-center alternative carries the observed amount');
   assert.match(eight.shipping.alternatives[0].label, /the 2 kg cart/);
   assert.equal(eight.shipping.freeThreshold ?? null, null, 'the ₪240 8-pack SKU keeps its own ₪20 quote, never the single/4-pack free condition');
+  assert.deepEqual(eight.shipping.freeCartConditions, [], 'the 8-pack SKU never carries the single/4-pack free conditions');
   assert.equal(eight.shipping.evidence.retrievedAt, '2026-10-12T20:07:00Z', 'the re-check time is kept as shipping evidence');
 });
 

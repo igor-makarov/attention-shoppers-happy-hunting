@@ -212,11 +212,25 @@ test('the checked-in shipping policies are structurally valid', () => {
   assert.equal(singleFour.origin, 'published', 'the published ₪25 rate is not relabelled as a cart quote');
   assert.equal(singleFour.certainty, 'verified');
   assert.equal(singleFour.rule.amount.amount, 25);
-  assert.equal(singleFour.version, 2, 'the cart-observed free condition bumps the policy version');
-  assert.equal(singleFour.rule.freeThreshold.amount, 231, 'the free condition is stored at the lowest observed free subtotal');
-  assert.equal(singleFour.rule.thresholdSemantics, 'at_least');
-  assert.equal(singleFour.rule.freeThresholdOrigin, 'observed_cart', 'an observed threshold is never relabelled as published');
-  assert.match(singleFour.rule.freeThresholdEvidence.url, /checkout\.asp/);
+  assert.equal(singleFour.version, 3, 'the scoped cart conditions bump the policy version');
+  assert.equal(singleFour.rule.freeThreshold, null, 'the sampled carts do not establish a monotone threshold');
+  assert.deepEqual(singleFour.rule.freeCartConditions.map(condition => condition.id), ['singles-7', 'singles-8', 'fourpack-2']);
+  const sevenSingles = singleFour.rule.freeCartConditions.find(condition => condition.id === 'singles-7');
+  assert.equal(sevenSingles.units, 7);
+  assert.equal(sevenSingles.orderedGrams, 1750);
+  assert.equal(sevenSingles.itemSubtotalIls, 231);
+  assert.equal(sevenSingles.service, 'home_delivery', 'each condition names the delivery method it was observed for');
+  assert.match(sevenSingles.destinationEvidence, /without asking for a locality/);
+  assert.equal(sevenSingles.evidence.url, 'https://www.coffeeman.co.il/checkout.asp');
+  const eightSingles = singleFour.rule.freeCartConditions.find(condition => condition.id === 'singles-8');
+  assert.equal(eightSingles.discountPercent, 10, 'the 8-singles observation records the automatic promotion');
+  assert.equal(eightSingles.paidItemTotalIls, 237.6);
+  const twoFourPacks = singleFour.rule.freeCartConditions.find(condition => condition.id === 'fourpack-2');
+  assert.equal(twoFourPacks.packCount, 4);
+  assert.equal(twoFourPacks.units, 2);
+  assert.equal(twoFourPacks.itemSubtotalIls, 248);
+  assert.equal(singleFour.supersedes.freeThreshold.amount, 231, 'the superseded v2 threshold is named exactly for the read-time migration');
+  assert.equal(singleFour.supersedes.freeThreshold.policyVersion, 2);
   assert.equal(singleFour.alternatives[0].amount.amount, 15, 'the cart-observed ₪15 distribution-center rate lives in the policy');
   const coffee4u = SHIPPING_POLICIES.find(policy => policy.id === coffee4uHomeDeliveryPolicy.id);
   assert.ok(coffee4u, 'the Coffee4U published rule with its coverage shape is a checked-in policy');
@@ -237,55 +251,135 @@ test('an old persisted CoffeeMan single-pack offer gains the published rule and 
   assert.equal(board.best.shipping.alternatives[0].amountIls, 15, 'the cart-observed distribution-center alternative is added to the old row');
   assert.equal(board.best.shipping.alternatives[0].id, 'distribution-center');
   assert.match(board.best.shipping.alternatives[0].label, /cart-observed for 0\.5–1 kg carts/);
-  assert.match(board.best.shipping.alternatives[0].note, /free condition is applied from ₪231/);
+  assert.match(board.best.shipping.alternatives[0].note, /Free home courier was observed only on the exact/);
   assert.match(board.best.shipping.coverageCaveat, /home-delivery list/);
   assert.equal(board.best.shipping.policy.id, 'coffeeman-single-4pack-il-home-delivery');
-  assert.equal(board.best.shipping.policy.version, 2);
-  assert.equal(board.best.shipping.freeThreshold, 231, 'the old row gains the observed free condition at read time');
-  assert.equal(board.best.shipping.freeThresholdOrigin, 'observed_cart');
-  assert.equal(board.best.totalIls, 91, '2 × ₪33 item + the published ₪25 courier rate (below the observed free subtotal)');
+  assert.equal(board.best.shipping.policy.version, 3);
+  assert.equal(board.best.shipping.freeThreshold, null, 'the old row never gains a monotone threshold');
+  assert.deepEqual(board.best.shipping.freeCartConditions.map(condition => condition.id), ['singles-7', 'singles-8', 'fourpack-2'], 'the old row gains the scoped observed carts at read time');
+  assert.equal(board.best.shipping.freeCondition, null, 'a 500 g cart matches no observed free cart');
+  assert.equal(board.best.totalIls, 91, '2 × ₪33 item + the published ₪25 courier rate (no observed cart matches)');
   assert.equal(board.best.ilsPerKg, 182);
-  assert.match(board.best.shipping.note, /validated policy coffeeman-single-4pack-il-home-delivery v2/);
+  assert.match(board.best.shipping.note, /validated policy coffeeman-single-4pack-il-home-delivery v3/);
   assert.deepEqual(stored, storedSnapshot, 'the stored observation is never mutated');
 });
 
-test('the CoffeeMan free condition applies only from the observed ₪231 subtotal and only to the single/4-pack listings', () => {
+test('CoffeeMan free delivery applies only to the exact observed carts; an unobserved larger cart keeps the published ₪25 rate', () => {
   const singleAt2000 = quote([oldPersistedCoffeemanSingleObservation()], { targetGrams: 2000 });
   assert.equal(singleAt2000.best.vendor.id, 'coffeeman');
   assert.equal(singleAt2000.best.itemTotalIls, 237.6, '8 singles keep the published 10% promotion');
-  assert.equal(singleAt2000.best.shipping.amountIls, 0, 'the ₪237.60 cart is at/above the observed free subtotal');
+  assert.equal(singleAt2000.best.shipping.amountIls, 0, 'the exact observed 8-singles cart is free');
+  assert.equal(singleAt2000.best.shipping.freeCondition.id, 'singles-8');
   assert.equal(singleAt2000.best.totalIls, 237.6);
-  assert.ok(singleAt2000.best.labels.some(label => /Free shipping threshold met \(from ₪231\.00, observed in the vendor’s anonymous cart\)/.test(label)), 'the label names the observed scope');
+  assert.ok(singleAt2000.best.labels.some(label => /Free home courier observed for this exact cart \(8 × 250 g = 2000 g, ₪264\.00 item subtotal\)/.test(label)), 'the label names the exact observed cart');
 
   const exactly231 = quote([oldPersistedCoffeemanSingleObservation()], { targetGrams: 1750 });
   assert.equal(exactly231.best.units, 7);
   assert.equal(exactly231.best.itemTotalIls, 231);
   assert.equal(exactly231.best.shipping.amountIls, 0, 'the observed ₪231 cart is free');
+  assert.equal(exactly231.best.shipping.freeCondition.id, 'singles-7');
 
   const below = quote([oldPersistedCoffeemanSingleObservation()], { targetGrams: 1500 });
   assert.equal(below.best.units, 6);
   assert.equal(below.best.itemTotalIls, 198);
-  assert.equal(below.best.shipping.amountIls, 25, 'a cart below the lowest observed free subtotal keeps the published ₪25');
+  assert.equal(below.best.shipping.amountIls, 25, 'an observed-charged cart keeps the published ₪25');
   assert.equal(below.best.totalIls, 223);
+  assert.equal(below.best.shipping.freeCondition, null);
+  assert.equal(below.best.shipping.freeConditionUnmatchedAboveMin, undefined, 'a below-minimum cart is not flagged as surprising');
 
-  const fourPackAt2000 = quote([{
+  // The core scope fix: a larger, unobserved cart must not inherit free
+  // delivery merely because its subtotal exceeds an observed free subtotal.
+  const twelveSingles = quote([oldPersistedCoffeemanSingleObservation()], { targetGrams: 3000 });
+  assert.equal(twelveSingles.best.units, 12);
+  assert.equal(twelveSingles.best.itemTotalIls, 396);
+  assert.equal(twelveSingles.best.shipping.amountIls, 25, '3 kg of singles keeps the published base rate');
+  assert.equal(twelveSingles.best.totalIls, 421);
+  assert.equal(twelveSingles.best.shipping.freeConditionUnmatchedAboveMin, true, 'the above-minimum unmatched cart is visibly conditional');
+  assert.match(twelveSingles.best.shipping.freeConditionNote, /this cart keeps the published ₪25\.00 base rate/);
+  assert.ok(twelveSingles.best.labels.some(label => /this unobserved cart keeps the published base rate/.test(label)));
+
+  const fourPackObservation = {
     ...oldPersistedCoffeemanSingleObservation(),
     key: 'coffeeman:930334:classico:ground:1000g:x4',
     itemUrl: 'https://www.coffeeman.co.il/product/4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico',
     product: { ...oldPersistedCoffeemanSingleObservation().product, sku: '930334', packCount: 4, totalGrams: 1000 },
     price: { amount: 124, currency: 'ILS' }
-  }], { targetGrams: 2000 });
+  };
+  const fourPackAt2000 = quote([fourPackObservation], { targetGrams: 2000 });
   assert.equal(fourPackAt2000.best.units, 2);
   assert.equal(fourPackAt2000.best.itemTotalIls, 248);
   assert.equal(fourPackAt2000.best.shipping.amountIls, 0, 'the observed ₪248 two-4-pack cart is free');
+  assert.equal(fourPackAt2000.best.shipping.freeCondition.id, 'fourpack-2');
   assert.equal(fourPackAt2000.best.totalIls, 248);
 
+  const threeFourPacks = quote([fourPackObservation], { targetGrams: 3000 });
+  assert.equal(threeFourPacks.best.units, 3);
+  assert.equal(threeFourPacks.best.itemTotalIls, 372);
+  assert.equal(threeFourPacks.best.shipping.amountIls, 25, 'three 4-packs were never observed and keep the published base rate');
+  assert.equal(threeFourPacks.best.totalIls, 397);
+
+  // A price change at the same cart size must not inherit the observation
+  // either: the condition is bound to the observed subtotal, not just the cart.
+  const repriced = quote([oldPersistedCoffeemanSingleObservation({ price: { amount: 34, currency: 'ILS' } })], { targetGrams: 2000 });
+  assert.equal(repriced.best.itemSubtotalBeforeDiscountIls, 272);
+  assert.equal(repriced.best.shipping.amountIls, 25, 'a repriced 8-singles cart keeps the base rate until re-observed');
+  assert.equal(repriced.best.shipping.freeCondition, null);
+
   // The ₪240 8-pack SKU cart kept its own ₪20 quote and must never inherit the
-  // single/4-pack free condition.
+  // single/4-pack free conditions.
   const eightPack = quote([oldPersistedCoffeemanEightPackObservation()], { targetGrams: 2000 });
   assert.equal(eightPack.best.shipping.amountIls, 20);
   assert.equal(eightPack.best.shipping.freeThreshold, null);
+  assert.deepEqual(eightPack.best.shipping.freeCartConditions, [], 'the 8-pack policy carries no free conditions');
   assert.equal(eightPack.best.totalIls, 260);
+});
+
+test('a persisted CoffeeMan row stamped with the superseded v2 threshold migrates at read time', () => {
+  // A row exactly as the v2 read-time enrichment left it in the deployed store:
+  // the published ₪25 rate plus the superseded monotone free threshold, stamped
+  // with policy v2. The v3 policy must remove the threshold and apply the
+  // scoped conditions without touching the item observation time or the base.
+  const stored = oldPersistedCoffeemanSingleObservation({
+    shipping: {
+      mode: 'delivery',
+      service: 'home_delivery',
+      certainty: 'verified',
+      amount: { amount: 25, currency: 'ILS' },
+      freeThreshold: { amount: 231, currency: 'ILS' },
+      freeThresholdSemantics: 'at_least',
+      freeThresholdOrigin: 'observed_cart',
+      freeThresholdEvidence: {
+        url: 'https://www.coffeeman.co.il/checkout.asp',
+        retrievedAt: '2026-10-12T20:09:00Z',
+        note: 'superseded v2 evidence'
+      },
+      destination: { scope: 'country', country: 'IL' },
+      policy: {
+        id: 'coffeeman-single-4pack-il-home-delivery',
+        version: 2,
+        origin: 'published',
+        retrievedAt: '2026-10-12T20:04:00Z',
+        reviewBy: '2026-11-11T00:00:00.000Z',
+        thresholdSemantics: 'at_least',
+        freeThresholdOrigin: 'observed_cart'
+      },
+      note: 'v2 row'
+    }
+  });
+  const storedSnapshot = JSON.parse(JSON.stringify(stored));
+  // 3 kg of singles: under v2 the ₪396 subtotal was free; under v3 it must keep
+  // the published ₪25 because no observed cart matches.
+  const board = quote([stored], { targetGrams: 3000 });
+  assert.equal(board.best.shipping.amountIls, 25, 'the superseded threshold no longer makes a large cart free');
+  assert.equal(board.best.totalIls, 421);
+  assert.equal(board.best.shipping.freeThreshold, null);
+  assert.equal(board.best.shipping.freeThresholdOrigin, null);
+  assert.deepEqual(board.best.shipping.freeCartConditions.map(condition => condition.id), ['singles-7', 'singles-8', 'fourpack-2']);
+  assert.equal(board.best.shipping.policy.version, 3);
+  assert.match(board.best.shipping.note, /superseded by policy coffeeman-single-4pack-il-home-delivery v3/);
+  assert.equal(board.best.observedAt, FRESH, 'the item observation time is untouched');
+  assert.equal(board.best.itemPrice.amount, 33, 'the item price is untouched');
+  assert.deepEqual(stored, storedSnapshot, 'the stored observation is never mutated');
 });
 
 test('an old persisted Coffee4U offer gains the published rate, coverage and pickup-point alternative at read time', () => {
@@ -719,7 +813,8 @@ test('an expired CoffeeMan cart policy drops the 8-pack quote and the alternativ
   const single = parseCoffeemanProduct(read('coffeeman-product.windows-1255.html'), { now: AFTER_REVIEW });
   assert.equal(single.shipping.certainty, 'verified', 'the product page publishes the ₪25 courier rate independently of the policy');
   assert.equal(single.shipping.amount.amount, 25);
-  assert.equal(single.shipping.freeThreshold ?? null, null, 'the cart-observed free condition is withheld with its policy');
+  assert.equal(single.shipping.freeThreshold ?? null, null, 'the cart-observed free conditions are withheld with their policy');
+  assert.deepEqual(single.shipping.freeCartConditions ?? [], [], 'the cart-observed free conditions are withheld with their policy');
   assert.equal(single.shipping.alternatives.length, 0, 'the cart-observed ₪15 alternative is withheld with its policy');
   const singleBoard = quoteBoard({
     observations: [single],
@@ -737,4 +832,5 @@ test('an expired CoffeeMan cart policy drops the 8-pack quote and the alternativ
   });
   assert.equal(singleBoard2000.best.shipping.amountIls, 25, 'an overdue free condition never becomes a stale free promise');
   assert.equal(singleBoard2000.best.shipping.freeThreshold ?? null, null);
+  assert.deepEqual(singleBoard2000.best.shipping.freeCartConditions ?? [], []);
 });

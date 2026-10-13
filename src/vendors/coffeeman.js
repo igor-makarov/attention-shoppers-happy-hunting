@@ -60,10 +60,11 @@ export const COFFEEMAN_CHECKOUT_QUOTES = {
  * Browser-researched anonymous-cart observations for the single 250 g and
  * 4 × 250 g listings (2026-10-12, 19:56-20:09 UTC). The product page lists the
  * distribution-center delivery option without a price; the cart quoted ₪15 for
- * 0.5-1 kg carts and free home courier from a ₪231 item subtotal (charged at
- * ₪198), so the free condition is applied from ₪231 for these two listings and
- * keeps its observed-cart origin. The ₪240 8-pack SKU cart kept its own ₪20
- * quote and is covered by a separate policy. Evidence:
+ * 0.5-1 kg carts and showed free home courier on exactly three observed carts
+ * (7 singles at ₪231, 8 singles at ₪264 → ₪237.60 after the 10% promotion, and
+ * 2 × 4-packs at ₪248) while charging ₪25 on the smaller carts and ₪20 on the
+ * ₪240 8-pack SKU. No threshold is published, so the free observations are
+ * stored as exact cart conditions and never as a monotone threshold. Evidence:
  * docs/evidence/browser-research/2026-10-12-coffeeman-cart-single-4pack.json.
  * No street address, personal detail, login or order submission was involved.
  */
@@ -83,8 +84,14 @@ function singleFourPackCartObservation() {
   return {
     distributionCenterIls: alternative.amount.amount,
     observedCarts: '0.5–1 kg carts',
-    freeThresholdIls: coffeemanSingleFourPackPolicy.rule.freeThreshold?.amount ?? null,
-    freeThresholdOrigin: coffeemanSingleFourPackPolicy.rule.freeThresholdOrigin ?? null,
+    // The exact carts the anonymous checkout showed free; the quote engine
+    // matches them one by one instead of applying a threshold.
+    freeCartConditions: (coffeemanSingleFourPackPolicy.rule.freeCartConditions ?? []).map(condition => ({
+      id: condition.id,
+      units: condition.units,
+      orderedGrams: condition.orderedGrams,
+      itemSubtotalIls: condition.itemSubtotalIls
+    })),
     retrievedAt: coffeemanSingleFourPackPolicy.evidence.retrievedAt,
     sourceUrl: 'https://www.coffeeman.co.il/checkout.asp',
     note: alternative.note
@@ -166,13 +173,15 @@ export function parseCoffeemanProduct(html, { now, url = PRODUCT_URL, productId 
   const policyCurrent = policyIsCurrent(coveragePolicy, now);
   const checkoutQuoteCurrent = checkoutQuote != null && policyCurrent;
   const cartObservationCurrent = cartObservation != null && policyCurrent;
-  // The cart-observed free condition belongs to the single/4-pack policy only
-  // (the 8-pack SKU kept its own ₪20 quote). It is applied only while the policy
-  // is current and only when the page actually publishes the courier rate the
-  // free condition modifies; once `reviewBy` passes the offer falls back to the
-  // published rate with no free condition instead of a stale free promise.
-  const freeThresholdRule = coveragePolicy === coffeemanSingleFourPackPolicy && policyCurrent && shipping.deliveryCents != null
-    ? coffeemanSingleFourPackPolicy.rule
+  // The cart-observed free conditions belong to the single/4-pack policy only
+  // (the 8-pack SKU kept its own ₪20 quote). They are applied only while the
+  // policy is current and only when the page actually publishes the courier
+  // rate the conditions modify; once `reviewBy` passes the offer falls back to
+  // the published rate with no free condition instead of a stale free promise.
+  // The conditions are exact cart configurations, never a threshold: the quote
+  // engine matches the current cart against each one.
+  const freeCartConditions = coveragePolicy === coffeemanSingleFourPackPolicy && policyCurrent && shipping.deliveryCents != null
+    ? (coffeemanSingleFourPackPolicy.rule.freeCartConditions ?? [])
     : null;
   const overdueNote = (checkoutQuote || cartObservation) && !policyCurrent
     ? `The browser-researched checkout rule is past its review date (${coveragePolicy.reviewBy}) and is not applied until browser research re-checks it.`
@@ -230,10 +239,10 @@ export function parseCoffeemanProduct(html, { now, url = PRODUCT_URL, productId 
         caveatSource: coveragePolicy.destination.caveatSource
       },
       minOrder: null,
-      freeThreshold: freeThresholdRule?.freeThreshold ? { ...freeThresholdRule.freeThreshold } : null,
-      freeThresholdSemantics: freeThresholdRule?.thresholdSemantics ?? null,
-      freeThresholdOrigin: freeThresholdRule?.freeThresholdOrigin ?? null,
-      freeThresholdEvidence: freeThresholdRule?.freeThresholdEvidence ? { ...freeThresholdRule.freeThresholdEvidence } : null,
+      freeThreshold: null,
+      freeCartConditions: freeCartConditions
+        ? freeCartConditions.map(condition => ({ ...condition, evidence: { ...condition.evidence } }))
+        : null,
       // The distribution-center option is listed on the product page without a
       // price; the anonymous cart quoted it for the recorded cart sizes, so it
       // is shown as a conditional alternative and never replaces the ranked rate.
@@ -271,7 +280,8 @@ export function parseCoffeemanProduct(html, { now, url = PRODUCT_URL, productId 
         retrievedAt: coveragePolicy.evidence.retrievedAt,
         reviewBy: coveragePolicy.reviewBy,
         thresholdSemantics: coveragePolicy.rule?.thresholdSemantics ?? null,
-        freeThresholdOrigin: coveragePolicy.rule?.freeThresholdOrigin ?? null
+        freeThresholdOrigin: coveragePolicy.rule?.freeThresholdOrigin ?? null,
+        freeCartConditionIds: (coveragePolicy.rule?.freeCartConditions ?? []).map(condition => condition.id)
       }
     },
     now
