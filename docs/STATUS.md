@@ -1711,7 +1711,8 @@ line. Evidence: `docs/evidence/browser-qa-production-20261013T0031Z.json` (repor
 live vendor fetches, no browser opened for the refresh) completed its initial refresh at
 00:35:02.425Z; all three vendors succeeded from the runner's egress with no failures, five observations
 were stored, and the board ranked Pucks ₪90.00 at 500 g and ₪240.00 at 2 kg. Live browser QA against that
-Worker passed **84/84** with zero console errors. Evidence:
+Worker passed **84/84** with zero console errors, and `npm run cron:offline` saved all five offers in
+6 bounded requests with no failures. Evidence:
 `docs/evidence/worker-runtime-status-2026-10-13T0035Z.json`,
 `docs/evidence/browser-qa-live-20261013T0035Z.json`. Visual-review record for the failed-check warning:
 `docs/evidence/visual-review/2026-10-13-failed-check-warning.json` with the sanitized screenshot
