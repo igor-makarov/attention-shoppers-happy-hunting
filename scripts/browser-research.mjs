@@ -533,7 +533,6 @@ function createResearchDriver(session) {
       const out = await evalIn(`return (() => {
         const wanted = Array.isArray(arguments[0]) ? arguments[0] : [arguments[0]];
         const lines = [];
-        const seen = new Set();
         const readQuantity = row => {
           const inputs = [...row.querySelectorAll('input, select')];
           const preferred = inputs.find(input => /qty|quantity|כמות/i.test((input.name ?? '') + ' ' + (input.id ?? '') + ' ' + (input.className ?? '')));
@@ -561,9 +560,6 @@ function createResearchDriver(session) {
                 if (value) attrs[name] = String(value).slice(0, 80);
               }
             }
-            const key = [text, links.join('|'), quantity ?? '', JSON.stringify(attrs)].join('\\n');
-            if (seen.has(key)) continue;
-            seen.add(key);
             lines.push({ selector: String(selector), text, links, quantity, attrs });
           }
         }

@@ -771,6 +771,57 @@ test('the checked-in 8-single free-cart records keep the discount and method evi
   assert.equal(historical.renderedSummary?.totalLine, '₪237.60');
 });
 
+test('the checked-in schema-v3 identity records carry the observed rendered cart line', () => {
+  // These fresh 2026-10-13 runs replaced the declared-SKU assumption with an
+  // observation of the rendered cart row itself; they are the records the
+  // omitted-row zero acceptance now rests on.
+  const dir = new URL('../docs/evidence/browser-research/', import.meta.url);
+  const names = [
+    '2026-10-13-coffeeman-free-8singles-telaviv-identity-recipe.json',
+    '2026-10-13-coffeeman-free-8singles-eilat-identity-recipe.json'
+  ];
+  const localities = new Set();
+  for (const name of names) {
+    const record = JSON.parse(readFileSync(new URL(name, dir), 'utf8'));
+    const validation = validateEvidence(record);
+    assert.equal(validation.ok, true, `${name}: ${JSON.stringify(validation.errors)}`);
+    assert.equal(record.schemaVersion, 3, name);
+    assert.equal(record.status, 'quoted', name);
+    assert.equal(record.cartIdentityVerified, true, name);
+    assert.equal(record.cartIdentitySource, 'rendered-cart-line', name);
+    assert.equal(record.cartIdentityNote, null, name);
+    assert.equal(record.expectedCartIdentity.sku, '930333', name);
+    assert.equal(record.observedCartIdentity.sku, '930333', name);
+    assert.equal(record.observedCartIdentity.listingPacks, 1, name);
+    assert.equal(record.observedCartIdentity.packGrams, 250, name);
+    assert.equal(record.observedCartIdentity.quantity, 8, name);
+    assert.match(record.observedCartIdentity.lineText, /250 גרם/, name);
+    assert.equal(record.shippingEvidenceSource, 'selected-method-option', name);
+    assert.equal(record.shippingIls, 0, name);
+    assert.equal(record.deliveredTotalIls, 237.6, name);
+    assert.equal(record.arithmeticOk, true, name);
+    assert.ok(record.steps.some(step => step.step === 'readCartLines' && step.ok === true), `${name}: identity read step`);
+    localities.add(record.locality);
+  }
+  assert.equal(localities.size, 2, 'the identity records cover two named destinations');
+
+  // The distinct multipack keeps its own applied-line quote, now with the
+  // rendered multipack row observed and matched against its own recipe.
+  const eightPack = JSON.parse(readFileSync(new URL('2026-10-13-coffeeman-8pack-telaviv-identity-recipe.json', dir), 'utf8'));
+  assert.equal(validateEvidence(eightPack).ok, true);
+  assert.equal(eightPack.schemaVersion, 3);
+  assert.equal(eightPack.sku, '930335');
+  assert.equal(eightPack.cartIdentityVerified, true);
+  assert.equal(eightPack.observedCartIdentity.sku, '930335');
+  assert.equal(eightPack.observedCartIdentity.listingPacks, 8);
+  assert.equal(eightPack.observedCartIdentity.packGrams, 250);
+  assert.equal(eightPack.observedCartIdentity.quantity, 1);
+  assert.match(eightPack.observedCartIdentity.lineText, /8 אריזות 250 גרם/);
+  assert.equal(eightPack.shippingIls, 20);
+  assert.equal(eightPack.shippingEvidenceSource, 'applied-line');
+  assert.equal(eightPack.deliveredTotalIls, 260);
+});
+
 test('the checked-in 8-pack recipe records reproduce the ₪20 quote at two destinations', () => {
   // The 8 × 250 g multipack recipe (SKU 930335, one cart unit = 2000 g) makes
   // the distinct ₪20 cart quote re-checkable per destination through the same

@@ -2791,3 +2791,55 @@ from its Worker-egress HTTP 403, last good 2026-10-12T15:51:52.931Z).
 CoffeeMan's Worker-egress 403 persists; if it does, keep the last-known-good observation and warning
 rather than bypassing the vendor control. Browser/runner cart success does not change the Worker egress
 block, and repeated unchanged quote probes are not new shopping progress.
+
+## Iteration 3-104 — observed cart identity gates the omitted-row free zero (2026-10-13)
+
+**The reviewer's remaining gap is closed: a declared recipe SKU is no longer accepted as proof of the
+product in the cart.** The shared browser-research workflow now observes the rendered cart line at
+totals-read time and matches it against the recipe's declared listing before an omitted shipping row can
+become ₪0. `scripts/browser-research.mjs` exposes `readCartLines(selectors)`, which reports each matched
+row's visible text, links and quantity-control value without changing the page. `research-workflow.mjs`
+adds `matchCartIdentity`, `readLineSku` and `readLinePackIdentity`: the SKU is read only from rendered
+evidence (CoffeeMan's cart link carries `pid=930333`/`930334`/`930335`), the pack identity only from the
+row's own wording (“250 גרם”, “8 אריזות 250 גרם”), duplicate renders of the same row are folded, and a
+line that exposes no unambiguous SKU or pack wording stays unverified. Missing, mismatched or ambiguous
+identity, another multipack and mixed/unaccounted cart lines keep the record `blocked`; the exact reason
+is preserved. The recipe declarations name the CoffeeMan cart row selector
+(`ul.cart_items_ul > li:not(.promotion)`, which excludes the promotion rows rendered in the same list)
+and the expected listing packs/grams; a recipe without a cart-line reader records
+`cartIdentityVerified: null` (no observation attempted), so applied-line quotes keep working while an
+omitted-row zero can never be accepted without the observation.
+
+**Evidence schema v3 preserves expected versus observed identity.** The common record now carries
+`expectedCartIdentity` (recipe declaration), `observedCartIdentity` (only ever the verified rendered
+line: source, SKU, listing packs, pack grams, pack wording, quantity and the sanitized line text),
+`cartIdentityVerified`, `cartIdentitySource`, `cartIdentityLines` and `cartIdentityNote`. Schema v3
+validation requires a verified rendered identity for any `selected-method-option` zero, requires the
+observed SKU and pack identity to equal the declared/expected ones, rejects a quoted record with a
+mismatched identity, and requires the observed source. Version-1/2 records keep validating under their
+historical rules and are not retroactively labelled: the checked-in v2 free-cart records stay as they
+were, and the tests prove a v2 record without an observed identity still validates.
+
+**Fresh known 8-single quotes with observed identity.** Live runs through the checked-in `coffeeman`
+recipe at 10:36-10:37 UTC on 2026-10-13 (Tel Aviv–Yafo and Eilat) read the rendered cart row at
+totals-read time and matched it: SKU `930333`, wording “250 גרם”, quantity 8, source
+`rendered-cart-line`. The quoted records keep the working arithmetic — item subtotal ₪264, applied 10%
+discount −₪26.40, paid item total ₪237.60, selected home courier displayed at ₪0, delivered total
+₪237.60, `arithmeticOk true`, verified destination — and now carry the observed identity:
+`docs/evidence/browser-research/2026-10-13-coffeeman-free-8singles-telaviv-identity-recipe.json` and
+`...-eilat-identity-recipe.json`. A fresh run of the distinct `coffeeman-8pack` recipe at 10:37 UTC
+observed the multipack row (SKU `930335`, “8 אריזות 250 גרם”, quantity 1) and kept its own
+₪240 + ₪20 = ₪260 applied-line quote (`...-8pack-telaviv-identity-recipe.json`), proving the distinct
+multipack does not inherit the single-listing free condition.
+
+**Tests:** `tests/research-workflow.test.js` now covers the matcher's verified, wrong-SKU, wrong
+multipack, mixed-cart, duplicate-render, missing-SKU and missing-pack-wording cases; a run whose rendered
+line is another listing or whose line quantity disagrees with the recipe step stays blocked; a mismatched
+identity also blocks an applied-line quote; and schema v3 rejects a `selected-method-option` record that
+drops the identity fields while version-1/2 records stay valid historical evidence. The earlier
+safeguards (discount/method evidence, destination durability, pack-quantity checks, exact-cart scope,
+no-threshold rule) are unchanged. `npm run verify` passes.
+
+**Next step:** keep the **12:17 UTC cron tick** as the next actual vendor attempt and record whether
+CoffeeMan's Worker-egress 403 persists; the runtime matcher and policy scope are unchanged by this
+research-tooling work.

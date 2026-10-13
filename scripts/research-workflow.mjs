@@ -657,7 +657,7 @@ export function matchCartIdentity({ recipe, lines = [] } = {}) {
     source: verified ? 'rendered-cart-line' : null,
     expected,
     observed: verified && line ? { ...line, source: 'rendered-cart-line' } : null,
-    lines: observedLines.slice(0, 6),
+    lines: distinct.slice(0, 6),
     reasons
   };
 }
@@ -1114,7 +1114,7 @@ export async function runRecipe({ recipe, driver, params = {}, now = Date.now(),
         };
       }
       recordStep({ action: 'readCartLines', optional: true }, true, null,
-        `${cartIdentity.lines.length} rendered line(s); identity ${cartIdentity.verified ? 'verified' : 'not verified'}`);
+        `${cartIdentity.lines.length} distinct rendered line(s); identity ${cartIdentity.verified ? 'verified' : 'not verified'}`);
     } catch (error) {
       recordStep({ action: 'readCartLines', optional: true }, false, error);
       cartIdentity = {
