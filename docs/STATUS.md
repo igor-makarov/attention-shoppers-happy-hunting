@@ -19,6 +19,20 @@ persisted store at read time (verified in production at 01:53 UTC without a vend
 `variant=` URLs resolve to that one board. The 3-85 scoped-condition build is live as well (read-only
 probe passed at 02:42 UTC, including the 2 kg exact-free-condition and 3 kg base-rate checks, and
 headless-Chrome QA against production passed 90/90 at 02:48 UTC with zero console errors).
+Iteration 3-90 closes the two acceptance defects the overseer found: the scoped cart-condition matcher
+now enforces the recorded discount state and paid item total (a cart whose promotion ended at ₪264 paid,
+or changed to 5% / ₪250.80 paid, keeps the published ₪25 base rate instead of inheriting the recorded
+10% / ₪237.60 free cart, and a missing SKU or delivery method never counts as a match), and the browser
+QA now sets and verifies a **real 390×844 content viewport** through CDP device metrics instead of the
+701 px inner height an outer 390×844 window produced — using the measured `window.innerHeight` with no
+`Math.max(innerHeight, 844)` fallback, requiring the full failure sentence and coverage qualifier to end
+inside it, and saving complete card captures whose PNG height equals the card's rendered height. The
+3-89 shared-URL normalization is completed with a malformed-URL check (clamped grams, unknown locality,
+obsolete `variant` dropped). Offline fixture QA passes **111/111** and production live QA **113/113**
+with zero console errors; `npm run verify` passes **171/171** tests plus the dry-run bundle. The mobile
+vertical stack is tightened slightly (text sizes and 44 px tap targets unchanged) so the 2 kg
+failed-state warning ends at y≈697 and its qualifier at y≈812 of the 844 px viewport instead of touching
+the edge.
 Iteration 3-81 removes the last variant coupling from the data layer: a stored offer's identity key no
 longer contains the blend wording a listing prints, legacy blend-keyed rows are collapsed at read time
 with their stable-key replacement (newest observation wins), and failure markers plus previous-check
@@ -2230,3 +2244,82 @@ views under `docs/evidence/visual-review/`.
 **Next step:** after the **06:17 UTC tick** record whether the CoffeeMan egress block persists and
 whether the refreshed rows parse, then continue within Crema e Gusto coverage, shipping evidence,
 freshness and comparison quality.
+
+## Iteration 3-90 — cart-condition matching bound to discount/paid totals; a real content viewport measured (2026-10-13)
+
+**The two acceptance defects.** The overseer's 04:05 UTC findings were that (1)
+`freeCartConditionMatches()` ignored `condition.discountPercent` and `condition.paidItemTotalIls`, so
+the recorded `singles-8` free cart still matched after the CoffeeMan promotion ended (8 × ₪33 = ₪264
+paid) or changed to 5% (₪250.80 paid), and missing current SKU/method values were treated as matching
+the recorded ones; and (2) setting the WebDriver outer window to 390×844 produced
+`window.innerHeight: 701`, the live 2 kg failure warning ran from y=673 to y=724, and requiring only
+`failureRect.top <= innerHeight` (or `totalValue.bottom <= Math.max(innerHeight, 844)`) let a cut-off
+sentence or value pass, while the saved "cropped card" was the 343×416 visible intersection.
+
+**Matcher fix (src/lib/quote.js).**
+
+- The current cart's automatic discount percent (including "none") must equal the recorded cart's
+  `discountPercent`, and the current paid item total (`itemTotalIls` after the promotion) must equal the
+  recorded `paidItemTotalIls`. The pre-discount subtotal match remains the first gate.
+- A recorded SKU or delivery method must also be present on the current cart: a missing value is not the
+  observed value and no longer falls through to a match.
+- Regression tests (`tests/policy.test.js`, +2 cases): an ended promotion (parsed `promotions: []`) keeps
+  ₪264 item + published ₪25 = ₪289 and no free condition; a changed 5% banner pays ₪250.80 + ₪25 = ₪275.80
+  and no free condition; the exact recorded 10% / ₪237.60 cart still matches `singles-8`; and a direct
+  unit test proves missing SKU, missing method, an unrecorded discount and a different paid total all
+  fail to match.
+
+**Viewport and evidence fix (scripts/browser-qa.mjs, +9 checks).**
+
+- `setContentViewport(wd, width, height)` replaces every `window/rect` call: it applies
+  `Emulation.setDeviceMetricsOverride` through ChromeDriver's CDP extension, verifies the measured
+  `window.innerWidth`/`innerHeight`, records every requested/measured viewport in the QA report, falls
+  back to growing the outer window only when CDP is unavailable and throws when the requested content
+  size is not reached. All recorded viewports in this run were exact (`via: cdp`).
+- The delivered-total check now uses the measured `innerHeight` only (the `Math.max(innerHeight, 844)`
+  fallback is gone), and the mobile 500 g and failed-state checks require the full item, method, total,
+  failure-sentence and coverage-qualifier rects to end inside it. The live 2 kg production run measured
+  failure bottom 724 and qualifier bottom 843 of 844 before the CSS tweak below.
+- `completeCardScreenshot()` raises the capture viewport until the whole card fits, scrolls it into
+  view, verifies `rect.bottom <= innerHeight`, captures the element and requires the saved PNG height to
+  equal the card's rendered height. The saved first-screen captures are required to be exactly 390×844.
+  The 2 kg failed-state card now saves as 343×694 (full card) instead of the old 343×416 crop, the 500 g
+  CoffeeMan card as 341×546 and the production failing card as 341×546.
+- A malformed shared URL check loads `?grams=abc&dest=atlantis&variant=classico` and requires the
+  controls, address bar and quoted board to agree on the API-clamped 500 g / "Elsewhere in Israel"
+  fallback with the obsolete variant parameter dropped.
+- The ≤420 px vertical stack is tightened (`.product-head`, `.controls`, `.offer`, `.totals__cell` and
+  `.qualifier` padding only; text sizes and 44 px tap targets unchanged) so the 2 kg failed-state failure
+  sentence ends at y≈697 and the conditional/coverage qualifier at y≈812 of the 844 px viewport.
+
+**Verified (2026-10-13 UTC).**
+
+- `npm run verify` — **171/171** `node:test` cases and the `wrangler deploy --dry-run` bundle
+  (141.67 KiB / gzip 34.23 KiB; bindings `BOARD` + `ASSETS`). `tests/browser-qa-tooling.test.js` gained
+  source guards for the content-viewport helper, the absent `Math.max(innerHeight, …)` fallback, the
+  full-sentence bottom checks and the complete-capture verification.
+- `npm run qa:browser` (offline fixtures) — **111/111** checks, zero console errors. The measured mobile
+  viewport is exactly 390×844; the 500 g best card spans y≈271-788 with total y≈551 and qualifier
+  y≈586-654; the failed 2 kg state shows item/method/total ending by y≈613, the failure sentence
+  y≈648-697 and the qualifier y≈705-812; the saved card captures are complete (343×694, 341×546,
+  343×534) and the first-screen captures are 390×844.
+- `npm run qa:browser -- https://attention-shoppers.igormaka.workers.dev` — **113/113** checks against
+  the deployed site, zero console errors (read-only public GETs; no deploy and no Cloudflare action).
+  Live-only checks rendered the production failing CoffeeMan card as a complete 341×546 capture
+  (₪66.00 + ₪25.00 = ₪91.00, "Last check failed — showing the last successful observation.") and the
+  production 2 kg winner as a complete 343×694 capture with the full failure sentence and qualifier
+  inside the real 390×844 viewport.
+- PNG limitation (unchanged and accurately retained): the pinned file-read tool rejects image input, so
+  these captures were not machine-inspected as images. The coarse density/colour maps and the DOM
+  text/geometry from the same sessions are the recorded evidence; labels and arithmetic are corroborated
+  by DOM/API assertions, not by image reading.
+
+**Evidence:** `.shurik-local/qa/report.json` plus the sanitized captures under `.shurik-local/qa/` for
+both runs; the earlier production run's sanitized snapshot is recorded in
+`docs/evidence/visual-review/2026-10-13-live-2kg-winner-failed-state.json`.
+
+**Next step:** the CSS/viewport change and matcher fix are committed here; verify them on production
+after the main-push Workers Builds deploy (re-run the read-only production browser QA and record the
+measured failure/qualifier bottoms), then continue within Crema e Gusto coverage, shipping evidence,
+freshness and comparison quality. The **06:17 UTC tick** remains the next actual CoffeeMan vendor
+attempt.

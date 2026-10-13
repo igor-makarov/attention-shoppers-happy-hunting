@@ -505,13 +505,18 @@ details.disclosure .disclosure__body .num { font-variant-numeric: tabular-nums; 
   .masthead, .catalog, .product-head, .controls, .board, .site-footer { padding-left: 16px; padding-right: 16px; }
   .masthead { padding-top: 10px; padding-bottom: 10px; }
   .masthead__scope { display: none; }
-  .product-head { padding-top: 12px; padding-bottom: 6px; }
-  .controls { gap: 8px 12px; padding-bottom: 10px; }
+  /* Tighten the vertical stack so the failure sentence and the coverage
+     qualifier end well inside a real 390×844 content viewport, with headroom
+     for a longer timestamp or vendor name. Text sizes and 44 px tap targets are
+     unchanged. */
+  .product-head { padding-top: 8px; padding-bottom: 4px; }
+  .controls { gap: 8px 12px; padding-top: 0; padding-bottom: 6px; }
   .controls__group { gap: 6px; }
   .decision { padding-top: 8px; }
-  .offer { padding: 13px 14px 14px; }
+  .offer { padding: 10px 14px 12px; }
   .offer--best { border-left-width: 4px; }
-  .totals__cell { padding-top: 8px; padding-bottom: 8px; }
+  .totals__cell { padding-top: 6px; padding-bottom: 6px; }
+  .qualifier { margin-top: 8px; padding-top: 6px; padding-bottom: 6px; }
   /* Keep all five quantity buttons on one row so the best offer stays near the
      first screen: 44 px tap height is preserved, only the side padding shrinks. */
   .segmented { gap: 4px; }

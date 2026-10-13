@@ -131,19 +131,27 @@ conditional)` label so its quantity/destination condition stays visible.
   QA report: home 5.74:1, product desktop/mobile 4.61:1 (`In stock (observed)` on green-soft, matching
   the token table), failed 2 kg winner 4.61:1, failed 500 g CoffeeMan card 4.61:1, stale-refresh state
   4.61:1, unknown-shipping state 4.61:1, and the 3 px `rgb(0, 112, 180)` focus outline 5.28:1 against
-  the control background. The suite passes **102/102** offline fixture checks and **97/97** live local
-  Worker checks (2026-10-13, iteration 3-87) with zero contrast violations, zero console errors, no
+  the control background. The suite passes **111/111** offline fixture checks and **113/113** live
+  production checks (2026-10-13, iteration 3-90) with zero contrast violations, zero console errors, no
   horizontal overflow, no emoji and no `[object HTML…]` artifacts.
-- Readable offer views: the affected offers are also saved as element-level screenshots (cropped to the
-  card) in addition to the full-page captures — the 500 g best card, the 2 kg CoffeeMan winner and the
-  500 g CoffeeMan comparison card in the real last-check-failed state. A live run against the deployed
-  site additionally captures the actual failing ranked offer from the production store (CoffeeMan's
-  HTTP 403 rows) as a cropped view; that run passed **99/99** checks with zero console errors
-  (2026-10-13 03:31 UTC). See `docs/evidence/visual-review/2026-10-13-rendered-contrast-and-offer-views.json`.
-- First mobile screen (390×844 window; measured viewport 390×701 in headless Chrome): the best card
-  starts at y≈389, item subtotal and shipping end at y≈629, the named method ends at y≈565 and the
-  delivered total ends at y≈678 — all inside the viewport before scrolling. The product page is
-  ≈1,589 px tall at 390 px (five offers + disclosures) versus ≈5,491 px before the redesign.
+- Readable offer views: the affected offers are also saved as **complete** element captures (the whole
+  card, verified to fit the raised capture viewport) in addition to the correctly sized first-screen
+  captures — the 500 g best card, the 2 kg CoffeeMan winner and the 500 g CoffeeMan comparison card in
+  the real last-check-failed state, plus the actual failing ranked offer from the production store
+  (CoffeeMan's HTTP 403 rows) when live mode finds one. A cropped or clipped element capture (the
+  visible intersection with the viewport) is not accepted as evidence that a warning sentence was
+  readable: the capture's PNG height must equal the card's own rendered height and the card must be
+  fully inside the capture viewport before the shot. See
+  `docs/evidence/visual-review/2026-10-13-rendered-contrast-and-offer-views.json`.
+- First mobile screen: `scripts/browser-qa.mjs` sets the **real content viewport** through ChromeDriver's
+  CDP `Emulation.setDeviceMetricsOverride` and verifies `window.innerWidth`/`innerHeight`, because
+  WebDriver's `window/rect` sets the outer window (an outer 390×844 produced a 701 px inner height and
+  let a cut-off warning pass). At 390×844, the offline fixture 500 g best card spans y≈271-788, item
+  subtotal/shipping end at y≈503, the named method at y≈441, the delivered total at y≈551 and the
+  coverage qualifier at y≈586-654. In the real 2 kg last-check-failed state the failure sentence ends at
+  y≈697 and the conditional/coverage qualifier ends at y≈812, both inside the 844 px viewport. The
+  product page is ≈1,453 px tall at 390 px (five offers + disclosures) versus ≈5,491 px before the
+  redesign.
 - Home page: the single product card is visible on the first mobile screen, the home route renders no
   offer cards or totals, and the card link navigates to the directly loadable product URL. Screenshots:
   `docs/evidence/ui-review/{home,product}-{desktop-1440x1000,mobile-390x844}-20261012.png`.
