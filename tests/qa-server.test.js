@@ -7,7 +7,7 @@ import { startQaServer, fixtureObservations } from '../scripts/qa-server.mjs';
 
 test('fixture observations parse through the production adapters', async () => {
   const observations = await fixtureObservations(Date.parse('2026-10-12T11:00:00.000Z'));
-  assert.equal(observations.length, 5, 'three CoffeeMan, one Pucks and one Coffee4U Crema e Gusto offer');
+  assert.equal(observations.length, 6, 'five tracked offers plus the QA-only legacy blend-keyed row');
   assert.ok(observations.every(item => item.product.productId === 'lavazza-crema-e-gusto-vacuum-ground'), 'only the tracked line is parsed');
   const coffeeman = observations.find(item => item.vendor.id === 'coffeeman');
   assert.equal(coffeeman.product.form, 'ground');
@@ -36,6 +36,12 @@ test('fixture observations parse through the production adapters', async () => {
   assert.equal(coffee4u.shipping.certainty, 'verified');
   assert.equal(coffee4u.shipping.amount.amount, 30);
   assert.equal(coffee4u.shipping.alternatives[0].amount.amount, 15);
+  // The QA-only legacy row exists so the harness exercises the old-store case:
+  // one listing URL under the pre-correction blend key next to its stable-key row.
+  const legacy = observations.find(item => item.key === 'pucks:Lav69:classico:ground:250g:x1');
+  assert.ok(legacy, 'the QA store seeds the pre-correction blend-keyed row');
+  assert.ok(legacy.observedAt < pucks.observedAt, 'the legacy row is the older observation');
+  assert.equal(legacy.price.amount, 25, 'the legacy row carries an older, lower price that must never win');
 });
 
 test('QA fixture server can add the labelled terms-demo offer without touching the default board', async () => {
@@ -111,6 +117,8 @@ test('QA fixture server serves the board API and static assets offline', async (
     assert.equal(board.best.totalIls, 90);
     assert.equal(board.best.ilsPerKg, 180);
     assert.equal(board.ranked.length, 5, 'all three vendors, the three CoffeeMan pack sizes and the Coffee4U listing rank in one comparison');
+    assert.equal(new Set(board.ranked.map(quote => quote.itemUrl)).size, 5, 'the legacy blend-keyed row never duplicates the Pucks listing URL');
+    assert.ok(board.ranked.every(quote => quote.key !== 'pucks:Lav69:classico:ground:250g:x1'), 'the stable-key Pucks row is the offer');
     assert.equal(board.unrankable.length, 0, 'no tracked offer is missing a shipping rate any more');
     assert.equal(board.counts.excludedByVariant, undefined, 'no variant filter exists in the offline harness');
 

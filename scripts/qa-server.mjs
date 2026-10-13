@@ -84,6 +84,23 @@ export async function fixtureObservations(now = Date.now()) {
       totalGrams: coffeemanSingle.product.totalGrams
     };
   }
+  // QA-only legacy-store row: before the 2026-10-12 owner correction the
+  // persisted key contained the blend wording a listing printed. An old store can
+  // therefore hold this row next to the stable-key row of the same listing, and
+  // the board must collapse them instead of rendering the offer twice. The row is
+  // fixture metadata (older observation, lower price) and never represents a real
+  // vendor observation.
+  const pucksOffer = observations.find(item => item.vendor.id === 'pucks');
+  if (pucksOffer) {
+    observations.push({
+      ...pucksOffer,
+      key: 'pucks:Lav69:classico:ground:250g:x1',
+      product: { ...pucksOffer.product, variantId: 'classico', variantLabel: 'Classico' },
+      price: { amount: 25, currency: pucksOffer.price.currency },
+      observedAt: new Date(now - 12 * 60 * 60 * 1000).toISOString(),
+      attemptedAt: new Date(now - 12 * 60 * 60 * 1000).toISOString()
+    });
+  }
   return observations;
 }
 

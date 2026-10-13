@@ -372,6 +372,15 @@ try {
     compare.cards.map(c => `${c.vendor} ${c.totals[2]?.value}`).join(' | '));
   check('compare: no variant-exclusion notice or blend wording is repeated on the comparison',
     compare.variantMentions.length === 0, JSON.stringify(compare.variantMentions));
+  // One card per listing URL. The offline fixture store seeds a legacy
+  // blend-keyed row for the Pucks listing, so a regression in the read-time
+  // collapse would render the same offer URL twice.
+  const rankedLinks = [productView.link, ...compare.cards.map(card => card.link)];
+  check('compare: one card per vendor listing URL — a legacy blend-keyed row never duplicates an offer',
+    rankedLinks.every(Boolean)
+      && rankedLinks.length === api500.ranked.length
+      && new Set(rankedLinks).size === rankedLinks.length,
+    rankedLinks.join(' | '));
   await setDetailsOpen(wd, '#compare-other-offers', false);
   check('compare: the disclosure can be closed again', (await evaluate(wd, `document.querySelector('#compare-other-offers')?.open`)) === false, 'closed');
 
