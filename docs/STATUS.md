@@ -1978,6 +1978,10 @@ version until the next 6-hour vendor refresh — a provenance version of the kno
   `?variant=` URL resolving to the same unified board, all four policies current, CoffeeMan's next
   attempt still the 06:17 UTC tick (the 00:17 tick's egress block remains). Evidence:
   `docs/evidence/production-probe-20261013T0135Z.json`.
+- The probe gained a **policy-version check**: every ranked offer whose rule still matches the current
+  validated policy must serve the current version (the read-time provenance refresh guarantees it),
+  while a changed rule may wait for the next vendor refresh. Re-run at 01:56 UTC — **26/26** checks
+  pass. Evidence: `docs/evidence/production-probe-20261013T0156Z.json`.
 - Docs: `docs/SOURCES.md` records the destination extension and the v2 promotion; `docs/ARCHITECTURE.md`
   documents the provenance-refresh rule.
 
@@ -1986,8 +1990,10 @@ minutes, and `https://attention-shoppers.igormaka.workers.dev` now serves the ch
 persisted Pucks row (observed 2026-10-13T00:17:54.216Z, legacy key `pucks:Lav69:classico:ground:250g:x1`)
 returns policy **v2** with the five-locality coverage caveat and evidence time 2026-10-13T01:41:10Z
 while the ₪30 rate, the ₪90 total and the item observation time are unchanged; `/api/status` serves
-`pucks-il-home-delivery` v2. The read-only probe passed **25/25** checks. Evidence:
+`pucks-il-home-delivery` v2. The read-only probe passed **25/25** checks at 01:53 UTC and **26/26** at
+01:56 UTC after the applied-policy-version check was added. Evidence:
 `docs/evidence/production-probe-20261013T0153Z.json`,
+`docs/evidence/production-probe-20261013T0156Z.json`,
 `docs/evidence/production-provenance-refresh-20261013T0153Z.json`. No vendor refresh, no
 `lastRefreshAt` advance and no Cloudflare administration were used.
 

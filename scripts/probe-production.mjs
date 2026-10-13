@@ -238,6 +238,40 @@ check(
   expiredPolicies.length ? `expired=[${expiredPolicies.join(', ')}]` : 'none expired'
 );
 
+// The board must serve the current validated policy version wherever the rule
+// it applies still matches the policy's scope. A same-rule version update is
+// applied at read time (provenance refresh), so an older stamp on an identical
+// rule means the deployed build is not applying it; a rule that changed since
+// the row was parsed legitimately waits for the next vendor refresh.
+const policyVersionMismatches = [];
+const policyVersionAwaiting = [];
+for (const quote of boards.board500?.ranked ?? []) {
+  const stamp = quote.shipping?.policy;
+  if (!stamp?.id) continue;
+  const current = shippingPolicies.find(policy => policy?.id === stamp.id);
+  if (!current) {
+    policyVersionMismatches.push(`${stamp.id}@v${stamp.version} missing from status`);
+    continue;
+  }
+  const sameRule = (current.service ?? null) === (quote.shipping?.service ?? null)
+    && (current.freeThreshold ?? null) === (quote.shipping?.freeThreshold ?? null)
+    && (current.thresholdSemantics ?? null) === (quote.shipping?.freeThresholdSemantics ?? null);
+  if (!sameRule) {
+    policyVersionAwaiting.push(`${stamp.id}: board v${stamp.version}, current v${current.version}`);
+    continue;
+  }
+  if (stamp.version !== current.version) {
+    policyVersionMismatches.push(`${stamp.id}: board v${stamp.version} vs status v${current.version}`);
+  }
+}
+check(
+  'every ranked offer applies the current validated policy version for its rule',
+  policyVersionMismatches.length === 0,
+  policyVersionMismatches.length
+    ? policyVersionMismatches.join(', ')
+    : policyVersionAwaiting.length ? `awaiting vendor refresh: ${policyVersionAwaiting.join(', ')}` : 'all current'
+);
+
 // Published quantity promotions: only checked once the deployed build exposes
 // them, so the probe stays green while the main-push deploy is still rolling
 // out; once present, the rule, percent, threshold and review date must be
