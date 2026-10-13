@@ -369,6 +369,18 @@ test('a changed or ended CoffeeMan promotion keeps the published base rate inste
   assert.equal(recorded.best.itemTotalIls, 237.6);
   assert.equal(recorded.best.shipping.freeCondition.id, 'singles-8');
   assert.equal(recorded.best.totalIls, 237.6);
+
+  // An expired fallback promotion (an old row without parsed banners) also
+  // keeps the published base rate: no discount means ₪264 paid, not ₪237.60.
+  const expired = quote([oldPersistedCoffeemanSingleObservation()], {
+    targetGrams: 2000,
+    promotions: [{ ...coffeemanGroundCoffeePercentPromotion, reviewBy: '2026-10-11T00:00:00.000Z' }]
+  });
+  assert.equal(expired.best.itemDiscount, null, 'the expired fallback promotion does not apply');
+  assert.equal(expired.best.itemTotalIls, 264);
+  assert.equal(expired.best.shipping.amountIls, 25, 'an expired promotion keeps the published base rate');
+  assert.equal(expired.best.shipping.freeCondition, null);
+  assert.equal(expired.best.totalIls, 289);
 });
 
 test('a cart missing the observed SKU or delivery method never matches an observed-free cart', () => {
