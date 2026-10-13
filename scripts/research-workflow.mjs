@@ -8,7 +8,8 @@
 //     how to add whole packs to an anonymous cart, how to reach the public
 //     estimator and which locality/postcode fields are permitted;
 //   - the runner executes the steps, waits for recalculation and extracts the
-//     displayed item subtotal, shipping line and final total;
+//     displayed pre-discount item subtotal, applied discount(s), paid item
+//     total, selected named service, shipping evidence source and final total;
 //   - every run produces one record in the same evidence schema, whether it
 //     ended in a quote, a public-flow blocker or a failure. Blocker records keep
 //     the exact step and the rendered excerpt that stopped the flow.
@@ -19,7 +20,11 @@
 // runtime and never applied to the board automatically. A validated record can
 // be promoted into a versioned policy in src/lib/policies.js by hand.
 
-export const EVIDENCE_SCHEMA_VERSION = 1;
+export const EVIDENCE_SCHEMA_VERSION = 2;
+
+// Version 1 records predate the discount/method-evidence fields. They keep
+// validating under the version-1 rules and stay valid historical evidence.
+export const SUPPORTED_EVIDENCE_SCHEMA_VERSIONS = [1, 2];
 
 // The single, 4-pack and 8-pack CoffeeMan listings share one public checkout
 // flow; these steps are the shared navigation data so each listing's recipe
@@ -61,6 +66,7 @@ export const RECIPES = {
     id: 'pucks',
     vendorId: 'pucks',
     vendorName: 'Pucks',
+    sku: 'Lav69',
     productUrl: 'https://pucks.co.il/product/lavazza-crema-e-gusto-ground-coffee-250g',
     cartUrl: 'https://pucks.co.il/payment/request',
     allowedHosts: ['pucks.co.il', 'www.pucks.co.il'],
@@ -99,6 +105,7 @@ export const RECIPES = {
     id: 'coffeeman',
     vendorId: 'coffeeman',
     vendorName: 'CoffeeMan (Amigo)',
+    sku: '930333',
     productUrl: 'https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico',
     cartUrl: 'https://www.coffeeman.co.il/checkout.asp',
     allowedHosts: ['www.coffeeman.co.il', 'coffeeman.co.il'],
@@ -114,6 +121,7 @@ export const RECIPES = {
     id: 'coffeeman-4pack',
     vendorId: 'coffeeman',
     vendorName: 'CoffeeMan (Amigo)',
+    sku: '930334',
     productUrl: 'https://www.coffeeman.co.il/product/4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico',
     cartUrl: 'https://www.coffeeman.co.il/checkout.asp',
     allowedHosts: ['www.coffeeman.co.il', 'coffeeman.co.il'],
@@ -125,6 +133,7 @@ export const RECIPES = {
     id: 'coffee4u',
     vendorId: 'coffee4u',
     vendorName: 'Coffee4U',
+    sku: '2010561',
     productUrl: 'https://www.coffee4u.co.il/product/lavazza-crema-e-gusto-250-gr-%D7%98%D7%97%D7%95%D7%9F',
     cartUrl: 'https://www.coffee4u.co.il/Checkout.asp',
     allowedHosts: ['www.coffee4u.co.il', 'coffee4u.co.il'],
@@ -224,6 +233,94 @@ function freeLine(value) {
   return /חינם|free/i.test(String(value ?? ''));
 }
 
+const roundIls = value => Math.round(value * 100) / 100;
+
+/**
+ * Applied-discount evidence from the rendered page. Only an explicit signed
+ * reduction next to a discount cue (for example CoffeeMan's
+ * "מבצע כל הקפה טחון ב-10% הנחה.-" followed by "₪ -26.40") counts as a
+ * discount. A cue without any shekel amount means "no discount displayed" (0);
+ * a cue whose amount cannot be read as a signed reduction is recorded as
+ * ambiguous so it can never be accepted as a confirmed cart condition.
+ */
+export function readAppliedDiscount(text) {
+  const value = String(text ?? '');
+  const lines = value.split('\n').map(line => line.replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim());
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (!/(?:הנחה|discount)/i.test(line)) continue;
+    const window = [line, lines[index + 1] ?? '', lines[index + 2] ?? ''].join('\n');
+    const signed = /₪\s*-\s*([\d.,]+)/.exec(window) ?? /-\s*([\d.,]+)\s*₪/.exec(window);
+    if (!signed) continue;
+    const percent = /(\d+(?:[.,]\d+)?)\s*%/.exec(window)?.[1] ?? null;
+    return {
+      discountIls: -Math.abs(toAmount(signed[1])),
+      discountPercent: percent == null ? null : toAmount(percent),
+      discountLabel: sanitizeExcerpt(line, 160),
+      discountAmbiguous: false
+    };
+  }
+  const signedAnywhere = /₪\s*-\s*([\d.,]+)/.exec(value);
+  if (signedAnywhere) {
+    return { discountIls: -Math.abs(toAmount(signedAnywhere[1])), discountPercent: null, discountLabel: null, discountAmbiguous: false };
+  }
+  const cueIndex = lines.findIndex(line => /(?:הנחה|discount)/i.test(line));
+  const cueWindow = cueIndex >= 0 ? [lines[cueIndex], lines[cueIndex + 1] ?? '', lines[cueIndex + 2] ?? ''] : [];
+  const ambiguous = cueWindow.some(line => /₪/.test(line));
+  return {
+    discountIls: ambiguous ? null : 0,
+    discountPercent: null,
+    discountLabel: ambiguous ? sanitizeExcerpt(cueWindow[0], 160) : null,
+    discountAmbiguous: ambiguous
+  };
+}
+
+/** Rendered delivery-method options with their displayed rates, from body text. */
+export function readMethodOptions(text) {
+  const options = [];
+  for (const raw of String(text ?? '').split('\n')) {
+    const line = raw.replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!/(?:^|\s)משלוח/.test(line)) continue;
+    const match = /([\d.,]+)\s*₪\s*$/.exec(line) ?? /₪\s*([\d.,]+)\s*$/.exec(line);
+    if (!match) continue;
+    options.push({ label: sanitizeExcerpt(line, 160), amountIls: toAmount(match[1]) });
+  }
+  return options;
+}
+
+/** Compact sanitized excerpt of the rendered money/decision lines. */
+export function readMoneyLines(text, max = 24) {
+  const lines = [];
+  for (const raw of String(text ?? '').split('\n')) {
+    const line = raw.replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!line || !/₪|מבצע|הנחה|משלוח|סכום כולל|סה"כ|סך הכל/.test(line)) continue;
+    lines.push(sanitizeExcerpt(line, 160));
+    if (lines.length >= max) break;
+  }
+  return lines;
+}
+
+/**
+ * Attach the common money evidence to a parser result: the displayed
+ * pre-discount item subtotal, the explicit applied discount state and the paid
+ * item total, plus the rendered method options.
+ */
+function withCommonMoney(value, base) {
+  const discount = readAppliedDiscount(value);
+  const itemSubtotal = base.itemSubtotalIls ?? null;
+  const discountIls = discount.discountIls;
+  return {
+    ...base,
+    itemSubtotalBeforeDiscountIls: itemSubtotal,
+    discountIls,
+    discountPercent: discount.discountPercent,
+    discountLabel: discount.discountLabel,
+    discountAmbiguous: discount.discountAmbiguous,
+    paidItemTotalIls: itemSubtotal == null || discountIls == null ? null : roundIls(itemSubtotal + discountIls),
+    methodOptions: readMethodOptions(value)
+  };
+}
+
 /** Pucks summary: סכום ביניים / משלוח / סך הכל and the free-shipping sentence. */
 export function parsePucksTotals(text) {
   const value = String(text ?? '');
@@ -243,7 +340,7 @@ export function parsePucksTotals(text) {
   const total = /סך הכל[^\d]{0,12}([\d.,]+)/.exec(withoutThreshold)?.[1] ?? null;
   const threshold = /משלוח חינם בהזמנה מעל\s*([\d.,]+)/.exec(value)?.[1] ?? null;
   const shipping = shippingMatch?.[1] ?? null;
-  return {
+  return withCommonMoney(value, {
     itemSubtotalIls: toAmount(subtotal),
     shippingIls: freeLine(shipping) ? 0 : toAmount(shipping),
     shippingLabel: freeLine(shipping) ? 'free' : shipping,
@@ -251,7 +348,7 @@ export function parsePucksTotals(text) {
     freeThresholdIls: toAmount(threshold),
     freeThresholdText: threshold ? `Free shipping above ₪${toAmount(threshold)}` : null,
     currency: 'ILS'
-  };
+  });
 }
 
 /**
@@ -279,7 +376,7 @@ export function parseCoffeemanTotals(text) {
     ?? /(?:^|\n)[ \t]*(?:משלוח|דמי משלוח)[ \t]*\n[ \t]*(חינם|free)/i.exec(value);
   const total = /(?:סה"כ|סך הכל|סכום כולל מע["״]?מ)[^\d]{0,12}([\d.,]+)/.exec(value)?.[1] ?? null;
   const shipping = shippingMatch?.[1] ?? null;
-  return {
+  return withCommonMoney(value, {
     itemSubtotalIls: toAmount(subtotal),
     shippingIls: freeLine(shipping) ? 0 : toAmount(shipping),
     shippingLabel: freeLine(shipping) ? 'free' : shipping,
@@ -287,7 +384,7 @@ export function parseCoffeemanTotals(text) {
     freeThresholdIls: null,
     freeThresholdText: null,
     currency: 'ILS'
-  };
+  });
 }
 
 /** Coffee4U summary: product-line total, delivery line and final total. */
@@ -308,7 +405,7 @@ export function parseCoffee4uTotals(text) {
     ?? /(?:^|\n)[ \t]*(?:משלוח|דמי משלוח|הובלה)[ \t]*\n[ \t]*([\d.,]+|חינם|free)/i.exec(value);
   const total = /(?:סה"כ לתשלום|סך הכל|סכום כולל מע["״]?מ)[^\d]{0,12}([\d.,]+)/.exec(value)?.[1] ?? null;
   const shipping = shippingMatch?.[1] ?? null;
-  return {
+  return withCommonMoney(value, {
     itemSubtotalIls: toAmount(subtotal),
     shippingIls: freeLine(shipping) ? 0 : toAmount(shipping),
     shippingLabel: freeLine(shipping) ? 'free' : shipping,
@@ -316,15 +413,91 @@ export function parseCoffee4uTotals(text) {
     freeThresholdIls: null,
     freeThresholdText: null,
     currency: 'ILS'
+  });
+}
+
+/**
+ * Deterministic decision for a checkout that displays no applied shipping row.
+ * An omitted row is only read as a confirmed zero when independent rendered
+ * evidence supports it: the selected named method is itself displayed at zero
+ * (and appears at zero in the rendered method list), the whole-pack quantity
+ * and destination were verified, the promotion state is explicit (not
+ * ambiguous) and the item/discount/paid-total arithmetic equals the displayed
+ * final total. Anything less stays unknown/blocked instead of becoming free
+ * shipping.
+ */
+export function decideOmittedShippingRow({
+  totals = {},
+  serviceConfirmed = null,
+  serviceLabel = null,
+  destinationVerified = null,
+  actualPacks = null,
+  requestedPacks = null,
+  sku = null
+} = {}) {
+  const reasons = [];
+  if (totals.shippingIls != null) {
+    return { accepted: false, amountIls: null, reasons: ['the checkout already displayed an applied shipping amount'], note: null };
+  }
+  if (!sku) reasons.push('the tracked listing SKU was not recorded');
+  if (serviceConfirmed !== true) reasons.push('the selected delivery method was not confirmed by a successful page step');
+  const selectedKey = serviceLabel ? methodLabelKey(serviceLabel) : null;
+  if (!serviceLabel) reasons.push('the selected delivery method label was not recorded');
+  else if (methodLabelAmountIls(serviceLabel) !== 0) reasons.push(`the selected method is not displayed at zero (${serviceLabel})`);
+  const options = Array.isArray(totals.methodOptions) ? totals.methodOptions : [];
+  if (serviceLabel && !options.some(option => methodLabelKey(option.label) === selectedKey && option.amountIls === 0)) {
+    reasons.push('the rendered method list did not show the selected method at zero');
+  }
+  if (destinationVerified !== true) reasons.push('the destination was not verified on the rendered page');
+  if (!Number.isFinite(actualPacks) || actualPacks <= 0) reasons.push('the whole-pack quantity was not verified on the rendered page');
+  else if (Number.isFinite(requestedPacks) && actualPacks !== requestedPacks) reasons.push(`the page held ${actualPacks} pack(s), not the requested ${requestedPacks}`);
+  if (totals.discountAmbiguous === true) reasons.push('the rendered promotion could not be read as an explicit discount amount');
+  const itemSubtotal = totals.itemSubtotalBeforeDiscountIls ?? totals.itemSubtotalIls ?? null;
+  const discount = totals.discountIls ?? null;
+  const paid = totals.paidItemTotalIls ?? null;
+  if (itemSubtotal == null || discount == null || paid == null) {
+    reasons.push('the pre-discount item subtotal, applied discount and paid item total were not all displayed');
+  } else if (Math.abs(itemSubtotal + discount - paid) > 0.05) {
+    reasons.push('the applied discount does not reconcile the pre-discount subtotal with the paid item total');
+  }
+  if (totals.deliveredTotalIls == null) reasons.push('the displayed final total was not read');
+  else if (paid != null && Math.abs(paid - totals.deliveredTotalIls) > 0.05) {
+    reasons.push('the displayed final total is not consistent with the paid item total and a zero shipping charge');
+  }
+  const accepted = reasons.length === 0;
+  return {
+    accepted,
+    amountIls: accepted ? 0 : null,
+    reasons,
+    note: accepted
+      ? 'The checkout omitted the applied shipping row; the selected named delivery method is displayed at ₪0 and the discounted item total equals the displayed final total, so the zero is recorded as confirmed for this exact cart and destination.'
+      : null
   };
 }
 
 /**
+ * The amount a delivery-method label displays, or null when the label carries
+ * no readable rate. Only used on labels the page rendered for the method the
+ * recipe actually selected.
+ */
+export function methodLabelAmountIls(label) {
+  const value = String(label ?? '');
+  if (/חינם|\bfree\b/i.test(value)) return 0;
+  const match = /([\d.,]+)\s*₪\s*$/.exec(value) ?? /₪\s*([\d.,]+)/.exec(value);
+  return match ? toAmount(match[1]) : null;
+}
+
+/** Method wording without its rate, so a selected label can be matched to the rendered option list. */
+function methodLabelKey(label) {
+  return String(label ?? '').replace(/[₪]|[\d.,]+/g, '').replace(/\s+/g, ' ').trim();
+}
+
+/**
  * Build one common evidence record from a recipe run. `status` is one of
- * `quoted` (displayed item subtotal, shipping and final total agree),
- * `partial` (a rate was read but not all three values agree),
- * `blocked` (the public flow could not produce a quote; `blocker` says where)
- * or `failed` (tooling/step error).
+ * `quoted` (displayed item subtotal, explicit discount state, shipping
+ * evidence and final total agree), `partial` (values were read but do not all
+ * agree), `blocked` (the public flow could not produce a quote; `blocker`
+ * says where) or `failed` (tooling/step error).
  */
 export function buildEvidenceRecord({
   recipe,
@@ -338,23 +511,57 @@ export function buildEvidenceRecord({
   destinationVerified = null,
   service = null,
   serviceConfirmed = null,
+  serviceLabel = null,
   now = Date.now()
 } = {}) {
   const grams = Number(params.grams) > 0 ? Number(params.grams) : recipe.packGrams;
   const requestedPacks = Math.max(1, Math.ceil(grams / recipe.packGrams));
   const packs = Number.isFinite(actualPacks) && actualPacks > 0 ? actualPacks : requestedPacks;
-  const arithmeticOk = totals.itemSubtotalIls != null && totals.shippingIls != null && totals.deliveredTotalIls != null
-    && Math.abs(totals.itemSubtotalIls + totals.shippingIls - totals.deliveredTotalIls) <= 0.05;
-  const resolvedStatus = status === 'quoted' && !arithmeticOk ? 'partial' : status;
+  // Distinguish the displayed pre-discount subtotal, the explicit applied
+  // discount and the paid item total. Totals that carry no discount evidence
+  // (version-1 callers) keep their previous meaning: the subtotal is paid.
+  const itemSubtotalBeforeDiscount = totals.itemSubtotalBeforeDiscountIls ?? totals.itemSubtotalIls ?? null;
+  const discountIls = totals.discountIls ?? null;
+  const paidItemTotal = totals.paidItemTotalIls
+    ?? (itemSubtotalBeforeDiscount != null && discountIls != null ? roundIls(itemSubtotalBeforeDiscount + discountIls) : itemSubtotalBeforeDiscount);
+  const freeDecision = decideOmittedShippingRow({
+    totals: { ...totals, itemSubtotalBeforeDiscountIls: itemSubtotalBeforeDiscount, paidItemTotalIls: paidItemTotal },
+    serviceConfirmed,
+    serviceLabel,
+    destinationVerified,
+    actualPacks: Number.isFinite(actualPacks) && actualPacks > 0 ? actualPacks : null,
+    requestedPacks,
+    sku: recipe.sku ?? null
+  });
+  let shippingIls = totals.shippingIls ?? null;
+  let shippingLabel = totals.shippingLabel ?? null;
+  let shippingEvidenceSource = totals.shippingEvidenceSource ?? null;
+  let shippingEvidenceNote = totals.shippingEvidenceNote ?? null;
+  if (shippingIls == null && freeDecision.accepted) {
+    shippingIls = 0;
+    shippingLabel = 'free';
+    shippingEvidenceSource = 'selected-method-option';
+    shippingEvidenceNote = freeDecision.note;
+  } else if (shippingIls != null && shippingEvidenceSource == null) {
+    shippingEvidenceSource = 'applied-line';
+  }
+  const arithmeticOk = itemSubtotalBeforeDiscount != null && shippingIls != null && totals.deliveredTotalIls != null
+    && Math.abs((paidItemTotal ?? itemSubtotalBeforeDiscount) + shippingIls - totals.deliveredTotalIls) <= 0.05;
+  let resolvedStatus = status === 'quoted' && !arithmeticOk ? 'partial' : status;
+  let resolvedBlocker = blocker ? sanitizeExcerpt(blocker, 300) : null;
+  if (resolvedStatus === 'quoted' && shippingIls == null) {
+    resolvedStatus = 'blocked';
+    resolvedBlocker = resolvedBlocker ?? `The rendered flow did not display an applied shipping row for this quantity and destination${freeDecision.reasons.length ? `: ${freeDecision.reasons.join('; ')}.` : '.'}`;
+  }
   // A requested locality/postcode that the recipe could not set on the page must
   // not read as a destination quote: keep the requested values but say plainly
   // that the destination was not verified.
   const destinationNote = destinationVerified === false && (params.locality || params.postcode)
     ? 'The destination (locality/postcode) was requested but could not be verified on the rendered page, so the displayed quote is not confirmed for that destination.'
     : null;
-  // The displayed shipping line belongs to a named method only when the recipe's
-  // method-selection step succeeded on the page; otherwise the record must say
-  // the method is unconfirmed instead of implying one.
+  // The displayed shipping evidence belongs to a named method only when the
+  // recipe's method-selection step succeeded on the page; otherwise the record
+  // must say the method is unconfirmed instead of implying one.
   const serviceNote = serviceConfirmed === false
     ? 'The delivery method could not be confirmed on the rendered page, so the displayed shipping line is not attributed to a named method.'
     : null;
@@ -363,6 +570,7 @@ export function buildEvidenceRecord({
     schemaVersion: EVIDENCE_SCHEMA_VERSION,
     vendorId: recipe.vendorId,
     vendorName: recipe.vendorName,
+    sku: recipe.sku ?? null,
     productUrl: sanitizeUrl(recipe.productUrl),
     cartUrl: sanitizeUrl(pageUrl ?? recipe.cartUrl),
     pack: `${packs} × ${recipe.packGrams} g = ${packs * recipe.packGrams} g`,
@@ -373,18 +581,29 @@ export function buildEvidenceRecord({
     destinationVerified: destinationVerified === true ? true : destinationVerified === false ? false : null,
     service: service ?? null,
     serviceConfirmed: serviceConfirmed === true ? true : serviceConfirmed === false ? false : null,
+    serviceLabel: serviceLabel ? sanitizeExcerpt(serviceLabel, 160) : null,
     status: resolvedStatus,
-    itemSubtotalIls: totals.itemSubtotalIls ?? null,
-    shippingIls: totals.shippingIls ?? null,
-    shippingLabel: totals.shippingLabel ?? null,
+    itemSubtotalBeforeDiscountIls: itemSubtotalBeforeDiscount,
+    discountIls,
+    discountPercent: totals.discountPercent ?? null,
+    discountLabel: totals.discountLabel ? sanitizeExcerpt(totals.discountLabel, 160) : null,
+    discountAmbiguous: totals.discountAmbiguous === true,
+    paidItemTotalIls: paidItemTotal,
+    itemSubtotalIls: itemSubtotalBeforeDiscount,
+    shippingIls,
+    shippingLabel,
+    shippingEvidenceSource,
+    shippingEvidenceNote,
     deliveredTotalIls: totals.deliveredTotalIls ?? null,
     freeThresholdIls: totals.freeThresholdIls ?? null,
     freeThresholdText: totals.freeThresholdText ?? null,
     currency: totals.currency ?? 'ILS',
     arithmeticOk,
     qualification: [totals.qualification, destinationNote, serviceNote].filter(Boolean).join(' ') || null,
-    blocker: blocker ? sanitizeExcerpt(blocker, 300) : null,
+    blocker: resolvedBlocker,
     excerpt: totals.excerpt ? sanitizeExcerpt(totals.excerpt) : null,
+    moneyLines: Array.isArray(totals.moneyLines) ? totals.moneyLines.slice(0, 24).map(line => sanitizeExcerpt(line, 160)) : null,
+    methodOptions: Array.isArray(totals.methodOptions) ? totals.methodOptions.slice(0, 8).map(option => ({ label: sanitizeExcerpt(option.label, 160), amountIls: option.amountIls ?? null })) : null,
     steps: steps.map(step => ({ step: step.step, ok: step.ok, optional: Boolean(step.optional), error: step.error ? sanitizeExcerpt(step.error, 200) : null, detail: step.detail ? sanitizeExcerpt(step.detail, 120) : null })),
     observedAt: new Date(now).toISOString(),
     note: 'Anonymous cart quote recorded by interactive browser research. No order, payment, login, account or street address was involved. Cart/session identifiers are stripped from this record.'
@@ -396,7 +615,9 @@ export function validateEvidence(record) {
   const errors = [];
   if (!record || typeof record !== 'object') return { ok: false, errors: ['record is not an object'] };
   if (record.kind !== 'browser-research-quote') errors.push('kind must be browser-research-quote');
-  if (record.schemaVersion !== EVIDENCE_SCHEMA_VERSION) errors.push(`schemaVersion must be ${EVIDENCE_SCHEMA_VERSION}`);
+  if (!SUPPORTED_EVIDENCE_SCHEMA_VERSIONS.includes(record.schemaVersion)) {
+    errors.push(`schemaVersion must be one of ${SUPPORTED_EVIDENCE_SCHEMA_VERSIONS.join(', ')}`);
+  }
   if (!record.vendorId) errors.push('vendorId is required');
   if (!['quoted', 'partial', 'blocked', 'failed'].includes(record.status)) errors.push('status is unknown');
   if (!record.observedAt || Number.isNaN(Date.parse(record.observedAt))) errors.push('observedAt must be an ISO date');
@@ -425,6 +646,39 @@ export function validateEvidence(record) {
   if (record.status === 'blocked' && !record.blocker) errors.push('a blocked record must explain the blocker');
   if (record.blocker && /[?&](?:sess|session|token|sid|cart_id|PHPSESSID)=/i.test(record.blocker)) {
     errors.push('blocker contains a session-like parameter');
+  }
+  // Version 2 adds the discount/method evidence fields. A free zero taken from
+  // an omitted shipping row must carry every piece of independent rendered
+  // evidence the decision above requires, so a partial read can never validate
+  // as free shipping.
+  if (record.schemaVersion >= 2) {
+    for (const key of ['itemSubtotalBeforeDiscountIls', 'discountIls', 'discountPercent', 'paidItemTotalIls']) {
+      const value = record[key];
+      if (value != null && !Number.isFinite(value)) errors.push(`${key} must be a number or null`);
+    }
+    if (record.serviceLabel != null && typeof record.serviceLabel !== 'string') errors.push('serviceLabel must be a string or null');
+    if (![null, 'applied-line', 'selected-method-option'].includes(record.shippingEvidenceSource)) {
+      errors.push('shippingEvidenceSource must be null, applied-line or selected-method-option');
+    }
+    if (record.status === 'quoted') {
+      if (record.itemSubtotalBeforeDiscountIls == null) errors.push('a quoted record needs the displayed pre-discount item subtotal');
+      if (record.paidItemTotalIls == null) errors.push('a quoted record needs the paid item total');
+      if (record.itemSubtotalBeforeDiscountIls != null && record.discountIls != null && record.paidItemTotalIls != null
+        && Math.abs(record.itemSubtotalBeforeDiscountIls + record.discountIls - record.paidItemTotalIls) > 0.05) {
+        errors.push('the displayed discount does not reconcile the item subtotal with the paid item total');
+      }
+    }
+    if (record.shippingEvidenceSource === 'selected-method-option') {
+      if (record.shippingIls !== 0) errors.push('a selected-method-option zero must record shippingIls 0');
+      if (record.serviceConfirmed !== true || !record.service) errors.push('a selected-method-option zero needs the confirmed method name');
+      if (!record.serviceLabel || methodLabelAmountIls(record.serviceLabel) !== 0) errors.push('a selected-method-option zero needs the selected method label displayed at zero');
+      if (record.destinationVerified !== true || !record.locality) errors.push('a selected-method-option zero needs a verified destination');
+      if (!Number.isFinite(record.observedPacks) || record.observedPacks <= 0) errors.push('a selected-method-option zero needs the verified whole-pack quantity');
+      if (!record.sku) errors.push('a selected-method-option zero needs the tracked listing SKU');
+      if (!record.shippingEvidenceNote) errors.push('a selected-method-option zero needs the omitted-row evidence note');
+      if (record.discountIls == null) errors.push('a selected-method-option zero needs the explicit discount state');
+      if (record.arithmeticOk !== true) errors.push('a selected-method-option zero needs consistent item/discount/shipping/total arithmetic');
+    }
   }
   return { ok: errors.length === 0, errors };
 }
@@ -470,7 +724,10 @@ export async function runRecipe({ recipe, driver, params = {}, now = Date.now(),
   let destinationVerified = null;
   // The delivery method is confirmed only by a successful method-selection step
   // on the rendered page; a requested parameter alone is never a confirmation.
+  // The label the page returned is kept too, because the omitted-shipping-row
+  // decision requires the selected method's own displayed rate.
   let confirmedService = null;
+  let serviceLabel = null;
   let serviceStepSeen = false;
   const isDestinationStep = step => step.verifies === 'destination';
   const destinationMatches = (step, result) => {
@@ -495,6 +752,9 @@ export async function runRecipe({ recipe, driver, params = {}, now = Date.now(),
       if (step.confirmsService) {
         serviceStepSeen = true;
         confirmedService = step.confirmsService;
+        serviceLabel = typeof result === 'string'
+          ? result
+          : (result && typeof result === 'object' ? result.selected ?? null : null);
       }
       if (isDestinationStep(step)) {
         if (!destinationMatches(step, result)) {
@@ -510,6 +770,7 @@ export async function runRecipe({ recipe, driver, params = {}, now = Date.now(),
       if (step.confirmsService) {
         serviceStepSeen = true;
         confirmedService = null;
+        serviceLabel = null;
       }
       if (isDestinationStep(step)) destinationVerified = false;
       if (step.optional) continue;
@@ -538,9 +799,36 @@ export async function runRecipe({ recipe, driver, params = {}, now = Date.now(),
   if (typeof recipe.parseTotals === 'function') {
     totals = recipe.parseTotals(text) ?? {};
   }
+  // The rendered money/decision lines are kept as a compact sanitized excerpt so
+  // a reviewer can read the discount and method evidence without the whole page.
+  totals = { ...totals, moneyLines: readMoneyLines(text) };
+  const requestedPacks = Math.max(1, Math.ceil((Number(runParams.grams) || recipe.packGrams) / recipe.packGrams));
+  // A checkout that omits the applied shipping row is only read as free when
+  // the deterministic decision accepts the independent rendered evidence. A
+  // missing row alone, an unselected option price, an unconfirmed method, an
+  // unverified destination, an ambiguous promotion or incomplete arithmetic
+  // stays blocked instead of becoming free shipping.
+  const freeDecision = decideOmittedShippingRow({
+    totals,
+    serviceConfirmed: serviceStepSeen ? confirmedService != null : null,
+    serviceLabel,
+    destinationVerified,
+    actualPacks: Number.isFinite(actualPacks) && actualPacks > 0 ? actualPacks : null,
+    requestedPacks,
+    sku: recipe.sku ?? null
+  });
+  if (status === 'quoted' && totals.shippingIls == null && freeDecision.accepted) {
+    totals = {
+      ...totals,
+      shippingIls: 0,
+      shippingLabel: 'free',
+      shippingEvidenceSource: 'selected-method-option',
+      shippingEvidenceNote: freeDecision.note
+    };
+  }
   if (status === 'quoted' && totals.shippingIls == null) {
     status = 'blocked';
-    blocker = blocker ?? 'The rendered flow did not display a shipping line for this quantity and destination.';
+    blocker = blocker ?? `The rendered flow did not display an applied shipping row for this quantity and destination${freeDecision.reasons.length ? `: ${freeDecision.reasons.join('; ')}.` : '.'}`;
   }
   if (status === 'quoted' && totals.itemSubtotalIls == null) {
     status = 'blocked';
@@ -561,7 +849,6 @@ export async function runRecipe({ recipe, driver, params = {}, now = Date.now(),
   }
   // A cart that does not hold the requested number of packs must not be
   // recorded as a quote for the requested quantity.
-  const requestedPacks = Math.max(1, Math.ceil((Number(runParams.grams) || recipe.packGrams) / recipe.packGrams));
   if (status === 'quoted' && Number.isFinite(actualPacks) && actualPacks !== requestedPacks) {
     status = 'partial';
     qualification = [qualification, `The page held ${actualPacks} pack(s), not the requested ${requestedPacks}, so the displayed amounts are recorded for ${actualPacks} pack(s).`].filter(Boolean).join(' ');
@@ -578,6 +865,7 @@ export async function runRecipe({ recipe, driver, params = {}, now = Date.now(),
     destinationVerified,
     service: confirmedService,
     serviceConfirmed: serviceStepSeen ? confirmedService != null : null,
+    serviceLabel,
     now
   });
 }
