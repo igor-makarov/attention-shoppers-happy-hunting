@@ -69,6 +69,10 @@ async function load() {
     const board = await fetch(`/api/board?${query}`).then(response => response.json());
     if (token !== loadToken) return;
     state.board = board;
+    // A malformed shared URL (for example `grams=abc` or an unknown `dest`) is
+    // clamped or resolved by the API. Adopt exactly what was quoted so the
+    // controls, the address bar and the board never disagree.
+    normalizeQuotedSelection();
     state.error = null;
   } catch (error) {
     if (token !== loadToken) return;
@@ -334,15 +338,52 @@ function update(patch) {
   // tracked product, so a retired-line link is not kept in the shareable URL.
   state.requestedProduct = null;
   applyProductDefaults();
-  // The obsolete `variant` parameter is deliberately not written back: one
-  // unified comparison is the only view.
-  const query = new URLSearchParams({
-    grams: String(state.grams),
-    dest: state.destination
-  });
-  history.replaceState(null, '', `/product/${encodeURIComponent(state.product)}?${query}`);
+  syncUrl();
   renderControls();
   load();
+}
+
+/**
+ * Write the quoted quantity and locality into the shareable URL. The obsolete
+ * `variant` parameter is deliberately never written back: one unified
+ * comparison is the only view. `keepRequestedProduct` is used when the URL is
+ * only normalized after load, so a retired-product link keeps its notice.
+ */
+function syncUrl({ keepRequestedProduct = false } = {}) {
+  const query = keepRequestedProduct ? new URLSearchParams(location.search) : new URLSearchParams();
+  query.delete('variant');
+  query.set('grams', String(state.grams));
+  query.set('dest', state.destination);
+  history.replaceState(null, '', `/product/${encodeURIComponent(state.product)}?${query.toString()}`);
+}
+
+/**
+ * Adopt the request the API actually quoted. `clampGrams()` falls back to 500 g
+ * for a malformed quantity and `findDestination()` resolves an unknown locality
+ * to its documented fallback; without this the select would render blank while
+ * the board silently quoted a different destination.
+ */
+function normalizeQuotedSelection() {
+  let changed = false;
+  const targetGrams = state.board?.targetGrams;
+  if (Number.isFinite(targetGrams) && targetGrams !== state.grams) {
+    state.grams = targetGrams;
+    changed = true;
+  }
+  const destination = state.board?.destination?.id;
+  if (destination && destination !== state.destination) {
+    state.destination = destination;
+    changed = true;
+  }
+  // Also rewrite a query that never matched the quoted request (for example
+  // `grams=abc`, which the API clamped to the 500 g default) so the address bar
+  // can be shared again with the quantity and locality actually shown.
+  const current = new URLSearchParams(location.search);
+  current.delete('variant');
+  if (current.get('grams') !== String(state.grams) || current.get('dest') !== state.destination) {
+    changed = true;
+  }
+  if (changed) syncUrl({ keepRequestedProduct: true });
 }
 
 function updateFooterStatus() {
