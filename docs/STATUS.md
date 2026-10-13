@@ -11,7 +11,8 @@ matching cart and keeps the published ₪25 base rate for every larger or repric
 three 4-packs), while a v2-stamped persisted row is migrated at read time. The Coffee4U evidence records
 now carry the confirmed door-to-door method. The Canton Zürich product index + dedicated product page, the
 browser-researched shipping policies and the progressive-disclosure layout are validated locally (162/162
-tests, 94/94 offline browser checks with zero console errors) and against the deployed site: the four-policy
+tests, 102/102 offline browser checks with zero console errors — the 3-87 pass restored the rendered
+WCAG-contrast walk and added element-level offer screenshots) and against the deployed site: the four-policy
 build is live (production probe 25/25 at 01:53 UTC, live browser QA 85/85 at 00:28 UTC with zero console
 errors), the Pucks free-above-₪100 rule and its v2 five-locality coverage evidence are applied to the old
 persisted store at read time (verified in production at 01:53 UTC without a vendor refresh), and obsolete
@@ -2093,3 +2094,62 @@ not bypassed.
 the refreshed rows parse (the scoped conditions are already applied to the old store at read time, so this
 is a vendor-egress question, not a policy-delivery question). Continue within Crema e Gusto coverage,
 shipping evidence, freshness and comparison quality.
+
+## Iteration 3-87 — rendered-contrast verification restored, readable offer views saved (2026-10-13)
+
+**The defect.** `docs/DESIGN.md` has claimed since iteration 3-80 that `scripts/browser-qa.mjs` "walks
+visible text ... and compares the computed text color with the effective background" and that the suite
+passes with no contrast violations. The 3-75 browser-QA rewrite (`86a992e`, the index/product split)
+dropped that walk while the documentation kept the claim, so the rendered 4.5:1/3:1 requirement in the
+owner's Canton Zürich design direction was no longer actually verified by any check. The saved offer
+screenshots also only existed as full-page captures; the coding agent's file-read tool rejects PNG input,
+so the affected offer could not be inspected in a cropped, readable view.
+
+**What changed (verification tooling only; no application or policy code touched).**
+
+- `scripts/browser-qa.mjs` gained a composited-contrast walk: for every visible text element in a scope it
+  composites the background actually behind the text (translucent layers blended down to the root, alpha
+  text blended with its background) and compares the WCAG relative-luminance ratio with the requirement
+  for the rendered font size/weight (4.5:1 normal, 3:1 large). It runs on seven page states: the home
+  index, the product page at desktop and mobile, the 2 kg CoffeeMan winner with the failed-check warning,
+  the 500 g CoffeeMan comparison card with the same warning, the stale-refresh warning state and the
+  unknown-shipping state. A violation fails the run and is printed with text, colors, size and ratio.
+- The keyboard check now also measures the focus outline against the control's own rendered background
+  and requires 3:1 (essential UI), instead of only asserting the token color.
+- New `elementScreenshot()` captures the affected offer cards cropped to the element: the 500 g best card
+  (desktop and mobile), the 2 kg CoffeeMan winner card and the 500 g CoffeeMan comparison card in the
+  failed-check state, plus the home index card.
+
+**Verified locally (2026-10-13 03:16-03:25 UTC).**
+
+- `npm run verify` — **166/166** `node:test` cases pass (162 plus four source-level guards that keep the
+  restored contrast walk and element views from silently disappearing again); `wrangler deploy --dry-run`
+  builds the bundle (141.17 KiB / gzip 34.12 KiB; bindings `BOARD` + `ASSETS`). `npm run evidence:coffeeman-scope` —
+  every recorded cart reproduces its fee (₪25/₪25/₪25/₪0/₪0/₪25/₪0/₪20), and the unobserved 3 kg
+  singles, three 4-packs and repriced 8-singles carts all keep the published ₪25 (`reproduced: true`).
+- `npm run qa:browser` (offline fixtures) — **102/102** checks (94 before, +7 contrast states and the
+  focus-outline ratio check), zero
+  console errors; lowest rendered ratio per state 4.61:1 (`In stock (observed)` on green-soft, matching
+  the documented 4.61:1 token value), home 5.74:1, focus outline 5.28:1 against the control background.
+- Live local Worker (`wrangler dev`, fresh SQLite store): the initial `/health` refresh completed
+  03:23:56 → 03:24:16 UTC with live vendor observations; `npm run qa:browser -- http://127.0.0.1:8789` —
+  **97/97** checks, zero console errors, and the live board still ranks five offers at 500 g to Tel Aviv
+  (Pucks ₪90.00, CoffeeMan singles ₪91.00, Coffee4U ₪106.00, CoffeeMan 4-pack ₪149.00, CoffeeMan 8-pack
+  ₪260.00).
+- Evidence: `docs/evidence/visual-review/2026-10-13-rendered-contrast-and-offer-views.json` with the
+  per-state checked counts/minimum ratios and the cropped card screenshots
+  (`product-2kg-winner-card-mobile-20261013T0324Z.png`, `product-500g-coffeeman-card-mobile-20261013T0324Z.png`,
+  `product-500g-best-card-{desktop,mobile}-20261013T0324Z.png`, `home-card-desktop-20261013T0324Z.png`),
+  plus the full-page captures. `docs/DESIGN.md` now records the restored walk and the measured values.
+- PNG limitation (unchanged): the pinned file-read tool still rejects image input, so the saved
+  screenshots were not machine-inspected as images. Labels and arithmetic are corroborated by the
+  rendered DOM text and the API in the same session; the contrast walk is a rendered-value check, not an
+  image reading.
+
+**Production note:** this iteration changes only the development/QA tooling and docs, so the deployed
+Worker is unaffected; no production probe or Cloudflare action was taken. The 06:17 UTC cron tick remains
+the next actual CoffeeMan vendor attempt.
+
+**Next step:** after the **06:17 UTC tick** record whether the CoffeeMan egress block persists and whether
+the refreshed rows parse; then continue within Crema e Gusto coverage, shipping evidence, freshness and
+comparison quality. Reuse the restored contrast walk when any color/layout change is made.

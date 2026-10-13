@@ -118,16 +118,26 @@ conditional)` label so its quantity/destination condition stays visible.
   and the footer names the failing source. This warning is deliberately visible: the price still ranks
   but may be out of date, which can change the shopping decision.
 
-## Validation (2026-10-12)
+## Validation (2026-10-12, re-verified 2026-10-13)
 
 - Token contrast (computed): black/white 21.0:1, secondary/white 5.74:1, secondary/surface 5.36:1,
   Blau/white 5.28:1, white/Blau 5.28:1, Blau/Softblau 4.79:1, amber/amber-soft 6.26:1,
   green/green-soft 4.61:1, red/white 4.55:1, cyan/white 3.01:1 (non-text only).
-- Rendered contrast and interaction: `scripts/browser-qa.mjs` walks visible text in the offer cards,
-  controls, footer, masthead and disclosures and compares the computed text color with the effective
-  background; the suite passes **88/88** offline and **85/85** live production checks (2026-10-13,
-  iteration 3-80) with no contrast violations, no horizontal overflow, no emoji, no `[object HTML…]`
-  artifacts and 3 px `rgb(0, 112, 180)` focus outlines.
+- Rendered contrast and interaction: `scripts/browser-qa.mjs` walks every visible text element of the
+  home index, the product page, the failed-check, stale-refresh and unknown-shipping states, composites
+  the background actually behind the text (translucent layers blended to the root) and requires WCAG AA
+  for the rendered size (4.5:1 normal, 3:1 large); the focus outline ratio is measured against the
+  control's own background. The restored walk (iteration 3-87) reports the lowest ratio per state in the
+  QA report: home 5.74:1, product desktop/mobile 4.61:1 (`In stock (observed)` on green-soft, matching
+  the token table), failed 2 kg winner 4.61:1, failed 500 g CoffeeMan card 4.61:1, stale-refresh state
+  4.61:1, unknown-shipping state 4.61:1, and the 3 px `rgb(0, 112, 180)` focus outline 5.28:1 against
+  the control background. The suite passes **102/102** offline fixture checks and **97/97** live local
+  Worker checks (2026-10-13, iteration 3-87) with zero contrast violations, zero console errors, no
+  horizontal overflow, no emoji and no `[object HTML…]` artifacts.
+- Readable offer views: the affected offers are also saved as element-level screenshots (cropped to the
+  card) in addition to the full-page captures — the 500 g best card, the 2 kg CoffeeMan winner and the
+  500 g CoffeeMan comparison card in the real last-check-failed state. See
+  `docs/evidence/visual-review/2026-10-13-rendered-contrast-and-offer-views.json`.
 - First mobile screen (390×844 window; measured viewport 390×701 in headless Chrome): the best card
   starts at y≈389, item subtotal and shipping end at y≈629, the named method ends at y≈565 and the
   delivered total ends at y≈678 — all inside the viewport before scrolling. The product page is

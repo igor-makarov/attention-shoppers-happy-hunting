@@ -1,0 +1,44 @@
+{
+  "capturedAt": "2026-10-13T03:24:38Z-03:24:43Z (live local Worker browser QA, 97/97 checks, zero console errors; the failed/stale/unknown offer states are driven by the deterministic fixture QA servers in the same run)",
+  "iteration": "3-87",
+  "whatChanged": "Restored the rendered-contrast verification that docs/DESIGN.md had claimed since iteration 3-80 but the 3-75 browser-QA rewrite dropped: every page state is now walked with a composited-background WCAG AA check (4.5:1 normal / 3:1 large text), the focus outline ratio is measured against the control's own rendered background, and the affected offer cards are saved as element-level screenshots instead of only full-page captures.",
+  "renderedContrast": {
+    "method": "For every visible text element in the scope, the computed color is composited over the background actually behind it (translucent layers blended to the root) and the WCAG relative-luminance ratio is compared with the requirement for its rendered font size/weight. Cross-checks of the walker against the documented token table: green on green-soft 4.61:1 (documented 4.61:1), focus Blau on white 5.28:1 (documented 5.28:1), secondary on white 5.74:1 (documented 5.74:1).",
+    "states": {
+      "the home index (desktop)": { "checked": 13, "minimum": 5.74, "minimumText": "Crema e Gusto · ground · vacuum brick · delivery i", "violations": 0 },
+      "the product page (desktop, 500 g)": { "checked": 200, "minimum": 4.61, "minimumText": "In stock (observed)", "violations": 0 },
+      "the product page (mobile 390 px, 500 g)": { "checked": 200, "minimum": 4.61, "minimumText": "In stock (observed)", "violations": 0 },
+      "the 2 kg CoffeeMan winner with the failed-check warning (mobile)": { "checked": 209, "minimum": 4.61, "minimumText": "In stock (observed)", "violations": 0 },
+      "the 500 g CoffeeMan comparison card with the failed-check warning (mobile)": { "checked": 208, "minimum": 4.61, "minimumText": "In stock (observed)", "violations": 0 },
+      "the stale-refresh warning state (mobile)": { "checked": 225, "minimum": 4.61, "minimumText": "In stock (observed)", "violations": 0 },
+      "the unknown-shipping offer state (desktop)": { "checked": 212, "minimum": 4.61, "minimumText": "In stock (observed)", "violations": 0 }
+    },
+    "focusOutline": { "color": "rgb(0, 112, 180)", "width": "3px", "style": "solid", "ratioAgainstControlBackground": 5.28, "background": "rgb(255, 255, 255)", "required": 3 }
+  },
+  "elementScreenshots": [
+    "home-card-desktop-20261013T0324Z.png (387×233, the concise one-card index cropped to the card)",
+    "product-500g-best-card-desktop-20261013T0324Z.png (1192×369, the best offer at 500 g: vendor, packs/grams, item subtotal, named method/charge, delivered total)",
+    "product-500g-best-card-mobile-20261013T0324Z.png (343×416, same card at 390 px)",
+    "product-2kg-winner-card-mobile-20261013T0324Z.png (343×416, the 2 kg CoffeeMan winner with the real last-check-failed state: ₪237.60 item, Free (observed for this cart), Home delivery, ₪237.60 total, amber failure note)",
+    "product-500g-coffeeman-card-mobile-20261013T0324Z.png (341×546, the 500 g CoffeeMan comparison card with the same failed-check state: ₪66.00 + ₪25.00 = ₪91.00)"
+  ],
+  "fullPageScreenshots": [
+    "home-desktop-1440-20261013T0324Z.png",
+    "product-desktop-1440-20261013T0324Z.png (500 g board)",
+    "product-mobile-390-20261013T0324Z.png (500 g board)",
+    "product-2kg-mobile-failed-390-20261013T0324Z.png (390×701 first viewport)",
+    "product-500g-mobile-failed-390-20261013T0324Z.png (390×701, CoffeeMan card scrolled into view)"
+  ],
+  "corroboration": {
+    "twoKgWinnerCard": "vendor=CoffeeMan (אמיגו) IN STOCK (OBSERVED); pack=250 g pack · 8 × 250 g packs = 2000 g; item=₪237.60; shipping=Free (observed for this cart); method=Home delivery; total=₪237.60; failure=Last check failed — showing the last successful observation. (failureRect.top=673 ≤ viewport 701; totalRect.bottom=636; methodRect.bottom=504; no horizontal overflow)",
+    "fiveHundredGramCard": "vendor=CoffeeMan (אמיגו) IN STOCK (OBSERVED); pack=250 g pack · 2 × 250 g packs = 500 g; item=₪66.00; shipping=₪25.00; method=Home delivery; total=₪91.00; failure=Last check failed — showing the last successful observation. (cardRect.top=0; no horizontal overflow)",
+    "bestOffer500g": "Pucks: item ₪60.00, shipping ₪30.00, method Home delivery, certainty Checkout rate (observed, conditional), delivered total ₪90.00",
+    "homeCard": "ground coffee · vacuum brick · 250 g packs and multipacks :: 3 vendors · 5 listings: CoffeeMan (אמיגו), Pucks (פאקס), Coffee4U (קופי פור יו)",
+    "localityControl": "Delivery locality → Israel; selected text Tel Aviv–Yafo · 6100000; control width 343 px on a 390 px viewport, label one line (height 23 px)",
+    "liveBoard": "fresh local Worker refresh at 03:23:56Z (5 ranked offers): Pucks ₪90.00, CoffeeMan singles ₪91.00, Coffee4U ₪106.00, CoffeeMan 4-pack ₪149.00, CoffeeMan 8-pack ₪260.00 at 500 g to Tel Aviv"
+  },
+  "imageReviewLimitation": "The coding agent file-read tool still rejects PNG input, so the saved screenshots were not machine-inspected as images. The coarse character/pixel maps are layout/colour evidence only; every label and money value above is corroborated by the rendered DOM text, bounding rectangles and the API in the same QA session, and the new composited-contrast walk is a rendered-value check rather than an image reading.",
+  "qaEvidence": [
+    ".shurik-local/qa/report.json (live local Worker, 97/97; report committed context: docs/STATUS.md iteration 3-87)"
+  ]
+}
