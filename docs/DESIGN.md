@@ -113,9 +113,9 @@ conditional)` label so its quantity/destination condition stays visible.
   green/green-soft 4.61:1, red/white 4.55:1, cyan/white 3.01:1 (non-text only).
 - Rendered contrast and interaction: `scripts/browser-qa.mjs` walks visible text in the offer cards,
   controls, footer, masthead and disclosures and compares the computed text color with the effective
-  background; the redesigned suite passes **78/78** offline checks (2026-10-12, iteration 3-73) with no
-  contrast violations, no horizontal overflow, no emoji, no `[object HTML…]` artifacts and 3 px
-  `rgb(0, 112, 180)` focus outlines.
+  background; the suite passes **88/88** offline and **85/85** live production checks (2026-10-13,
+  iteration 3-80) with no contrast violations, no horizontal overflow, no emoji, no `[object HTML…]`
+  artifacts and 3 px `rgb(0, 112, 180)` focus outlines.
 - First mobile screen (390×844 window; measured viewport 390×701 in headless Chrome): the best card
   starts at y≈389, item subtotal and shipping end at y≈629, the named method ends at y≈565 and the
   delivered total ends at y≈678 — all inside the viewport before scrolling. The product page is

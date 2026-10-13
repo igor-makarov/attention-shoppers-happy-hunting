@@ -27,7 +27,10 @@ last-known-good 15:51:52 observations stay ranked with `lastAttemptFailed`/`HTTP
 retry and no bypass attempt. Iteration 3-80 also makes a failed last check visible on the offer card face
 (not only in the details and footer): `failedCheckNote()` renders one short amber line, covered by a unit
 test and two browser-QA checks (`npm run verify` **150/150** tests plus the dry-run bundle; offline browser
-QA **88/88**).**
+QA **88/88**). The 3-80 build deployed through the main-push Workers Builds path within a minute and the
+warning is verified end-to-end in production: live browser QA at 00:28 UTC passed **85/85** with zero
+console errors, including a new live-only check that found three ranked CoffeeMan rows with
+`lastAttemptFailed` and asserted the card-face warning in the comparison list.**
 The Worker implements the self-updating board for exactly one product line — **Lavazza Crema e Gusto
 vacuum-packed ground coffee** — with three independent Israeli vendor adapters and five observed
 listings. The owner reports the site deployed at
@@ -1692,6 +1695,14 @@ warning text and its absence on a successful check) and `wrangler deploy --dry-r
 best-card warning and the same warning on a ranked comparison card, and every previous check
 (home→product navigation, shareable URLs, disclosures, quantity/destination changes, named vendors,
 honest unknowns, mobile first-viewport money values, stale-note wrapping) still passes.
+
+**The 3-80 build is live in production and the visible warning is verified end-to-end.** The served
+`ui.js` contains `failedCheckNote()` and the `Last check failed` text (read-only GET at 00:27 UTC), and
+live browser QA against the deployed site at 00:28 UTC passed **85/85** with zero console errors — the
+new live-only check found three ranked CoffeeMan rows with `lastAttemptFailed: true` and asserted the
+card-face warning text in the comparison list, while the fresh Pucks best card correctly shows no failure
+line. Evidence: `docs/evidence/browser-qa-production-20261013T0031Z.json` (report finished
+00:28:46 UTC), offline **88/88** (`docs/evidence/browser-qa-fixtures-20261013T0027Z.json`).
 
 **Next step:** re-run `npm run probe:production` after the 00:47:54 CoffeeMan backoff retry to record
 whether the vendor's block is persistent from the Worker egress (the 06:17:54 tick is the next full

@@ -251,6 +251,21 @@ try {
   check('product: page does not scroll horizontally', productView.pageOverflow === false, `overflow=${productView.pageOverflow}`);
   await screenshot(wd, 'product-desktop-1440.png');
 
+  // Live mode only: when the served board itself has a ranked offer whose most
+  // recent vendor check failed (for example CoffeeMan blocked from the Worker's
+  // egress on 2026-10-13), the card face must warn visibly instead of only the
+  // details and footer. The condition is derived from the API response, so a
+  // healthy board does not fail this check.
+  if (LIVE_BASE && api500.ranked.some(quote => quote.lastAttemptFailed)) {
+    const failedWarning = await evaluate(wd, `(() => ({
+      best: document.querySelector('#best-offer .qualifier--failure')?.textContent?.trim() ?? null,
+      compare: [...document.querySelectorAll('#compare-other-offers .qualifier--failure')].map(node => node.textContent.trim())
+    }))()`);
+    check('live: a ranked production offer whose last check failed warns visibly on the card face',
+      /Last check failed/.test(failedWarning.best ?? '') || failedWarning.compare.some(text => /Last check failed/.test(text)),
+      JSON.stringify(failedWarning));
+  }
+
   // Opening the delivery options disclosure reveals conditions and the full caveat
   // exactly once, and closing it hides them again.
   const deliveryOpened = await setDetailsOpen(wd, '#best-offer details', true);
