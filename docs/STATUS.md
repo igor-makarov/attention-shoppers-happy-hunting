@@ -2736,7 +2736,7 @@ test keeps the fresh 8-single quotes schema-valid with their discount/method evi
 blocked record present. The worker suite's `seededStore()` also carried a fixed seed time
 (`2026-10-12T10:00:00Z`) that made six board tests fail once the wall clock crossed the 24-hour
 quote-staleness window; it now seeds relative to `Date.now()`, so the suite is deterministic. `npm run
-verify` passes **192/192** tests plus the `wrangler deploy --dry-run` bundle.
+verify` passes **193/193** tests plus the `wrangler deploy --dry-run` bundle.
 
 **The distinct 8-pack cart quote is now reproducible through the checked-in recipe.**
 `RECIPES['coffeeman-8pack']` (SKU 930335, one cart unit = the whole 2000 g multipack) uses the same
@@ -2746,6 +2746,14 @@ Tel Aviv–Yafo and Eilat (`docs/evidence/browser-research/2026-10-13-coffeeman-
 `...-8pack-recipe-eilat.json`), matching the 3-100 five-locality coverage without changing the rate. The
 cart is not free and no threshold is inferred; the record keeps the applied-line shipping evidence, the
 whole-pack quantity step and the confirmed method label.
+
+**The 2 × 4-pack free condition now has destination-verified recipe evidence too.** The checked-in
+`coffeeman-4pack` recipe rebuilt the exact 2 × 1000 g cart (2000 g) and recorded schema-v2 quoted records
+with the home courier displayed at ₪0, `shippingEvidenceSource: selected-method-option`, the 2-pack
+quantity step and the verified destination for Tel Aviv–Yafo and Eilat: ₪248 paid item total = delivered
+total (`docs/evidence/browser-research/2026-10-13-coffeeman-4pack-recipe-telaviv.json`,
+`...-4pack-recipe-eilat.json`). The recorded free condition and its exact-cart scope are unchanged; this
+is destination evidence for the existing `fourpack-2` observation.
 
 **Fresh schema-valid quotes for the exact 8-single cart through the checked-in recipe.** The reusable
 CoffeeMan recipe (`RECIPES.coffeeman`, SKU 930333, the product page's own “קנה עכשיו” control, the closed

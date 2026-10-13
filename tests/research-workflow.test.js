@@ -664,6 +664,41 @@ test('the checked-in 8-pack recipe records reproduce the ₪20 quote at two dest
   assert.equal(localities.size, 2, 'the 8-pack recipe re-check covers two named destinations');
 });
 
+test('the checked-in two-4-pack free-condition records carry destination evidence', () => {
+  // The `fourpack-2` free condition was originally observed without a locality;
+  // the checked-in 4-pack recipe re-checks the exact 2 × 4-pack cart per
+  // destination, so the condition keeps destination-verified evidence.
+  const dir = new URL('../docs/evidence/browser-research/', import.meta.url);
+  const names = [
+    '2026-10-13-coffeeman-4pack-recipe-telaviv.json',
+    '2026-10-13-coffeeman-4pack-recipe-eilat.json'
+  ];
+  const localities = new Set();
+  for (const name of names) {
+    const record = JSON.parse(readFileSync(new URL(name, dir), 'utf8'));
+    const validation = validateEvidence(record);
+    assert.equal(validation.ok, true, `${name}: ${JSON.stringify(validation.errors)}`);
+    assert.equal(record.status, 'quoted', name);
+    assert.equal(record.sku, '930334', name);
+    assert.equal(record.pack, '2 × 1000 g = 2000 g', name);
+    assert.equal(record.observedPacks, 2, name);
+    assert.equal(record.destinationVerified, true, name);
+    assert.equal(record.service, 'home_delivery', name);
+    assert.equal(record.serviceConfirmed, true, name);
+    assert.match(record.serviceLabel, /0 ₪/, name);
+    assert.equal(record.itemSubtotalBeforeDiscountIls, 248, name);
+    assert.equal(record.discountIls, 0, name);
+    assert.equal(record.paidItemTotalIls, 248, name);
+    assert.equal(record.shippingIls, 0, name);
+    assert.equal(record.shippingEvidenceSource, 'selected-method-option', name);
+    assert.equal(record.deliveredTotalIls, 248, name);
+    assert.equal(record.arithmeticOk, true, name);
+    assert.ok(record.steps.some(step => step.ok && /2 pack\(s\) in cart/.test(step.detail ?? '')), `${name}: whole-pack quantity step`);
+    localities.add(record.locality);
+  }
+  assert.equal(localities.size, 2, 'the 4-pack free-condition re-check covers two named destinations');
+});
+
 test('an omitted shipping row without the independent evidence stays blocked, never free', async () => {
   // The selected option is displayed at ₪25 while the applied summary row is
   // missing: the omitted row must not become free from a different option price.
