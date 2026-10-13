@@ -2666,8 +2666,27 @@ and the screenshot `coffeeman-distribution-center-telaviv-20261013.png` (artifac
 file-read tool rejects image input, so no native image claim is made). `docs/SOURCES.md` records the
 264-locality home-delivery list, the distribution-center coverage and the fixed recipe.
 
+**CoffeeMan's free 8-singles condition also holds with the destination selected.** In the same live checkout the
+8 × 250 g cart (item line ₪264.00, 10% promotion ₪-26.40, total ₪237.60) displayed the home courier at
+**0 ₪** and added no shipping charge with the destination set to Tel Aviv–Yafo and then Eilat. When shipping
+is free the checkout omits the applied “משלוח” summary line entirely, so the runner honestly records that
+run as blocked by its own “a quote needs a displayed shipping line” rule rather than claiming a quoted
+record; the free amount is evidenced by the rendered method option and the item/discount/total arithmetic.
+No amount, scope or threshold changes: the condition stays cart-scoped with its coverage caveat. Evidence:
+`docs/evidence/browser-research/2026-10-13-coffeeman-free-cart-destination-recheck.json`.
+
 **Next step:** the **12:17 UTC cron tick** remains the next actual vendor attempt (all three vendors, per
 the due-aware prediction). Record whether CoffeeMan's Worker-egress 403 persists; if it does, keep the
-last-known-good observation and warning rather than bypassing the vendor control. After the next main-push
-deploy, a read-only `/api/status` check can confirm the v5 provenance is served, and the next useful
-Crema e Gusto work stays within coverage/freshness/comparison rather than repeated unchanged probes.
+last-known-good observation and warning rather than bypassing the vendor control. The main-push deploy of
+this checkpoint is already independently verified (see below), so the next useful Crema e Gusto work stays
+within coverage/freshness/comparison rather than repeated unchanged probes.
+
+**Deploy verification (read-only production probe, 08:41:20-08:41:22Z, 35/35 checks).** The pushed
+checkpoint build is live: `/api/status` serves `coffeeman-single-4pack-il-home-delivery` **v5** with
+`observedAt 2026-10-13T08:35:00Z` (the provenance-only coverage update from this iteration) and
+`coffee4u-il-home-delivery` **v3** with the pickup-point coverage (`2026-10-13T08:06:00Z`), closing the
+3-99 next step without a vendor refresh. The probe also re-confirmed the due-aware schedule: next actual
+tick `12:17:00Z`; Pucks/Coffee4U due `12:17:42.285Z` with 0 failures → attempted at 12:17; CoffeeMan
+`07:17:42.285Z` with 2 failures → strict deadline, attempted at 12:17. Its board checks (2 kg exact free
+condition, 3 kg base rate, no retired rows, no variant selection, policies current) all passed. Evidence:
+`docs/evidence/production-probe-20261013T0842Z.json`.

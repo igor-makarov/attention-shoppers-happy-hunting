@@ -1,0 +1,32 @@
+{
+  "kind": "browser-research-coverage",
+  "schemaVersion": 1,
+  "topic": "CoffeeMan/Amigo rendered anonymous checkout: free home courier on the exact 8 × 250 g cart with the destination selected",
+  "date": "2026-10-13",
+  "windowUtc": "2026-10-13T08:46:00Z to 2026-10-13T08:49:00Z",
+  "method": "Interactive headless Google Chrome 154.0.8037.97 + ChromeDriver 154.0.8037.92 through scripts/browser-research.mjs, one live session kept across steps. The anonymous 8 × 250 g single-pack cart was built from the real product page by the checked-in CoffeeMan recipe (setQuantity to 8 whole packs), the closed home-delivery locality select (#hfd_cities) was set to Tel Aviv–Yafo and then Eilat, and the rendered checkout summary was read after each step. The applied home-courier method is the vendor's own select value for this cart (option value 200, label 'משלוח לבית הלקוח עם שליח  - 0 ₪'); on the paid 2-pack cart the same method appears as value 204 with '- 25.00 ₪'. No order, payment, login, account creation or street address was involved; a pickup point and mobile number are required only before ordering and neither was entered. Cart/session identifiers, cookies and tokens are deliberately not recorded.",
+  "toolingLimitation": "The coding agent's file-read tool rejects PNG input ('reading images is not supported'), so no image-based visual claim is made. Every value below is backed by rendered body text captured in the same live session.",
+  "productUrl": "https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
+  "entryUrl": "https://www.coffeeman.co.il/checkout.asp",
+  "cart": "8 × 250 g single packs = 2 kg, item line ₪264.00, promotion line 'מבצע כל הקפה טחון ב-10% הנחה.-' then '₪ -26.40'",
+  "renderedSummary": {
+    "itemLine": "₪ 264.00",
+    "promotionLine": "מבצע כל הקפה טחון ב-10% הנחה.- ₪ -26.40",
+    "deliveryOption": { "value": "200", "label": "משלוח לבית הלקוח עם שליח  - 0 ₪" },
+    "appliedShippingLine": null,
+    "totalLabel": "סכום כולל מע\"מ",
+    "totalLine": "₪237.60",
+    "arithmetic": "264.00 − 26.40 = 237.60, so the checkout applied no shipping charge; the selected home-courier option itself is displayed at 0 ₪."
+  },
+  "destinationCoverage": [
+    { "locality": "תל אביב - יפו", "selected": "תל אביב - יפו", "homeCourierOptionLabel": "משלוח לבית הלקוח עם שליח  - 0 ₪", "appliedShippingLine": null, "deliveredTotalLine": "₪237.60" },
+    { "locality": "אילת", "selected": "אילת", "homeCourierOptionLabel": "משלוח לבית הלקוח עם שליח  - 0 ₪", "appliedShippingLine": null, "deliveredTotalLine": "₪237.60" }
+  ],
+  "observations": {
+    "destinationIndependence": "For the exact 8 × 250 g cart the free home-courier condition holds with the destination set to Tel Aviv–Yafo and to Eilat: the method is displayed at 0 ₪ and no shipping charge is added to the discounted total. The original 2026-10-12 observation did not ask for a locality; this re-check shows the cart condition is not a per-locality artifact for the sampled destinations.",
+    "checkoutLayout": "When shipping is free the checkout summary omits the applied 'משלוח' line entirely and shows only 'סכום כולל מע\"מ' + total; the 0 ₪ rate is displayed on the selected method option. The runner's quote schema requires a displayed shipping line, so this run is honestly recorded as blocked by the runner's own rule rather than claiming a quoted record; the free amount is evidenced here from the rendered option label and the item/discount/total arithmetic.",
+    "policyScope": "The policy keeps the free observation as an exact cart condition (8 singles, SKU 930333, ₪264 before the 10% promotion, ₪237.60 paid, home courier) and does not turn it into a threshold. This re-check does not change any amount."
+  },
+  "conclusion": "The exact 8-singles free home-courier condition applies with the destination selected (Tel Aviv–Yafo and Eilat sampled). No money, scope or threshold change: the condition stays cart-scoped with its coverage caveat.",
+  "policyImpact": "Documentation/provenance only; no policy version change. The observation is recorded in docs/SOURCES.md beside the free-cart conditions."
+}
