@@ -138,16 +138,27 @@ export const coffeemanEightPackPolicy = {
 
 /**
  * CoffeeMan single 250 g and 4 × 250 g published home-delivery rule with the
- * cart-researched distribution-center alternative. The ₪25 courier rate is
- * published on both product pages; the product page lists a distribution-center
- * option without a price, so the ₪15 rate comes from anonymous checkout carts
- * observed on 2026-10-12 (19:56-20:09 UTC). Larger carts were sometimes shown
- * free, but no free-shipping rule is published, so the ranked rate stays the
- * published ₪25 and free shipping is never inferred from those carts.
+ * cart-researched distribution-center alternative and the cart-observed free
+ * condition. The ₪25 courier rate is published on both product pages; the
+ * product page lists a distribution-center option without a price, so the ₪15
+ * rate comes from anonymous checkout carts observed on 2026-10-12
+ * (19:56-20:09 UTC).
+ *
+ * The same carts establish the free condition at its actual scope: a ₪198
+ * (6 × 250 g) cart was charged ₪25, while a ₪231 (7 × 250 g) cart and the
+ * ₪264/₪237.60 (8 × 250 g) and ₪248 (2 × 4-pack) carts showed free home
+ * courier. The vendor publishes no threshold and the ₪240 8-pack SKU cart kept
+ * its own ₪20 rate (its own policy), so the free condition is stored for these
+ * two listing URLs only, applied from a ₪231 item subtotal — the lowest
+ * observed free subtotal. That boundary is deliberately conservative: a cart
+ * below it keeps the published ₪25 even though the unpublished rule might
+ * start lower, so the board can only under-promise free delivery, never invent
+ * it. The condition carries its own `observed_cart` origin and evidence, and it
+ * stops applying with the policy when `reviewBy` passes.
  */
 export const coffeemanSingleFourPackPolicy = {
   id: 'coffeeman-single-4pack-il-home-delivery',
-  version: 1,
+  version: 2,
   vendorId: 'coffeeman',
   productIds: [PRODUCT_ID],
   itemUrlPrefixes: [
@@ -159,8 +170,16 @@ export const coffeemanSingleFourPackPolicy = {
   certainty: 'verified',
   rule: {
     amount: { amount: 25, currency: 'ILS' },
-    freeThreshold: null,
-    thresholdSemantics: null,
+    // The published rate stays the base; the free condition below is the
+    // anonymous-cart observation, scoped to this policy's two listing URLs.
+    freeThreshold: { amount: 231, currency: 'ILS' },
+    thresholdSemantics: 'at_least',
+    freeThresholdOrigin: 'observed_cart',
+    freeThresholdEvidence: {
+      url: 'https://www.coffeeman.co.il/checkout.asp',
+      retrievedAt: '2026-10-12T20:09:00Z',
+      note: 'Anonymous checkout carts on 2026-10-12: ₪25 home courier on the ₪66/₪124/₪132/₪198 carts and free home courier from the ₪231 (7 × 250 g) cart; the ₪264 (₪237.60 after the automatic promotion) 8 × 250 g cart and the ₪248 two-4-pack cart were also free. No threshold is published on the product page, so ₪231 is the lowest observed free subtotal and the rule is applied conservatively from there.'
+    },
     minOrder: null,
     maxTotalGrams: null
   },
@@ -169,7 +188,7 @@ export const coffeemanSingleFourPackPolicy = {
     label: 'Distribution-center delivery up to 5 kg (cart-observed for 0.5–1 kg carts)',
     amount: { amount: 15, currency: 'ILS' },
     maxTotalGrams: 5000,
-    note: 'Anonymous cart 2026-10-12 (https://www.coffeeman.co.il/checkout.asp): ₪25 home courier (matching the published rate) and ₪15 distribution-center delivery up to 5 kg for 0.5–1 kg carts; free courier was observed from a 1.75 kg / ₪231 cart, but no free-shipping rule is published, so the board keeps the published ₪25 and never assumes free shipping.'
+    note: 'Anonymous cart 2026-10-12 (https://www.coffeeman.co.il/checkout.asp): ₪25 home courier (matching the published rate) and ₪15 distribution-center delivery up to 5 kg for 0.5–1 kg carts; the distribution-center fee became free on the ₪198 cart. Free home courier was observed from the ₪231 cart and on the larger 8 × 250 g and two-4-pack carts, so the free condition is applied from ₪231 for the single/4-pack listings while a smaller cart keeps the published ₪25.'
   }],
   destination: {
     scope: 'country',
@@ -180,10 +199,10 @@ export const coffeemanSingleFourPackPolicy = {
   evidence: {
     url: 'https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico',
     retrievedAt: '2026-10-12T20:04:00Z',
-    note: 'The ₪25 home-courier rate is published on the single 250 g and 4 × 250 g product pages. The ₪15 distribution-center alternative was observed in anonymous checkout carts on 2026-10-12 (2 × 250 g and the 4 × 250 g multipack); see docs/evidence/browser-research/2026-10-12-coffeeman-cart-single-4pack.json.'
+    note: 'The ₪25 home-courier rate is published on the single 250 g and 4 × 250 g product pages. The ₪15 distribution-center alternative and the cart-observed free condition (charged at ₪198, free from ₪231) were observed in anonymous checkout carts on 2026-10-12; see docs/evidence/browser-research/2026-10-12-coffeeman-cart-single-4pack.json.'
   },
   observedFor: {
-    carts: ['2 × 250 g = 500 g', '1 × (4 × 250 g) = 1 kg'],
+    carts: ['2 × 250 g = 500 g', '4 × 250 g = 1 kg', '6 × 250 g = 1.5 kg (₪198, courier charged)', '7 × 250 g = 1.75 kg (₪231, free)', '8 × 250 g = 2 kg (₪264 → ₪237.60, free)', '2 × (4 × 250 g) = 2 kg (₪248, free)'],
     destinations: ['the method picker showed the method prices without asking for a locality'],
     note: 'No street address or personal detail was entered and no order was submitted.'
   },
@@ -278,6 +297,16 @@ export function validatePolicy(policy) {
   if (threshold != null && !['above', 'at_least'].includes(policy.rule?.thresholdSemantics)) {
     errors.push('rule.thresholdSemantics must be "above" or "at_least" when a free threshold is present');
   }
+  const thresholdOrigin = policy.rule?.freeThresholdOrigin;
+  if (thresholdOrigin != null && !['published', 'observed_cart'].includes(thresholdOrigin)) {
+    errors.push('rule.freeThresholdOrigin must be "published" or "observed_cart" when present');
+  }
+  if (thresholdOrigin != null && threshold == null) {
+    errors.push('rule.freeThresholdOrigin needs a freeThreshold');
+  }
+  if (thresholdOrigin === 'observed_cart' && (!policy.rule?.freeThresholdEvidence?.url || !policy.rule?.freeThresholdEvidence?.retrievedAt)) {
+    errors.push('an observed_cart free threshold needs freeThresholdEvidence.url and .retrievedAt');
+  }
   if (policy.alternatives != null) {
     if (!Array.isArray(policy.alternatives)) {
       errors.push('alternatives must be an array when present');
@@ -341,8 +370,9 @@ function policyMatches(policy, observation) {
 function ruleKey(rule, alternatives = []) {
   const amount = rule?.amount ? `${rule.amount.amount}${rule.amount.currency}` : '-';
   const threshold = rule?.freeThreshold ? `${rule.freeThreshold.amount}${rule.freeThreshold.currency}` : '-';
+  const thresholdScope = `${rule?.thresholdSemantics ?? '-'}/${rule?.freeThresholdOrigin ?? '-'}`;
   const alternativesKey = alternatives.map(alternative => `${alternative.id}:${alternative.amount?.amount ?? '-'}${alternative.amount?.currency ?? ''}`).join(',');
-  return `${amount}/${threshold}/${rule?.minOrder?.amount ?? '-'}/${alternativesKey}`;
+  return `${amount}/${threshold}/${thresholdScope}/${rule?.minOrder?.amount ?? '-'}/${alternativesKey}`;
 }
 
 /**
@@ -404,6 +434,17 @@ export function enrichObservationShipping(observation, options = {}) {
     shipping.freeThresholdSemantics = policy.rule.thresholdSemantics;
     changed = true;
   }
+  // A threshold can be a published rule or a conditional anonymous-cart
+  // observation; the origin travels with the amount so the UI can label the
+  // free condition instead of presenting it as an unconditional published rate.
+  if (shipping.freeThresholdOrigin == null && shipping.freeThreshold != null && policy.rule?.freeThresholdOrigin) {
+    shipping.freeThresholdOrigin = policy.rule.freeThresholdOrigin;
+    changed = true;
+  }
+  if (shipping.freeThresholdEvidence == null && shipping.freeThresholdOrigin === 'observed_cart' && policy.rule?.freeThresholdEvidence) {
+    shipping.freeThresholdEvidence = { ...policy.rule.freeThresholdEvidence };
+    changed = true;
+  }
   if (shipping.minOrder == null && policy.rule?.minOrder?.amount != null) {
     shipping.minOrder = { ...policy.rule.minOrder };
     changed = true;
@@ -453,7 +494,8 @@ export function enrichObservationShipping(observation, options = {}) {
     origin: policy.origin,
     retrievedAt: policy.evidence.retrievedAt,
     reviewBy: policy.reviewBy,
-    thresholdSemantics: policy.rule?.thresholdSemantics ?? null
+    thresholdSemantics: policy.rule?.thresholdSemantics ?? null,
+    freeThresholdOrigin: policy.rule?.freeThresholdOrigin ?? null
   };
   if (shipping.evidence == null) shipping.evidence = { ...policy.evidence };
   const originText = policy.origin === 'observed_cart' ? 'observed anonymous cart quote' : 'published rule';
@@ -473,6 +515,9 @@ export function policySummary(now = Date.now(), policies = SHIPPING_POLICIES) {
     certainty: policy.certainty,
     service: policy.service ?? null,
     alternatives: (policy.alternatives ?? []).map(alternative => alternative.id),
+    freeThreshold: policy.rule?.freeThreshold?.amount ?? null,
+    thresholdSemantics: policy.rule?.thresholdSemantics ?? null,
+    freeThresholdOrigin: policy.rule?.freeThresholdOrigin ?? null,
     observedAt: policy.evidence?.retrievedAt ?? null,
     reviewBy: policy.reviewBy,
     expired: Date.parse(policy.reviewBy) < now

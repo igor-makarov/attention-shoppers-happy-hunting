@@ -153,7 +153,14 @@ export function shippingMethodLabel(quote) {
 }
 
 export function shippingCertaintyText(quote) {
-  return quote.shipping?.certaintyLabel ?? 'Not published before checkout';
+  const label = quote.shipping?.certaintyLabel ?? 'Not published before checkout';
+  // A published base rate can carry a cart-observed free condition. The free
+  // application is conditional, so it must not read as part of the verified
+  // rate; the written qualifier on the card explains it in full.
+  if (quote.shipping?.freeThresholdOrigin === 'observed_cart' && quote.shipping?.amountIls === 0) {
+    return `${label} · free condition cart-observed`;
+  }
+  return label;
 }
 
 /**
@@ -220,12 +227,19 @@ export function conditionsList(quote, destinationLabelFn = id => id) {
   const items = [];
   if (shipping.freeThreshold != null) {
     const wording = shipping.freeThresholdSemantics === 'above' ? 'above' : 'from';
+    const observed = shipping.freeThresholdOrigin === 'observed_cart';
     const met = quote.itemTotalIls != null && (shipping.freeThresholdSemantics === 'above'
       ? quote.itemTotalIls > shipping.freeThreshold + 0.005
       : quote.itemTotalIls >= shipping.freeThreshold - 0.005);
-    items.push(met
-      ? `Free-shipping threshold met (${wording} ${money(shipping.freeThreshold)})`
-      : `Free shipping ${wording} ${money(shipping.freeThreshold)} item subtotal`);
+    if (met) {
+      items.push(observed
+        ? `Free-shipping threshold met (observed ${wording} ${money(shipping.freeThreshold)} in the vendor's anonymous cart)`
+        : `Free-shipping threshold met (${wording} ${money(shipping.freeThreshold)})`);
+    } else {
+      items.push(observed
+        ? `Free shipping ${wording} ${money(shipping.freeThreshold)} item subtotal (observed in the vendor's anonymous cart, not published)`
+        : `Free shipping ${wording} ${money(shipping.freeThreshold)} item subtotal`);
+    }
   }
   if (shipping.minOrder != null) items.push(`Minimum order ${money(shipping.minOrder)}`);
   const coverage = shipping.destination;
@@ -253,11 +267,17 @@ export function caveatBlock(quote) {
 /** A one-line amber qualification shown next to a conditional total. */
 export function coverageQualifier(quote) {
   const shipping = quote.shipping ?? {};
-  if (shipping.coverageCaveat) return 'Coverage not confirmed for every locality — full terms under Delivery options.';
-  if (shipping.certainty === 'checkout_quote') return 'Rate observed in an anonymous cart; confirm the destination at checkout.';
-  if (shipping.certainty === 'estimated') return 'Includes a converted or estimated component.';
-  if (shipping.certainty === 'unknown') return 'Shipping not published: a delivered total cannot be established yet.';
-  return null;
+  const parts = [];
+  // An observed free condition changes the money on the card, so it is stated
+  // first even when the offer also carries a coverage caveat.
+  if (shipping.freeThresholdOrigin === 'observed_cart' && shipping.amountIls === 0) {
+    parts.push('Free delivery applied from an anonymous-cart observation; confirm it at checkout.');
+  }
+  if (shipping.coverageCaveat) parts.push('Coverage not confirmed for every locality — full terms under Delivery options.');
+  else if (shipping.certainty === 'checkout_quote') parts.push('Rate observed in an anonymous cart; confirm the destination at checkout.');
+  else if (shipping.certainty === 'estimated') parts.push('Includes a converted or estimated component.');
+  else if (shipping.certainty === 'unknown') parts.push('Shipping not published: a delivered total cannot be established yet.');
+  return parts.length ? parts.join(' ') : null;
 }
 
 /** Previous-check, failure and evidence provenance, collapsed behind a disclosure. */
@@ -281,6 +301,11 @@ export function diagnosticsDisclosure(quote) {
   const policy = quote.shipping?.policy;
   if (policy) {
     rows.push(`Shipping rule: ${policy.id} v${policy.version} (${policy.origin === 'observed_cart' ? 'observed anonymous cart quote' : 'published rule'}, observed ${timeLabel(policy.retrievedAt)}, re-check by ${dueLabel(policy.reviewBy)})`);
+  }
+  const thresholdEvidence = quote.shipping?.freeThresholdEvidence;
+  if (quote.shipping?.freeThreshold != null && quote.shipping.freeThresholdOrigin === 'observed_cart') {
+    const wording = quote.shipping.freeThresholdSemantics === 'above' ? 'above' : 'from';
+    rows.push(`Free-shipping condition: observed ${wording} ${money(quote.shipping.freeThreshold)} item subtotal in the vendor's anonymous cart${thresholdEvidence?.retrievedAt ? ` (retrieved ${timeLabel(thresholdEvidence.retrievedAt)})` : ''}; the product page does not publish this threshold.`);
   }
   if (quote.shipping?.note) rows.push(`Shipping terms: ${quote.shipping.note}`);
   const evidence = quote.shipping?.evidence;

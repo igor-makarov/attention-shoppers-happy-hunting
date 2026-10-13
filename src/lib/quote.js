@@ -269,6 +269,11 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
       // greater than the threshold, "from/at least ₪100" is greater-or-equal.
       // The default only applies when no wording was recorded.
       freeThresholdSemantics: shipping.freeThresholdSemantics ?? shipping.policy?.thresholdSemantics ?? 'at_least',
+      // A threshold is either a published rule or a conditional anonymous-cart
+      // observation; the origin and its evidence travel with the amount so the
+      // UI never presents an observed free condition as an unconditional rate.
+      freeThresholdOrigin: shipping.freeThresholdOrigin ?? shipping.policy?.freeThresholdOrigin ?? null,
+      freeThresholdEvidence: shipping.freeThresholdEvidence ?? null,
       minOrder: shipping.minOrder?.amount ?? null,
       minOrderCurrency: shipping.minOrder?.currency ?? null,
       destination: shipping.destination ?? { scope: 'country', country: 'IL' },
@@ -451,7 +456,8 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
       : base.itemTotalIls >= threshold.amount - 0.005);
     if (met) {
       shippingIls = 0;
-      base.labels.push(`Free shipping threshold met (${semantics === 'above' ? 'above' : 'from'} ${formatAmount(threshold.amount, 'ILS')})`);
+      const scope = base.shipping.freeThresholdOrigin === 'observed_cart' ? ', observed in the vendor\u2019s anonymous cart' : '';
+      base.labels.push(`Free shipping threshold met (${semantics === 'above' ? 'above' : 'from'} ${formatAmount(threshold.amount, 'ILS')}${scope})`);
     }
   }
 
