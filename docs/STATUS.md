@@ -62,6 +62,18 @@ The same iteration resolved Coffee4U's last unresolved shopper-facing coverage c
 selectable destinations (426-locality pickup list, per-locality spot counts 4/18/27/34/3, each quoting
 ₪76 + ₪15 = ₪91 for a 500 g cart), and the provenance-only `coffee4u-il-home-delivery` v3 update reaches
 already-stamped persisted rows at read time without changing the ranked ₪30 rate or any observation time.
+Iteration 3-102/3-103 extends the reusable browser-evidence schema to **v2**: a record now distinguishes the
+displayed pre-discount item subtotal, the explicit applied discount(s), the paid item total, the selected
+named service, the shipping-evidence source and the delivered total, and an omitted applied shipping row
+is accepted as a confirmed **₪0** only when the selected named method is itself rendered at zero, the
+destination and whole-pack quantity were verified, the promotion arithmetic is explicit and the final
+total matches every known charge — any missing piece stays blocked/unknown instead of becoming free
+shipping. The exact 8 × 250 g free-cart quote is now recorded as schema-valid quoted evidence for
+Tel Aviv–Yafo and Eilat (₪264 − ₪26.40 = ₪237.60, home courier displayed at ₪0, checkout omits the applied
+shipping row), the historical blocked record is retained as the truthful record of the old limitation,
+and the later CoffeeMan 8-pack **v3** coverage deploy was verified read-only on the board that ranks it
+(policy v3, ₪20 quote) with the item/stock observation still at the vendor's last success
+2026-10-12T15:51:52.931Z and `lastRefreshAt` still 06:17:59.310Z.
 Iteration 3-81 removes the last variant coupling from the data layer: a stored offer's identity key no
 longer contains the blend wording a listing prints, legacy blend-keyed rows are collapsed at read time
 with their stable-key replacement (newest observation wins), and failure markers plus previous-check
@@ -2701,3 +2713,57 @@ tick `12:17:00Z`; Pucks/Coffee4U due `12:17:42.285Z` with 0 failures → attempt
 `07:17:42.285Z` with 2 failures → strict deadline, attempted at 12:17. Its board checks (2 kg exact free
 condition, 3 kg base rate, no retired rows, no variant selection, policies current) all passed. Evidence:
 `docs/evidence/production-probe-20261013T0842Z.json`.
+
+## Iteration 3-102/3-103 — reusable free-cart evidence schema v2, fresh 8-single quotes, and the 8-pack v3 deploy verified read-only (2026-10-13)
+
+**The common evidence representation and validation now distinguish every rendered money component.** The
+reviewed gap was that the exact 8 × 250 g CoffeeMan free cart rendered the item line (₪264.00), the
+applied 10% promotion (₪−26.40) and the final total (₪237.60) but omitted the applied shipping row; the
+old record therefore validated only `itemSubtotal + shipping = total` and could not be quoted.
+`scripts/research-workflow.mjs` is now at `EVIDENCE_SCHEMA_VERSION = 2` with version-1 records still valid
+historical evidence: every record carries `itemSubtotalBeforeDiscountIls`, `discountIls`/`discountPercent`/
+`discountLabel`/`discountAmbiguous`, `paidItemTotalIls`, the selected `service`/`serviceLabel`, the
+`shippingEvidenceSource` (`applied-line` or `selected-method-option`) and the delivered total.
+`decideOmittedShippingRow()` accepts an omitted row as a confirmed zero only when the selected named
+method is itself displayed at zero and appears at zero in the rendered method list, the tracked SKU,
+whole-pack quantity and destination were verified on the page, the promotion is explicit (not ambiguous)
+and the pre-discount subtotal + discount = paid item total = final total. A missing row alone, an
+unselected option price, an unknown method, an unverified destination, an ambiguous promotion or an
+incomplete total keeps the record blocked/unknown; the matcher never invents a threshold and the runtime
+cart-condition scope is unchanged. `tests/research-workflow.test.js` pins each rejection case, the
+schema-2 validation of a selected-method-option record, and version-1 compatibility; `npm run verify`
+passes **190/190** tests plus the `wrangler deploy --dry-run` bundle.
+
+**Fresh schema-valid quotes for the exact 8-single cart through the checked-in recipe.** The reusable
+CoffeeMan recipe (`RECIPES.coffeeman`, SKU 930333, the product page's own “קנה עכשיו” control, the closed
+`#hfd_cities` locality select and the `#delivery` home-courier option) produced quoted records for
+Tel Aviv–Yafo and Eilat at 09:43 UTC on 2026-10-13: `observedPacks 8`, item subtotal ₪264, discount
+−₪26.40 (10%), paid item total ₪237.60, `shippingIls 0` via `shippingEvidenceSource:
+"selected-method-option"`, `service "home_delivery"` confirmed with the label
+“משלוח לבית הלקוח עם שליח - 0 ₪”, `destinationVerified true`, `arithmeticOk true` and `deliveredTotalIls
+237.60`. The records keep the method-selection step, the applied-discount line and the rendered
+zero-priced method options as sanitized evidence. They are
+`docs/evidence/browser-research/2026-10-13-coffeeman-free-8singles-telaviv-recipe.json` and
+`...-eilat-recipe.json`. The historical blocked record
+`docs/evidence/browser-research/2026-10-13-coffeeman-free-cart-destination-recheck.json` is retained
+unchanged as the truthful record of the old limitation (its manual coverage session is why the schema
+was extended). One page capture is kept (`...-telaviv.png`): the locality control is a closed select not
+visible in the page screenshot, so two identical destination captures would not be independent
+destination evidence; both destinations are DOM-verified in the records.
+
+**The later CoffeeMan 8-pack v3 coverage deploy is verified read-only, without waiting for the next cron.**
+`scripts/probe-production.mjs` now checks the current validated policy version on every quantity board
+(not only the 500 g board) and adds an explicit check for the 8-pack offer: the 2 kg board serves
+`coffeeman-8pack-il-cart-quote` **v3** (`retrievedAt 2026-10-13T08:52:00Z`, the provenance-only
+destination-coverage update), the offer keeps its observed **₪20** courier quote, and its item
+observation is still `2026-10-12T15:51:52.931Z`, exactly the CoffeeMan vendor `lastSuccessAt` — the
+read-time policy refresh did not advance any price/stock timestamp and `lastRefreshAt` remains
+`2026-10-13T06:17:59.310Z`. The probe at 09:56-09:57 UTC passed **38/38** checks and is saved as
+`docs/evidence/production-probe-20261013T0957Z.json`. The schedule check again names the **12:17 UTC
+tick** as the next actual vendor attempt (all three vendors; CoffeeMan still has `consecutiveFailures 2`
+from its Worker-egress HTTP 403, last good 2026-10-12T15:51:52.931Z).
+
+**Next step:** the **12:17 UTC cron tick** remains the next actual vendor attempt. Record whether
+CoffeeMan's Worker-egress 403 persists; if it does, keep the last-known-good observation and warning
+rather than bypassing the vendor control. Browser/runner cart success does not change the Worker egress
+block, and repeated unchanged quote probes are not new shopping progress.

@@ -578,6 +578,54 @@ test('the recipe records a schema-valid free quote when the omitted row is indep
   assert.ok(record.moneyLines.some(line => /-26\.40/.test(line)), 'the applied discount line is kept as sanitized evidence');
 });
 
+test('the checked-in 8-single free-cart records keep the discount and method evidence', () => {
+  // The 2026-10-13 live recipe runs for the exact 8 × 250 g cart at two named
+  // destinations are the reusable evidence that replaced the historical blocked
+  // record. They must stay schema-valid quoted records with the displayed
+  // pre-discount subtotal, the applied 10% discount, the confirmed selected
+  // method at ₪0 and the verified destination, so the omitted shipping row is
+  // only ever read as free with all of that independent evidence present.
+  const dir = new URL('../docs/evidence/browser-research/', import.meta.url);
+  const names = [
+    '2026-10-13-coffeeman-free-8singles-telaviv-recipe.json',
+    '2026-10-13-coffeeman-free-8singles-eilat-recipe.json'
+  ];
+  const localities = new Set();
+  for (const name of names) {
+    const record = JSON.parse(readFileSync(new URL(name, dir), 'utf8'));
+    const validation = validateEvidence(record);
+    assert.equal(validation.ok, true, `${name}: ${JSON.stringify(validation.errors)}`);
+    assert.equal(record.schemaVersion, 2, name);
+    assert.equal(record.status, 'quoted', name);
+    assert.equal(record.sku, '930333', name);
+    assert.equal(record.observedPacks, 8, name);
+    assert.equal(record.itemSubtotalBeforeDiscountIls, 264, name);
+    assert.equal(record.discountIls, -26.4, name);
+    assert.equal(record.discountPercent, 10, name);
+    assert.equal(record.paidItemTotalIls, 237.6, name);
+    assert.equal(record.shippingIls, 0, name);
+    assert.equal(record.shippingEvidenceSource, 'selected-method-option', name);
+    assert.equal(record.deliveredTotalIls, 237.6, name);
+    assert.equal(record.service, 'home_delivery', name);
+    assert.equal(record.serviceConfirmed, true, name);
+    assert.equal(record.destinationVerified, true, name);
+    assert.match(record.serviceLabel, /0 ₪/, name);
+    assert.ok(record.locality, name);
+    localities.add(record.locality);
+    assert.ok(record.steps.some(step => step.ok && /selected: .*0 ₪/.test(step.detail ?? '')), `${name}: method-selection step`);
+    assert.ok(record.moneyLines.some(line => /-26\.40/.test(line)), `${name}: applied discount line`);
+    assert.ok((record.methodOptions ?? []).some(option => option.amountIls === 0), `${name}: rendered method option at zero`);
+  }
+  assert.equal(localities.size, 2, 'the fresh records cover two sampled named destinations');
+
+  // The old limitation stays visible as historical evidence instead of being
+  // rewritten: the manual coverage session recorded the omitted shipping row.
+  const historical = JSON.parse(readFileSync(new URL('2026-10-13-coffeeman-free-cart-destination-recheck.json', dir), 'utf8'));
+  assert.equal(historical.kind, 'browser-research-coverage');
+  assert.equal(historical.renderedSummary?.appliedShippingLine, null);
+  assert.equal(historical.renderedSummary?.totalLine, '₪237.60');
+});
+
 test('an omitted shipping row without the independent evidence stays blocked, never free', async () => {
   // The selected option is displayed at ₪25 while the applied summary row is
   // missing: the omitted row must not become free from a different option price.
