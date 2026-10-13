@@ -100,6 +100,11 @@ conditional)` label so its quantity/destination condition stays visible.
 - Unknown shipping says **"Shipping not published"** with the exact reason and is never shown as zero;
   a published rate with unconfirmed destination coverage is labelled as such, not as a guaranteed
   checkout total.
+- A ranked offer whose most recent vendor check failed shows one short amber card-face line
+  (`Last check failed — showing the last successful observation.`) directly under its money values;
+  the attempt time, the error and the last successful check stay in `Offer details and check history`,
+  and the footer names the failing source. This warning is deliberately visible: the price still ranks
+  but may be out of date, which can change the shopping decision.
 
 ## Validation (2026-10-12)
 

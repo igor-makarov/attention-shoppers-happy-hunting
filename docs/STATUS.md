@@ -1647,3 +1647,53 @@ and the promotion card rendering ₪237.60; evidence
 snapshot; re-run `npm run probe:production` afterwards to confirm fresh vendor observations (and the
 freshly parsed promotion, `source: page`), then continue within Crema e Gusto coverage, shipping
 evidence, freshness and comparison quality.
+
+## Iteration 3-80 — the 00:17 cron tick observed, CoffeeMan egress block marked, visible failed-check warning (2026-10-13)
+
+**The 00:17 UTC cron tick fired and refreshed production (independently verified, read-only).** The
+read-only production probe at 00:19:06 UTC passed **25/25** checks against
+`https://attention-shoppers.igormaka.workers.dev` and found a completed scheduled run
+`cron(6 req, 2026-10-13T00:18:15.896Z)` that replaced the 15:52:12.546Z snapshot: `/health` and
+`/api/status` now report `lastRefreshAt` 2026-10-13T00:18:15.896Z and `lastObservationAt`
+2026-10-13T00:17:54.216Z with `stale: false`, Pucks and Coffee4U saved fresh observations at
+00:17:54.216Z (next attempts 06:17:54.216Z), the board still ranks the same five Crema e Gusto offers
+(500 g Pucks ₪90.00; 1 kg Pucks ₪120.00 free above ₪100; the obsolete `variant=` URL returns the
+identical unified ranking) and all four shipping policies plus the promotion summary are current. This
+is the first independently observed firing of the 6-hour cron trigger and it confirms the 3-62
+phase-lock fix in production: the tick landed seconds before the stored vendor due time and refreshed
+instead of skipping every vendor. Evidence: `docs/evidence/production-probe-20261013T0019Z.json`
+(runner-side read-only GETs; no Cloudflare credentials, no deploy).
+
+**CoffeeMan is blocked from the Worker's Cloudflare egress — marked, not bypassed.** The same run got
+**HTTP 403** for all three tracked CoffeeMan product pages, so the adapter kept its last-known-good
+2026-10-12T15:51:52.931Z observations: the board still ranks them with `lastAttemptFailed: true` and
+`lastError: HTTP 403`, schedules the documented 30-minute backoff retry at 00:47:54.216Z and shows the
+failing source in the footer. The identical bounded request (same `AttentionShoppersBot/0.1` user agent,
+accept header, redirect policy and host allowlist) fetched all three pages HTTP 200 from the runner at
+00:19:37 UTC with unchanged prices and stock (`npm run check:sources`;
+`docs/evidence/source-check-20261013T0019Z.json`), so the block is specific to the Worker's egress (or
+the vendor's WAF treatment of it) rather than the UA, headers or parser. No bypass was attempted. The
+observation is recorded in `docs/SOURCES.md`; a fresh runner-side source check remains the independent
+research check, while production keeps honest last-known-good data and visible failure labels.
+
+**A failed last check is now visible on the offer card face.** Previously a ranked offer whose most
+recent vendor check failed disclosed that only inside `Offer details and check history` and the footer;
+a shopper comparing the card could read the price as freshly checked. `failedCheckNote()` in
+`public/ui.js` now renders one short amber line (`Last check failed — showing the last successful
+observation.`) directly under the money values of the best and comparison cards, while the attempt time,
+error and last successful check stay in the details. This directly covers the live production state
+above (CoffeeMan rows) and the owner's requirement that failure warnings stay visible when they change a
+shopping decision.
+
+**Verified locally.** `npm run verify` — **150/150** `node:test` cases pass (the new unit test asserts the
+warning text and its absence on a successful check) and `wrangler deploy --dry-run` builds the bundle
+(118.94 KiB / gzip 29.74 KiB, bindings `BOARD` + `ASSETS`). `npm run qa:browser` (offline fixtures)
+**88/88** with zero console errors: the failed-attempt scenario now additionally asserts the visible
+best-card warning and the same warning on a ranked comparison card, and every previous check
+(home→product navigation, shareable URLs, disclosures, quantity/destination changes, named vendors,
+honest unknowns, mobile first-viewport money values, stale-note wrapping) still passes.
+
+**Next step:** re-run `npm run probe:production` after the 00:47:54 CoffeeMan backoff retry to record
+whether the vendor's block is persistent from the Worker egress (the 06:17:54 tick is the next full
+refresh for Pucks/Coffee4U), then continue within Crema e Gusto coverage, shipping evidence, freshness
+and comparison quality.
