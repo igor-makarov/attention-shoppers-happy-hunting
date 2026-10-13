@@ -89,7 +89,8 @@ shipping rather than carrying a stale quote forward. Page-published rates (Coffe
 Coffee4U's ₪30/₪15) are parsed from the vendor page and stay independent of the policy window.
 
 The browser-research evidence schema (`scripts/research-workflow.mjs`, `browser-research-quote`; current
-**v2**, with version-1 records still valid historical evidence) records the delivery method a shipping
+**v3**, with version-1 and version-2 records still valid historical evidence under their own rules)
+records the delivery method a shipping
 line belongs to: a recipe step that selects the method declares `confirmsService`, and a successful run
 stores `service` plus `serviceConfirmed: true`. A quoted record whose optional method step could not be
 confirmed stores `service: null`, `serviceConfirmed: false` and a qualification that the shipping line is
@@ -97,12 +98,20 @@ not attributed to a named method; schema validation rejects both a claimed-but-u
 undisclosed unconfirmed one. Schema v2 additionally distinguishes the displayed pre-discount item
 subtotal, the explicit applied discount, the paid item total, the shipping-evidence source and the
 delivered total, and accepts an omitted applied shipping row as a confirmed ₪0 only when the selected
-named method is rendered at zero, the SKU/whole-pack quantity and destination were verified and the
+named method is rendered at zero, the whole-pack quantity and destination were verified and the
 discount/paid-total arithmetic matches the final total; any missing piece keeps the record
-blocked/unknown. The Coffee4U destination-extension records were backfilled from their recorded
+blocked/unknown. Schema v3 adds the observed cart identity: at totals-read time the runner reads the
+rendered cart rows (`readCartLines` in the WebDriver adapter), extracts each row's listing SKU from its
+own rendered evidence (a link query parameter such as CoffeeMan's `pid=930333`, a data attribute) and
+the pack identity stated in its wording (for example “8 אריזות 250 גרם”), folds duplicate renders of the
+same row and matches the result against the recipe's declared listing and pack size. The common record
+keeps `expectedCartIdentity` versus `observedCartIdentity`, `cartIdentityVerified`, `cartIdentitySource`,
+`cartIdentityLines` and `cartIdentityNote`; a declared recipe SKU alone is no longer proof, and missing,
+mismatched or ambiguous identity, another multipack or mixed cart lines stay blocked. The Coffee4U
+destination-extension records were backfilled from their recorded
 successful method step, the Coffee4U policy names the method in `observedFor.method`, and the CoffeeMan
-8 × 250 g free-cart quotes for Tel Aviv–Yafo and Eilat are the first schema-v2 records that exercise the
-omitted-row rule with the applied 10% promotion.
+free-cart quotes (8 singles for Tel Aviv–Yafo and Eilat, 7 singles and 2 × 4-pack) are the schema-v3
+records that exercise the omitted-row rule with the applied 10% promotion and the observed cart line.
 
 `src/lib/promotions.js` is the shared, validated model for published item-price promotions (quantity
 discounts). A promotion states the vendor, product/URL scope, the percent off, the activating
