@@ -81,6 +81,22 @@ warning). The next actual attempt is the 06:17 UTC cron tick, because public rou
 refresh once a run has completed. CoffeeMan coverage will be re-checked then; the runner-side source
 check remains the independent freshness check for research purposes.
 
+**Runtime-source investigation 2026-10-13 (no viable permitted feed found).** After the 06:17 UTC tick
+confirmed the Worker-egress block, the loop checked whether CoffeeMan publishes a permitted fixed
+product-data feed or API the runtime could fetch instead of the blocked HTML pages. Read-only runner GETs
+with the exact runtime `AttentionShoppersBot/0.1` user agent and 7-second crawl delay found: `sitemap.xml`
+HTTP 200 with 2,531 URLs (2,031 product URLs, including all three tracked Crema e Gusto listings) but no
+price, stock, SKU or `lastmod` data; `rss.asp` HTTP 200 with the body `Blocked!`; `feed.xml`,
+`googlebase.xml` and `merchant.xml` HTTP 404; and no RSS/Atom/JSON/merchant feed link on the homepage. The
+only product-data interface remains the HTML product page with schema.org microdata that the adapter
+already parses. Because the runner gets HTTP 200 for the product pages while the Worker egress gets HTTP
+403 with identical headers, any other path on the same host is expected to face the same block, and
+Worker-egress success cannot be verified from the coding loop's access. The required action is
+vendor/owner-side: ask CoffeeMan/Amigo to allow the Worker egress or provide a documented permitted
+feed/API. Until then the adapter keeps the last-known-good observations with the visible failed-check
+warning, and no runtime, proxy or credential change is made. Evidence:
+`docs/evidence/browser-research/2026-10-13-coffeeman-runtime-source-investigation.json`.
+
 ### Historical CoffeeMan listings (retired 2026-10-12 — evidence only, do not re-track)
 
 These pages were observed while earlier iterations tracked other Lavazza lines. Their adapter offers

@@ -2548,3 +2548,54 @@ success due time of 12:17:42Z is inside the runtime's 15-minute early-due tolera
 attempts them rather than waiting for 18:17. Record whether the Worker-egress 403 persists; if it does,
 keep the last-known-good observation and warning rather than bypassing the vendor control, and spend the
 iteration on verified Crema e Gusto work rather than repeated unchanged probes.
+
+## Iteration 3-99 — due-aware attempt prediction; no viable CoffeeMan runtime feed found (2026-10-13)
+
+**The 3-97 cron helper predicted the wrong tick for successful vendors.** `firstTickAtOrAfter` applied the
+strict deadline only: it mapped Pucks/Coffee4U's stored success due time of `12:17:42.285Z` to the 18:17
+tick. The Worker's own `isVendorDue` (src/refresh.js) grants a vendor with no consecutive failures
+`EARLY_DUE_TOLERANCE_MS` = 15 minutes of early-due slack, so those vendors are attempted by the 12:17 tick.
+CoffeeMan's failed state (`consecutiveFailures 2`, deadline `07:17:42.285Z`) keeps the strict deadline, and
+the 12:17 tick (long past it) attempts it too.
+
+**Fix and verification.**
+
+- `scripts/cron-schedule.mjs` now imports `isVendorDue` and `EARLY_DUE_TOLERANCE_MS` from `src/refresh.js`
+  (the runtime module is the source of truth) and exports `firstAttemptAtOrAfter({ dueAt,
+  consecutiveFailures, from })`, which scans cron ticks and returns the first tick the runtime rule would
+  attempt the vendor. `firstTickAtOrAfter` remains as the strict deadline-only view, explicitly labelled.
+- `tests/cron-schedule.test.js` (9 cases) cross-checks the helper against `isVendorDue`: the successful
+  seconds-after-tick case (`12:17:42.285Z`, 0 failures → 12:17 tick), the strict failure deadline
+  (same due, ≥1 failure → 18:17), the exact boundary (due = tick + 15:00 is attempted at the tick; +1 ms
+  waits for the next), missing/unparseable deadlines (immediately due at the next tick) and the
+  wrangler trigger match. `npm run verify` passes **182/182** tests plus the `wrangler deploy --dry-run`
+  bundle (141.83 KiB / gzip 34.27 KiB; bindings `BOARD` + `ASSETS`).
+- `npm run probe:production` at 07:56 UTC passed **35/35** read-only checks and now records, per vendor,
+  the due-aware `nextAttemptTick` beside the deadline-only `strictTickAtOrAfterDue`: pucks and coffee4u
+  (0 failures, due `12:17:42.285Z`) → attempt tick **12:17:00Z** (strict deadline tick 18:17:00Z);
+  coffeeman (2 failures, due `07:17:42.285Z`) → attempt tick **12:17:00Z** (strict deadline tick
+  12:17:00Z). The board, policies, promotion and scope checks were unchanged. Evidence:
+  `docs/evidence/production-probe-20261013T0757Z.json`.
+- `docs/STATUS.md` now states that the 07:17:42Z `nextAttemptAt` is a backoff eligibility deadline, not a
+  scheduled retry, and that the 12:17 UTC tick attempts all three vendors (the earlier "Pucks/Coffee4U are
+  due at 12:17:42Z" wording implied 18:17).
+
+**CoffeeMan runtime-source investigation — no viable permitted feed.** Read-only runner GETs with the exact
+runtime `AttentionShoppersBot/0.1` user agent and the published 7-second crawl delay found `sitemap.xml`
+(HTTP 200, 2,531 URLs, 2,031 product URLs including all three tracked Crema e Gusto listings) but with no
+price, stock, SKU or `lastmod`; `rss.asp` HTTP 200 body `Blocked!`; `feed.xml`/`googlebase.xml`/
+`merchant.xml` HTTP 404; and no feed/API link on the homepage (legacy ASP storefront). The only
+product-data interface is the HTML product page with schema.org microdata the adapter already parses.
+Runner requests to those pages are HTTP 200 while the Worker egress gets HTTP 403 with identical headers,
+so another path on the same host is expected to face the same block and Worker-egress success cannot be
+verified with the loop's existing access. Required action: vendor/owner-side allowlisting of the Worker
+egress or a documented permitted feed/API. The adapter keeps the last-known-good 2026-10-12T15:51:52.931Z
+observations with the visible failed-check warning; no runtime disguise, proxy or credential was added.
+Evidence: `docs/evidence/browser-research/2026-10-13-coffeeman-runtime-source-investigation.json`;
+source notes updated in `docs/SOURCES.md`.
+
+**Next step:** use the reusable browser research workflow on the remaining shopper-facing coverage
+condition — Coffee4U's ₪15 pickup-point alternative (published for up to 5 kg, 420 localities observed)
+has no per-destination evidence for the five selectable localities, unlike the door-to-door ₪30 rate which
+is verified for all five. After that, the 12:17 UTC cron tick remains the next actual vendor attempt and
+will show whether the CoffeeMan Worker-egress 403 persists.

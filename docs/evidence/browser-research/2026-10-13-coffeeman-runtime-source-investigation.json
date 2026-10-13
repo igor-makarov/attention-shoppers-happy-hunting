@@ -1,0 +1,78 @@
+{
+  "kind": "vendor-runtime-source-investigation",
+  "schemaVersion": 1,
+  "vendorId": "coffeeman",
+  "vendorName": "CoffeeMan (אמיגו)",
+  "date": "2026-10-13",
+  "windowUtc": "2026-10-13T07:57:27Z to 2026-10-13T07:58:40Z",
+  "question": "Does CoffeeMan publish a permitted fixed product-data feed or API that the Worker runtime could fetch instead of the HTML product pages whose requests from the Worker egress receive HTTP 403?",
+  "method": "Read-only runner-side GETs with the exact runtime user agent AttentionShoppersBot/0.1 (+https://github.com/igor-makarov/attention-shoppers-happy-hunting; shopping board refresh), spaced 7 seconds per the published robots.txt Crawl-delay. Public endpoints only; no credentials, no session, no cart, no order, and no challenge or access control was bypassed. Robots-disallowed paths (/CartLogic.asp, /cart.asp, /inc/getCartInfo.asp, /ajaxUtil/*, /Items~) were deliberately not fetched.",
+  "robots": {
+    "url": "https://www.coffeeman.co.il/robots.txt",
+    "status": 200,
+    "crawlDelaySeconds": 7,
+    "sitemapDirective": null,
+    "trackedProductPagesDisallowed": false,
+    "note": "The tracked /product/... pages are allowed for every bot; the cart/checkout paths are disallowed and were not treated as runtime sources."
+  },
+  "candidates": [
+    {
+      "url": "https://www.coffeeman.co.il/sitemap.xml",
+      "status": 200,
+      "contentType": "text/xml",
+      "bytes": 1105564,
+      "urlCount": 2531,
+      "productUrlCount": 2031,
+      "hasLastmod": false,
+      "hasPriceOrStock": false,
+      "trackedListingsPresent": [
+        "https://www.coffeeman.co.il/product/250-גרם-קפה-טחון-lavazza-crema-e-gusto-classico",
+        "https://www.coffeeman.co.il/product/4-אריזות-250-גרם-קפה-טחון-lavazza-crema-e-gusto-classico",
+        "https://www.coffeeman.co.il/product/8-אריזות-250-גרם-קפה-טחון-lavazza-crema-e-gusto-classico"
+      ],
+      "verdict": "Public URL index only: it lists product URLs (including all three tracked listings) but carries no price, availability, SKU or lastmod data, so it cannot replace the product-page adapter's price/stock interface. Useful at most for future listing discovery."
+    },
+    {
+      "url": "https://www.coffeeman.co.il/rss.asp",
+      "status": 200,
+      "contentType": "text/html",
+      "bytes": 8,
+      "body": "Blocked!",
+      "verdict": "Not a feed; the endpoint answers with an access-block message even to the runner."
+    },
+    {
+      "url": "https://www.coffeeman.co.il/feed.xml",
+      "status": 404,
+      "verdict": "Not published."
+    },
+    {
+      "url": "https://www.coffeeman.co.il/googlebase.xml",
+      "status": 404,
+      "verdict": "Not published."
+    },
+    {
+      "url": "https://www.coffeeman.co.il/merchant.xml",
+      "status": 404,
+      "verdict": "Not published."
+    }
+  ],
+  "homepageLinkScan": {
+    "url": "https://www.coffeeman.co.il/",
+    "status": 200,
+    "bytes": 733768,
+    "feedOrApiLinkElements": [],
+    "platform": "Legacy ASP storefront (checkout.asp, Cat1View.asp, CartLogic.asp); the only third-party scripts are Google Tag Manager and the Facebook pixel.",
+    "verdict": "No RSS/Atom/JSON/merchant feed or API link is published on the homepage."
+  },
+  "runnerVsWorkerEgress": {
+    "runnerProductPages": "HTTP 200 for all three tracked listings with the same AttentionShoppersBot/0.1 user agent, accept header, redirect policy and parser (docs/evidence/source-check-20261013T0019Z.json; re-checked in the 3-83/3-85 batches).",
+    "workerProductPages": "HTTP 403 for all three tracked listings from the scheduled Worker refresh at 00:17 UTC and again at 06:17 UTC (docs/evidence/production-probe-20261013T0619Z.json); the adapter keeps the last-known-good 2026-10-12T15:51:52.931Z observations with consecutiveFailures 2.",
+    "conclusion": "The block is specific to the Worker's Cloudflare egress (or the vendor WAF's treatment of it), not the user agent, headers or parser. Another public path on the same host would very likely receive the same treatment, and Worker-egress success for any new endpoint cannot be verified with the coding loop's existing access (no deploy or Cloudflare credentials)."
+  },
+  "conclusion": {
+    "viablePermittedRuntimeSourceFound": false,
+    "detail": "No vendor-published price/stock feed or API exists on the investigated public surface. The only product-data interface is the HTML product page with schema.org microdata, which the adapter already parses; the sitemap lists URLs without prices or lastmod, /rss.asp returns an access-block message, and the common feed paths are 404. Every candidate on coffeeman.co.il is subject to the same Worker-egress HTTP 403, so no permitted runtime source can be evidenced with existing access.",
+    "requiredOwnerVendorAction": "Ask CoffeeMan/Amigo to allow the attention-shoppers Worker egress (or to provide a documented feed/API endpoint permitted for Cloudflare Worker access). Until then the loop must not disguise the runtime, proxy blocked traffic or add credentials; it keeps the last-known-good observations with the visible failed-check warning and the documented backoff.",
+    "nextVerification": "The 12:17 UTC cron tick re-attempts the existing product pages and records whether the Worker-egress 403 persists; a new endpoint would only be testable after an owner-approved deploy."
+  }
+}
