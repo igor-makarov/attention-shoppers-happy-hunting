@@ -212,12 +212,16 @@ async function refreshVendor({ store, vendor, state, fetchImpl, now, counter, lo
   // listing URL, the marker must land on the newest row because that is the one the
   // board shows.
   const attemptKeyFor = offer => {
+    const observedMs = row => {
+      const parsed = Date.parse(row?.observedAt ?? '');
+      return Number.isFinite(parsed) ? parsed : -Infinity;
+    };
     const candidates = previousByKey
       ? [...previousByKey.values()].filter(row => row?.observedAt && row?.itemUrl === offer?.url)
       : [];
     if (candidates.length) {
       return candidates.reduce((newest, row) =>
-        Date.parse(row.observedAt) > Date.parse(newest.observedAt) ? row : newest
+        observedMs(row) > observedMs(newest) ? row : newest
       ).key;
     }
     return `${vendor.id}:offer:${offer?.id ?? 'unknown'}`;
@@ -236,9 +240,13 @@ async function refreshVendor({ store, vendor, state, fetchImpl, now, counter, lo
       // the key change instead of losing it once.
       let previous = previousByKey?.get(observation.key);
       if (!previous?.observedAt && previousByKey) {
+        const observedMs = row => {
+          const parsed = Date.parse(row?.observedAt ?? '');
+          return Number.isFinite(parsed) ? parsed : -Infinity;
+        };
         previous = [...previousByKey.values()]
           .filter(row => row?.observedAt && row?.itemUrl === observation.itemUrl)
-          .sort((a, b) => Date.parse(b.observedAt) - Date.parse(a.observedAt))[0];
+          .sort((a, b) => observedMs(b) - observedMs(a))[0];
       }
       if (previous?.observedAt && previous?.price?.amount != null) {
         observation.previous = {

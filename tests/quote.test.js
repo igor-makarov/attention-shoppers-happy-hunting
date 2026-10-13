@@ -177,6 +177,18 @@ test('one listing that changes its blend wording is never shown as two offers', 
   assert.equal(board.ranked.length, 1);
   assert.equal(board.best.key, 'demo:sku-1:ground:250g:x1', 'the newest observation wins');
   assert.equal(board.best.itemPrice.amount, 42, 'the old price is not resurrected as a second offer');
+  // A stored row with an unparseable observation time must never outrank a real one.
+  const broken = observation({
+    key: 'demo:sku-1:broken',
+    vendor: { id: 'demo', name: 'Demo vendor' },
+    itemUrl: 'https://demo.test/p/crema',
+    price: { amount: 1, currency: 'ILS' },
+    observedAt: 'not-a-date'
+  });
+  const brokenBoard = quote([broken, legacy, stable]);
+  assert.equal(brokenBoard.counts.observed, 1);
+  assert.equal(brokenBoard.best.key, 'demo:sku-1:ground:250g:x1');
+  assert.equal(brokenBoard.best.itemPrice.amount, 42);
 });
 
 test('quantity changes units and totals without losing pack rounding', () => {

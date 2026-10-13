@@ -89,15 +89,20 @@ export function offerIdentity(observation) {
  * observed row (failure markers without an observation time are passed through
  * and dropped by the quoting loop, exactly as before). This is what keeps a
  * legacy blend-keyed row from appearing as a duplicate next to its
- * re-observed replacement in an old persisted store.
+ * re-observed replacement in an old persisted store. A row with an unparseable
+ * observation time never outranks a row with a real one.
  */
 export function dedupeObservations(observations = []) {
+  const timeMs = row => {
+    const parsed = Date.parse(row?.observedAt ?? '');
+    return Number.isFinite(parsed) ? parsed : -Infinity;
+  };
   const newest = new Map();
   for (const observation of observations) {
     if (!observation?.observedAt) continue;
     const identity = offerIdentity(observation);
     const current = newest.get(identity);
-    if (!current || Date.parse(observation.observedAt) > Date.parse(current.observedAt)) {
+    if (!current || timeMs(observation) > timeMs(current)) {
       newest.set(identity, observation);
     }
   }
