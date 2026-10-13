@@ -191,6 +191,14 @@ test('the checked-in shipping policies are structurally valid', () => {
   assert.equal(pucks.origin, 'observed_cart', 'a cart-observed rule is never relabelled as published');
   assert.equal(pucks.certainty, 'checkout_quote');
   assert.equal(pucks.rule.thresholdSemantics, 'above', 'the vendor wording "above ₪100" is preserved, not silently rewritten');
+  // 2026-10-13 destination extension: every selectable locality with a postcode
+  // is named in the coverage caveat, so the sampled coverage is visible evidence
+  // instead of an implicit country-wide claim.
+  for (const locality of ['Tel Aviv–Yafo / 6100000', 'Eilat / 8800000', 'Jerusalem / 9100000', 'Haifa / 3100000', 'Be’er Sheva / 8400000']) {
+    assert.ok(pucks.destination.caveat.includes(locality), `the coverage caveat names ${locality}`);
+  }
+  assert.match(pucks.evidence.note, /2026-10-13/, 'the evidence note records the destination re-check');
+  assert.equal(pucks.destination.scope, 'country', 'the estimator quote is still scoped as an observed country rule, not a per-locality guarantee');
   const coffeeman = SHIPPING_POLICIES.find(policy => policy.id === coffeemanEightPackPolicy.id);
   assert.ok(coffeeman, 'the researched CoffeeMan 8-pack cart quote is a checked-in policy');
   assert.equal(coffeeman.origin, 'observed_cart');
@@ -395,15 +403,16 @@ test('an old persisted Pucks offer with unknown shipping gains the evidenced rul
   assert.equal(board.best.shipping.serviceLabel, 'Home delivery');
   assert.equal(board.best.shipping.freeThreshold, 100, 'the evidenced free-shipping threshold comes with the rule');
   assert.equal(board.best.shipping.policy.id, 'pucks-il-home-delivery');
-  assert.equal(board.best.shipping.policy.version, 1);
+  assert.equal(board.best.shipping.policy.version, 2);
   // The old row already had a generic country destination, so the policy's
   // coverage caveat must still be attached: an enriched rate is never presented
   // as unconditional country-wide delivery.
   assert.match(board.best.shipping.coverageCaveat, /not individually verified/);
+  assert.match(board.best.shipping.coverageCaveat, /Haifa \/ 3100000/, 'the enriched rate names the sampled localities including the 2026-10-13 checks');
   assert.equal(board.best.shipping.destination.scope, 'country', 'the row keeps its own destination scope');
   assert.equal(board.best.labels.some(label => /Delivery coverage caveat/.test(label)), true);
   assert.equal(board.best.totalIls, 90, '2 × ₪30 item + ₪30 shipping; the ₪100 threshold is not met at ₪60');
-  assert.match(board.best.shipping.note, /validated policy pucks-il-home-delivery v1/);
+  assert.match(board.best.shipping.note, /validated policy pucks-il-home-delivery v2/);
 
   // Applying the policy must not claim a fresh price/stock check: the stored
   // observation (and its own evidence) is untouched.

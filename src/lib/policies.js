@@ -36,9 +36,16 @@ const AMIGO_CAVEAT_SOURCE = 'https://www.coffeeman.co.il/page/%D7%AA%D7%A0%D7%90
 
 /**
  * Pucks home-delivery rule, observed in the anonymous checkout estimator on
- * 2026-10-12: ₪30 flat home delivery, free above a ₪100 item subtotal.
+ * 2026-10-12 and extended to the remaining selectable localities on 2026-10-13:
+ * ₪30 flat home delivery, free above a ₪100 item subtotal.
  * Observed carts: 1, 2 and 4 × 250 g to Tel Aviv / 6100000 and Eilat / 8800000
- * (the fee did not change with locality; no restriction was displayed).
+ * (2026-10-12), a 4 × 250 g cart to Jerusalem / 9100000 (2026-10-12, free over
+ * the threshold), and on 2026-10-13 a 2 × 250 g cart to Haifa / 3100000 and
+ * Be'er Sheva / 8400000 (both ₪60 + ₪30 = ₪90) plus a 4 × 250 g cart to Haifa
+ * (₪120, free). The fee did not change with locality and no restriction was
+ * displayed, so all five selectable localities with a postcode are sampled;
+ * "Elsewhere in Israel" remains unquoted because the estimator requires a
+ * locality.
  * The vendor's own wording is "above ₪100"; the boundary was observed only at
  * ₪60 (paid) and ₪120 (free), so `thresholdSemantics` records "above" and the
  * quote engine applies the vendor's strict wording — a cart of exactly ₪100 is
@@ -46,12 +53,13 @@ const AMIGO_CAVEAT_SOURCE = 'https://www.coffeeman.co.il/page/%D7%AA%D7%A0%D7%90
  * cart was blocked (the only ₪10 filler is out of stock and no in-stock
  * combination reaches ₪100); because a coffee-only cart is a multiple of ₪30
  * (₪90 paid / ₪120 free), the strict boundary never changes a real coffee
- * total. See docs/SOURCES.md and
- * docs/evidence/browser-research/2026-10-12-pucks-threshold-boundary-attempt.json.
+ * total. See docs/SOURCES.md,
+ * docs/evidence/browser-research/2026-10-12-pucks-threshold-boundary-attempt.json
+ * and docs/evidence/browser-research/2026-10-13-pucks-*.json.
  */
 export const pucksHomeDeliveryPolicy = {
   id: 'pucks-il-home-delivery',
-  version: 1,
+  version: 2,
   vendorId: 'pucks',
   productIds: [PRODUCT_ID],
   itemUrlPrefixes: ['https://pucks.co.il/product/'],
@@ -68,18 +76,18 @@ export const pucksHomeDeliveryPolicy = {
   destination: {
     scope: 'country',
     country: 'IL',
-    caveat: 'The ₪30 rate was observed in the anonymous checkout estimator for Tel Aviv and Eilat carts; the fee did not change with locality and no restriction was displayed, but coverage for every locality was not individually verified.',
+    caveat: 'The ₪30 rate was observed in the anonymous checkout estimator for carts to Tel Aviv–Yafo / 6100000, Eilat / 8800000, Jerusalem / 9100000, Haifa / 3100000 and Be’er Sheva / 8400000; the fee did not change with locality and no restriction was displayed, but coverage for every locality was not individually verified.',
     caveatSource: 'https://pucks.co.il/payment/request'
   },
   evidence: {
     url: 'https://pucks.co.il/payment/request',
-    retrievedAt: '2026-10-12T18:10:10Z',
-    note: 'Anonymous checkout estimator quote recorded by interactive browser research: ₪30 flat home delivery, free above ₪100 item subtotal, for 1, 2 and 4 × 250 g carts; see docs/evidence/browser-research/2026-10-12-vendor-shipping-quotes.json.'
+    retrievedAt: '2026-10-13T01:41:10Z',
+    note: 'Anonymous checkout estimator quote recorded by interactive browser research: ₪30 flat home delivery, free above ₪100 item subtotal, for 1, 2 and 4 × 250 g carts; see docs/evidence/browser-research/2026-10-12-vendor-shipping-quotes.json. Re-checked on 2026-10-13 for the remaining selectable localities: Haifa / 3100000 and Be’er Sheva / 8400000 at 500 g quoted ₪60 + ₪30 = ₪90 and Haifa at 1 kg quoted ₪120 free; see docs/evidence/browser-research/2026-10-13-pucks-*.json.'
   },
   observedFor: {
-    carts: ['1 × 250 g', '2 × 250 g', '4 × 250 g'],
-    destinations: ['Tel Aviv / 6100000', 'Eilat / 8800000'],
-    note: 'The estimator offered home delivery only; no street address or personal detail was entered and no order was submitted.'
+    carts: ['1 × 250 g', '2 × 250 g', '4 × 250 g', '2 × 250 g (Haifa 2026-10-13)', '2 × 250 g (Be’er Sheva 2026-10-13)', '4 × 250 g (Haifa 2026-10-13, free)'],
+    destinations: ['Tel Aviv–Yafo / 6100000', 'Eilat / 8800000', 'Jerusalem / 9100000', 'Haifa / 3100000', 'Be’er Sheva / 8400000'],
+    note: 'The estimator offered home delivery only; no street address or personal detail was entered and no order was submitted. All five selectable localities with a postcode were sampled by 2026-10-13; “Elsewhere in Israel” is not quoted because the estimator requires a locality.'
   },
   reviewBy: '2026-11-11T00:00:00.000Z'
 };
