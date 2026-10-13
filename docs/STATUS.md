@@ -2501,7 +2501,7 @@ captures are labelled separately in
 PNG limitation retained: the pinned file-read tool rejects image input, so no native image inspection is
 claimed; the DOM geometry, PNG dimensions and scroll state are the evidence.
 
-**Production freshness before the tick (read-only GET, 06:13Z).** `/api/status` reported
+**Production freshness before the tick (read-only GET, 06:04Z).** `/api/status` reported
 `lastRefreshAt 2026-10-13T00:18:15.896Z`, `lastObservationAt 2026-10-13T00:17:54.216Z`, `stale: false`;
 the 00:17 cron run saved Pucks and Coffee4U successfully and failed CoffeeMan with `HTTP 403` on all three
 offers (`lastSuccessAt 2026-10-12T15:51:52.931Z`, `consecutiveFailures 1`, backoff
