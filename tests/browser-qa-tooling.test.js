@@ -95,6 +95,12 @@ test('browser QA saves an unscrolled first screen before any card scrolling and 
   assert.ok(firstIdx !== -1, 'missing live 2 kg winner first-screen capture');
   assert.ok(cardIdx !== -1, 'missing live 2 kg winner complete-card capture');
   assert.ok(firstIdx < cardIdx, 'the live 2 kg first-screen capture must be saved before the complete-card capture');
+  // The fixture-backed failed 2 kg flow must keep the same ordering.
+  const failedFirstIdx = source.indexOf("firstScreenScreenshot(wd, 'product-2kg-mobile-failed-390.png')");
+  const failedCardIdx = source.indexOf("completeCardScreenshot(wd, `document.querySelector('#best-offer')`, 'product-2kg-mobile-winner-card.png')");
+  assert.ok(failedFirstIdx !== -1, 'missing fixture 2 kg failed-state first-screen capture');
+  assert.ok(failedCardIdx !== -1, 'missing fixture 2 kg failed-state complete-card capture');
+  assert.ok(failedFirstIdx < failedCardIdx, 'the fixture 2 kg first-screen capture must be saved before the complete-card capture');
   for (const name of [
     'product-mobile-390.png',
     'home-mobile-390.png',
