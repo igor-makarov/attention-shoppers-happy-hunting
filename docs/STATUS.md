@@ -43,6 +43,12 @@ position after complete-card captures, and keeps fixture, local-Worker and produ
 separate directories. The complete-card views remain additional evidence. Verified 2026-10-13: offline
 fixture QA **114/114**, production live QA **117/117** and local-live Worker QA **113/113**, all with zero
 console errors and `npm run verify` at **173/173** tests plus the dry-run bundle.
+Iteration 3-94 independently re-verified that capture work at the final 3-93 commit (fresh `npm run verify`
+173/173, offline browser QA 114/114 with all three first screens exact 390×844 at `scrollY 0`), observed
+the actual **06:17 UTC cron tick** (Pucks/Coffee4U refreshed; CoffeeMan's Worker-egress **HTTP 403**
+persists with `consecutiveFailures 2` and backoff to 07:17:42Z, while its last-known-good 2 kg cart stays
+ranked at ₪237.60 with the failure warning and unobserved carts keep the published base rate), and
+confirmed production serves the committed public assets byte-for-byte.
 Iteration 3-81 removes the last variant coupling from the data layer: a stored offer's identity key no
 longer contains the blend wording a listing prints, legacy blend-keyed rows are collapsed at read time
 with their stable-key replacement (newest observation wins), and failure markers plus previous-check
