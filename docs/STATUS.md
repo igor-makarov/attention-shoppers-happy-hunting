@@ -2310,6 +2310,13 @@ sentence or value pass, while the saved "cropped card" was the 343×416 visible 
   (₪66.00 + ₪25.00 = ₪91.00, "Last check failed — showing the last successful observation.") and the
   production 2 kg winner as a complete 343×694 capture with the full failure sentence and qualifier
   inside the real 390×844 viewport.
+- Local live Worker (`npx wrangler dev --port 8789`, fresh local SQLite Durable Object; the initial
+  refresh completed at 04:32:18Z with 6 bounded vendor requests and five ranked offers, Pucks best at
+  ₪90.00) — **109/109** checks against the running Worker with the tightened CSS and the new QA harness,
+  zero console errors. The real 2 kg winner rendered item/method/total ending by y≈613 and its
+  conditional/coverage qualifier y≈648-754, all inside the 390×844 content viewport, and its complete
+  card capture is 343×617 (PNG height equals the card height). This is the post-CSS geometry that the
+  deployed site will show after the main-push Workers Builds deploy.
 - PNG limitation (unchanged and accurately retained): the pinned file-read tool rejects image input, so
   these captures were not machine-inspected as images. The coarse density/colour maps and the DOM
   text/geometry from the same sessions are the recorded evidence; labels and arithmetic are corroborated
