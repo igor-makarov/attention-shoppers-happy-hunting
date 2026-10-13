@@ -59,10 +59,13 @@ instead of a stale unconditional rate. Enrichment never touches the observation'
 vendor price/stock check; `policySummary()` exposes the rule version, observation time and review date
 through `/api/status`. Four validated policies are checked in: Pucks' ₪30/free-above-₪100 home-delivery
 rule, CoffeeMan's published ₪25 single/4-pack rule with its cart-observed ₪15 distribution-center
-alternative, CoffeeMan's ₪20 checkout quote for the one-8-pack (2 kg) cart (which carries
-`maxTotalGrams: 2000` so the quote engine never stretches it to an unobserved larger cart and records
-no free threshold for this SKU), and Coffee4U's published ₪30 door-to-door rule with its ₪15
-pickup-point alternative and the observed closed-locality-list coverage shape. Secondary delivery
+alternative and the cart-observed free condition (free home courier from the lowest observed free ₪231
+item subtotal; a ₪198 cart was charged ₪25, so the condition is stored at that observed scope with its
+own `observed_cart` origin and evidence and is never presented as a published threshold), CoffeeMan's
+₪20 checkout quote for the one-8-pack (2 kg) cart (which carries `maxTotalGrams: 2000` so the quote
+engine never stretches it to an unobserved larger cart and records no free threshold for this SKU), and
+Coffee4U's published ₪30 door-to-door rule with its ₪15 pickup-point alternative and the observed
+closed-locality-list coverage shape. Secondary delivery
 methods are part of the policy representation: the evaluator adds them only when a stored row has
 none, and they never replace the ranked amount. Each policy is also the adapter's single source for
 the researched values it describes, so the parsed row, the read-time evaluator and the tests share one

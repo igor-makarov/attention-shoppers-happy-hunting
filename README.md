@@ -8,8 +8,9 @@ Three Israeli vendor adapters currently observe **five real Crema e Gusto listin
 
 Vendor conditions are modeled, not hard-coded: browser-researched delivery rules live in validated,
 versioned shipping policies (Pucks ₪30 / free above a ₪100 item subtotal, CoffeeMan's published ₪25
-single/4-pack courier with its cart-observed ₪15 distribution-center alternative and the ₪20 one-8-pack
-checkout quote, Coffee4U's published ₪30 door-to-door rate with its ₪15 pickup-point alternative), and
+single/4-pack courier with its cart-observed ₪15 distribution-center alternative and its anonymous-cart
+free condition from a ₪231 item subtotal, the ₪20 one-8-pack checkout quote, Coffee4U's published ₪30
+door-to-door rate with its ₪15 pickup-point alternative), and
 the CoffeeMan **published quantity promotion** — 10% off the ground-coffee item subtotal from a ₪250
 subtotal, multipacks excluded — is parsed from the product-page banner on every refresh and applied to
 the item subtotal with the vendor's own wording disclosed in the offer details. A missing rate or a

@@ -562,6 +562,7 @@ test('an expired CoffeeMan cart policy drops the 8-pack quote and the alternativ
   const single = parseCoffeemanProduct(read('coffeeman-product.windows-1255.html'), { now: AFTER_REVIEW });
   assert.equal(single.shipping.certainty, 'verified', 'the product page publishes the ₪25 courier rate independently of the policy');
   assert.equal(single.shipping.amount.amount, 25);
+  assert.equal(single.shipping.freeThreshold ?? null, null, 'the cart-observed free condition is withheld with its policy');
   assert.equal(single.shipping.alternatives.length, 0, 'the cart-observed ₪15 alternative is withheld with its policy');
   const singleBoard = quoteBoard({
     observations: [single],
@@ -571,4 +572,12 @@ test('an expired CoffeeMan cart policy drops the 8-pack quote and the alternativ
   });
   assert.equal(singleBoard.ranked.length, 1, 'the page-published rate still ranks');
   assert.equal(singleBoard.best.totalIls, 91);
+  const singleBoard2000 = quoteBoard({
+    observations: [single],
+    targetGrams: 2000,
+    destination: findDestination('tel-aviv'),
+    now: AFTER_REVIEW
+  });
+  assert.equal(singleBoard2000.best.shipping.amountIls, 25, 'an overdue free condition never becomes a stale free promise');
+  assert.equal(singleBoard2000.best.shipping.freeThreshold ?? null, null);
 });

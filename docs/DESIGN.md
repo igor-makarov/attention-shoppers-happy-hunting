@@ -87,7 +87,12 @@ conditional)` label so its quantity/destination condition stays visible.
 - Conditions are one short list per offer (free-shipping threshold, minimum order, delivery area,
   alternative services, self-pickup, delivery time, cart-size limit) inside that offer's
   `Delivery options and conditions` disclosure. A coverage caveat is written once inside the same
-  disclosure; the card face keeps only a one-line amber qualification. Pickup-only offers live in their
+  disclosure; the card face keeps only a one-line amber qualification. A free-shipping threshold that
+  comes from an anonymous-cart observation (CoffeeMan's single/4-pack free condition from ₪231) is
+  written as observed and conditional — the shipping cell reads `Free (threshold met)`, the certainty
+  line adds `free condition cart-observed`, and the qualifier says the free delivery comes from an
+  anonymous-cart observation that must be confirmed at checkout. It is never merged into the published
+  rate label. Pickup-only offers live in their
   own collapsed disclosure and never compete in the delivered ranking; each is one compact row (vendor,
   pack/quantity, item subtotal, pickup fee and the written "Self-pickup, not delivery"), with the
   repeated pickup terms behind a `Pickup terms` disclosure.

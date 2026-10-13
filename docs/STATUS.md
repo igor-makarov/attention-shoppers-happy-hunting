@@ -14,6 +14,12 @@ longer contains the blend wording a listing prints, legacy blend-keyed rows are 
 with their stable-key replacement (newest observation wins), and failure markers plus previous-check
 evidence resolve to the newest row for the same listing URL, so the variant removal cannot duplicate one
 SKU or hide a failed check in an old persisted store.
+Iteration 3-82 applies CoffeeMan's anonymous-cart free-delivery observation at the scope it was actually
+observed on: the single 250 g and 4 × 250 g listings get free home courier from a ₪231 item subtotal (a
+₪198 cart keeps the published ₪25), the ₪240 8-pack SKU keeps its own ₪20 quote, and the free condition
+is labelled as a cart-observed condition rather than a published threshold. At 2 kg the board now ranks
+the CoffeeMan 8 × 250 g single-pack cart at its observed delivered **₪237.60** (10% promotion + free
+delivery) instead of ₪262.60, which is the vendor's own anonymous-cart total.
 Iteration 3-79 adds the vendor's **published quantity promotion** (CoffeeMan 10% off the ground-coffee
 item subtotal from a ₪250 subtotal, multipacks excluded), parsed from the product-page banner each
 refresh and applied to the item subtotal with the vendor's own wording disclosed: the 8 × 250 g singles
@@ -463,7 +469,7 @@ labels and the next-source-check footer line, recorded in
 | Production URL reported by owner | https://attention-shoppers.igormaka.workers.dev — **independently verified reachable from the runner** (HTTP 200, 2026-10-12 15:51-15:54, 16:17-16:18, 16:53 and 17:26 UTC, read-only GETs, no credentials) |
 | Production scope | **Independently verified**: `/api/catalog` listed exactly one product (`lavazza-crema-e-gusto-vacuum-ground`) and three vendors; no retired line appeared in any board payload, and the retired Qualità Oro URL returned `requestedRetiredProduct` with the Crema e Gusto board. Re-verified by the 3-63 probe at 16:53 UTC (17/17 scope checks; `docs/evidence/production-probe-20261012T1653Z.json`) and by the 3-75 probes at 21:49 UTC (20/20 checks; `docs/evidence/production-probe-20261012T2149Z.json`) and 21:52 UTC (22/22 checks including the new inert-variant-parameter and no-variant-catalog regressions; `docs/evidence/production-probe-20261012T2152Z.json`). |
 | Production refresh / persistence | **Independently verified**: the probe's first `/health` GET started the documented initial refresh (15:51:52.931Z → 15:52:12.546Z, 4 bounded requests, CoffeeMan saved 3; Pucks/Coffee4U inside their backoff window). `/api/status` then showed `lastRefreshAt` 15:52:12.546Z, fresh, five observations and the Bank of Israel table asOf 12:23:04.599Z. The post-deploy probe, the 16:53 probe and the 3-64 probe at 17:26 UTC found the same persisted store with the same timestamps (ageHours 1.0, stale false) and the same three vendor `nextAttemptAt` values (19:34/19:46/21:52 UTC). The 6-hour cron trigger was independently observed firing on 2026-10-13: the 18:17 UTC tick skipped every vendor inside its window (0 requests, `lastRefreshAt` unchanged, expected) and the **00:17 UTC tick refreshed Pucks and Coffee4U with 6 bounded requests and a completed run at 00:18:15.896Z**; CoffeeMan was blocked from the Worker egress (HTTP 403, see the probe evidence). |
-| Production board values | **Independently verified at 21:49 UTC after the 3-75 build deployed**: 500 g best **Pucks ₪90.00** (2 × ₪30 + the researched ₪30 rule applied at read time), CoffeeMan ₪91.00, **Coffee4U ₪106.00 in the same comparison**, CoffeeMan 4-pack ₪149.00; 1 kg best Pucks ₪120.00 (free above the ₪100 item subtotal); the CoffeeMan 8-pack stays unrankable at ₪240 because its cart-observed ₪20 rate is not a shared policy yet. The old persisted Pucks row (observed 13:34 UTC with unknown shipping) gained the validated rule without a vendor refresh, which independently confirms the read-time policy-enrichment/old-store gap fix in production. |
+| Production board values | **Independently verified at 22:14 UTC after the 3-76 policy build deployed**: 500 g best **Pucks ₪90.00** (2 × ₪30 + the researched ₪30 rule applied at read time), CoffeeMan ₪91.00, **Coffee4U ₪106.00 in the same comparison**, CoffeeMan 4-pack ₪149.00; 1 kg best Pucks ₪120.00 (free above the ₪100 item subtotal); at 2 kg all five offers rank, with the CoffeeMan 8-pack at ₪260.00 (₪240 + the researched ₪20 checkout quote applied at read time to the old persisted row) — `ranked=5, unrankable=0` for 500 g, 1 kg, the obsolete-variant URL and the retired-product fallback. The old persisted Pucks row (observed 13:34 UTC with unknown shipping) gained the validated rule without a vendor refresh, which independently confirms the read-time policy-enrichment/old-store gap fix in production. The earlier 21:49 UTC probe still showed the 8-pack unrankable at ₪240 (before the policy was shared); the 22:14 probe supersedes it (`docs/evidence/production-probe-20261012T2214Z.json`). The 3-82 cart-observed free condition adds CoffeeMan ₪237.60 as the 2 kg best; it is verified locally and on a fresh live local Worker (iteration 3-82 below) and applies to the deployed old store at read time once its build is live. |
 | Production UI | **Independently verified**: the fixture-free live browser QA mode drove the deployed site in headless Chrome — **53/53** checks passed with zero console errors on 2026-10-12 16:20 UTC, again at 17:05 UTC after the 3-63 push, and **59/59** at 17:31 UTC after the failed-attempt build deployed (evidence `docs/evidence/browser-qa-production-20261012T1620Z.json`, `docs/evidence/browser-qa-production-20261012T1705Z.json`, `docs/evidence/browser-qa-production-20261012T1731Z.json`). **The 3-75 unified-comparison UI is live and passed 76/76 checks at 21:59 UTC** — no variant control, Coffee4U in the same comparison, home→product navigation, disclosures, quantity/destination changes and mobile first-viewport money values all verified against the deployed site (evidence `docs/evidence/browser-qa-production-20261012T2200Z.json`). |
 | Deployed build version | **The 3-61 build is live** (verified 16:17-16:18 UTC: `/health` carries `lastObservationAt`, a 3-61-only field; `/api/status` reports `freshness.dataAsOf`). **The failed-attempt build (3-63 save / 3-64) is also live**: the production `/api/board` quotes now carry `lastAttemptFailed`/`lastError` (a public field added in commit da47521) and the deployed `public/app.js` contains the `Last attempt failed` / `showing the last successful observation` strings (read-only GETs at 17:31-17:33 UTC; `docs/evidence/production-build-marker-20261012T1733Z.json`). **The 3-75 blend/variant-removal build is live** (verified 21:49-21:52 UTC, read-only GETs): `/api/board` returns no board-level `variantId` and no `counts.excludedByVariant` (per-offer `product.variantId`/`variantLabel` remain raw listing identity metadata only), `?variant=unspecified` returns the same ranked list as the default request with Coffee4U included, `/api/catalog` notes describe the unified comparison, the served `product.js` strips the obsolete parameter and contains no `#variant` lookup, the served `home.js` says "one comparison for all tracked listings" and drops `variant` when forwarding, and the directly loaded product page contains zero `variant` occurrences. Evidence: `docs/evidence/production-build-marker-20261012T2152Z.json`. The 3-62 phase-lock change has no public-API marker (it only changes vendor due-time evaluation), but the **00:17 UTC tick on 2026-10-13 refreshed instead of skipping**, which is the behavior the fix introduces; the 06:17 UTC tick is expected to refresh again. |
 | Main-push auto-deploy | **Independently verified for the 3-61 push and again for the 3-64 build**: after the supervisor published the 3-61 commits to main, the serving production build changed to one that includes the 3-61 fields, with the Durable Object store persisting across the deploy; after the da47521/3-64 commits, the production board API began returning the new `lastAttemptFailed`/`lastError` quote fields and the deployed `app.js` gained the failed-attempt labels (read-only GETs at 17:31 UTC). The 3-62 phase-lock push is on main and is expected to deploy the same way, but its effect is only observable through a cron tick. The 6-hour cron trigger and future builds still need the owner's dashboard confirmation. |
@@ -1820,3 +1826,79 @@ remain harmless. No destructive migration and no Cloudflare administration were 
 for all three vendors) to record whether the CoffeeMan egress block persists and whether the refreshed
 rows parse; the served assets can also be checked for the new identity code after the main-push build
 deploys. Then continue within Crema e Gusto coverage, shipping evidence, freshness and comparison quality.
+
+## Iteration 3-82 — CoffeeMan's observed free condition applied at its scope; the 2 kg comparison matches the vendor's own cart (2026-10-13)
+
+**The gap.** The CoffeeMan anonymous-cart research on 2026-10-12 (19:56-20:09 UTC) had already recorded
+that home courier was charged ₪25 on the ₪66/₪124/₪132/₪198 carts but **free** from the ₪231
+(7 × 250 g) cart, on the ₪264 (₪237.60 after the automatic 10% promotion) 8 × 250 g cart and on the
+₪248 two-4-pack cart. The board stored that as a note only and kept the published ₪25 everywhere, so at
+2 kg it showed the CoffeeMan 8-singles offer at ₪237.60 + ₪25 = **₪262.60** and called Pucks ₪240 the
+best — even though the vendor's own anonymous cart showed that exact offer at **₪237.60 delivered**. That
+is the owner's "store conditional evidence at its actual scope" case, not a rule the board should infer
+globally: the ₪240 8-pack SKU cart kept its own ₪20 quote.
+
+**What changed (implementation).**
+
+- `coffeeman-single-4pack-il-home-delivery` is now **v2**: the published ₪25 base rate stays, and the
+  policy carries `freeThreshold: ₪231`, `thresholdSemantics: 'at_least'`, `freeThresholdOrigin:
+  'observed_cart'` and its own `freeThresholdEvidence` (anonymous checkout, 2026-10-12T20:09:00Z).
+  ₪231 is the **lowest observed free subtotal** — the ₪198 cart was charged ₪25 — so the engine can only
+  under-promise free delivery below it, never invent it. The ₪240 8-pack SKU has a separate policy with
+  its own ₪20 quote and no free threshold.
+- The policy validator rejects an unknown threshold origin, an origin without a threshold, and an
+  `observed_cart` threshold without evidence; `ruleKey` now includes the threshold semantics/origin so
+  two conflicting policies still resolve as `inconsistent`.
+- Read-time enrichment copies the threshold, semantics, origin and evidence to an old persisted row
+  (price, stock and `observedAt` untouched), and the CoffeeMan adapter stamps the same fields on freshly
+  parsed single/4-pack rows while the policy is current. When `reviewBy` passes, the free condition is
+  withheld with the policy and the offer falls back to the published ₪25.
+- The quote engine exposes `shipping.freeThresholdOrigin`/`freeThresholdEvidence` and labels the met
+  condition `Free shipping threshold met (from ₪231.00, observed in the vendor's anonymous cart)`. The
+  product page renders `Free (threshold met)` + `Home delivery` + `Published rate (verified) · free
+  condition cart-observed`, a card-face qualifier ("Free delivery applied from an anonymous-cart
+  observation; confirm it at checkout.") and the full provenance in `Delivery options` and `Offer
+  details`.
+
+**Verified locally (2026-10-13 UTC):**
+
+- `npm run verify` — **155/155** `node:test` cases pass (up from 153; new coverage: the policy shape and
+  origin/evidence validation, the old persisted single row gaining the free condition at read time, the
+  ₪231 boundary free and the ₪198 cart still charged, the two-4-pack ₪248 cart free, the 8-pack SKU
+  keeping ₪20 with no threshold, the expired-policy path withholding the free condition, and the
+  conditional label helpers). `wrangler deploy --dry-run` builds the bundle (124.78 KiB / gzip
+  30.93 KiB; bindings `BOARD` + `ASSETS`).
+- `npm run check:sources` (live, 01:22 UTC) — all five listings pass with unchanged prices and stock;
+  the parsed CoffeeMan rows carry the new threshold fields and the updated cart note.
+- Fresh-store `wrangler dev` initial refresh (01:24:05.165Z → 01:24:23.281Z, live vendor fetches, no
+  browser opened for the refresh): **6 bounded requests**, all three vendors saved, five observations.
+  The 2 kg board ranks **CoffeeMan 8 × 250 g singles ₪237.60** (10% promotion → ₪237.60 item, free
+  observed threshold, ₪118.80/kg), Pucks ₪240.00 (free above ₪100), CoffeeMan 2 × 4-pack ₪248.00 (free
+  observed threshold), CoffeeMan 8-pack ₪260.00 (its own ₪20 quote) and Coffee4U ₪334.00. At 250 g/500 g
+  the ranking is unchanged (CoffeeMan ₪58, Pucks ₪90). Evidence:
+  `docs/evidence/worker-runtime-status-2026-10-13T0124Z.json`.
+- **Every observed anonymous-cart courier amount is reproduced by the engine**
+  (`docs/evidence/coffeeman-free-condition-20261013.json`): ₪66→₪25, ₪124→₪25, ₪132→₪25, ₪198→₪25,
+  ₪231→free, ₪264/₪237.60→free, ₪248 (2 × 4-pack)→free, ₪240 (8-pack SKU)→₪20. The 8-pack SKU never
+  inherits the free condition.
+- `npm run qa:browser` (offline fixtures) — **90/90** checks, zero console errors; the 2 kg fixture now
+  asserts the observed-free card face (Free + cart-observed certainty + qualifier + conditions text),
+  the 8-pack's own ₪20 quote and the undiscounted multipacks. `npm run qa:browser --
+  http://127.0.0.1:8789` against the fresh live Worker — **86/86**, zero console errors. Evidence:
+  `docs/evidence/browser-qa-fixtures-20261013T0131Z.json`,
+  `docs/evidence/browser-qa-live-20261013T0124Z.json`.
+- Visual record: `docs/evidence/visual-review/2026-10-13-coffeeman-free-condition-review.json` with
+  sanitized home/product screenshots at 1440 px and 390 px and the coarse pixel map of the 2 kg board.
+  The file-read tool still rejects PNG input, so no image-based claim is made; labels and arithmetic are
+  corroborated by the rendered DOM text and the API in the same session.
+
+**Production note:** the change is backwards compatible. The deployed store's old CoffeeMan single/4-pack
+rows gain the observed free condition at read time (no vendor refresh, no `lastRefreshAt` change), so
+the 2 kg best becomes ₪237.60 as soon as this build is live. The 06:17 UTC cron tick remains the next
+actual vendor attempt (and the next CoffeeMan egress retry); no Cloudflare administration was used.
+
+**Next step:** re-run `npm run probe:production` after the main-push build deploys to confirm the old
+persisted CoffeeMan rows gained the free condition at read time (`ranked=5`, 2 kg best CoffeeMan
+₪237.60, policy v2) and after the **06:17 UTC tick** to record whether the CoffeeMan egress block
+persists; then continue within Crema e Gusto coverage, shipping evidence, freshness and comparison
+quality.
