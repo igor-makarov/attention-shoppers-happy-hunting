@@ -20,11 +20,13 @@
 // runtime and never applied to the board automatically. A validated record can
 // be promoted into a versioned policy in src/lib/policies.js by hand.
 
-export const EVIDENCE_SCHEMA_VERSION = 2;
+export const EVIDENCE_SCHEMA_VERSION = 3;
 
-// Version 1 records predate the discount/method-evidence fields. They keep
-// validating under the version-1 rules and stay valid historical evidence.
-export const SUPPORTED_EVIDENCE_SCHEMA_VERSIONS = [1, 2];
+// Version 1 records predate the discount/method-evidence fields; version 2
+// records predate the observed-cart-identity fields. Both keep validating under
+// their own rules and stay valid historical evidence: their records never
+// claimed an observed cart identity, and nothing here relabels them.
+export const SUPPORTED_EVIDENCE_SCHEMA_VERSIONS = [1, 2, 3];
 
 // The single, 4-pack and 8-pack CoffeeMan listings share one public checkout
 // flow; these steps are the shared navigation data so each listing's recipe
@@ -118,6 +120,11 @@ export const RECIPES = {
     cartUrl: 'https://www.coffeeman.co.il/checkout.asp',
     allowedHosts: ['www.coffeeman.co.il', 'coffeeman.co.il'],
     packGrams: 250,
+    // The rendered cart row links to the listing with its SKU in the `pid`
+    // query parameter and names "250 גרם" (one 250 g pack per cart unit). The
+    // row also carries the cart quantity input; the runner reads all of it at
+    // totals-read time and matches it against this declared listing.
+    cartIdentity: { lineSelectors: ['ul.cart_items_ul > li'], listingPacks: 1, packGrams: 250 },
     parseTotals: parseCoffeemanTotals,
     steps: COFFEEMAN_CHECKOUT_STEPS
   },
@@ -134,6 +141,7 @@ export const RECIPES = {
     cartUrl: 'https://www.coffeeman.co.il/checkout.asp',
     allowedHosts: ['www.coffeeman.co.il', 'coffeeman.co.il'],
     packGrams: 1000,
+    cartIdentity: { lineSelectors: ['ul.cart_items_ul > li'], listingPacks: 4, packGrams: 250 },
     parseTotals: parseCoffeemanTotals,
     steps: COFFEEMAN_CHECKOUT_STEPS
   },
@@ -150,6 +158,7 @@ export const RECIPES = {
     cartUrl: 'https://www.coffeeman.co.il/checkout.asp',
     allowedHosts: ['www.coffeeman.co.il', 'coffeeman.co.il'],
     packGrams: 2000,
+    cartIdentity: { lineSelectors: ['ul.cart_items_ul > li'], listingPacks: 8, packGrams: 250 },
     parseTotals: parseCoffeemanTotals,
     steps: COFFEEMAN_CHECKOUT_STEPS
   },
@@ -460,13 +469,21 @@ export function decideOmittedShippingRow({
   destinationVerified = null,
   actualPacks = null,
   requestedPacks = null,
-  sku = null
+  sku = null,
+  cartIdentity = null
 } = {}) {
   const reasons = [];
   if (totals.shippingIls != null) {
     return { accepted: false, amountIls: null, reasons: ['the checkout already displayed an applied shipping amount'], note: null };
   }
   if (!sku) reasons.push('the tracked listing SKU was not recorded');
+  // A declared recipe SKU is not proof of the product in the cart: the zero is
+  // only accepted when the rendered cart line was observed to be the tracked
+  // listing with the expected pack identity. Missing, mismatched, ambiguous or
+  // mixed cart identity keeps the row unknown.
+  if (cartIdentity?.verified !== true) {
+    reasons.push(`the rendered cart line identity was not verified${cartIdentity?.reasons?.length ? ` (${cartIdentity.reasons.join('; ')})` : ''}`);
+  }
   if (serviceConfirmed !== true) reasons.push('the selected delivery method was not confirmed by a successful page step');
   const selectedKey = serviceLabel ? methodLabelKey(serviceLabel) : null;
   if (!serviceLabel) reasons.push('the selected delivery method label was not recorded');
@@ -519,6 +536,132 @@ function methodLabelKey(label) {
   return String(label ?? '').replace(/[₪]|[\d.,]+/g, '').replace(/\s+/g, ' ').trim();
 }
 
+// Query-string keys vendors use to carry a listing SKU in a cart-line link.
+const LINE_SKU_QUERY_KEYS = ['pid', 'sku', 'product_id', 'productid', 'item_id', 'itemid'];
+
+/**
+ * The listing identity a recipe declares: the tracked SKU, how many single
+ * packs the listing contains and the grams of one pack. This is the expected
+ * side of the match; it is never copied into the observed side.
+ */
+export function expectedCartIdentity(recipe) {
+  const identity = recipe?.cartIdentity ?? {};
+  const listingPacks = Number.isFinite(identity.listingPacks) && identity.listingPacks > 0 ? identity.listingPacks : 1;
+  const packGrams = Number.isFinite(identity.packGrams) && identity.packGrams > 0 ? identity.packGrams : null;
+  return {
+    sku: recipe?.sku ?? null,
+    listingPacks,
+    packGrams,
+    unitGrams: packGrams == null ? null : listingPacks * packGrams
+  };
+}
+
+/**
+ * The SKU a rendered cart line exposes. Only an explicit rendered identity
+ * counts: a query parameter (for example CoffeeMan's `pid=930333`), a data
+ * attribute or the line's own wording. The expected recipe SKU is never used
+ * as a fallback here.
+ */
+export function readLineSku(line) {
+  const candidates = [];
+  for (const href of Array.isArray(line?.links) ? line.links : []) {
+    try {
+      const parsed = new URL(String(href), 'https://invalid.local');
+      for (const key of LINE_SKU_QUERY_KEYS) {
+        const value = parsed.searchParams.get(key);
+        if (value) candidates.push(value);
+      }
+    } catch {
+      // Not a URL: no query parameter to read.
+    }
+  }
+  for (const [name, value] of Object.entries(line?.attrs ?? {})) {
+    if (value && /sku|pid|product.?id|item.?id/i.test(name)) candidates.push(String(value));
+  }
+  const unique = [...new Set(candidates)];
+  return { sku: unique.length === 1 ? unique[0] : null, candidates: unique };
+}
+
+/**
+ * The pack identity a rendered cart line states in its own wording, for
+ * example CoffeeMan's "8 אריזות 250 גרם" (8 × 250 g multipack) or
+ * "250 גרם" (one 250 g pack). Nothing is inferred from the expected listing or
+ * from the money; a line whose wording does not state the pack identity stays
+ * unreadable.
+ */
+export function readLinePackIdentity(text) {
+  const value = String(text ?? '');
+  const multipack = /(\d+)\s*(?:אריזות?|יחידות?|×|x|\*)\s*(?:של\s*)?(\d+)\s*(?:גרם|גר['׳]|g(?![a-z]))/i.exec(value);
+  if (multipack) {
+    return { listingPacks: Number(multipack[1]), packGrams: Number(multipack[2]), wording: multipack[0] };
+  }
+  const single = /(\d+)\s*(?:גרם|גר['׳]|g(?![a-z]))/i.exec(value);
+  if (single) {
+    return { listingPacks: 1, packGrams: Number(single[1]), wording: single[0] };
+  }
+  return { listingPacks: null, packGrams: null, wording: null };
+}
+
+function readLineQuantity(line) {
+  const quantity = Number(line?.quantity);
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : null;
+}
+
+/**
+ * Match the rendered cart lines against the recipe's declared listing. A quote
+ * may only be attributed to the tracked listing when exactly one distinct
+ * rendered line exposes an unambiguous SKU and a pack identity equal to the
+ * recipe's; duplicate renders of the same line are folded together. Missing or
+ * ambiguous identity, a different SKU, another multipack and mixed cart lines
+ * all stay unverified with the exact reason, so the caller can keep the
+ * omitted-row zero blocked instead of guessing it from the declared SKU.
+ */
+export function matchCartIdentity({ recipe, lines = [] } = {}) {
+  const expected = expectedCartIdentity(recipe);
+  const reasons = [];
+  const observedLines = (Array.isArray(lines) ? lines : []).slice(0, 12).map(line => {
+    const sku = readLineSku(line);
+    const pack = readLinePackIdentity(line?.text);
+    return {
+      sku: sku.sku,
+      skuCandidates: sku.candidates.slice(0, 4),
+      listingPacks: pack.listingPacks,
+      packGrams: pack.packGrams,
+      packWording: pack.wording,
+      quantity: readLineQuantity(line),
+      lineText: sanitizeExcerpt(line?.text, 200)
+    };
+  });
+  const lineKey = line => [line.sku ?? '?', line.listingPacks ?? '?', line.packGrams ?? '?', line.quantity ?? '?'].join('|');
+  const distinct = [];
+  for (const line of observedLines) {
+    if (!distinct.some(existing => lineKey(existing) === lineKey(line))) distinct.push(line);
+  }
+  if (!expected.sku) reasons.push('the recipe does not declare a tracked listing SKU');
+  if (distinct.length === 0) reasons.push('no rendered cart line could be read for the tracked listing');
+  if (distinct.length > 1) reasons.push(`the cart holds ${distinct.length} distinct rendered lines, so the quote is not attributed to one tracked listing`);
+  const line = distinct.length === 1 ? distinct[0] : null;
+  if (line) {
+    if (!line.sku) reasons.push('the rendered cart line did not expose an unambiguous listing SKU');
+    else if (line.sku !== expected.sku) reasons.push(`the rendered cart line is listing ${line.sku}, not the tracked ${expected.sku}`);
+    if (line.listingPacks == null || line.packGrams == null) {
+      reasons.push('the rendered cart line did not state its pack identity');
+    } else if (line.listingPacks !== expected.listingPacks || line.packGrams !== expected.packGrams) {
+      reasons.push(`the rendered cart line is ${line.listingPacks} × ${line.packGrams} g, not the tracked ${expected.listingPacks} × ${expected.packGrams} g listing`);
+    }
+    if (line.quantity == null) reasons.push('the rendered cart line did not show a whole-pack quantity');
+  }
+  const verified = reasons.length === 0;
+  return {
+    verified,
+    source: verified ? 'rendered-cart-line' : null,
+    expected,
+    observed: line ? { ...line, source: 'rendered-cart-line' } : null,
+    lines: observedLines.slice(0, 6),
+    reasons
+  };
+}
+
 /**
  * Build one common evidence record from a recipe run. `status` is one of
  * `quoted` (displayed item subtotal, explicit discount state, shipping
@@ -539,11 +682,29 @@ export function buildEvidenceRecord({
   service = null,
   serviceConfirmed = null,
   serviceLabel = null,
+  cartIdentity = null,
   now = Date.now()
 } = {}) {
   const grams = Number(params.grams) > 0 ? Number(params.grams) : recipe.packGrams;
   const requestedPacks = Math.max(1, Math.ceil(grams / recipe.packGrams));
   const packs = Number.isFinite(actualPacks) && actualPacks > 0 ? actualPacks : requestedPacks;
+  // Expected versus observed cart identity. The expected side comes from the
+  // recipe declaration; the observed side is only ever what the rendered cart
+  // line exposed (a verified match). A missing or mismatched observation keeps
+  // both sides recorded but never copies the expected SKU into the observed
+  // one.
+  const expectedIdentity = cartIdentity?.expected ?? expectedCartIdentity(recipe);
+  const observedIdentity = cartIdentity?.verified === true && cartIdentity.observed
+    ? {
+      source: cartIdentity.source ?? 'rendered-cart-line',
+      sku: cartIdentity.observed.sku ?? null,
+      listingPacks: cartIdentity.observed.listingPacks ?? null,
+      packGrams: cartIdentity.observed.packGrams ?? null,
+      packWording: cartIdentity.observed.packWording ?? null,
+      quantity: cartIdentity.observed.quantity ?? null,
+      lineText: cartIdentity.observed.lineText ? sanitizeExcerpt(cartIdentity.observed.lineText, 200) : null
+    }
+    : null;
   // Distinguish the displayed pre-discount subtotal, the explicit applied
   // discount and the paid item total. Totals that carry no discount evidence
   // (version-1 callers) keep their previous meaning: the subtotal is paid.
@@ -558,7 +719,8 @@ export function buildEvidenceRecord({
     destinationVerified,
     actualPacks: Number.isFinite(actualPacks) && actualPacks > 0 ? actualPacks : null,
     requestedPacks,
-    sku: recipe.sku ?? null
+    sku: recipe.sku ?? null,
+    cartIdentity
   });
   let shippingIls = totals.shippingIls ?? null;
   let shippingLabel = totals.shippingLabel ?? null;
@@ -576,6 +738,13 @@ export function buildEvidenceRecord({
     && Math.abs((paidItemTotal ?? itemSubtotalBeforeDiscount) + shippingIls - totals.deliveredTotalIls) <= 0.05;
   let resolvedStatus = status;
   let resolvedBlocker = blocker ? sanitizeExcerpt(blocker, 300) : null;
+  // A rendered cart line that is a different listing (or a mixed/unreadable
+  // cart) means the displayed amounts do not belong to the tracked listing, so
+  // they must not be published as its quote even when a shipping row exists.
+  if (cartIdentity && cartIdentity.verified === false && resolvedStatus === 'quoted') {
+    resolvedStatus = 'blocked';
+    resolvedBlocker = resolvedBlocker ?? `Cart identity check failed: ${cartIdentity.reasons.join('; ')}.`;
+  }
   if (resolvedStatus === 'quoted' && shippingIls == null) {
     // Without a shipping amount there is no delivered quote at all, so the
     // record is blocked rather than partial.
@@ -630,6 +799,25 @@ export function buildEvidenceRecord({
     freeThresholdText: totals.freeThresholdText ?? null,
     currency: totals.currency ?? 'ILS',
     arithmeticOk,
+    // Cart identity: the expected recipe listing versus the listing the
+    // rendered cart line actually exposed, plus how it was verified. A null
+    // `cartIdentityVerified` means no observation was attempted (recipes
+    // without a cart-line reader keep their applied-line quotes but can never
+    // take an omitted shipping row as zero).
+    expectedCartIdentity: expectedIdentity,
+    observedCartIdentity: observedIdentity,
+    cartIdentityVerified: cartIdentity ? cartIdentity.verified === true : null,
+    cartIdentitySource: cartIdentity?.verified === true ? cartIdentity.source ?? 'rendered-cart-line' : null,
+    cartIdentityNote: cartIdentity && cartIdentity.verified !== true ? sanitizeExcerpt(cartIdentity.reasons.join('; '), 300) : null,
+    cartIdentityLines: cartIdentity?.lines?.length
+      ? cartIdentity.lines.slice(0, 6).map(line => ({
+        sku: line.sku ?? null,
+        listingPacks: line.listingPacks ?? null,
+        packGrams: line.packGrams ?? null,
+        quantity: line.quantity ?? null,
+        lineText: line.lineText ? sanitizeExcerpt(line.lineText, 200) : null
+      }))
+      : null,
     qualification: [totals.qualification, destinationNote, serviceNote].filter(Boolean).join(' ') || null,
     blocker: resolvedBlocker,
     excerpt: totals.excerpt ? sanitizeExcerpt(totals.excerpt) : null,
@@ -711,6 +899,56 @@ export function validateEvidence(record) {
       if (record.arithmeticOk !== true) errors.push('a selected-method-option zero needs consistent item/discount/shipping/total arithmetic');
     }
   }
+  // Version 3 adds the observed-cart-identity evidence. A zero taken from an
+  // omitted shipping row is only valid when the rendered cart line was observed
+  // to be the tracked listing with the expected pack identity; a mismatched or
+  // mixed cart can never be published as a quote. The declared recipe SKU alone
+  // is not proof of the product in the cart.
+  if (record.schemaVersion >= 3) {
+    if (record.cartIdentityVerified != null && typeof record.cartIdentityVerified !== 'boolean') {
+      errors.push('cartIdentityVerified must be a boolean or null');
+    }
+    if (record.cartIdentitySource != null && typeof record.cartIdentitySource !== 'string') {
+      errors.push('cartIdentitySource must be a string or null');
+    }
+    if (record.expectedCartIdentity != null && typeof record.expectedCartIdentity !== 'object') {
+      errors.push('expectedCartIdentity must be an object or null');
+    }
+    if (record.observedCartIdentity != null && typeof record.observedCartIdentity !== 'object') {
+      errors.push('observedCartIdentity must be an object or null');
+    }
+    if (record.cartIdentityLines != null && !Array.isArray(record.cartIdentityLines)) {
+      errors.push('cartIdentityLines must be an array or null');
+    }
+    if (record.cartIdentityVerified === true) {
+      if (record.cartIdentitySource !== 'rendered-cart-line') errors.push('a verified cart identity must record its rendered source');
+      const observed = record.observedCartIdentity;
+      if (!observed || typeof observed !== 'object' || !observed.sku) {
+        errors.push('a verified cart identity must record the observed listing SKU');
+      } else {
+        if (record.sku && observed.sku !== record.sku) errors.push('the observed cart SKU must match the declared listing SKU');
+        const expected = record.expectedCartIdentity ?? {};
+        if (expected.listingPacks != null && observed.listingPacks !== expected.listingPacks) {
+          errors.push('the observed pack count must match the expected listing pack identity');
+        }
+        if (expected.packGrams != null && observed.packGrams !== expected.packGrams) {
+          errors.push('the observed pack grams must match the expected listing pack identity');
+        }
+        if (expected.unitGrams != null && observed.listingPacks != null && observed.packGrams != null
+          && observed.listingPacks * observed.packGrams !== expected.unitGrams) {
+          errors.push('the observed pack identity must match the expected cart unit grams');
+        }
+      }
+    }
+    if (record.cartIdentityVerified === false && record.status === 'quoted') {
+      errors.push('a quoted record cannot carry a mismatched cart identity');
+    }
+    if (record.shippingEvidenceSource === 'selected-method-option') {
+      if (record.cartIdentityVerified !== true) errors.push('a selected-method-option zero needs a verified rendered cart identity');
+      if (!record.observedCartIdentity?.sku) errors.push('a selected-method-option zero needs the observed cart listing SKU');
+      if (!record.cartIdentitySource) errors.push('a selected-method-option zero needs the cart identity source');
+    }
+  }
   return { ok: errors.length === 0, errors };
 }
 
@@ -731,6 +969,7 @@ export const DRIVER_INTERFACE = [
   'sleep(ms)',
   'readValue(selector)',
   'readSelectedLabel(selector)',
+  'readCartLines(selectors)',
   'getText()',
   'currentUrl()'
 ];
