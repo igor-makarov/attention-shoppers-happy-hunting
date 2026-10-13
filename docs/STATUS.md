@@ -1,15 +1,21 @@
 # Project status
 
-Stage: **Crema e Gusto scope enforced and the owner's blend/variant removal implemented (2026-10-12):
-there is no variant selector, menu entry, warning, "other variant" count or variant filtering in the API or
-UI, and every eligible tracked Crema e Gusto vacuum-packed ground listing — including the Coffee4U listing
-whose blend wording is not stated — is compared in one board for the selected quantity, locality and
-delivery method. The Canton Zürich product index + dedicated product page, the browser-researched shipping
-policies and the progressive-disclosure layout are validated locally (157/157 tests, 90/90 offline and 86/86
-live-local browser checks) and against the deployed site: the four-policy build is live (production probe 25/25
-at 01:53 UTC, live browser QA 85/85 at 00:28 UTC with zero console errors), the Pucks free-above-₪100 rule
-and its v2 five-locality coverage evidence are applied to the old persisted store at read time (verified in
-production at 01:53 UTC without a vendor refresh), and obsolete `variant=` URLs resolve to that one board.
+Stage: **Crema e Gusto scope enforced, the owner's blend/variant removal implemented (2026-10-12), and
+the overseer's 2026-10-13 evidence-scope correction applied.** There is no variant selector, menu entry,
+warning, "other variant" count or variant filtering in the API or UI, and every eligible tracked Crema e
+Gusto vacuum-packed ground listing — including the Coffee4U listing whose blend wording is not stated — is
+compared in one board for the selected quantity, locality and delivery method. CoffeeMan's free-delivery
+observation is no longer a monotone ₪231 threshold: policy v3 stores the exact carts the vendor showed
+free (7 singles at ₪231, 8 singles at ₪264 → ₪237.60, 2 × 4-pack at ₪248), applies free delivery only to a
+matching cart and keeps the published ₪25 base rate for every larger or repriced cart (3 kg of singles,
+three 4-packs), while a v2-stamped persisted row is migrated at read time. The Coffee4U evidence records
+now carry the confirmed door-to-door method. The Canton Zürich product index + dedicated product page, the
+browser-researched shipping policies and the progressive-disclosure layout are validated locally (161/161
+tests, 94/94 offline browser checks with zero console errors) and against the deployed site: the four-policy
+build is live (production probe 25/25 at 01:53 UTC, live browser QA 85/85 at 00:28 UTC with zero console
+errors), the Pucks free-above-₪100 rule and its v2 five-locality coverage evidence are applied to the old
+persisted store at read time (verified in production at 01:53 UTC without a vendor refresh), and obsolete
+`variant=` URLs resolve to that one board.
 Iteration 3-81 removes the last variant coupling from the data layer: a stored offer's identity key no
 longer contains the blend wording a listing prints, legacy blend-keyed rows are collapsed at read time
 with their stable-key replacement (newest observation wins), and failure markers plus previous-check
@@ -2000,3 +2006,79 @@ while the ₪30 rate, the ₪90 total and the item observation time are unchange
 **Next step:** after the **06:17 UTC tick** record whether the CoffeeMan egress block persists and
 whether the refreshed rows parse; then continue within Crema e Gusto coverage, shipping evidence,
 freshness and comparison quality.
+
+## Iteration 3-85 — CoffeeMan free evidence bound to its observed carts; Coffee4U method recorded; index and locality readability (2026-10-13)
+
+**The defect.** Iteration 3-82 promoted CoffeeMan's free-delivery observation as a monotone threshold
+(`₪231, at_least`), so any single/4-pack cart at or above ₪231 would be free. The vendor publishes no such
+threshold and the sampled carts are not monotone (a ₪198 cart paid ₪25, the ₪240 8-pack SKU cart paid
+₪20, while the ₪231/₪264/₪248 carts were free), so a 3 kg single-pack cart or three 4-packs could inherit
+free delivery merely from a subtotal. The same review found the Coffee4U destination-extension evidence
+records carried `service: null` even though the runs had successfully selected door-to-door delivery, and
+that the home index card still repeated a long comparison explanation while the 390 px locality control
+clipped the selected locality inside a half-width column.
+
+**What changed (evidence scope first).**
+
+- `coffeeman-single-4pack-il-home-delivery` is now **v3**. `rule.freeThreshold` is removed; the free
+  observations live in `rule.freeCartConditions`, one entry per observed free cart with validated listing
+  prefix + SKU, pack count, whole-pack units, ordered grams, item subtotal before any discount, paid item
+  total, the named method, destination evidence, observation time and its own evidence note: `singles-7`
+  (SKU 930333, 7 units, ₪231), `singles-8` (8 units, ₪264 before the automatic 10% promotion → ₪237.60)
+  and `fourpack-2` (SKU 930334, 2 units, ₪248). No threshold is recorded. `supersedes` names the exact
+  superseded v2 threshold (₪231, `at_least`, `observed_cart`) so a persisted row stamped by v2 stops
+  applying it at read time — the published ₪25 base amount, the item price, stock and `observedAt` are
+  untouched — and a rule that changes any amount is still never swapped in at read time.
+- The quote engine matches a cart against each condition exactly (listing prefix, SKU, service, pack
+  count, units, ordered grams and the pre-discount subtotal, falling back to the paid total when no
+  discount applies). A matched cart becomes free with a label naming the exact observed cart; an
+  unmatched cart keeps the published ₪25, and when its subtotal is at or above an observed free subtotal
+  the card says free delivery was observed only on specific carts. `base.shipping` exposes
+  `freeCartConditions`/`freeCondition`; `policySummary()` exposes the condition ids/SKUs/subtotals.
+- The CoffeeMan adapter derives its free conditions from the policy (never a hard-coded threshold), and
+  the 8-pack SKU policy is unchanged: it keeps its own ₪20 quote and never inherits the conditions.
+- **Coffee4U method evidence.** Recipe method steps now declare `confirmsService`; a successful run
+  records `service` + `serviceConfirmed: true`, and an optional method step that could not be confirmed
+  records `service: null` + `serviceConfirmed: false` plus a qualification (schema validation rejects
+  both a claimed-but-unnamed method and an undisclosed unconfirmed one). The nine checked-in Pucks and
+  Coffee4U quote records were backfilled from their recorded successful method step with a note saying
+  so, and `coffee4u-il-home-delivery` names the method in `observedFor.method`; the public quote output
+  keeps `shipping.service`/`serviceLabel` and the quantity/destination restrictions (`maxTotalGrams`,
+  closed-locality-list caveat, alternatives) unchanged.
+- **Readability.** The home index card is one compact line (`3 vendors · 5 listings: …`) instead of the
+  comparison walkthrough, and the catalog intro is one sentence. On ≤720 px the locality group takes the
+  full row and the option text drops the redundant “area” suffix, so `Tel Aviv–Yafo · 6100000` is fully
+  readable at 390 px (measured width 343 px, label one line).
+
+**Verified locally (2026-10-13 UTC).**
+
+- `npm run verify` — **161/161** `node:test` cases (new/updated: the scoped-condition policy validation,
+  exact-cart matching, the v2→v3 read-time migration, the 3 kg/three-4-pack/repriced carts keeping ₪25,
+  the expired-policy fallback, and the confirmed/unconfirmed service schema), plus
+  `wrangler deploy --dry-run` (bundle builds; bindings `BOARD` + `ASSETS`).
+- `npm run evidence:coffeeman-scope` — every observed cart reproduces its recorded fee
+  (₪25/₪25/₪25/₪0/₪0/₪25/₪0/₪20) and every unobserved cart keeps ₪25; evidence rewritten at
+  `docs/evidence/coffeeman-free-condition-20261013.json` with `reproduced: true`.
+- `npm run qa:browser` (offline fixtures) — **94/94** checks, zero console errors. New checks cover the
+  exact free condition on the 2 kg card, the 3 kg cart keeping the base rate, the concise home card, the
+  full-width readable locality control, and the 2 kg / 500 g CoffeeMan cards with the real
+  last-check-failed state. Screenshots and DOM geometry:
+  `docs/evidence/visual-review/2026-10-13-coffeeman-scope-and-readability-review.json`,
+  `docs/evidence/browser-qa-fixtures-20261013T0240Z.json`.
+- `scripts/probe-production.mjs` gained read-only checks for the scoped conditions: the 2 kg single-pack
+  cart must apply `singles-8` with `freeThreshold: null`, and the 3 kg cart must keep ₪25; they activate
+  once the deployed build serves the new fields, so the probe stays green while the main-push build rolls
+  out. The policy-version check now compares the scoped condition ids too.
+- PNG limitation (unchanged): the pinned file-read tool rejects image input, so the saved screenshots
+  were not inspected as images; the coarse pixel/colour maps and the rendered DOM geometry are recorded
+  in the review file, and labels/arithmetic are corroborated by DOM/API assertions, not by image reading.
+
+**Production note:** the read-time `supersedes` migration means the deployed store's v2-stamped CoffeeMan
+rows stop applying the ₪231 threshold and gain the exact conditions as soon as this build is live, without
+a vendor refresh and without advancing `lastRefreshAt`. The 06:17 UTC cron tick remains the next actual
+CoffeeMan vendor attempt; the 00:17 UTC tick's Worker-egress HTTP 403 is still recorded and not bypassed.
+
+**Next step:** run `npm run probe:production` after the main-push build deploys and record whether the old
+persisted rows migrated to v3 with the scoped conditions (2 kg free via `singles-8`, 3 kg at ₪25); then
+after the 06:17 UTC tick record whether the CoffeeMan egress block persists. Continue within Crema e Gusto
+coverage, shipping evidence, freshness and comparison quality.

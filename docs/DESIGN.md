@@ -51,9 +51,10 @@ conditional)` label so its quantity/destination condition stays visible.
 ## Pages
 
 - **Home `/` — product index.** Renders one card per tracked catalog product (today exactly one:
-  Lavazza Crema e Gusto vacuum-packed ground coffee). A card carries identity, packaging, a concise
-  summary of the comparison and tracked vendors, and a link to `/product/<id>`. The full comparison
-  board is not rendered on the home route. A legacy board link that still carries
+  Lavazza Crema e Gusto vacuum-packed ground coffee). A card carries identity, packaging and one
+  compact line naming the tracked vendors/listings, plus a link to `/product/<id>`. The comparison
+  explanation and caveats are not repeated on the index; the full comparison board is not rendered on
+  the home route. A legacy board link that still carries
   `product`/`grams`/`dest` state is forwarded to the product page with that state intact; an obsolete
   `variant=` parameter is discarded, not forwarded into a second view.
 - **Product `/product/<id>` — decision page.** Directly loadable and shareable; the path plus
@@ -71,8 +72,10 @@ conditional)` label so its quantity/destination condition stays visible.
 
 ## Layout and components
 
-- A single centered column (max 1240 px) with a responsive control grid that reflows to one column on
-  mobile. No horizontal page scrolling at 1440 px or 390 px.
+- A single centered column (max 1240 px) with a responsive control grid that reflows on mobile; on
+  small screens the quantity group and the locality group each take the full row, so the selected
+  locality text is not clipped inside a half-width native `<select>` (verified at 390 px). No
+  horizontal page scrolling at 1440 px or 390 px.
 - **Offer cards** replace the former wide comparison table. The best known delivered offer carries a
   blue rule, the written tag "Best known delivered total" and its selection context; other ranked
   offers state their difference (`+₪x vs best delivered total`).
@@ -87,11 +90,15 @@ conditional)` label so its quantity/destination condition stays visible.
 - Conditions are one short list per offer (free-shipping threshold, minimum order, delivery area,
   alternative services, self-pickup, delivery time, cart-size limit) inside that offer's
   `Delivery options and conditions` disclosure. A coverage caveat is written once inside the same
-  disclosure; the card face keeps only a one-line amber qualification. A free-shipping threshold that
-  comes from an anonymous-cart observation (CoffeeMan's single/4-pack free condition from ₪231) is
-  written as observed and conditional — the shipping cell reads `Free (threshold met)`, the certainty
-  line adds `free condition cart-observed`, and the qualifier says the free delivery comes from an
-  anonymous-cart observation that must be confirmed at checkout. It is never merged into the published
+  disclosure; the card face keeps only a one-line amber qualification. A free condition that comes
+  from an anonymous-cart observation is written as observed and conditional. CoffeeMan's free
+  observations are exact cart conditions, not a threshold: when the current cart matches one, the
+  shipping cell reads `Free (observed for this cart)`, the certainty line adds
+  `free condition cart-observed`, and the qualifier names the exact observed cart and says it must be
+  confirmed at checkout; when the cart does not match (for example 3 kg of singles), the published base
+  rate is shown and, if the subtotal is at or above an observed free subtotal, the qualifier says free
+  delivery was observed only on specific carts. A published threshold (Pucks' free above ₪100) keeps
+  the `Free (threshold met)` wording. An observed free condition is never merged into the published
   rate label. Pickup-only offers live in their
   own collapsed disclosure and never compete in the delivered ranking; each is one compact row (vendor,
   pack/quantity, item subtotal, pickup fee and the written "Self-pickup, not delivery"), with the

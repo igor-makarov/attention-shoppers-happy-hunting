@@ -49,27 +49,36 @@ or lose the previous price evidence.
 `src/lib/policies.js` is the shared, versioned shipping-evidence model. A policy states the vendor,
 product/SKU scope, service, destination scope, the amount or free-shipping threshold rule (with the
 vendor's `above`/`at_least` wording preserved), the evidence URL and retrieval time, and a `reviewBy`
-date. `quoteBoard()` applies the evaluator at read time: an observation whose own shipping is unknown
-is enriched with a matching validated policy, while an observation that already carries a fresher
-amount, threshold or destination is never overwritten. A row already stamped by an **older version of
-the same policy** whose money/scope is identical gets its provenance refreshed at read time (newer
-version, retrieval time, coverage caveat and evidence note) so a validated coverage or re-check update
-reaches persisted offers promptly; a version that changes any amount is left for the next vendor
-refresh and never swapped in at read time. The evaluator is deterministic and refuses to
+date. A rule may also carry **exact cart-observed free conditions** (`rule.freeCartConditions`)
+instead of a threshold: each condition names the listing prefix and SKU, pack count, whole-pack units,
+ordered grams, the item subtotal before any discount, the paid item total, the named method, the
+destination evidence and its own observation time. `quoteBoard()` applies the evaluator at read time:
+an observation whose own shipping is unknown is enriched with a matching validated policy, while an
+observation that already carries a fresher amount, threshold or destination is never overwritten. A
+row already stamped by an **older version of the same policy** whose money/scope is identical gets its
+provenance refreshed at read time (newer version, retrieval time, coverage caveat and evidence note)
+so a validated coverage or re-check update reaches persisted offers promptly; a version that changes
+any amount is left for the next vendor refresh and never swapped in at read time. The one deliberate
+exception is a rule **correction** declared in the new policy's `supersedes`: when a row stamped by
+the same policy id still carries the exact superseded free threshold (amount, currency, semantics and
+origin), the evaluator removes that policy-derived threshold and applies the scoped conditions instead,
+so a scope error stops applying without waiting for a vendor refresh; the published base amount, the
+item price, stock and observation time are untouched. The evaluator is deterministic and refuses to
 guess: conflicting policies for the same scope stay `inconsistent`, a malformed policy is `invalid`,
 and a policy past its review date is `expired`, so the offer falls back to explicit unknown shipping
 instead of a stale unconditional rate. Enrichment never touches the observation's price, stock,
 `observedAt` or the refresh completion marker, so applying a newer shipping rule cannot claim a fresh
-vendor price/stock check; `policySummary()` exposes the rule version, observation time and review date
-through `/api/status`. Four validated policies are checked in: Pucks' ₪30/free-above-₪100 home-delivery
-rule v2 (its coverage caveat names the five selectable localities sampled in the estimator), CoffeeMan's published ₪25 single/4-pack rule with its cart-observed ₪15 distribution-center
-alternative and the cart-observed free condition (free home courier from the lowest observed free ₪231
-item subtotal; a ₪198 cart was charged ₪25, so the condition is stored at that observed scope with its
-own `observed_cart` origin and evidence and is never presented as a published threshold), CoffeeMan's
-₪20 checkout quote for the one-8-pack (2 kg) cart (which carries `maxTotalGrams: 2000` so the quote
-engine never stretches it to an unobserved larger cart and records no free threshold for this SKU), and
-Coffee4U's published ₪30 door-to-door rule with its ₪15 pickup-point alternative and the observed
-closed-locality-list coverage shape. Secondary delivery
+vendor price/stock check; `policySummary()` exposes the rule version, observation time, review date and
+scoped condition ids through `/api/status`. Four validated policies are checked in: Pucks'
+₪30/free-above-₪100 home-delivery rule v2 (its coverage caveat names the five selectable localities
+sampled in the estimator), CoffeeMan's published ₪25 single/4-pack rule **v3** with its cart-observed
+₪15 distribution-center alternative and the exact cart-observed free conditions (7 singles at ₪231,
+8 singles at ₪264 → ₪237.60 and 2 × 4-pack at ₪248; a ₪198 cart was charged ₪25 and the sampled carts
+are not monotone, so no threshold is recorded and a larger or repriced cart keeps the published base
+rate), CoffeeMan's ₪20 checkout quote for the one-8-pack (2 kg) cart (which carries
+`maxTotalGrams: 2000` so the quote engine never stretches it to an unobserved larger cart and records
+no free condition for this SKU), and Coffee4U's published ₪30 door-to-door rule with its ₪15
+pickup-point alternative and the observed closed-locality-list coverage shape. Secondary delivery
 methods are part of the policy representation: the evaluator adds them only when a stored row has
 none, and they never replace the ranked amount. Each policy is also the adapter's single source for
 the researched values it describes, so the parsed row, the read-time evaluator and the tests share one
@@ -78,6 +87,15 @@ parse time (`policyIsCurrent()`): once a policy is past its review date, its res
 policy-derived alternative are withheld, so a freshly parsed offer falls back to explicit unknown
 shipping rather than carrying a stale quote forward. Page-published rates (CoffeeMan's ₪25 and
 Coffee4U's ₪30/₪15) are parsed from the vendor page and stay independent of the policy window.
+
+The browser-research evidence schema (`scripts/research-workflow.mjs`, `browser-research-quote` v1)
+records the delivery method a shipping line belongs to: a recipe step that selects the method declares
+`confirmsService`, and a successful run stores `service` plus `serviceConfirmed: true`. A quoted record
+whose optional method step could not be confirmed stores `service: null`, `serviceConfirmed: false`
+and a qualification that the shipping line is not attributed to a named method; schema validation
+rejects both a claimed-but-unnamed method and an undisclosed unconfirmed one. The Coffee4U
+destination-extension records were backfilled from their recorded successful method step, and the
+Coffee4U policy names the method in `observedFor.method`.
 
 `src/lib/promotions.js` is the shared, validated model for published item-price promotions (quantity
 discounts). A promotion states the vendor, product/URL scope, the percent off, the activating
