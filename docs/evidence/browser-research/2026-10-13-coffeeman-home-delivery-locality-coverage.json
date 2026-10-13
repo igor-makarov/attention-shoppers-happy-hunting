@@ -1,0 +1,43 @@
+{
+  "kind": "browser-research-coverage",
+  "schemaVersion": 1,
+  "topic": "CoffeeMan/Amigo rendered anonymous checkout: home-delivery locality list and the five selectable destinations",
+  "date": "2026-10-13",
+  "windowUtc": "2026-10-13T08:13:00Z to 2026-10-13T08:18:00Z",
+  "method": "Interactive headless Google Chrome 154.0.8037.97 + ChromeDriver 154.0.8037.92 through scripts/browser-research.mjs, one live session kept across steps. The anonymous 1 × 250 g cart (₪33 item subtotal) was created from the real product page by invoking the page's own 'קנה עכשיו' control (the WebDriver native click was intercepted by a page overlay, so the element's own click() was used; no anti-bot control, challenge or access control was bypassed). The public checkout at https://www.coffeeman.co.il/checkout.asp was then read. Each selectable locality was chosen from the vendor's closed home-delivery locality select (#hfd_cities) and the published home-courier option (#delivery value 204, label 'משלוח לבית הלקוח עם שליח - 25.00 ₪') was selected; values were read back after each step. No order, payment, login, account creation or street address was involved. Cart/session identifiers, cookies and tokens are deliberately not recorded.",
+  "toolingLimitation": "The coding agent's file-read tool rejects PNG input ('reading images is not supported'), so no image-based visual claim is made. Every value below is backed by rendered DOM values captured in the same live session; no screenshot is claimed for this run.",
+  "productUrl": "https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
+  "entryUrl": "https://www.coffeeman.co.il/checkout.asp",
+  "cart": "1 × 250 g single pack, item subtotal ₪33.00 (minicart total, shipping not included in that field)",
+  "deliverySelect": {
+    "element": "#delivery",
+    "options": [
+      { "value": "", "label": "*בחר שיטת משלוח" },
+      { "value": "204", "label": "משלוח לבית הלקוח עם שליח - 25.00 ₪" },
+      { "value": "214", "label": "משלוח ממרכז חלוקה עד 5 ק\"ג - 15.00 ₪" },
+      { "value": "selfDelivery", "label": "(ברצוני לבצע איסוף עצמי להזמנה)" }
+    ],
+    "note": "The home-courier option carries the published ₪25.00 rate in its own label; the option list did not change with the selected locality."
+  },
+  "homeDeliveryLocalityList": {
+    "element": "#hfd_cities",
+    "optionsIncludingPlaceholder": 265,
+    "localities": 264,
+    "closedList": true,
+    "note": "The rendered checkout contains the home-delivery locality list the terms page refers to. It is a closed select with 264 localities plus a 'בחר עיר' placeholder; a value outside the list cannot be chosen."
+  },
+  "localityCoverage": [
+    { "locality": "תל אביב - יפו", "present": true, "selected": "תל אביב - יפו", "homeCourierSelected": "204", "publishedRateIls": 25, "hfdSpots": 53 },
+    { "locality": "ירושלים", "present": true, "selected": "ירושלים", "homeCourierSelected": "204", "publishedRateIls": 25, "hfdSpots": 48 },
+    { "locality": "חיפה", "present": true, "selected": "חיפה", "homeCourierSelected": "204", "publishedRateIls": 25, "hfdSpots": 24 },
+    { "locality": "באר שבע", "present": true, "selected": "באר שבע", "homeCourierSelected": "204", "publishedRateIls": 25, "hfdSpots": 20 },
+    { "locality": "אילת", "present": true, "selected": "אילת", "homeCourierSelected": "204", "publishedRateIls": 25, "hfdSpots": 7 }
+  ],
+  "observations": {
+    "destinationScope": "All five selectable destinations are on the checkout's closed home-delivery list, so the published ₪25 home-courier option is selectable for each of them. 'Elsewhere in Israel' is not a locality in the list; a destination outside the 264 localities cannot select home delivery.",
+    "hfdSpots": "After a locality was selected, #hfd_spots listed per-locality pickup/distribution points (53/48/24/20/7 including the placeholder), consistent with the E-post distribution-point/locker option mentioned next to the method list.",
+    "recipeRegression": "The checked-in CoffeeMan recipe could not rebuild the cart in this session: both add-to-cart clickText steps failed (the live control is now an anchor labelled 'קנה עכשיו' whose native click is intercepted by an overlay), so the recipe returned blocked with no shipping line. The manual session built the same anonymous cart through the page's own control and completed the coverage checks. This is a tooling regression to fix in the recipe, not a vendor restriction."
+  },
+  "conclusion": "CoffeeMan's home-delivery coverage is no longer an unpublished list: the rendered checkout exposes a closed 264-locality list, and every selectable destination on the site is on it with the published ₪25 home-courier option selectable. The policy caveat can state the observed list shape and the verified destinations while keeping the checkout confirmation requirement for any other destination.",
+  "policyImpact": "Provenance-only update of the two CoffeeMan policies (money/scope unchanged: ₪25 published base rate, ₪15 distribution-center alternative, ₪20 one-8-pack quote): the shared destination caveat gains the observed 264-locality closed-list shape and the five verified destinations, and the structured observed coverage travels to already-stamped persisted rows at read time."
+}

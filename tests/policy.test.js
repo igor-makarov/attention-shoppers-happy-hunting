@@ -213,7 +213,7 @@ test('the checked-in shipping policies are structurally valid', () => {
   assert.equal(singleFour.origin, 'published', 'the published ₪25 rate is not relabelled as a cart quote');
   assert.equal(singleFour.certainty, 'verified');
   assert.equal(singleFour.rule.amount.amount, 25);
-  assert.equal(singleFour.version, 3, 'the scoped cart conditions bump the policy version');
+  assert.equal(singleFour.version, 4, 'the coverage provenance extension bumps the policy version');
   assert.equal(singleFour.rule.freeThreshold, null, 'the sampled carts do not establish a monotone threshold');
   assert.deepEqual(singleFour.rule.freeCartConditions.map(condition => condition.id), ['singles-7', 'singles-8', 'fourpack-2']);
   const sevenSingles = singleFour.rule.freeCartConditions.find(condition => condition.id === 'singles-7');
@@ -257,13 +257,13 @@ test('an old persisted CoffeeMan single-pack offer gains the published rule and 
   assert.match(board.best.shipping.alternatives[0].note, /Free home courier was observed only on the exact/);
   assert.match(board.best.shipping.coverageCaveat, /home-delivery list/);
   assert.equal(board.best.shipping.policy.id, 'coffeeman-single-4pack-il-home-delivery');
-  assert.equal(board.best.shipping.policy.version, 3);
+  assert.equal(board.best.shipping.policy.version, 4);
   assert.equal(board.best.shipping.freeThreshold, null, 'the old row never gains a monotone threshold');
   assert.deepEqual(board.best.shipping.freeCartConditions.map(condition => condition.id), ['singles-7', 'singles-8', 'fourpack-2'], 'the old row gains the scoped observed carts at read time');
   assert.equal(board.best.shipping.freeCondition, null, 'a 500 g cart matches no observed free cart');
   assert.equal(board.best.totalIls, 91, '2 × ₪33 item + the published ₪25 courier rate (no observed cart matches)');
   assert.equal(board.best.ilsPerKg, 182);
-  assert.match(board.best.shipping.note, /validated policy coffeeman-single-4pack-il-home-delivery v3/);
+  assert.match(board.best.shipping.note, /validated policy coffeeman-single-4pack-il-home-delivery v4/);
   assert.deepEqual(stored, storedSnapshot, 'the stored observation is never mutated');
 });
 
@@ -457,8 +457,8 @@ test('a persisted CoffeeMan row stamped with the superseded v2 threshold migrate
   assert.equal(board.best.shipping.freeThreshold, null);
   assert.equal(board.best.shipping.freeThresholdOrigin, null);
   assert.deepEqual(board.best.shipping.freeCartConditions.map(condition => condition.id), ['singles-7', 'singles-8', 'fourpack-2']);
-  assert.equal(board.best.shipping.policy.version, 3);
-  assert.match(board.best.shipping.note, /superseded by policy coffeeman-single-4pack-il-home-delivery v3/);
+  assert.equal(board.best.shipping.policy.version, 4);
+  assert.match(board.best.shipping.note, /superseded by policy coffeeman-single-4pack-il-home-delivery v4/);
   assert.equal(board.best.observedAt, FRESH, 'the item observation time is untouched');
   assert.equal(board.best.itemPrice.amount, 33, 'the item price is untouched');
   assert.deepEqual(stored, storedSnapshot, 'the stored observation is never mutated');
@@ -528,12 +528,12 @@ test('an old persisted CoffeeMan 8-pack offer gains the researched cart quote at
   assert.equal(board.best.shipping.serviceLabel, 'Home delivery');
   assert.equal(board.best.shipping.maxTotalGrams, 2000, 'the quote stays limited to the 2 kg cart it was observed on');
   assert.equal(board.best.shipping.policy.id, 'coffeeman-8pack-il-cart-quote');
-  assert.equal(board.best.shipping.policy.version, 1);
+  assert.equal(board.best.shipping.policy.version, 2);
   assert.match(board.best.shipping.coverageCaveat, /home-delivery list/, 'the enriched rate keeps the locality-list caveat');
   assert.equal(board.best.labels.some(label => /Delivery coverage caveat/.test(label)), true);
   assert.equal(board.best.totalIls, 260, '₪240 item + ₪20 observed courier quote for the one-8-pack cart');
   assert.equal(board.best.ilsPerKg, 130);
-  assert.match(board.best.shipping.note, /validated policy coffeeman-8pack-il-cart-quote v1/);
+  assert.match(board.best.shipping.note, /validated policy coffeeman-8pack-il-cart-quote v2/);
   assert.deepEqual(stored, storedSnapshot, 'the stored observation is never mutated');
 
   // Two 8-packs (4 kg) is a cart the estimator never quoted: the offer stays

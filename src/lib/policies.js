@@ -28,11 +28,20 @@
 
 const PRODUCT_ID = 'lavazza-crema-e-gusto-vacuum-ground';
 
-// Amigo's terms make home delivery subject to an unpublished locality list;
+// Amigo's terms make home delivery subject to a locality list. The rendered
+// anonymous checkout exposes that list as a closed select (264 localities,
+// observed 2026-10-13) and every selectable destination on this site is on it;
 // both CoffeeMan policies carry the same structured caveat.
 const AMIGO_HOME_DELIVERY_CAVEAT =
-  'Home delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout.';
+  'Home delivery is limited to the localities on Amigo’s home-delivery list. The rendered anonymous checkout exposes that list as a closed 264-locality select (observed 2026-10-13), and every selectable destination on this site is on it (Tel Aviv–Yafo, Jerusalem, Haifa, Be’er Sheva, Eilat), each with the published ₪25 home-courier option selectable; a destination outside the list cannot use home delivery. Confirm the destination at checkout.';
 const AMIGO_CAVEAT_SOURCE = 'https://www.coffeeman.co.il/page/%D7%AA%D7%A0%D7%90%D7%99-%D7%A9%D7%99%D7%9E%D7%95%D7%A9';
+const AMIGO_HOME_DELIVERY_OBSERVED = {
+  homeDeliveryLocalities: 264,
+  verifiedLocalities: ['תל אביב - יפו', 'ירושלים', 'חיפה', 'באר שבע', 'אילת'],
+  observedAt: '2026-10-13T08:18:00Z',
+  entryUrl: 'https://www.coffeeman.co.il/checkout.asp',
+  evidence: 'docs/evidence/browser-research/2026-10-13-coffeeman-home-delivery-locality-coverage.json'
+};
 
 /**
  * Pucks home-delivery rule, observed in the anonymous checkout estimator on
@@ -104,7 +113,7 @@ export const pucksHomeDeliveryPolicy = {
  */
 export const coffeemanEightPackPolicy = {
   id: 'coffeeman-8pack-il-cart-quote',
-  version: 1,
+  version: 2,
   vendorId: 'coffeeman',
   productIds: [PRODUCT_ID],
   itemUrlPrefixes: ['https://www.coffeeman.co.il/product/8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico'],
@@ -129,12 +138,13 @@ export const coffeemanEightPackPolicy = {
     scope: 'country',
     country: 'IL',
     caveat: AMIGO_HOME_DELIVERY_CAVEAT,
-    caveatSource: AMIGO_CAVEAT_SOURCE
+    caveatSource: AMIGO_CAVEAT_SOURCE,
+    observed: { ...AMIGO_HOME_DELIVERY_OBSERVED, verifiedLocalities: [...AMIGO_HOME_DELIVERY_OBSERVED.verifiedLocalities] }
   },
   evidence: {
     url: 'https://www.coffeeman.co.il/checkout.asp',
-    retrievedAt: '2026-10-12T20:07:00Z',
-    note: 'Anonymous checkout quote for one 8 × 250 g multipack (2 kg) on 2026-10-12, re-checked in a fresh cart at 20:07 UTC: ₪20 home courier and ₪20 distribution-center delivery up to 5 kg; self-pickup free. The product page publishes no courier price, and carts above 2 kg are not verified.'
+    retrievedAt: '2026-10-13T08:18:00Z',
+    note: 'Anonymous checkout quote for one 8 × 250 g multipack (2 kg) on 2026-10-12, re-checked in a fresh cart at 20:07 UTC: ₪20 home courier and ₪20 distribution-center delivery up to 5 kg; self-pickup free. The product page publishes no courier price, and carts above 2 kg are not verified. The checkout’s closed home-delivery locality list was read on 2026-10-13 (264 localities, all five selectable destinations present, ₪25 home-courier option selectable for each; see docs/evidence/browser-research/2026-10-13-coffeeman-home-delivery-locality-coverage.json).'
   },
   observedFor: {
     carts: ['1 × (8 × 250 g) = 2 kg'],
@@ -174,7 +184,7 @@ export const coffeemanEightPackPolicy = {
  */
 export const coffeemanSingleFourPackPolicy = {
   id: 'coffeeman-single-4pack-il-home-delivery',
-  version: 3,
+  version: 4,
   vendorId: 'coffeeman',
   productIds: [PRODUCT_ID],
   itemUrlPrefixes: [
@@ -272,12 +282,13 @@ export const coffeemanSingleFourPackPolicy = {
     scope: 'country',
     country: 'IL',
     caveat: AMIGO_HOME_DELIVERY_CAVEAT,
-    caveatSource: AMIGO_CAVEAT_SOURCE
+    caveatSource: AMIGO_CAVEAT_SOURCE,
+    observed: { ...AMIGO_HOME_DELIVERY_OBSERVED, verifiedLocalities: [...AMIGO_HOME_DELIVERY_OBSERVED.verifiedLocalities] }
   },
   evidence: {
     url: 'https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico',
-    retrievedAt: '2026-10-12T20:04:00Z',
-    note: 'The ₪25 home-courier rate is published on the single 250 g and 4 × 250 g product pages. The ₪15 distribution-center alternative and the exact free-cart observations (charged at ₪198, free on the 7-singles, 8-singles and two-4-pack carts) were observed in anonymous checkout carts on 2026-10-12; see docs/evidence/browser-research/2026-10-12-coffeeman-cart-single-4pack.json.'
+    retrievedAt: '2026-10-13T08:18:00Z',
+    note: 'The ₪25 home-courier rate is published on the single 250 g and 4 × 250 g product pages. The ₪15 distribution-center alternative and the exact free-cart observations (charged at ₪198, free on the 7-singles, 8-singles and two-4-pack carts) were observed in anonymous checkout carts on 2026-10-12; see docs/evidence/browser-research/2026-10-12-coffeeman-cart-single-4pack.json. The checkout’s closed home-delivery locality list was read on 2026-10-13 (264 localities, all five selectable destinations present and the ₪25 option selectable for each; see docs/evidence/browser-research/2026-10-13-coffeeman-home-delivery-locality-coverage.json).'
   },
   observedFor: {
     carts: ['2 × 250 g = 500 g', '4 × 250 g = 1 kg', '6 × 250 g = 1.5 kg (₪198, courier charged)', '7 × 250 g = 1.75 kg (₪231, free)', '8 × 250 g = 2 kg (₪264 → ₪237.60, free)', '2 × (4 × 250 g) = 2 kg (₪248, free)'],
