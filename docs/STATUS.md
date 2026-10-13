@@ -5,7 +5,7 @@ there is no variant selector, menu entry, warning, "other variant" count or vari
 UI, and every eligible tracked Crema e Gusto vacuum-packed ground listing — including the Coffee4U listing
 whose blend wording is not stated — is compared in one board for the selected quantity, locality and
 delivery method. The Canton Zürich product index + dedicated product page, the browser-researched shipping
-policies and the progressive-disclosure layout are validated locally (153/153 tests, 88/88 offline and 85/85
+policies and the progressive-disclosure layout are validated locally (153/153 tests, 89/89 offline and 85/85
 production browser checks) and against the deployed site: the four-policy build is live (production probe 25/25
 at 00:19 UTC, live browser QA 85/85 at 00:28 UTC with zero console errors), the Pucks free-above-₪100 rule
 is applied to the old persisted store at read time, and obsolete `variant=` URLs resolve to that one board.
@@ -1763,10 +1763,12 @@ duplication the correction forbids. This iteration:
   row plus its stable-key replacement keep the previous price and the failure marker on the visible
   row); `wrangler deploy --dry-run` builds the bundle (120.39 KiB, gzip 30.04 KiB; bindings `BOARD` +
   `ASSETS`).
-- `npm run qa:browser` (offline fixtures) — **88/88** checks, zero console errors; the home→product
+- `npm run qa:browser` (offline fixtures) — **89/89** checks, zero console errors; the home→product
   navigation, unified comparison with Coffee4U, disclosures, quantity/destination changes, named vendors,
-  honest unknowns and mobile first-viewport money values all still pass. Evidence:
-  `docs/evidence/browser-qa-fixtures-20261013T0048Z.json`.
+  honest unknowns and mobile first-viewport money values all still pass, and a new rendered check proves
+  one card per vendor listing URL while the fixture store deliberately holds a legacy blend-keyed Pucks
+  row next to its stable-key twin. Evidence:
+  `docs/evidence/browser-qa-fixtures-20261013T0058Z.json`.
 - Fresh-store `wrangler dev` initial refresh (00:48:48.742Z → 00:49:06.784Z, live vendor fetches, no
   browser opened for the refresh): all three vendors succeeded, five observations stored, and the keys
   are now stable (`pucks:Lav69:ground:250g:x1`, `coffeeman:930333:ground:250g:x1`, …). The board ranks
@@ -1779,7 +1781,12 @@ duplication the correction forbids. This iteration:
   (₪30, stable key), and the pickup list stayed at 4 rows. Evidence:
   `docs/evidence/local-old-store-dedupe-20261013T0052Z.json`.
 - `npm run qa:browser -- http://127.0.0.1:8789` against that Worker (legacy row present) — **84/84**
-  checks with zero console errors. Evidence: `docs/evidence/browser-qa-live-20261013T0050Z.json`.
+  checks with zero console errors (the same run after the new duplicate check was added to the harness
+  passed **85/85** against the clean local store). Evidence:
+  `docs/evidence/browser-qa-live-20261013T0050Z.json`, `docs/evidence/browser-qa-live-20261013T0055Z.json`.
+- `scripts/qa-server.mjs` now seeds the QA-only legacy blend-keyed row in the fixture store, and
+  `tests/qa-server.test.js` asserts the six stored rows collapse to five ranked offers with distinct
+  listing URLs; `scripts/browser-qa.mjs` adds the rendered one-card-per-listing-URL check.
 - Docs: `docs/ARCHITECTURE.md` documents the offer identity and the read-time collapse;
   `docs/STATUS.md`'s current-state section now states precisely that only the board-level
   `variantId`/`excludedByVariant` fields are gone while per-offer `product.variantId`/`variantLabel`
