@@ -307,11 +307,10 @@ try {
       return Boolean(card);
     })()`);
     await delay(300);
-    const liveFailingShot = await elementScreenshot(wd,
-      `(() => [...document.querySelectorAll('#compare-other-offers .offer')].find(node => node.querySelector('.qualifier--failure')) ?? null)()`,
-      'product-live-failing-offer-card.png');
-    await screenshot(wd, 'product-live-failing-offer-viewport.png');
-    await setDetailsOpen(wd, '#compare-other-offers', false);
+    const liveFailingQuote = api500.ranked.find(quote => quote.lastAttemptFailed) ?? null;
+    // Read the card's rendered text while the disclosure is open (innerText of a
+    // closed details element is empty), so the evidence names the real vendor
+    // and the money values the cropped screenshot contains.
     const liveFailingText = await evaluate(wd, `(() => {
       const card = [...document.querySelectorAll('#compare-other-offers .offer')].find(node => node.querySelector('.qualifier--failure'));
       return card ? {
@@ -322,8 +321,16 @@ try {
         failure: card.querySelector('.qualifier--failure')?.textContent.trim() ?? null
       } : null;
     })()`);
+    const liveFailingShot = await elementScreenshot(wd,
+      `(() => [...document.querySelectorAll('#compare-other-offers .offer')].find(node => node.querySelector('.qualifier--failure')) ?? null)()`,
+      'product-live-failing-offer-card.png');
+    await screenshot(wd, 'product-live-failing-offer-viewport.png');
+    await setDetailsOpen(wd, '#compare-other-offers', false);
     check('live: the real failing ranked offer is saved as a cropped readable view with its warning',
-      liveFailingShot === 'product-live-failing-offer-card.png' && /Last check failed/.test(liveFailingText?.failure ?? ''),
+      liveFailingShot === 'product-live-failing-offer-card.png'
+        && /Last check failed/.test(liveFailingText?.failure ?? '')
+        && (liveFailingQuote == null || (liveFailingText?.vendor ?? '').includes(liveFailingQuote.vendor.name))
+        && (liveFailingQuote == null || liveFailingText?.totals?.[2] === ils(liveFailingQuote.totalIls)),
       JSON.stringify(liveFailingText));
   }
 

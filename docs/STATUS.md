@@ -2118,7 +2118,10 @@ so the affected offer could not be inspected in a cropped, readable view.
   and requires 3:1 (essential UI), instead of only asserting the token color.
 - New `elementScreenshot()` captures the affected offer cards cropped to the element: the 500 g best card
   (desktop and mobile), the 2 kg CoffeeMan winner card and the 500 g CoffeeMan comparison card in the
-  failed-check state, plus the home index card.
+  failed-check state, plus the home index card. When the live board itself has a ranked offer whose last
+  check failed (the deployed store's CoffeeMan HTTP 403 rows), the live-only QA block now also opens the
+  comparison disclosure and saves that real failing offer as a cropped, readable view with its rendered
+  vendor, packs/grams, money values and warning.
 
 **Verified locally (2026-10-13 03:16-03:25 UTC).**
 
@@ -2136,6 +2139,14 @@ so the affected offer could not be inspected in a cropped, readable view.
   **97/97** checks, zero console errors, and the live board still ranks five offers at 500 g to Tel Aviv
   (Pucks ₪90.00, CoffeeMan singles ₪91.00, Coffee4U ₪106.00, CoffeeMan 4-pack ₪149.00, CoffeeMan 8-pack
   ₪260.00).
+- `npm run qa:browser -- https://attention-shoppers.igormaka.workers.dev` — **99/99** checks against the
+  deployed site with zero console errors (read-only public GETs, no deploy, no Cloudflare action). The
+  live-only block found the real production failed state (three ranked CoffeeMan rows with
+  `lastAttemptFailed` / `HTTP 403` from the 00:17 UTC tick, last known-good observations still ranked)
+  and saved the 500 g CoffeeMan card as a cropped view: CoffeeMan (אמיגו) IN STOCK (OBSERVED),
+  2 × 250 g packs = 500 g, ₪66.00 + ₪25.00 = ₪91.00, Home delivery, with the amber failure note. The
+  production contrast walk also passed in every state (lowest 4.61:1). Evidence:
+  `docs/evidence/browser-qa-production-20261013T0331Z.json`.
 - Evidence: `docs/evidence/visual-review/2026-10-13-rendered-contrast-and-offer-views.json` with the
   per-state checked counts/minimum ratios and the cropped card screenshots
   (`product-2kg-winner-card-mobile-20261013T0324Z.png`, `product-500g-coffeeman-card-mobile-20261013T0324Z.png`,

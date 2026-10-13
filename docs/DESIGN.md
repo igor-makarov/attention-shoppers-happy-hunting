@@ -136,8 +136,10 @@ conditional)` label so its quantity/destination condition stays visible.
   horizontal overflow, no emoji and no `[object HTML…]` artifacts.
 - Readable offer views: the affected offers are also saved as element-level screenshots (cropped to the
   card) in addition to the full-page captures — the 500 g best card, the 2 kg CoffeeMan winner and the
-  500 g CoffeeMan comparison card in the real last-check-failed state. See
-  `docs/evidence/visual-review/2026-10-13-rendered-contrast-and-offer-views.json`.
+  500 g CoffeeMan comparison card in the real last-check-failed state. A live run against the deployed
+  site additionally captures the actual failing ranked offer from the production store (CoffeeMan's
+  HTTP 403 rows) as a cropped view; that run passed **99/99** checks with zero console errors
+  (2026-10-13 03:31 UTC). See `docs/evidence/visual-review/2026-10-13-rendered-contrast-and-offer-views.json`.
 - First mobile screen (390×844 window; measured viewport 390×701 in headless Chrome): the best card
   starts at y≈389, item subtotal and shipping end at y≈629, the named method ends at y≈565 and the
   delivered total ends at y≈678 — all inside the viewport before scrolling. The product page is

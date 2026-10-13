@@ -20,7 +20,8 @@
     "product-500g-best-card-desktop-20261013T0324Z.png (1192×369, the best offer at 500 g: vendor, packs/grams, item subtotal, named method/charge, delivered total)",
     "product-500g-best-card-mobile-20261013T0324Z.png (343×416, same card at 390 px)",
     "product-2kg-winner-card-mobile-20261013T0324Z.png (343×416, the 2 kg CoffeeMan winner with the real last-check-failed state: ₪237.60 item, Free (observed for this cart), Home delivery, ₪237.60 total, amber failure note)",
-    "product-500g-coffeeman-card-mobile-20261013T0324Z.png (341×546, the 500 g CoffeeMan comparison card with the same failed-check state: ₪66.00 + ₪25.00 = ₪91.00)"
+    "product-500g-coffeeman-card-mobile-20261013T0324Z.png (341×546, the 500 g CoffeeMan comparison card with the same failed-check state: ₪66.00 + ₪25.00 = ₪91.00)",
+    "product-live-failing-offer-card-20261013T0331Z.png (1190×400, the deployed site's real failing CoffeeMan offer at 500 g, cropped from the live production comparison: vendor CoffeeMan (אמיגו) IN STOCK (OBSERVED), 2 × 250 g packs = 500 g, ₪66.00 + ₪25.00 = ₪91.00, Home delivery, HTTP 403 last-attempt failure note)"
   ],
   "fullPageScreenshots": [
     "home-desktop-1440-20261013T0324Z.png",
@@ -35,10 +36,12 @@
     "bestOffer500g": "Pucks: item ₪60.00, shipping ₪30.00, method Home delivery, certainty Checkout rate (observed, conditional), delivered total ₪90.00",
     "homeCard": "ground coffee · vacuum brick · 250 g packs and multipacks :: 3 vendors · 5 listings: CoffeeMan (אמיגו), Pucks (פאקס), Coffee4U (קופי פור יו)",
     "localityControl": "Delivery locality → Israel; selected text Tel Aviv–Yafo · 6100000; control width 343 px on a 390 px viewport, label one line (height 23 px)",
-    "liveBoard": "fresh local Worker refresh at 03:23:56Z (5 ranked offers): Pucks ₪90.00, CoffeeMan singles ₪91.00, Coffee4U ₪106.00, CoffeeMan 4-pack ₪149.00, CoffeeMan 8-pack ₪260.00 at 500 g to Tel Aviv"
+    "liveBoard": "fresh local Worker refresh at 03:23:56Z (5 ranked offers): Pucks ₪90.00, CoffeeMan singles ₪91.00, Coffee4U ₪106.00, CoffeeMan 4-pack ₪149.00, CoffeeMan 8-pack ₪260.00 at 500 g to Tel Aviv",
+    "productionFailedOffer": "deployed site at 03:31Z: the live-only QA block found the three ranked CoffeeMan rows with lastAttemptFailed (HTTP 403 from the 00:17 UTC tick, still the last known-good observations) and captured the 500 g card as a cropped view: vendor CoffeeMan (אמיגו) IN STOCK (OBSERVED), pack 250 g pack · 2 × 250 g packs = 500 g, totals ₪66.00 / ₪25.00 / ₪91.00, method Home delivery, failure note Last check failed — showing the last successful observation. Production QA passed 99/99 with zero console errors (evidence docs/evidence/browser-qa-production-20261013T0331Z.json)."
   },
   "imageReviewLimitation": "The coding agent file-read tool still rejects PNG input, so the saved screenshots were not machine-inspected as images. The coarse character/pixel maps are layout/colour evidence only; every label and money value above is corroborated by the rendered DOM text, bounding rectangles and the API in the same QA session, and the new composited-contrast walk is a rendered-value check rather than an image reading.",
   "qaEvidence": [
-    ".shurik-local/qa/report.json (live local Worker, 97/97; report committed context: docs/STATUS.md iteration 3-87)"
+    ".shurik-local/qa/report.json (live local Worker, 97/97; report committed context: docs/STATUS.md iteration 3-87)",
+    "docs/evidence/browser-qa-production-20261013T0331Z.json (deployed site, 99/99 with zero console errors, including the live cropped failing-offer capture)"
   ]
 }
