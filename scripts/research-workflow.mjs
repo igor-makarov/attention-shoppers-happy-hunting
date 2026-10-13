@@ -537,7 +537,8 @@ function methodLabelKey(label) {
 }
 
 // Query-string keys vendors use to carry a listing SKU in a cart-line link.
-const LINE_SKU_QUERY_KEYS = ['pid', 'sku', 'product_id', 'productid', 'item_id', 'itemid'];
+// Internal cart-row/item identifiers are deliberately not listing identity.
+const LINE_SKU_QUERY_KEYS = ['pid', 'sku', 'product_id', 'productid'];
 
 /**
  * The listing identity a recipe declares: the tracked SKU, how many single
@@ -576,7 +577,7 @@ export function readLineSku(line) {
     }
   }
   for (const [name, value] of Object.entries(line?.attrs ?? {})) {
-    if (value && /sku|pid|product.?id|item.?id/i.test(name)) candidates.push(String(value));
+    if (value && /sku|pid|product.?id/i.test(name)) candidates.push(String(value));
   }
   const unique = [...new Set(candidates)];
   return { sku: unique.length === 1 ? unique[0] : null, candidates: unique };

@@ -553,9 +553,9 @@ function createResearchDriver(session) {
             const links = [...node.querySelectorAll('a[href]')].map(a => a.getAttribute('href')).filter(Boolean).slice(0, 8);
             const quantity = readQuantity(node);
             const attrs = {};
-            const attrNodes = [node, ...node.querySelectorAll('[data-sku],[data-pid],[data-product-id],[data-item-id]')].slice(0, 8);
+            const attrNodes = [node, ...node.querySelectorAll('[data-sku],[data-pid],[data-product-id]')].slice(0, 8);
             for (const attrNode of attrNodes) {
-              for (const name of ['data-sku', 'data-pid', 'data-product-id', 'data-item-id']) {
+              for (const name of ['data-sku', 'data-pid', 'data-product-id']) {
                 const value = attrNode.getAttribute?.(name);
                 if (value) attrs[name] = String(value).slice(0, 80);
               }

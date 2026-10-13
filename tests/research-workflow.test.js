@@ -669,6 +669,14 @@ test('the cart identity matcher verifies the rendered listing, never the declare
   const declaredOnly = matchCartIdentity({ recipe: { ...RECIPES.coffeeman, sku: null }, lines: [singleCartLine()] });
   assert.equal(declaredOnly.verified, false);
   assert.ok(declaredOnly.reasons.some(reason => /does not declare a tracked listing SKU/.test(reason)));
+
+  // A data attribute can carry the listing SKU, but an internal cart-item id is
+  // not listing identity and must never be matched as if it were.
+  const attrSku = matchCartIdentity({ recipe: RECIPES.coffeeman, lines: [singleCartLine({ links: [], attrs: { 'data-sku': '930333' } })] });
+  assert.equal(attrSku.verified, true);
+  const internalIdOnly = matchCartIdentity({ recipe: RECIPES.coffeeman, lines: [singleCartLine({ links: ['https://www.coffeeman.co.il/cart.asp'], attrs: { 'data-item-id': '1545666' } })] });
+  assert.equal(internalIdOnly.verified, false);
+  assert.ok(internalIdOnly.reasons.some(reason => /unambiguous listing SKU/.test(reason)));
 });
 
 test('the 8-pack recipe verifies its own multipack line and rejects the single line', () => {
