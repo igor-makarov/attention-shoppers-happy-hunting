@@ -1,0 +1,40 @@
+{
+  "kind": "defect",
+  "foundAt": "2026-10-12T23:58:00Z",
+  "iteration": "3-79",
+  "title": "The stale-refresh sentence reused the nowrap badge style and stretched the 390 px page",
+  "where": "production (https://attention-shoppers.igormaka.workers.dev), mobile 390×844, product page at 500 g",
+  "trigger": "The persisted store crossed the 8 h REFRESH_STALE_MS threshold at about 23:52 UTC, so renderFooterStatus() rendered the amber sentence “Scheduled refresh overdue by 8.1 h — prices may be out of date.” for the first time in the deployed build.",
+  "evidence": {
+    "observedBy": "npm run qa:browser -- https://attention-shoppers.igormaka.workers.dev (79/81; two failures)",
+    "failingChecks": [
+      "mobile: the best card fits the viewport without horizontal scrolling — {\"card\":{\"bottom\":836,\"left\":16,\"right\":359,\"top\":302},\"overflow\":true}",
+      "promotion: the offer details name the published promotion and keep the vendor wording — the production fallback line reads “(multipacks excluded, applied from the validated published-rule fallback)”, which the QA regex did not allow"
+    ],
+    "overflowDiagnostic": {
+      "script": "one-off headless-Chrome WebDriver evaluation against the production URL",
+      "viewportWidth": 390,
+      "documentScrollWidth": 486,
+      "offender": {
+        "tag": "DIV",
+        "className": "status status--stale",
+        "left": 16,
+        "right": 486,
+        "width": 470,
+        "text": "Scheduled refresh overdue by 8.1 h — prices may be out of date."
+      }
+    },
+    "rootCause": "public/style.css .status sets white-space: nowrap for short badges (IN STOCK, checkout certainty). public/product.js reused the same classes for the sentence-level freshness warning, so the sentence could not wrap."
+  },
+  "fix": {
+    "css": "Added a .status--note modifier (display: block; white-space: normal; text-transform: none; letter-spacing: normal) for sentence-level statuses; the badge styling stays nowrap.",
+    "js": "public/product.js renderFooterStatus() now uses 'status status--stale status--note' for the stale-refresh sentence and the failing-sources line.",
+    "qa": "Added a fixture-QA check that loads the stale terms-server board at 390×844 and asserts the sentence has white-space: normal, its right edge fits the viewport and document scrollWidth does not exceed it; also relaxed the promotion-details regex to allow the documented fallback suffix.",
+    "verifiedLocally": {
+      "offlineFixtures": "86/86 checks pass (docs/evidence/browser-qa-fixtures-20261013T0004Z.json), including 'mobile: the stale-refresh sentence wraps inside the viewport instead of stretching the page' — {found:true, innerWidth:390, right:359, scrollWidth:375, whiteSpace:'normal'}",
+      "liveLocalWorker": "82/82 checks pass (docs/evidence/browser-qa-live-20261013T0002Z.json)"
+    }
+  },
+  "productionRecheck": "PASS — after the fix deployed through main-push Workers Builds, production browser QA re-run at 2026-10-13T00:04Z passed 82/82 with zero console errors: 'mobile: the stale-refresh sentence wraps inside the viewport instead of stretching the page' {found:true, innerWidth:390, right:359, scrollWidth:375, whiteSpace:'normal'} and 'mobile: the best card fits the viewport without horizontal scrolling' {overflow:false}. Evidence: docs/evidence/browser-qa-production-20261013T0004Z.json and docs/evidence/visual-review/production-*-20261013T0004Z.png.",
+  "note": "This defect was hidden until the store became stale; the fixture QA had not exercised the stale sentence at mobile width. It is unrelated to the promotion values, which rendered correctly in production (₪237.60 item subtotal, ₪262.60 delivered total at 2 kg)."
+}

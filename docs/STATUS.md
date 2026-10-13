@@ -13,7 +13,11 @@ Iteration 3-79 adds the vendor's **published quantity promotion** (CoffeeMan 10%
 item subtotal from a ₪250 subtotal, multipacks excluded), parsed from the product-page banner each
 refresh and applied to the item subtotal with the vendor's own wording disclosed: the 8 × 250 g singles
 offer at a 2 kg target now reads ₪237.60 + ₪25 = ₪262.60 instead of ₪264 + ₪25 = ₪289, while the
-multipacks stay undiscounted and no shipping discount is inferred. Production's stored vendor snapshot was last refreshed 15:52 UTC; the **00:17 UTC cron tick on 2026-10-13**
+multipacks stay undiscounted and no shipping discount is inferred. Production already serves the
+promotion (read-only probe 25/25 at 00:00 UTC; the old persisted store gained the discount at read time
+without a fresh vendor check), and a stale-refresh mobile overflow defect that production browser QA
+surfaced when the store crossed the 8 h stale threshold is fixed and live (production QA 82/82 at
+00:04 UTC after the fix deployed; offline 86/86, live local 82/82). Production's stored vendor snapshot was last refreshed 15:52 UTC; the **00:17 UTC cron tick on 2026-10-13**
 is expected to replace it (the 18:17 tick skipped under the phase lock), after which the read-only probe
 should be re-run.**
 The Worker implements the self-updating board for exactly one product line — **Lavazza Crema e Gusto
@@ -1569,13 +1573,13 @@ offer at a 2 kg target.
 
 **Verified locally (2026-10-12/13 UTC).**
 
-- `npm run verify` — **148/148** `node:test` cases pass (up from 136); `wrangler deploy --dry-run`
+- `npm run verify` — **149/149** `node:test` cases pass (up from 136); `wrangler deploy --dry-run`
   builds the bundle (118.94 KiB, gzip 29.74 KiB; bindings `BOARD` + `ASSETS`). New tests cover the parsed
   banner, the ignored gift banner, validation failures, the ₪250 boundary (₪231 no discount, ₪264
   discounted), the multipack exclusion, a parsed empty list never being fallback-enriched, an expired
   fallback, an old persisted CoffeeMan row gaining the discount at read time, `promotions: null` keeping
-  raw evidence, the board arithmetic (8 singles ₪237.60 + ₪25 = ₪262.60 vs the 8-pack ₪260.00) and the
-  rendered card/detail labels.
+  raw evidence, the board arithmetic (8 singles ₪237.60 + ₪25 = ₪262.60 vs the 8-pack ₪260.00), the
+  `/api/status` promotion summary and the rendered card/detail labels.
 - `npm run cron:offline` — 6 bounded requests, all three vendors saved, five offers.
 - `npm run check:sources` (live, 23:53 UTC) — all five listings pass with unchanged prices (CoffeeMan
   ₪33/₪124/₪240; Pucks ₪30; Coffee4U ₪38). The live CoffeeMan single row now carries the parsed
@@ -1596,8 +1600,39 @@ offer at a 2 kg target.
   so no image-based claim is made; labels/amounts are corroborated by rendered DOM text and the API in
   the same sessions.
 
-**Next step:** the new build must reach production through the main-push Workers Builds path; then the
-**00:17 UTC cron tick on 2026-10-13** should replace the 15:52 production store snapshot. Re-run
-`npm run probe:production` afterwards to confirm fresh vendor observations, the four shipping policies
-and (once the build is deployed) the promotion summary in `/api/status`, and continue within Crema e
-Gusto coverage, shipping evidence, freshness and comparison quality.
+**Production verification (read-only, 23:57-00:01 UTC).** The main-push Workers Builds path had already
+deployed a checkpoint of this build: `npm run probe:production` passed **25/25** and `/api/status`
+exposed the promotion summary (`coffeeman-ground-coffee-percent-off` v1, 10% from ₪250, multipacks
+excluded, `reviewBy` 2026-11-11, not expired) alongside the four shipping policies, while the persisted
+store was still the 15:52 UTC snapshot. The read-time fallback therefore applied the published promotion
+to the old persisted CoffeeMan single row: the production board at 2 kg now ranks Pucks ₪240.00, CoffeeMan
+8-pack ₪260.00, CoffeeMan 8 × 250 g singles **₪237.60 + ₪25.00 = ₪262.60** (item subtotal was ₪264.00,
+discount ₪26.40, `source: policy`), CoffeeMan 2 × 4-pack ₪273.00 and Coffee4U ₪334.00 — and the row's
+`observedAt`/`attemptedAt` stay 2026-10-12T15:51:52.931Z, so applying the newer rule claimed no fresh
+vendor check. Evidence: `docs/evidence/production-probe-20261013T0000Z.json` and
+`docs/evidence/production-promotion-old-store-20261013T0000Z.json`. Live production browser QA passed
+79/81: the promotion rendered correctly (₪237.60 with `10% promotion applied — was ₪264.00` and the vendor
+wording), but it surfaced a real layout defect and a QA-regex defect described next.
+
+**Defect found and fixed: the stale-refresh sentence stretched the mobile page.** When the store crossed
+the 8 h `REFRESH_STALE_MS` threshold at about 23:52 UTC, the footer rendered “Scheduled refresh overdue by
+8.1 h — prices may be out of date.” with the `.status` badge classes, whose `white-space: nowrap` made the
+sentence 470 px wide and the 390 px page 486 px wide. `renderFooterStatus()` now uses a new
+`.status--note` modifier (`white-space: normal`, block display, no uppercase) for sentence-level statuses,
+and browser QA gained a check that loads the stale board at 390×844 and asserts the sentence wraps inside
+the viewport. The production QA also flagged the promotion-details regex, which did not allow the
+documented “, applied from the validated published-rule fallback” suffix; the regex now allows it. Local
+verification: offline fixtures **86/86** and live local Worker **82/82** with zero console errors
+(`docs/evidence/browser-qa-fixtures-20261013T0004Z.json`,
+`docs/evidence/browser-qa-live-20261013T0002Z.json`); defect record
+`docs/evidence/visual-review/2026-10-13-stale-note-overflow.json`. **The fix deployed through the
+main-push Workers Builds path within minutes: production browser QA re-run at 00:04 UTC passed 82/82**
+with `overflow: false`, the stale sentence `white-space: normal` (scrollWidth 375 at a 390 px viewport)
+and the promotion card rendering ₪237.60; evidence
+`docs/evidence/browser-qa-production-20261013T0004Z.json` plus sanitized production screenshots in
+`docs/evidence/visual-review/production-*-20261013T0004Z.png`.
+
+**Next step:** the **00:17 UTC cron tick on 2026-10-13** should replace the 15:52 production store
+snapshot; re-run `npm run probe:production` afterwards to confirm fresh vendor observations (and the
+freshly parsed promotion, `source: page`), then continue within Crema e Gusto coverage, shipping
+evidence, freshness and comparison quality.

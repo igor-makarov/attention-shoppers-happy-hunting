@@ -224,6 +224,17 @@ test('a lingering retired observation cannot make the tracked board look fresh',
   assert.equal(status.freshness.stale, true, 'a fresh retired row cannot mask a stale tracked board');
 });
 
+test('status exposes the validated promotion summary and the shipping policies', async () => {
+  const status = await (await worker.fetch(new Request('https://example.test/api/status'), envWith(createMemoryStore()), {})).json();
+  const promotion = (status.promotions ?? []).find(entry => entry.id === 'coffeeman-ground-coffee-percent-off');
+  assert.ok(promotion, 'the published quantity promotion is exposed');
+  assert.equal(promotion.percent, 10);
+  assert.equal(promotion.minItemSubtotal, 250);
+  assert.equal(promotion.excludesMultipacks, true);
+  assert.equal(promotion.expired, false);
+  assert.equal(status.shippingPolicies.length, 4, 'the four validated shipping policies stay exposed');
+});
+
 test('website requests fall through to static assets', async () => {
   const response = await worker.fetch(new Request('https://example.test/'), envWith(createMemoryStore()), {});
   assert.equal(await response.text(), 'asset:/');
