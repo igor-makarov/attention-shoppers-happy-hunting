@@ -102,7 +102,10 @@ conditional)` label so its quantity/destination condition stays visible.
   rate label. Pickup-only offers live in their
   own collapsed disclosure and never compete in the delivered ranking; each is one compact row (vendor,
   pack/quantity, item subtotal, pickup fee and the written "Self-pickup, not delivery"), with the
-  repeated pickup terms behind a `Pickup terms` disclosure.
+  repeated pickup terms behind a `Pickup terms` disclosure. The pickup terms describe self-pickup only:
+  courier-only labels (delivery coverage caveat, free-shipping threshold met, a matched anonymous-cart
+  free condition, or the unobserved-cart base-rate note) stay on the delivered card, so a pickup row
+  never repeats a delivery condition it does not depend on.
 - Debug/provenance metadata (previous checks, failed attempts, the applied shipping-policy version, the
   applied promotion's vendor wording and evidence, the adapter's shipping terms, shipping evidence, FX,
   per-vendor refresh state, next source check) lives behind `Offer details and check history` /

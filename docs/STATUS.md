@@ -28,12 +28,12 @@ QA now sets and verifies a **real 390×844 content viewport** through CDP device
 `Math.max(innerHeight, 844)` fallback, requiring the full failure sentence and coverage qualifier to end
 inside it, and saving complete card captures whose PNG height equals the card's rendered height. The
 3-89 shared-URL normalization is completed with a malformed-URL check (clamped grams, unknown locality,
-obsolete `variant` dropped). Offline fixture QA passes **111/111** and production live QA **113/113**
-with zero console errors; `npm run verify` passes **171/171** tests plus the dry-run bundle. The mobile
-vertical stack is tightened slightly (text sizes and 44 px tap targets unchanged) so the offline fixture
-2 kg failed-state warning ends at y≈697 and its qualifier at y≈812 of the 844 px viewport instead of
-touching the edge; the pre-deploy production live run measured the same warning ending at y=724 and the
-qualifier at y=843 before that tightening.
+obsolete `variant` dropped). Offline fixture QA passes **112/112** and post-deploy production live QA
+**113/113** with zero console errors; `npm run verify` passes **172/172** tests plus the dry-run bundle.
+The mobile vertical stack is tightened slightly (text sizes and 44 px tap targets unchanged) so the
+2 kg failed-state warning ends at y≈697 and its qualifier at y≈812 of the real 844 px content viewport
+on the deployed site (pre-deploy production measured the same warning ending at y=724 and the qualifier
+at y=843). Iteration 3-91 also keeps courier-only labels off the self-pickup terms.
 Iteration 3-81 removes the last variant coupling from the data layer: a stored offer's identity key no
 longer contains the blend wording a listing prints, legacy blend-keyed rows are collapsed at read time
 with their stable-key replacement (newest observation wins), and failure markers plus previous-check
@@ -2331,3 +2331,53 @@ after the main-push Workers Builds deploy (re-run the read-only production brows
 measured failure/qualifier bottoms), then continue within Crema e Gusto coverage, shipping evidence,
 freshness and comparison quality. The **06:17 UTC tick** remains the next actual CoffeeMan vendor
 attempt.
+
+## Iteration 3-91 — the two acceptance fixes verified on the deployed site; pickup terms no longer repeat courier conditions (2026-10-13)
+
+**Post-deploy production verification (read-only).** The main-push Workers Builds deploy is live: the
+`style.css` served at 04:42 UTC contains the tightened ≤420 px stack committed in 3-90
+(`.product-head { padding-top: 8px; … }`), and a production browser-QA run at 04:39-04:40 UTC against
+`https://attention-shoppers.igormaka.workers.dev` passed **113/113** checks with zero console errors
+(report `docs/evidence/browser-qa-production-20261013T0440Z.json`):
+
+- Every mobile step measured the requested content viewport exactly — `window.innerWidth` 390 and
+  `window.innerHeight` 844 through CDP `Emulation.setDeviceMetricsOverride` (outer window 780×580) — so
+  the checks used the real content height with no `Math.max(innerHeight, 844)` fallback.
+- The live 2 kg CoffeeMan winner (HTTP 403 on its last attempt, last good observation kept) rendered
+  vendor `CoffeeMan (אמיגו)`, `250 g pack · 8 × 250 g packs = 2000 g`, item ₪237.60 (10% promotion),
+  the named `Home delivery` method, `Free (observed for this cart)` and the ₪237.60 total: item rect
+  ends y=421, method y=485, total y=613, the full failure sentence
+  "Last check failed — showing the last successful observation." y=648-697, and the
+  conditional/coverage qualifier y=705-812 — all inside the 844 px content viewport.
+- The affected-offer captures are complete cards, not the old visible-intersection crop: 343×675 for the
+  2 kg winner and 341×527 for the 500 g CoffeeMan card (₪66.00 + ₪25.00 = ₪91.00), each with PNG height
+  equal to the card's rendered height; the first-screen captures are exactly 390×844.
+- The scoped matcher is confirmed against the live store: the 2 kg singles-8 offer still matches the
+  recorded 10% / ₪237.60 free cart, the two-4-pack cart still matches its ₪248 observation and the
+  8-pack keeps its own ₪20 quote, while 3 kg of singles (₪356.40 + ₪25 = ₪381.40) and three 4-packs
+  (₪372 + ₪25 = ₪397) keep the published ₪25 base rate.
+- PNG limitation retained: the pinned file-read tool rejects image input, so the saved captures were not
+  machine-inspected as images; the DOM text/geometry from the same sessions is the recorded evidence.
+
+**Pickup terms no longer repeat courier conditions (src/lib/quote.js).** The 2 kg pickup rows inherited
+the delivered card's courier labels, so a `Pickup terms` disclosure read "Free home courier observed for
+this exact cart (…) in the vendor's anonymous cart" — a delivery condition self-pickup does not depend
+on. `toPickupEntry()` now filters delivery-only labels (delivery coverage caveat, `Free shipping
+threshold met`, a matched `Free … observed for this exact cart` condition, and the
+unobserved-cart base-rate note) before appending `Pickup only — not a delivered offer`. Item-level
+labels (stock, stale, promotion) stay.
+
+**Verified (2026-10-13 UTC).**
+
+- `npm run verify` — **172/172** `node:test` cases (the new `tests/quote.test.js` case proves the matched
+  courier condition stays on the delivered card and out of the pickup labels) plus the
+  `wrangler deploy --dry-run` bundle (141.83 KiB / gzip 34.27 KiB; bindings `BOARD` + `ASSETS`).
+- `npm run qa:browser` (offline fixtures) — **112/112** checks, zero console errors, including the new
+  rendered check at 2 kg: `{"courierConditionShown":true,"leaked":0,"rowCount":4}`. Report
+  `docs/evidence/browser-qa-offline-20261013T0457Z.json`; the production run's captures are
+  `docs/evidence/visual-review/production-3-91-live-{2kg-winner,failing-offer}-{card,viewport}.png`.
+
+**Next step:** the **06:17 UTC cron tick** is the next actual vendor attempt; after it, record whether
+the CoffeeMan production-egress block (HTTP 403 from the Worker, HTTP 200 from the runner) persists and
+whether the refreshed rows parse, then continue within Crema e Gusto coverage, shipping evidence,
+freshness and comparison quality.

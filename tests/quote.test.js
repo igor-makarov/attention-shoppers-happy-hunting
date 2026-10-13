@@ -336,6 +336,40 @@ test('the delivery coverage caveat stays off pickup rows', () => {
   assert.match(board.ranked[0].labels.join(' '), /coverage caveat/i);
 });
 
+test('a matched courier free condition stays off the pickup row terms', () => {
+  const both = observation({
+    key: 'both-free:1',
+    shipping: {
+      service: 'home_delivery',
+      certainty: 'verified',
+      amount: { amount: 20, currency: 'ILS' },
+      // The exact 2-pack cart the vendor showed free (target 500 g = 2 units).
+      freeCartConditions: [{
+        id: 'singles-2',
+        service: 'home_delivery',
+        sku: 'sku-1',
+        packCount: 1,
+        units: 2,
+        orderedGrams: 500,
+        itemSubtotalIls: 80,
+        discountPercent: null,
+        paidItemTotalIls: 80,
+        methodLabel: 'home courier',
+        observedAt: FRESH
+      }],
+      pickup: { available: true, amount: { amount: 0, currency: 'ILS' }, note: 'Free self-pickup, listed on the product page.' }
+    }
+  });
+  const board = quote([both]);
+  assert.equal(board.best.shipping.freeCondition?.id, 'singles-2', 'the recorded cart matches and is free');
+  assert.equal(board.best.totalIls, 80);
+  assert.match(board.best.labels.join(' '), /Free home courier observed for this exact cart/);
+  assert.equal(board.pickup.length, 1);
+  assert.match(board.pickup[0].labels.join(' '), /Pickup only/);
+  assert.doesNotMatch(board.pickup[0].labels.join(' '), /Free home courier observed/, 'courier conditions stay on the delivered card');
+  assert.doesNotMatch(board.pickup[0].labels.join(' '), /coverage caveat/i);
+});
+
 test('a stale pickup observation is labelled stale and never ranked', () => {
   const stalePickup = observation({
     key: 'pickup-stale:1',

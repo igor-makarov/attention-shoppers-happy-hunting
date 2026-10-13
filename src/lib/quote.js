@@ -599,6 +599,12 @@ function coverageProblem(shippingDestination, destination) {
   return 'Vendor delivery coverage is not documented';
 }
 
+// Labels that describe the courier/delivery quote rather than the item or the
+// pickup service. They belong on the delivered card and must not leak into a
+// pickup row's terms: self-pickup does not depend on a courier threshold, a
+// cart-observed free-delivery condition or the delivery coverage caveat.
+const DELIVERY_ONLY_LABEL = /^(Delivery coverage caveat:|Free shipping threshold met|Free .+ observed for this exact cart|Free delivery was observed only on specific carts)/;
+
 function toPickupEntry(quote) {
   const itemTotal = quote.itemTotalIls ?? (quote.itemPrice.amount != null && quote.units
     ? round2(quote.itemPrice.amount * quote.units)
@@ -616,7 +622,7 @@ function toPickupEntry(quote) {
       amount: quote.shipping.pickup?.amount ?? null,
       note: quote.shipping.pickup?.note ?? null
     },
-    labels: [...quote.labels.filter(label => !label.startsWith('Delivery coverage caveat:')), 'Pickup only — not a delivered offer']
+    labels: [...quote.labels.filter(label => !DELIVERY_ONLY_LABEL.test(label)), 'Pickup only — not a delivered offer']
   };
 }
 

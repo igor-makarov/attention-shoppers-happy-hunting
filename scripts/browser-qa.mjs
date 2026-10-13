@@ -979,6 +979,26 @@ try {
       failed2kgCardShot?.complete === true && failed2kgCardShot.height === failed2kgCardShot.cardRect?.height,
       JSON.stringify(failed2kgCardShot));
 
+    // The courier free-delivery condition belongs to the delivered card; the
+    // pickup rows describe self-pickup only and must not repeat it (owner:
+    // keep self-pickup separate from delivery).
+    await setDetailsOpen(wd, '#pickup-options', true);
+    const failed2kgPickup = await evaluate(wd, `(() => {
+      const rows = [...document.querySelectorAll('#pickup-options .pickup-row')].map(row => row.textContent.trim());
+      const card = document.querySelector('#best-offer');
+      return {
+        rowCount: rows.length,
+        leaked: rows.filter(text => /Free home courier observed/.test(text)).length,
+        courierConditionShown: /Free home courier observed/.test([...card.querySelectorAll('.conditions li')].map(n => n.textContent).join(' '))
+      };
+    })()`);
+    check('mobile failure: the 2 kg pickup rows keep the courier free-delivery condition on the delivered card only',
+      failed2kgPickup.rowCount >= 1
+        && failed2kgPickup.leaked === 0
+        && failed2kgPickup.courierConditionShown === true,
+      JSON.stringify(failed2kgPickup));
+    await setDetailsOpen(wd, '#pickup-options', false);
+
     await wd('POST', '/url', { url: `${failedServer.url}${productPath}?grams=500&dest=tel-aviv` });
     await waitForProduct(wd);
     await setDetailsOpen(wd, '#compare-other-offers', true);
