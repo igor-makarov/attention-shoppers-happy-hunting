@@ -962,6 +962,6 @@ function stepDetail(step, result) {
   // locality/postcode in the evidence is a verified field value, not just the
   // requested parameter.
   if (step.action === 'fill' && result && typeof result === 'object') return `${result.selector}=${result.value ?? ''}`;
-  if (step.action === 'selectLabel' && result) return `selected: ${result}`;
+  if (step.action === 'selectLabel' && result) return `selected: ${result} (${step.selector})`;
   return null;
 }
