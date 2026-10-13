@@ -10,7 +10,7 @@ free (7 singles at ₪231, 8 singles at ₪264 → ₪237.60, 2 × 4-pack at ₪
 matching cart and keeps the published ₪25 base rate for every larger or repriced cart (3 kg of singles,
 three 4-packs), while a v2-stamped persisted row is migrated at read time. The Coffee4U evidence records
 now carry the confirmed door-to-door method. The Canton Zürich product index + dedicated product page, the
-browser-researched shipping policies and the progressive-disclosure layout are validated locally (161/161
+browser-researched shipping policies and the progressive-disclosure layout are validated locally (162/162
 tests, 94/94 offline browser checks with zero console errors) and against the deployed site: the four-policy
 build is live (production probe 25/25 at 01:53 UTC, live browser QA 85/85 at 00:28 UTC with zero console
 errors), the Pucks free-above-₪100 rule and its v2 five-locality coverage evidence are applied to the old
@@ -2054,7 +2054,7 @@ clipped the selected locality inside a half-width column.
 
 **Verified locally (2026-10-13 UTC).**
 
-- `npm run verify` — **161/161** `node:test` cases (new/updated: the scoped-condition policy validation,
+- `npm run verify` — **162/162** `node:test` cases (new/updated: the scoped-condition policy validation,
   exact-cart matching, the v2→v3 read-time migration, the 3 kg/three-4-pack/repriced carts keeping ₪25,
   the expired-policy fallback, and the confirmed/unconfirmed service schema), plus
   `wrangler deploy --dry-run` (bundle builds; bindings `BOARD` + `ASSETS`).
