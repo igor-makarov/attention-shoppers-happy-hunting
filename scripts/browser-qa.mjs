@@ -23,12 +23,16 @@
 // readable in a cropped view rather than only in a full-page capture. The
 // first screen of a product/home URL is saved before any card scrolling or
 // viewport enlargement, at scrollY 0 and an exact 390×844 content viewport, so
-// a scrolled card view can never be passed off as the loaded first screen. The
+// a scrolled card view can never be passed off as the loaded first screen. Each
+// capture is appended to report.captureSequence with its PNG sha256 and the
+// scroll position before and after the shot, so the report itself shows the
+// first screen was written before any card crop. The
 // script is dependency-free: it speaks the W3C WebDriver protocol over HTTP and
 // writes screenshots and a JSON report under .shurik-local/qa/<mode>/ (or the
 // QA_OUT directory), keeping fixture and live captures in separate directories.
 
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 import { startQaServer } from './qa-server.mjs';
@@ -55,6 +59,11 @@ const report = {
   consoleErrors: [],
   viewports: [],
   firstScreenCaptures: [],
+  // Every first-screen/complete-card/element capture in the order it was saved,
+  // with the PNG sha256. This lets the report itself prove that a first-screen
+  // capture was written before any card crop for the same state, instead of
+  // relying only on the source order of the calls.
+  captureSequence: [],
   // Screenshots produced by the deterministic QA fixture servers (the failed/
   // stale/terms/unknown scenarios) rather than the base URL. A live run renders
   // these from recorded production values; they are not live vendor
@@ -72,6 +81,15 @@ const check = (name, condition, detail = '') => {
   report.checks.push({ name, ok: Boolean(condition), detail });
   console.log(`${condition ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`);
 };
+
+const sha256 = buffer => createHash('sha256').update(buffer).digest('hex');
+let captureSeq = 0;
+const recordCapture = (kind, name, data = {}) => {
+  const entry = { seq: (captureSeq += 1), kind, name, at: new Date().toISOString(), ...data };
+  report.captureSequence.push(entry);
+  return entry;
+};
+const captureSeqOf = name => report.captureSequence.find(entry => entry.name === name)?.seq ?? null;
 
 let fixtureServer = null;
 let base = LIVE_BASE;
@@ -452,6 +470,14 @@ try {
         && liveWinnerCard.height === liveWinnerCard.cardRect?.height
         && (!api2000.best.lastAttemptFailed || /Last check failed/.test(liveWinner2kg.failure ?? '')),
       JSON.stringify({ card: liveWinnerCard }));
+    const liveFirstSeq = captureSeqOf('product-live-2kg-winner-first-screen.png');
+    const liveCardSeq = captureSeqOf('product-live-2kg-winner-card.png');
+    check('live mobile: the report capture sequence records the 2 kg first screen before the complete-card crop, with both PNG hashes bound',
+      typeof liveFirstSeq === 'number' && typeof liveCardSeq === 'number' && liveFirstSeq < liveCardSeq
+        && (liveWinnerFirstScreen.sha256 ?? '').length === 64
+        && (liveWinnerCard?.sha256 ?? '').length === 64
+        && liveWinnerFirstScreen.scrollYAfter === 0,
+      JSON.stringify({ firstSeq: liveFirstSeq, cardSeq: liveCardSeq, firstHash: liveWinnerFirstScreen.sha256, cardHash: liveWinnerCard?.sha256, scrollYAfter: liveWinnerFirstScreen.scrollYAfter }));
     await contrastReport(wd, 'body', 'the live 2 kg winner with the failed-check warning (mobile)');
     // Restore the 500 g product state the following checks were built on.
     await setContentViewport(wd, 1440, 1000);
@@ -838,6 +864,14 @@ try {
   check('mobile: the saved 500 g best-card view is complete, not the visible intersection',
     mobileCardShot?.height === mobile.card.bottom - mobile.card.top,
     JSON.stringify({ shot: mobileCardShot, card: mobile.card }));
+  const mobileFirstSeq = captureSeqOf('product-mobile-390.png');
+  const mobileCardSeq = captureSeqOf('product-500g-best-card-mobile.png');
+  check('mobile: the report capture sequence records the 500 g first screen before the best-card crop, with both PNG hashes bound',
+    typeof mobileFirstSeq === 'number' && typeof mobileCardSeq === 'number' && mobileFirstSeq < mobileCardSeq
+      && (mobileFirstScreen.sha256 ?? '').length === 64
+      && (mobileCardShot?.sha256 ?? '').length === 64
+      && mobileFirstScreen.scrollYAfter === 0,
+    JSON.stringify({ firstSeq: mobileFirstSeq, cardSeq: mobileCardSeq, firstHash: mobileFirstScreen.sha256, cardHash: mobileCardShot?.sha256, scrollYAfter: mobileFirstScreen.scrollYAfter }));
   await wd('POST', '/url', { url: `${base}/` });
   await waitForHome(wd);
   const homeMobileFirstScreen = await firstScreenScreenshot(wd, 'home-mobile-390.png');
@@ -1051,6 +1085,14 @@ try {
     check('mobile failure: the saved 2 kg winner card view is complete, including the full failure sentence',
       failed2kgCardShot?.complete === true && failed2kgCardShot.height === failed2kgCardShot.cardRect?.height,
       JSON.stringify(failed2kgCardShot));
+    const failedFirstSeq = captureSeqOf('product-2kg-mobile-failed-390.png');
+    const failedCardSeq = captureSeqOf('product-2kg-mobile-winner-card.png');
+    check('mobile failure: the report capture sequence records the failed-state first screen before the complete-card crop, with both PNG hashes bound',
+      typeof failedFirstSeq === 'number' && typeof failedCardSeq === 'number' && failedFirstSeq < failedCardSeq
+        && (failed2kgFirstScreen.sha256 ?? '').length === 64
+        && (failed2kgCardShot?.sha256 ?? '').length === 64
+        && failed2kgFirstScreen.scrollYAfter === 0,
+      JSON.stringify({ firstSeq: failedFirstSeq, cardSeq: failedCardSeq, firstHash: failed2kgFirstScreen.sha256, cardHash: failed2kgCardShot?.sha256, scrollYAfter: failed2kgFirstScreen.scrollYAfter }));
 
     // The courier free-delivery condition belongs to the delivered card; the
     // pickup rows describe self-pickup only and must not repeat it (owner:
@@ -1445,7 +1487,7 @@ async function screenshot(wd, name) {
   const shot = await wd('GET', '/screenshot');
   const buffer = Buffer.from(shot.value, 'base64');
   await writeFile(`${OUT}/${name}`, buffer);
-  return { name, ...pngSize(buffer) };
+  return { name, ...pngSize(buffer), sha256: sha256(buffer) };
 }
 
 /**
@@ -1462,7 +1504,9 @@ async function elementScreenshot(wd, expression, name) {
   const shot = await wd('GET', `/element/${id}/screenshot`);
   const buffer = Buffer.from(shot.value, 'base64');
   await writeFile(`${OUT}/${name}`, buffer);
-  return { name, ...pngSize(buffer) };
+  const record = { name, ...pngSize(buffer), sha256: sha256(buffer) };
+  recordCapture('element-card', name, { sha256: record.sha256, width: record.width, height: record.height });
+  return record;
 }
 
 /**
@@ -1503,8 +1547,10 @@ async function completeCardScreenshot(wd, expression, name, { width = 390, resto
   // subsequent "viewport" screenshot silently becomes a scrolled card view.
   await evaluate(wd, `(() => { window.scrollTo({ top: ${rect.scrollY}, left: 0, behavior: 'instant' }); return true; })()`);
   await delay(100);
-  if (!shot || !inside || inside.top < 0 || inside.bottom > inside.innerHeight + 1) return { ...shot, cardRect: inside, complete: false };
-  return { ...shot, cardRect: inside, complete: true };
+  const complete = Boolean(shot) && Boolean(inside) && inside.top >= 0 && inside.bottom <= inside.innerHeight + 1;
+  const record = { ...shot, cardRect: inside, complete };
+  recordCapture('complete-card', name, { sha256: shot?.sha256 ?? null, complete, width: shot?.width ?? null, height: shot?.height ?? null });
+  return record;
 }
 
 /**
@@ -1516,10 +1562,10 @@ async function completeCardScreenshot(wd, expression, name, { width = 390, resto
  * showed the card instead of the first screen after loading the product URL
  * (page heading, quantity and locality controls missing). This helper resets
  * the scroll position explicitly, records the measured `scrollY`, `innerWidth`
- * and `innerHeight`, saves the PNG and requires the PNG to be exactly the
- * requested content size. Callers require `scrollY === 0`, so a capture taken
- * after card scrolling or viewport enlargement can never be presented as the
- * loaded first screen.
+ * and `innerHeight`, saves the PNG, re-reads `scrollY` after the shot and
+ * records the PNG sha256. Callers require `scrollY === 0` (and `scrollYAfter`),
+ * so a capture taken after card scrolling or viewport enlargement can never be
+ * presented as the loaded first screen.
  */
 async function firstScreenScreenshot(wd, name, { width = 390, height = 844 } = {}) {
   await setContentViewport(wd, width, height);
@@ -1532,15 +1578,30 @@ async function firstScreenScreenshot(wd, name, { width = 390, height = 844 } = {
     url: location.pathname + location.search
   })`);
   const shot = await screenshot(wd, name);
+  // Re-read the scroll position after the PNG was taken: if anything scrolled
+  // the page during the capture, the record shows it and `exact` fails.
+  const scrollYAfter = await evaluate(wd, `Math.round(window.scrollY)`);
   const record = {
     name,
     width: shot.width,
     height: shot.height,
     ...state,
+    scrollYAfter,
+    sha256: shot.sha256,
+    capturedAt: new Date().toISOString(),
     exact: shot.width === width && shot.height === height
-      && state.scrollY === 0 && state.innerWidth === width && state.innerHeight === height
+      && state.scrollY === 0 && scrollYAfter === 0
+      && state.innerWidth === width && state.innerHeight === height
   };
   report.firstScreenCaptures.push(record);
+  recordCapture('first-screen', name, {
+    sha256: shot.sha256,
+    exact: record.exact,
+    scrollY: state.scrollY,
+    scrollYAfter,
+    width: shot.width,
+    height: shot.height
+  });
   return record;
 }
 

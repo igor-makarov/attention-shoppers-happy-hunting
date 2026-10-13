@@ -71,7 +71,8 @@ test('browser QA measures a real content viewport instead of an outer window siz
 
 test('browser QA requires full warning sentences and complete card captures', () => {
   assert.match(source, /async function completeCardScreenshot/);
-  assert.match(source, /inside\.bottom > inside\.innerHeight/);
+  assert.match(source, /inside\.bottom <= inside\.innerHeight \+ 1/);
+  assert.match(source, /const complete = Boolean\(shot\) && Boolean\(inside\)/);
   assert.match(source, /failureRect\?\.bottom <= liveWinner2kg\.innerHeight/);
   assert.match(source, /failureRect\?\.bottom <= mobileWinner2kg\.innerHeight/);
   assert.match(source, /failureRect\?\.bottom <= mobileCoffeeMan500\.innerHeight/);
@@ -87,6 +88,14 @@ test('browser QA saves an unscrolled first screen before any card scrolling and 
   assert.match(source, /window\.scrollTo\(\{ top: 0, left: 0, behavior: 'instant' \}\)/);
   assert.match(source, /scrollY === 0/);
   assert.match(source, /exactly 390×844/);
+  // The record binds the PNG bytes (sha256) and re-checks scrollY after the
+  // shot, so the report can be audited against the saved file.
+  assert.match(source, /scrollYAfter/);
+  assert.match(source, /createHash\('sha256'\)/);
+  assert.match(source, /captureSequence/);
+  assert.match(source, /the report capture sequence records the 2 kg first screen before the complete-card crop/);
+  assert.match(source, /the report capture sequence records the failed-state first screen before the complete-card crop/);
+  assert.match(source, /the report capture sequence records the 500 g first screen before the best-card crop/);
   // completeCardScreenshot must restore the pre-capture scroll position so a
   // later "viewport" capture cannot silently be a scrolled card view.
   assert.ok(source.includes('top: ${rect.scrollY}'), 'completeCardScreenshot must restore the pre-capture scroll position');
