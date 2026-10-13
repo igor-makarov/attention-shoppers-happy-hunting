@@ -1528,7 +1528,8 @@ async function firstScreenScreenshot(wd, name, { width = 390, height = 844 } = {
   const state = await evaluate(wd, `({
     scrollY: Math.round(window.scrollY),
     innerWidth: window.innerWidth,
-    innerHeight: window.innerHeight
+    innerHeight: window.innerHeight,
+    url: location.pathname + location.search
   })`);
   const shot = await screenshot(wd, name);
   const record = {
