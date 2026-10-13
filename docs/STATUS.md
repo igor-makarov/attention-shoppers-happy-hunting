@@ -2424,9 +2424,9 @@ was genuinely complete (343×675); the first-screen claim was the broken part.
   scrolled card view.
 - A new `firstScreenScreenshot()` saves the unscrolled first screen **before any card scrolling or
   viewport enlargement**: it resets scroll explicitly (`window.scrollTo({ top: 0, behavior: 'instant' })`),
-  records the measured `scrollY`/`innerWidth`/`innerHeight`, saves the PNG, and requires the PNG and the
-  DOM state to be exactly the requested 390×844 with `scrollY === 0` (`exact: true`). Every first-screen
-  record is appended to `report.firstScreenCaptures`.
+  records the measured `scrollY`/`innerWidth`/`innerHeight` and the captured URL, saves the PNG, and
+  requires the PNG and the DOM state to be exactly the requested 390×844 with `scrollY === 0`
+  (`exact: true`). Every first-screen record is appended to `report.firstScreenCaptures`.
 - The product and home mobile flows call it in that order; the live production 2 kg winner first screen is
   captured before its complete-card capture, and the check sequence proves the ordering in
   `tests/browser-qa-tooling.test.js`.
@@ -2473,9 +2473,9 @@ was genuinely complete (343×675); the first-screen claim was the broken part.
   file-read tool rejects image input, so the captures were not machine-inspected as images; the coarse
   10-band dark-pixel densities and DOM geometry are corroboration, not native visual review.
 
-**Evidence:** `docs/evidence/browser-qa-production-20261013T0538Z.json`,
-`docs/evidence/browser-qa-offline-20261013T0539Z.json`,
-`docs/evidence/browser-qa-local-worker-20261013T0539Z.json`, the new captures and the record
+**Evidence:** `docs/evidence/browser-qa-production-20261013T0543Z.json`,
+`docs/evidence/browser-qa-offline-20261013T0543Z.json`,
+`docs/evidence/browser-qa-local-worker-20261013T0543Z.json`, the new captures and the record
 `docs/evidence/visual-review/2026-10-13-unscrolled-first-screen-and-complete-cards.json`.
 
 **Next step:** the **06:17 UTC cron tick** remains the next actual vendor attempt; record whether the
