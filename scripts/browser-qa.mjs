@@ -21,8 +21,12 @@
 // rendered-contrast walk (4.5:1 normal / 3:1 large text) and the affected offer
 // cards are saved as element-level screenshots, so the decision values are
 // readable in a cropped view rather than only in a full-page capture. The
+// first screen of a product/home URL is saved before any card scrolling or
+// viewport enlargement, at scrollY 0 and an exact 390×844 content viewport, so
+// a scrolled card view can never be passed off as the loaded first screen. The
 // script is dependency-free: it speaks the W3C WebDriver protocol over HTTP and
-// writes screenshots and a JSON report to .shurik-local/qa/.
+// writes screenshots and a JSON report under .shurik-local/qa/<mode>/, keeping
+// fixture and live captures in separate directories.
 
 import { spawn } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -31,7 +35,9 @@ import { startQaServer } from './qa-server.mjs';
 
 const LIVE_BASE = process.argv.slice(2).find(arg => /^https?:\/\//i.test(arg)) ?? null;
 const FIXTURE_PORT = Number(process.env.QA_PORT) || 0;
-const OUT = '.shurik-local/qa';
+// Fixture and live captures get separate directories so a fixture render can
+// never be mistaken for a production/local-Worker view (or overwrite it).
+const OUT = `.shurik-local/qa/${LIVE_BASE ? 'live' : 'fixtures'}`;
 const PORT = 9515;
 const EMOJI = /[\u{1F300}-\u{1FAFF}\u{1F000}-\u{1F2FF}\u{2600}-\u{27BF}\u{FE0F}]/u;
 const ILS = new Intl.NumberFormat('en-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 2 });
@@ -44,7 +50,8 @@ const report = {
   checks: [],
   contrast: {},
   consoleErrors: [],
-  viewports: []
+  viewports: [],
+  firstScreenCaptures: []
 };
 const check = (name, condition, detail = '') => {
   report.checks.push({ name, ok: Boolean(condition), detail });
@@ -325,7 +332,15 @@ try {
     const liveFailingShot = await completeCardScreenshot(wd,
       `(() => [...document.querySelectorAll('#compare-other-offers .offer')].find(node => node.querySelector('.qualifier--failure')) ?? null)()`,
       'product-live-failing-offer-card.png');
-    const liveFailingViewportShot = await screenshot(wd, 'product-live-failing-offer-viewport.png');
+    // completeCardScreenshot() restores the pre-capture scroll position, so this
+    // is the failing card in page context, not the loaded first screen (the
+    // unscrolled product capture covers that).
+    const liveFailingContextShot = await screenshot(wd, 'product-live-failing-offer-scrolled-view.png');
+    const liveFailingContextState = await evaluate(wd, `({
+      scrollY: Math.round(window.scrollY),
+      innerWidth: window.innerWidth,
+      innerHeight: window.innerHeight
+    })`);
     await setDetailsOpen(wd, '#compare-other-offers', false);
     check('live: the real failing ranked offer is saved as a complete readable card view with its warning',
       liveFailingShot?.name === 'product-live-failing-offer-card.png'
@@ -335,9 +350,10 @@ try {
         && (liveFailingQuote == null || (liveFailingText?.vendor ?? '').includes(liveFailingQuote.vendor.name))
         && (liveFailingQuote == null || liveFailingText?.totals?.[2] === ils(liveFailingQuote.totalIls)),
       JSON.stringify({ shot: liveFailingShot, text: liveFailingText }));
-    check('live: the saved failing-offer viewport view is the requested content size',
-      liveFailingViewportShot.width === 390 && liveFailingViewportShot.height >= 844,
-      JSON.stringify(liveFailingViewportShot));
+    check('live: the saved failing-offer scrolled view is exactly the 390×844 content size in page context',
+      liveFailingContextShot.width === 390 && liveFailingContextShot.height === 844
+        && liveFailingContextState.innerWidth === 390 && liveFailingContextState.innerHeight === 844,
+      JSON.stringify({ shot: liveFailingContextShot, ...liveFailingContextState }));
   }
 
   // Live mode only: the deployed store's 2 kg winner can itself carry a failed
@@ -350,6 +366,9 @@ try {
     await setContentViewport(wd, 390, 844);
     await wd('POST', '/url', { url: `${base}${productPath}?grams=2000&dest=tel-aviv` });
     await waitForProduct(wd);
+    // Save the unscrolled first screen before any card scrolling or viewport
+    // enlargement, and require scrollY 0 at the exact 390×844 content size.
+    const liveWinnerFirstScreen = await firstScreenScreenshot(wd, 'product-live-2kg-winner-first-screen.png');
     const liveWinner2kg = await evaluate(wd, `(() => {
       const rect = node => { const r = node.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right) }; };
       const card = document.querySelector('#best-offer');
@@ -357,6 +376,7 @@ try {
       return {
         innerWidth: window.innerWidth,
         innerHeight: window.innerHeight,
+        scrollY: Math.round(window.scrollY),
         vendor: card.querySelector('.offer__vendor')?.innerText.trim() ?? null,
         pack: card.querySelector('.offer__pack')?.textContent.trim() ?? null,
         item: cells[0]?.querySelector('.totals__value')?.textContent.trim() ?? null,
@@ -377,8 +397,9 @@ try {
     const expectedLiveShipping = liveShipping.amountIls === 0
       ? (liveShipping.freeCondition ? 'Free (observed for this cart)' : liveShipping.freeThreshold != null ? 'Free (threshold met)' : 'Free')
       : ils(liveShipping.amountIls);
-    check('live mobile: the real 2 kg winner shows vendor, packs/grams, item, named method/charge and total in the first viewport',
-      (liveWinner2kg.vendor ?? '').includes(api2000.best.vendor.name)
+    check('live mobile: the real 2 kg winner shows vendor, packs/grams, item, named method/charge and total in the unscrolled first viewport',
+      liveWinner2kg.scrollY === 0
+        && (liveWinner2kg.vendor ?? '').includes(api2000.best.vendor.name)
         && liveWinner2kg.pack === `${packDescription(api2000.best)} · ${quantityDescription(api2000.best)}`
         && liveWinner2kg.item === ils(api2000.best.itemTotalIls)
         && liveWinner2kg.shipping === expectedLiveShipping
@@ -389,21 +410,27 @@ try {
         && liveWinner2kg.totalRect.bottom <= liveWinner2kg.innerHeight
         && liveWinner2kg.overflow === false,
       JSON.stringify(liveWinner2kg));
+    check('live mobile: the saved 2 kg winner first-screen view is unscrolled and exactly 390×844',
+      liveWinnerFirstScreen.exact === true && liveWinnerFirstScreen.scrollY === 0
+        && liveWinnerFirstScreen.innerWidth === 390 && liveWinnerFirstScreen.innerHeight === 844
+        && liveWinner2kg.scrollY === 0,
+      JSON.stringify({ shot: liveWinnerFirstScreen, measuredScrollY: liveWinner2kg.scrollY }));
     if (api2000.best.lastAttemptFailed) {
       check('live mobile: the real 2 kg winner with the failed last check keeps its full warning sentence inside the real content viewport',
-        /Last check failed/.test(liveWinner2kg.failure ?? '')
+        liveWinner2kg.scrollY === 0
+          && /Last check failed/.test(liveWinner2kg.failure ?? '')
           && liveWinner2kg.failureRect?.bottom <= liveWinner2kg.innerHeight
           && (liveWinner2kg.qualifierRect == null || liveWinner2kg.qualifierRect.bottom <= liveWinner2kg.innerHeight),
-        JSON.stringify({ failure: liveWinner2kg.failure, failureRect: liveWinner2kg.failureRect, qualifierRect: liveWinner2kg.qualifierRect, viewport: liveWinner2kg.innerHeight }));
+        JSON.stringify({ failure: liveWinner2kg.failure, failureRect: liveWinner2kg.failureRect, qualifierRect: liveWinner2kg.qualifierRect, viewport: liveWinner2kg.innerHeight, scrollY: liveWinner2kg.scrollY }));
     }
+    // Only after the first-screen capture: raise the viewport to fit the whole
+    // card (additional readable evidence) and restore the page state.
     const liveWinnerCard = await completeCardScreenshot(wd, `document.querySelector('#best-offer')`, 'product-live-2kg-winner-card.png');
-    const liveWinnerViewportShot = await screenshot(wd, 'product-live-2kg-winner-viewport.png');
-    check('live mobile: the saved 2 kg winner card view is complete and the first-screen view is the real content size',
+    check('live mobile: the saved 2 kg winner complete-card view is genuinely complete, including the full failure sentence',
       liveWinnerCard?.complete === true
         && liveWinnerCard.height === liveWinnerCard.cardRect?.height
-        && liveWinnerViewportShot.width === 390
-        && liveWinnerViewportShot.height >= 844,
-      JSON.stringify({ card: liveWinnerCard, viewport: liveWinnerViewportShot }));
+        && (!api2000.best.lastAttemptFailed || /Last check failed/.test(liveWinner2kg.failure ?? '')),
+      JSON.stringify({ card: liveWinnerCard }));
     await contrastReport(wd, 'body', 'the live 2 kg winner with the failed-check warning (mobile)');
     // Restore the 500 g product state the following checks were built on.
     await setContentViewport(wd, 1440, 1000);
@@ -706,6 +733,8 @@ try {
   await setContentViewport(wd, 390, 844);
   await wd('POST', '/url', { url: `${base}${productPath}?grams=500&dest=tel-aviv` });
   await waitForProduct(wd);
+  // First screen at scrollY 0, before any card scrolling or enlargement.
+  const mobileFirstScreen = await firstScreenScreenshot(wd, 'product-mobile-390.png');
   const mobile = await evaluate(wd, `(() => {
     const rect = node => { const r = node.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right) }; };
     const card = document.querySelector('#best-offer');
@@ -718,6 +747,7 @@ try {
     return {
       innerWidth: window.innerWidth,
       innerHeight: window.innerHeight,
+      scrollY: Math.round(window.scrollY),
       card: rect(card),
       cells,
       totalValue: rect(card.querySelector('.totals__cell--total .totals__value')),
@@ -744,8 +774,8 @@ try {
   })()`);
   report.mobile = mobile;
   check('mobile: the measured content viewport really is the requested 390×844 (not the 844 px outer window)',
-    mobile.innerWidth === 390 && mobile.innerHeight === 844,
-    JSON.stringify({ innerWidth: mobile.innerWidth, innerHeight: mobile.innerHeight }));
+    mobile.innerWidth === 390 && mobile.innerHeight === 844 && mobile.scrollY === 0,
+    JSON.stringify({ innerWidth: mobile.innerWidth, innerHeight: mobile.innerHeight, scrollY: mobile.scrollY }));
   check('mobile: the best card fits the viewport without horizontal scrolling', mobile.card.right <= mobile.innerWidth + 1 && mobile.bodyOverflow === false, JSON.stringify({ card: mobile.card, overflow: mobile.bodyOverflow }));
   check('mobile: item subtotal, shipping charge and method are visible in the initial viewport',
     mobile.cells[0].rect.bottom <= mobile.innerHeight && mobile.cells[1].rect.bottom <= mobile.innerHeight && mobile.methodValue.bottom <= mobile.innerHeight,
@@ -769,10 +799,11 @@ try {
       && !/·\s*6100000 area/.test(mobile.destination?.text ?? ''),
     JSON.stringify(mobile.destination));
   check('mobile: the page is much shorter than the old comparison board', mobile.pageHeight <= 2600, `height=${mobile.pageHeight}`);
-  const mobileViewportShot = await screenshot(wd, 'product-mobile-390.png');
-  check('mobile: the saved first-screen view is exactly the 390×844 content viewport',
-    mobileViewportShot.width === 390 && mobileViewportShot.height === 844,
-    JSON.stringify(mobileViewportShot));
+  check('mobile: the saved first-screen view is unscrolled and exactly the 390×844 content viewport',
+    mobileFirstScreen.exact === true && mobileFirstScreen.scrollY === 0
+      && mobileFirstScreen.innerWidth === 390 && mobileFirstScreen.innerHeight === 844
+      && mobile.scrollY === 0,
+    JSON.stringify({ shot: mobileFirstScreen, measuredScrollY: mobile.scrollY }));
   await contrastReport(wd, 'body', 'the product page (mobile 390 px, 500 g)');
   const mobileCardShot = await elementScreenshot(wd, `document.querySelector('#best-offer')`, 'product-500g-best-card-mobile.png');
   check('mobile: the saved 500 g best-card view is complete, not the visible intersection',
@@ -780,20 +811,24 @@ try {
     JSON.stringify({ shot: mobileCardShot, card: mobile.card }));
   await wd('POST', '/url', { url: `${base}/` });
   await waitForHome(wd);
+  const homeMobileFirstScreen = await firstScreenScreenshot(wd, 'home-mobile-390.png');
   const homeMobile = await evaluate(wd, `(() => {
     const card = document.querySelector('#catalog-list .product-card');
     const rect = card ? card.getBoundingClientRect() : null;
     return {
       overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+      scrollY: Math.round(window.scrollY),
       cardVisible: Boolean(rect) && rect.top >= 0 && rect.bottom <= window.innerHeight,
       height: document.documentElement.scrollHeight
     };
   })()`);
   check('mobile home: the whole product card is visible on the first screen without horizontal scrolling',
-    homeMobile.cardVisible === true && homeMobile.overflow === false, JSON.stringify(homeMobile));
-  const homeMobileShot = await screenshot(wd, 'home-mobile-390.png');
-  check('mobile home: the saved first-screen view is exactly the 390×844 content viewport',
-    homeMobileShot.width === 390 && homeMobileShot.height === 844, JSON.stringify(homeMobileShot));
+    homeMobile.cardVisible === true && homeMobile.overflow === false && homeMobile.scrollY === 0, JSON.stringify(homeMobile));
+  check('mobile home: the saved first-screen view is unscrolled and exactly the 390×844 content viewport',
+    homeMobileFirstScreen.exact === true && homeMobileFirstScreen.scrollY === 0
+      && homeMobileFirstScreen.innerWidth === 390 && homeMobileFirstScreen.innerHeight === 844
+      && homeMobile.scrollY === 0,
+    JSON.stringify({ shot: homeMobileFirstScreen, measuredScrollY: homeMobile.scrollY }));
 
   // -------------------------------------------------------- legacy URL handling
   await setContentViewport(wd, 1440, 1000);
@@ -928,6 +963,7 @@ try {
     await setContentViewport(wd, 390, 844);
     await wd('POST', '/url', { url: `${failedServer.url}${productPath}?grams=2000&dest=tel-aviv` });
     await waitForProduct(wd);
+    const failed2kgFirstScreen = await firstScreenScreenshot(wd, 'product-2kg-mobile-failed-390.png');
     const mobileWinner2kg = await evaluate(wd, `(() => {
       const rect = node => { const r = node.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right) }; };
       const card = document.querySelector('#best-offer');
@@ -935,6 +971,7 @@ try {
       return {
         innerWidth: window.innerWidth,
         innerHeight: window.innerHeight,
+        scrollY: Math.round(window.scrollY),
         vendor: card.querySelector('.offer__vendor')?.innerText.trim() ?? null,
         pack: card.querySelector('.offer__pack')?.textContent.trim() ?? null,
         item: cells[0]?.querySelector('.totals__value')?.textContent.trim() ?? null,
@@ -953,8 +990,8 @@ try {
     })()`);
     const failed2kgBoard = await fetchBoard(failedServer.url, 2000, 'tel-aviv');
     const failed2kgBest = failed2kgBoard.best ?? null;
-    check('mobile failure: the 2 kg CoffeeMan winner shows vendor, packs/grams, item, named method/charge and total in the first viewport',
-      mobileWinner2kg.innerWidth === 390 && mobileWinner2kg.innerHeight === 844
+    check('mobile failure: the 2 kg CoffeeMan winner shows vendor, packs/grams, item, named method/charge and total in the unscrolled first viewport',
+      mobileWinner2kg.innerWidth === 390 && mobileWinner2kg.innerHeight === 844 && mobileWinner2kg.scrollY === 0
         && /CoffeeMan/.test(mobileWinner2kg.vendor ?? '')
         && mobileWinner2kg.pack === '250 g pack · 8 × 250 g packs = 2000 g'
         && mobileWinner2kg.item === ils(failed2kgBest?.itemTotalIls)
@@ -969,10 +1006,11 @@ try {
         && (mobileWinner2kg.qualifierRect == null || mobileWinner2kg.qualifierRect.bottom <= mobileWinner2kg.innerHeight)
         && mobileWinner2kg.overflow === false,
       JSON.stringify(mobileWinner2kg));
-    const failed2kgViewportShot = await screenshot(wd, 'product-2kg-mobile-failed-390.png');
-    check('mobile failure: the saved 2 kg failed-state first-screen view is exactly the 390×844 content viewport',
-      failed2kgViewportShot.width === 390 && failed2kgViewportShot.height === 844,
-      JSON.stringify(failed2kgViewportShot));
+    check('mobile failure: the saved 2 kg failed-state first-screen view is unscrolled and exactly the 390×844 content viewport',
+      failed2kgFirstScreen.exact === true && failed2kgFirstScreen.scrollY === 0
+        && failed2kgFirstScreen.innerWidth === 390 && failed2kgFirstScreen.innerHeight === 844
+        && mobileWinner2kg.scrollY === 0,
+      JSON.stringify({ shot: failed2kgFirstScreen, measuredScrollY: mobileWinner2kg.scrollY }));
     await contrastReport(wd, 'body', 'the 2 kg CoffeeMan winner with the failed-check warning (mobile)');
     const failed2kgCardShot = await completeCardScreenshot(wd, `document.querySelector('#best-offer')`, 'product-2kg-mobile-winner-card.png');
     check('mobile failure: the saved 2 kg winner card view is complete, including the full failure sentence',
@@ -1395,6 +1433,8 @@ async function elementScreenshot(wd, expression, name) {
  * card, scroll it into view, verify the whole card (including the failure
  * sentence) is inside the viewport and only then capture the element. A cropped
  * element screenshot is not evidence that its warning text was readable.
+ * Afterwards the content viewport and the pre-capture scroll position are
+ * restored, so a later capture is not accidentally a scrolled card view.
  * Returns { name, width, height, cardRect } or null when the card is absent.
  */
 async function completeCardScreenshot(wd, expression, name, { width = 390, restoreHeight = 844 } = {}) {
@@ -1421,8 +1461,48 @@ async function completeCardScreenshot(wd, expression, name, { width = 390, resto
   })()`);
   const shot = await elementScreenshot(wd, expression, name);
   await setContentViewport(wd, width, restoreHeight);
+  // Restore the scroll position the page had before this capture. Without it a
+  // subsequent "viewport" screenshot silently becomes a scrolled card view.
+  await evaluate(wd, `(() => { window.scrollTo({ top: ${rect.scrollY}, left: 0, behavior: 'instant' }); return true; })()`);
+  await delay(100);
   if (!shot || !inside || inside.top < 0 || inside.bottom > inside.innerHeight + 1) return { ...shot, cardRect: inside, complete: false };
   return { ...shot, cardRect: inside, complete: true };
+}
+
+/**
+ * Save the unscrolled first screen of the current page at an exact
+ * `width`×`height` content viewport.
+ *
+ * The 3-91 review found the saved "viewport" captures were taken after
+ * completeCardScreenshot() had scrolled the offer card to the top, so they
+ * showed the card instead of the first screen after loading the product URL
+ * (page heading, quantity and locality controls missing). This helper resets
+ * the scroll position explicitly, records the measured `scrollY`, `innerWidth`
+ * and `innerHeight`, saves the PNG and requires the PNG to be exactly the
+ * requested content size. Callers require `scrollY === 0`, so a capture taken
+ * after card scrolling or viewport enlargement can never be presented as the
+ * loaded first screen.
+ */
+async function firstScreenScreenshot(wd, name, { width = 390, height = 844 } = {}) {
+  await setContentViewport(wd, width, height);
+  await evaluate(wd, `(() => { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); return true; })()`);
+  await delay(150);
+  const state = await evaluate(wd, `({
+    scrollY: Math.round(window.scrollY),
+    innerWidth: window.innerWidth,
+    innerHeight: window.innerHeight
+  })`);
+  const shot = await screenshot(wd, name);
+  const record = {
+    name,
+    width: shot.width,
+    height: shot.height,
+    ...state,
+    exact: shot.width === width && shot.height === height
+      && state.scrollY === 0 && state.innerWidth === width && state.innerHeight === height
+  };
+  report.firstScreenCaptures.push(record);
+  return record;
 }
 
 /**
