@@ -830,6 +830,35 @@ test('the checked-in schema-v3 identity records carry the observed rendered cart
   assert.equal(eightPack.deliveredTotalIls, 260);
 });
 
+test('the other checked-in free conditions now carry identity-verified v3 records', () => {
+  // The 7-single and 2 × 4-pack free conditions were recorded in schema v2
+  // without an observed cart line. These later runs keep the exact money and
+  // add the rendered listing identity, so every free condition has one.
+  const dir = new URL('../docs/evidence/browser-research/', import.meta.url);
+  const cases = [
+    ['2026-10-13-coffeeman-7singles-telaviv-identity-recipe.json', { sku: '930333', listingPacks: 1, quantity: 7, packs: 7, total: 231 }],
+    ['2026-10-13-coffeeman-4pack-telaviv-identity-recipe.json', { sku: '930334', listingPacks: 4, quantity: 2, packs: 2, total: 248 }]
+  ];
+  for (const [name, expected] of cases) {
+    const record = JSON.parse(readFileSync(new URL(name, dir), 'utf8'));
+    const validation = validateEvidence(record);
+    assert.equal(validation.ok, true, `${name}: ${JSON.stringify(validation.errors)}`);
+    assert.equal(record.schemaVersion, 3, name);
+    assert.equal(record.status, 'quoted', name);
+    assert.equal(record.cartIdentityVerified, true, name);
+    assert.equal(record.cartIdentitySource, 'rendered-cart-line', name);
+    assert.equal(record.observedCartIdentity.sku, expected.sku, name);
+    assert.equal(record.observedCartIdentity.listingPacks, expected.listingPacks, name);
+    assert.equal(record.observedCartIdentity.packGrams, 250, name);
+    assert.equal(record.observedCartIdentity.quantity, expected.quantity, name);
+    assert.equal(record.observedPacks, expected.packs, name);
+    assert.equal(record.shippingIls, 0, name);
+    assert.equal(record.shippingEvidenceSource, 'selected-method-option', name);
+    assert.equal(record.deliveredTotalIls, expected.total, name);
+    assert.equal(record.arithmeticOk, true, name);
+  }
+});
+
 test('the checked-in 8-pack recipe records reproduce the ₪20 quote at two destinations', () => {
   // The 8 × 250 g multipack recipe (SKU 930335, one cart unit = 2000 g) makes
   // the distinct ₪20 cart quote re-checkable per destination through the same

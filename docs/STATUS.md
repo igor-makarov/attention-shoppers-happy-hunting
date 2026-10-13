@@ -2830,7 +2830,12 @@ discount −₪26.40, paid item total ₪237.60, selected home courier displayed
 `...-eilat-identity-recipe.json`. A fresh run of the distinct `coffeeman-8pack` recipe at 10:37 UTC
 observed the multipack row (SKU `930335`, “8 אריזות 250 גרם”, quantity 1) and kept its own
 ₪240 + ₪20 = ₪260 applied-line quote (`...-8pack-telaviv-identity-recipe.json`), proving the distinct
-multipack does not inherit the single-listing free condition.
+multipack does not inherit the single-listing free condition. The other two exact free conditions were
+re-checked the same way at 10:42-10:43 UTC: the `singles-7` cart (SKU `930333`, 7 × 250 g, ₪231 free)
+and the `fourpack-2` cart (SKU `930334`, “4 אריזות 250 גרם” × 2, ₪248 free) each produced a quoted v3
+record with the rendered cart line observed and matched
+(`...-7singles-telaviv-identity-recipe.json`, `...-4pack-telaviv-identity-recipe.json`), so every free
+condition now has an identity-observed record without any money or scope change.
 
 **Tests:** `tests/research-workflow.test.js` now covers the matcher's verified, wrong-SKU, wrong
 multipack, mixed-cart, duplicate-render, missing-SKU and missing-pack-wording cases; a run whose rendered
