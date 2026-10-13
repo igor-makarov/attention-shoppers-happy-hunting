@@ -2387,6 +2387,12 @@ labels (stock, stale, promotion) stay.
 - `npm run probe:production` — **35/35** read-only checks against the deployed site at 05:00 UTC,
   including "the 2 kg single-pack cart applies the exact observed free condition, not a threshold" and
   "3 kg of singles keeps the published base rate instead of inheriting free delivery".
+- The pickup-label fix is **live**: the main-push Workers Builds deploy picked up commit 9c3e539 within
+  minutes. The production `/api/board?grams=2000&dest=tel-aviv` pickup rows now carry only item-level
+  labels plus `Pickup only — not a delivered offer` (0 of 4 rows leak a courier condition), and a
+  rendered production page dump at 05:06 UTC shows the 2 kg pickup terms as "Free self-pickup, listed on
+  the product page. Published promotion applied: 10% off the item subtotal (was ₪264.00). Pickup only —
+  not a delivered offer" — the courier free-cart sentence that was present before the deploy is gone.
 
 **Next step:** the **06:17 UTC cron tick** is the next actual vendor attempt; after it, record whether
 the CoffeeMan production-egress block (HTTP 403 from the Worker, HTTP 200 from the runner) persists and
