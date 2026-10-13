@@ -296,6 +296,35 @@ try {
     check('live: a ranked production offer whose last check failed warns visibly on the card face',
       /Last check failed/.test(failedWarning.best ?? '') || failedWarning.compare.some(text => /Last check failed/.test(text)),
       JSON.stringify(failedWarning));
+    // The real production store can carry a failed last check (CoffeeMan's
+    // Worker-egress HTTP 403 on 2026-10-13). Save a cropped, readable view of the
+    // affected offer in the comparison list, not only the full page, so the
+    // warning and money values can be reviewed together.
+    await setDetailsOpen(wd, '#compare-other-offers', true);
+    await evaluate(wd, `(() => {
+      const card = [...document.querySelectorAll('#compare-other-offers .offer')].find(node => node.querySelector('.qualifier--failure'));
+      card?.scrollIntoView({ block: 'center', behavior: 'instant' });
+      return Boolean(card);
+    })()`);
+    await delay(300);
+    const liveFailingShot = await elementScreenshot(wd,
+      `(() => [...document.querySelectorAll('#compare-other-offers .offer')].find(node => node.querySelector('.qualifier--failure')) ?? null)()`,
+      'product-live-failing-offer-card.png');
+    await screenshot(wd, 'product-live-failing-offer-viewport.png');
+    await setDetailsOpen(wd, '#compare-other-offers', false);
+    const liveFailingText = await evaluate(wd, `(() => {
+      const card = [...document.querySelectorAll('#compare-other-offers .offer')].find(node => node.querySelector('.qualifier--failure'));
+      return card ? {
+        vendor: card.querySelector('.offer__vendor')?.innerText.trim() ?? null,
+        pack: card.querySelector('.offer__pack')?.textContent.trim() ?? null,
+        totals: [...card.querySelectorAll('.totals__value')].map(node => node.textContent.trim()),
+        method: card.querySelector('.totals__meta--method')?.textContent.trim() ?? null,
+        failure: card.querySelector('.qualifier--failure')?.textContent.trim() ?? null
+      } : null;
+    })()`);
+    check('live: the real failing ranked offer is saved as a cropped readable view with its warning',
+      liveFailingShot === 'product-live-failing-offer-card.png' && /Last check failed/.test(liveFailingText?.failure ?? ''),
+      JSON.stringify(liveFailingText));
   }
 
   // Opening the delivery options disclosure reveals conditions and the full caveat
