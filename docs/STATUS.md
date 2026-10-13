@@ -2215,6 +2215,13 @@ after the 00:17 UTC Worker-egress HTTP 403 — existed only as a fixture-backed 
   same session are recorded in the evidence file; labels and arithmetic are corroborated by DOM/API
   assertions, not by image reading.
 
+- The deterministic offline checks were re-run on the same revision: `npm run evidence:coffeeman-scope` reports
+  `reproduced: true` (2/4/6 singles, one 4-pack and the one 8-pack keep the published ₪25/₪20; 7 singles,
+  8 singles with the promotion and two 4-packs reproduce their recorded free observations; the unobserved
+  3 kg singles, three 4-packs and repriced 8-singles carts all keep the published base rate), and
+  `npm run cron:offline` completes with **6 bounded requests**, all three vendors saved (five offers) and
+  `pruned: 0`.
+
 **Evidence:** `docs/evidence/browser-qa-production-20261013T0342Z.json`,
 `docs/evidence/production-status-20261013T0342Z.json`,
 `docs/evidence/visual-review/2026-10-13-live-2kg-winner-failed-state.json` and the timestamped cropped
