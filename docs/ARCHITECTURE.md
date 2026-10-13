@@ -88,14 +88,21 @@ policy-derived alternative are withheld, so a freshly parsed offer falls back to
 shipping rather than carrying a stale quote forward. Page-published rates (CoffeeMan's ₪25 and
 Coffee4U's ₪30/₪15) are parsed from the vendor page and stay independent of the policy window.
 
-The browser-research evidence schema (`scripts/research-workflow.mjs`, `browser-research-quote` v1)
-records the delivery method a shipping line belongs to: a recipe step that selects the method declares
-`confirmsService`, and a successful run stores `service` plus `serviceConfirmed: true`. A quoted record
-whose optional method step could not be confirmed stores `service: null`, `serviceConfirmed: false`
-and a qualification that the shipping line is not attributed to a named method; schema validation
-rejects both a claimed-but-unnamed method and an undisclosed unconfirmed one. The Coffee4U
-destination-extension records were backfilled from their recorded successful method step, and the
-Coffee4U policy names the method in `observedFor.method`.
+The browser-research evidence schema (`scripts/research-workflow.mjs`, `browser-research-quote`; current
+**v2**, with version-1 records still valid historical evidence) records the delivery method a shipping
+line belongs to: a recipe step that selects the method declares `confirmsService`, and a successful run
+stores `service` plus `serviceConfirmed: true`. A quoted record whose optional method step could not be
+confirmed stores `service: null`, `serviceConfirmed: false` and a qualification that the shipping line is
+not attributed to a named method; schema validation rejects both a claimed-but-unnamed method and an
+undisclosed unconfirmed one. Schema v2 additionally distinguishes the displayed pre-discount item
+subtotal, the explicit applied discount, the paid item total, the shipping-evidence source and the
+delivered total, and accepts an omitted applied shipping row as a confirmed ₪0 only when the selected
+named method is rendered at zero, the SKU/whole-pack quantity and destination were verified and the
+discount/paid-total arithmetic matches the final total; any missing piece keeps the record
+blocked/unknown. The Coffee4U destination-extension records were backfilled from their recorded
+successful method step, the Coffee4U policy names the method in `observedFor.method`, and the CoffeeMan
+8 × 250 g free-cart quotes for Tel Aviv–Yafo and Eilat are the first schema-v2 records that exercise the
+omitted-row rule with the applied 10% promotion.
 
 `src/lib/promotions.js` is the shared, validated model for published item-price promotions (quantity
 discounts). A promotion states the vendor, product/URL scope, the percent off, the activating

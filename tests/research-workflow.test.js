@@ -69,16 +69,21 @@ test('the Coffee4U parser reads the real checkout layout with label and amount o
 
 test('recipes cover the three tracked vendors with whole-pack cart steps', () => {
   const list = listRecipes();
-  assert.deepEqual(list.map(item => item.id).sort(), ['coffee4u', 'coffeeman', 'coffeeman-4pack', 'pucks']);
+  assert.deepEqual(list.map(item => item.id).sort(), ['coffee4u', 'coffeeman', 'coffeeman-4pack', 'coffeeman-8pack', 'pucks']);
   for (const recipe of list) {
     assert.ok(recipe.productUrl.startsWith('https://'), recipe.id);
     assert.ok(recipe.cartUrl.startsWith('https://'), recipe.id);
-    assert.ok([250, 1000].includes(recipe.packGrams), recipe.id);
+    assert.ok([250, 1000, 2000].includes(recipe.packGrams), recipe.id);
     assert.ok(recipe.steps >= 5, `${recipe.id} has a cart/estimator navigation`);
   }
   // The 4-pack recipe must target the 4 × 250 g listing, not the single pack.
   assert.match(RECIPES['coffeeman-4pack'].productUrl, /4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA/);
   assert.equal(RECIPES['coffeeman-4pack'].packGrams, 1000);
+  // The 8-pack recipe must target the 8 × 250 g listing, where one cart unit is
+  // the whole 2000 g multipack (the ₪20 quote's observed cart).
+  assert.match(RECIPES['coffeeman-8pack'].productUrl, /8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA/);
+  assert.equal(RECIPES['coffeeman-8pack'].packGrams, 2000);
+  assert.equal(RECIPES['coffeeman-8pack'].sku, '930335');
 });
 
 test('recipe placeholders expand to the run parameters', () => {

@@ -137,6 +137,22 @@ export const RECIPES = {
     parseTotals: parseCoffeemanTotals,
     steps: COFFEEMAN_CHECKOUT_STEPS
   },
+  // The tracked 8 × 250 g multipack (SKU 930335) carries its own ₪20 anonymous
+  // checkout quote, scoped to a single 2000 g cart. One cart unit is the whole
+  // 8-pack (packGrams 2000), so a 2000 g run sets quantity 1 and re-checks the
+  // quote and its destination coverage through the reusable recipe.
+  'coffeeman-8pack': {
+    id: 'coffeeman-8pack',
+    vendorId: 'coffeeman',
+    vendorName: 'CoffeeMan (Amigo)',
+    sku: '930335',
+    productUrl: 'https://www.coffeeman.co.il/product/8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico',
+    cartUrl: 'https://www.coffeeman.co.il/checkout.asp',
+    allowedHosts: ['www.coffeeman.co.il', 'coffeeman.co.il'],
+    packGrams: 2000,
+    parseTotals: parseCoffeemanTotals,
+    steps: COFFEEMAN_CHECKOUT_STEPS
+  },
   coffee4u: {
     id: 'coffee4u',
     vendorId: 'coffee4u',
