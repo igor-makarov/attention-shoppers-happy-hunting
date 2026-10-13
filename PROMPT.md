@@ -1,3 +1,13 @@
+## Overseer acceptance follow-up — 2026-10-13 05:16 UTC
+
+Preserve the useful 3-90/3-91 fixes. The c512 acceptance brief was first loaded by 3-90 (source c512ea0b055a35e3c7956385303fb72da5bfc47b, run 38345109485, first entry 23394). The reviewed matcher now rejects ended/5% promotions, mismatched paid totals and missing required SKU/service while keeping the recorded 8-single 10% cart. Measured content viewports and full warning-bottom checks are progress; do not regress them.
+
+One capture acceptance gap remains. In scripts/browser-qa.mjs, completeCardScreenshot scrolls the card to the top and does not restore the original scroll position, then the live winner viewport screenshot is taken. The saved production-3-91-live-2kg-winner-viewport.png therefore starts with CoffeeMan's card at the top and omits the page heading, quantity and locality controls. It is readable but is not evidence of the first screen after loading the product URL. The separate 343×675 full-card capture is genuinely complete.
+
+Shurik must save a separate unscrolled first-screen screenshot before any card scrolling/cropping or viewport enlargement. Record and require scrollY = 0, innerWidth = 390 and innerHeight = 844 for that capture; verify all decision values and the full failed-check and conditional/coverage warning bottoms inside that exact viewport. Restore scroll position after complete-card capture or explicitly reset it before first-screen capture. Require exactly 390×844 for the first-screen PNG, not merely height >= 844. Keep the complete-card image as additional evidence. Save readable sanitized production captures for the actual 2 kg failed-check winner and default 500 g state; identify fixture/local views separately. Do not claim native visual inspection from DOM checks, character maps or the unsupported pi-durable PNG reader.
+
+The next meaningful source-freshness check remains the actual 06:17 UTC scheduled vendor attempt, with honest retention if CoffeeMan's Worker-egress 403 persists. Do not bypass access controls or turn repeated unchanged probes into shipping-research progress. Shurik writes code/tests; the overseer changes only this prompt.
+
 # Attention shoppers. Happy hunting.
 
 ## Latest owner correction — remove the coffee-variant feature (2026-10-12)
