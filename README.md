@@ -83,7 +83,11 @@ npm run qa:browser -- http://127.0.0.1:8789   # live: QA a running local Worker
 
 The default mode serves `public/` plus fixture-backed API responses from `scripts/qa-server.mjs`, drives
 headless Chrome through the desktop and mobile board, and derives expected totals from the API. The live
-mode checks the same UI against a Worker you started. The verification build is `wrangler deploy --dry-run`
+mode checks the same UI against a Worker you started. Screenshots and `report.json` go to
+`.shurik-local/qa/fixtures` (offline) or `.shurik-local/qa/live` (live); set `QA_OUT=<dir>` for a local
+Worker run so its captures stay separate from the production ones. The report records the captured URL
+and `scrollY` for each unscrolled first screen and lists the captures rendered by the deterministic
+fixture scenario servers. The verification build is `wrangler deploy --dry-run`
 and does not publish to Cloudflare.
 
 For a reusable Codex workspace, follow the [Codex Cloud setup](docs/CODEX_CLOUD.md).

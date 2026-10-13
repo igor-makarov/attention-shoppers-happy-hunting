@@ -104,6 +104,11 @@ run takes about 40 s, so a client-side timeout on that call does not mean the re
 serves `public/` and the read-only board API computed from `tests/fixtures/` with the production quote
 engine, so headless Chrome checks the real UI offline and the script compares the DOM against the API
 response instead of hard-coded prices. The live form checks the same UI against a real local Worker.
+Screenshots and `report.json` are written to `.shurik-local/qa/fixtures` (offline) or
+`.shurik-local/qa/live` (live); a local Worker run can set `QA_OUT=<dir>` to keep its captures apart from
+the production ones. Unscrolled first screens are saved before any card scrolling or viewport
+enlargement and their records include the captured URL, `scrollY`, measured viewport and exact PNG size;
+the report lists which captures came from the deterministic fixture scenario servers.
 
 ## Adding a vendor (and the product-line rule)
 
