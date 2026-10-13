@@ -1735,3 +1735,62 @@ for all three vendors: Pucks/Coffee4U are due at 06:17:54 within the 15-minute p
 CoffeeMan is long past its backoff due time) to record whether the CoffeeMan block persists from the
 Worker egress and whether the refreshed rows parse; then continue within Crema e Gusto coverage, shipping
 evidence, freshness and comparison quality.
+
+## Iteration 3-81 — variant wording removed from the persisted offer identity; old-store rows cannot duplicate a SKU (2026-10-13)
+
+**The last variant coupling in the data layer is gone.** The owner correction removed the blend selector
+and the variant filter, but the persisted observation key still contained the blend wording a listing
+printed (`vendor:sku:classico:ground:250g:x1`). A vendor that changes or drops that wording would
+therefore persist a second row for one SKU, and the board would show the same offer twice — exactly the
+duplication the correction forbids. This iteration:
+
+- `src/vendors/index.js` builds the observation key from vendor + SKU/product + form + pack size only.
+  The raw wording still travels on the product payload as provenance.
+- `src/lib/quote.js` exports `offerIdentity()`/`dedupeObservations()` and applies them to the candidate
+  rows of every board: rows for the same vendor + listing URL collapse to the most recently observed
+  one. Distinct listings, pack sizes and multipacks keep distinct URLs/SKUs and stay separate offers.
+  The legacy blend-keyed row in an old persisted store is therefore invisible as a duplicate, with no
+  destructive migration and no change to its price, stock or observation time.
+- `src/refresh.js` resolves a failed attempt's marker to the newest row for the listing URL (so a failure
+  warning cannot land on a hidden legacy row) and falls back to the newest same-URL row for the
+  previous-check comparison, so the key change keeps one step of price/stock evidence instead of losing
+  it once.
+
+**Verified locally (2026-10-13 UTC):**
+
+- `npm run verify` — **153/153** `node:test` cases pass (3 new: the key is identical for stated and
+  unstated blend wording, two rows of one listing URL collapse to the newest offer, and a seeded legacy
+  row plus its stable-key replacement keep the previous price and the failure marker on the visible
+  row); `wrangler deploy --dry-run` builds the bundle (120.39 KiB, gzip 30.04 KiB; bindings `BOARD` +
+  `ASSETS`).
+- `npm run qa:browser` (offline fixtures) — **88/88** checks, zero console errors; the home→product
+  navigation, unified comparison with Coffee4U, disclosures, quantity/destination changes, named vendors,
+  honest unknowns and mobile first-viewport money values all still pass. Evidence:
+  `docs/evidence/browser-qa-fixtures-20261013T0048Z.json`.
+- Fresh-store `wrangler dev` initial refresh (00:48:48.742Z → 00:49:06.784Z, live vendor fetches, no
+  browser opened for the refresh): all three vendors succeeded, five observations stored, and the keys
+  are now stable (`pucks:Lav69:ground:250g:x1`, `coffeeman:930333:ground:250g:x1`, …). The board ranks
+  Pucks ₪90, CoffeeMan ₪91, Coffee4U ₪106, CoffeeMan 4-pack ₪149 and 8-pack ₪260; the obsolete
+  `?variant=unspecified` request returns the identical ranking and there are four separate pickup rows.
+- **Old-store case exercised end-to-end:** a legacy blend-keyed row
+  (`pucks:Lav69:classico:ground:250g:x1`, price ₪29, observed 2026-10-12T18:00Z) was seeded next to the
+  stable-key Pucks row in the local Durable Object store. The store then held 6 rows; `/api/board`
+  returned **5 ranked offers** (no duplicate Pucks offer), the Pucks offer kept the newest observation
+  (₪30, stable key), and the pickup list stayed at 4 rows. Evidence:
+  `docs/evidence/local-old-store-dedupe-20261013T0052Z.json`.
+- `npm run qa:browser -- http://127.0.0.1:8789` against that Worker (legacy row present) — **84/84**
+  checks with zero console errors. Evidence: `docs/evidence/browser-qa-live-20261013T0050Z.json`.
+- Docs: `docs/ARCHITECTURE.md` documents the offer identity and the read-time collapse;
+  `docs/STATUS.md`'s current-state section now states precisely that only the board-level
+  `variantId`/`excludedByVariant` fields are gone while per-offer `product.variantId`/`variantLabel`
+  remain raw listing identity metadata in optional offer details.
+
+**Production note:** the change is backwards compatible with the deployed store. The current five
+production rows are legacy blend-keyed and unique, so they render unchanged; after the next successful
+refresh writes stable-key rows, the read-time collapse keeps the board at five offers while the old rows
+remain harmless. No destructive migration and no Cloudflare administration were used.
+
+**Next step:** re-run `npm run probe:production` after the **06:17 UTC tick** (the next scheduled attempt
+for all three vendors) to record whether the CoffeeMan egress block persists and whether the refreshed
+rows parse; the served assets can also be checked for the new identity code after the main-push build
+deploys. Then continue within Crema e Gusto coverage, shipping evidence, freshness and comparison quality.
