@@ -84,7 +84,10 @@ export const RECIPES = {
       // back to the element's own click() (recorded in the step detail).
       { action: 'clickAnyText', texts: ['קנה עכשיו', 'הוסף לעגלה', 'הוספה לסל'], optional: false },
       { action: 'goto', url: '{cartUrl}', optional: true },
-      { action: 'waitText', text: 'סה"כ', timeout: 20000, optional: true },
+      // The checkout summary label is "סכום כולל מע\"מ" (the cart page prints
+      // "סה\"כ"); wait for the checkout summary so the totals are read after the
+      // page has rendered them.
+      { action: 'waitText', text: 'סכום כולל', timeout: 20000, optional: true },
       { action: 'setQuantity', target: '{grams}', optional: true },
       // The checkout exposes the home-delivery locality list as a closed select
       // (#hfd_cities, 264 localities observed 2026-10-13). Selecting the
@@ -231,12 +234,30 @@ export function parsePucksTotals(text) {
   };
 }
 
-/** CoffeeMan summary: סכום ביניים / משלוח / סה"כ. */
+/**
+ * CoffeeMan summary. Two rendered layouts are supported:
+ *
+ * - the cart page ("סכום ביניים: ₪ 66.00" / "משלוח 25 ₪" / "סה"כ 91 ₪");
+ * - the current checkout page, which lists the tracked product line with its
+ *   amount on the next line, then a bare "משלוח" line with "₪25.00" on the
+ *   next line, and the total under "סכום כולל מע"מ".
+ *
+ * The applied shipping charge is only ever read from a bare summary label: the
+ * method-option labels ("משלוח לבית הלקוח... - 25.00 ₪") and the E-post
+ * sentence must not be read as the charge the shopper was quoted.
+ */
 export function parseCoffeemanTotals(text) {
   const value = String(text ?? '');
-  const subtotal = /סכום ביניים[^\d]{0,12}([\d.,]+)/.exec(value)?.[1] ?? null;
-  const shippingMatch = /(?:משלוח|דמי משלוח)[^\S\n]*([\d.,]+|חינם|free)/i.exec(value);
-  const total = /(?:סה"כ|סך הכל)[^\d]{0,12}([\d.,]+)/.exec(value)?.[1] ?? null;
+  // The checkout does not repeat "סכום ביניים"; the tracked product line with
+  // its amount is the displayed item subtotal. Never derive the subtotal from
+  // the total minus shipping: that would make the arithmetic tautological.
+  const subtotal = /סכום ביניים[^\d]{0,12}([\d.,]+)/.exec(value)?.[1]
+    ?? /(?:Lavazza\s+)?Crema\s*e\s*gusto[\s\S]{0,120}?₪\s*([\d.,]+)/i.exec(value)?.[1]
+    ?? null;
+  const shippingMatch = /(?:משלוח|דמי משלוח)[^\S\n]*([\d.,]+|חינם|free)/i.exec(value)
+    ?? /(?:^|\n)[ \t]*(?:משלוח|דמי משלוח)[ \t]*\n[ \t]*₪\s*([\d.,]+)/i.exec(value)
+    ?? /(?:^|\n)[ \t]*(?:משלוח|דמי משלוח)[ \t]*\n[ \t]*(חינם|free)/i.exec(value);
+  const total = /(?:סה"כ|סך הכל|סכום כולל מע["״]?מ)[^\d]{0,12}([\d.,]+)/.exec(value)?.[1] ?? null;
   const shipping = shippingMatch?.[1] ?? null;
   return {
     itemSubtotalIls: toAmount(subtotal),
