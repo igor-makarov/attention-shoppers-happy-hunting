@@ -516,7 +516,7 @@ const COFFEEMAN_8_SINGLES_FREE = `עגלת הקניות
 באתר החברה ניתנת לעיתים הנחה למחיר הקטלוגי. הנחה זו אינה מבצע.
 מעקב משלוחים`;
 
-function freeCartDriver(text) {
+function freeCartDriver(text, locality = 'תל אביב - יפו') {
   return {
     goto: async () => 'navigated',
     gotoUnlessText: async () => 'navigated',
@@ -528,6 +528,8 @@ function freeCartDriver(text) {
     setQuantity: async () => 8,
     waitText: async () => true,
     sleep: async () => {},
+    readValue: async selector => (selector === '#hfd_cities' ? locality : null),
+    readSelectedLabel: async selector => (selector === '#hfd_cities' ? locality : null),
     getText: async () => text,
     currentUrl: async () => 'https://www.coffeeman.co.il/checkout.asp'
   };
@@ -604,6 +606,35 @@ test('an omitted shipping row without the independent evidence stays blocked, ne
   assert.equal(noMethod.serviceConfirmed, false);
   assert.match(noMethod.blocker, /Required step "selectLabel" failed/);
   assert.equal(validateEvidence(noMethod).ok, true);
+});
+
+test('the runner re-verifies the destination before reading the totals and blocks when it was reset', async () => {
+  // CoffeeMan's quantity change re-renders the checkout form and can clear the
+  // locality select after the selection step appeared to succeed. The record
+  // must not attribute the quote to a destination that no longer holds.
+  const resetDriver = {
+    ...freeCartDriver(COFFEEMAN_8_SINGLES_FREE),
+    readSelectedLabel: async () => 'בחר עיר'
+  };
+  const record = await runRecipe({
+    recipe: RECIPES.coffeeman,
+    driver: resetDriver,
+    params: { grams: 2000, locality: 'תל אביב - יפו' }
+  });
+  assert.equal(record.status, 'blocked', 'a reset destination must block the quote');
+  assert.equal(record.destinationVerified, false);
+  assert.match(record.blocker, /reset before the totals were read/);
+  assert.ok(record.steps.some(step => step.step === 'selectLabel:recheck' && step.ok === false), 'the failed re-check is recorded');
+  assert.equal(validateEvidence(record).ok, true);
+
+  // The same driver with the destination still holding records the quote.
+  const held = await runRecipe({
+    recipe: RECIPES.coffeeman,
+    driver: freeCartDriver(COFFEEMAN_8_SINGLES_FREE),
+    params: { grams: 2000, locality: 'תל אביב - יפו' }
+  });
+  assert.equal(held.status, 'quoted');
+  assert.equal(held.destinationVerified, true);
 });
 
 test('the omitted-row decision rejects each missing piece of independent evidence', () => {

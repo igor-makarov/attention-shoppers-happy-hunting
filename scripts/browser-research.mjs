@@ -514,6 +514,14 @@ function createResearchDriver(session) {
       const readback = await evalIn(`return document.querySelector(arguments[0])?.value ?? null`, [selector]);
       return { selector, value: readback };
     },
+    /** Read an input's current value without changing the page (destination re-check). */
+    async readValue(selector) {
+      return evalIn(`return document.querySelector(arguments[0])?.value ?? null`, [selector]);
+    },
+    /** Read a select's current option label without changing the page (destination re-check). */
+    async readSelectedLabel(selector) {
+      return evalIn(`return (() => { const el = document.querySelector(arguments[0]); if (!el || !el.selectedOptions) return null; return el.selectedOptions[0] ? el.selectedOptions[0].textContent.trim() : null; })()`, [selector]);
+    },
     /**
      * Set a whole-pack quantity in the cart and return how many packs the page
      * now shows. Handles a classic quantity input and the vendor's stepper

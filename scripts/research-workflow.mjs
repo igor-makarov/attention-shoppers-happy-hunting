@@ -44,6 +44,11 @@ const COFFEEMAN_CHECKOUT_STEPS = [
   // page has rendered them.
   { action: 'waitText', text: 'סכום כולל', timeout: 20000, optional: true },
   { action: 'setQuantity', target: '{grams}', optional: true },
+  // A quantity change re-renders the checkout form asynchronously and can reset
+  // the locality/method controls after they were set, so let the cart settle
+  // before the destination and method steps. The runner also re-verifies the
+  // destination immediately before reading the totals.
+  { action: 'sleep', ms: 5000 },
   // The checkout exposes the home-delivery locality list as a closed select
   // (#hfd_cities, 264 localities observed 2026-10-13). Selecting the
   // requested locality is required, so a run that cannot set the
@@ -86,6 +91,9 @@ export const RECIPES = {
       { action: 'gotoUnlessText', url: '{cartUrl}', text: 'דרכי משלוח', optional: true },
       { action: 'waitText', text: 'דרכי משלוח', timeout: 20000, optional: true },
       { action: 'setQuantity', target: '{grams}', optional: true },
+      // Let the estimator's asynchronous recalculation settle before setting
+      // the destination fields; the runner re-verifies them before reading.
+      { action: 'sleep', ms: 4000 },
       // The estimator's destination fields are text inputs (ישוב / מיקוד), not a
       // select: the language dropdown is the only <select> on the page, so a
       // generic select step would silently record a locality that was never
@@ -150,6 +158,9 @@ export const RECIPES = {
       { action: 'gotoUnlessText', url: '{cartUrl}', text: 'שיטת משלוח', optional: true },
       { action: 'waitText', text: 'שיטת משלוח', timeout: 20000, optional: true },
       { action: 'setQuantity', target: '{grams}', optional: true },
+      // Let the checkout's asynchronous recalculation settle before setting the
+      // destination; the runner re-verifies it immediately before reading.
+      { action: 'sleep', ms: 4000 },
       // Destination: the checkout renders one closed locality list
       // (select#u_city, 1,269 options on 2026-10-12). It is a required step so a
       // run that cannot set the locality is blocked instead of attributed to it.
@@ -702,6 +713,8 @@ export const DRIVER_INTERFACE = [
   'setQuantity(grams)',
   'waitText(text, timeoutMs)',
   'sleep(ms)',
+  'readValue(selector)',
+  'readSelectedLabel(selector)',
   'getText()',
   'currentUrl()'
 ];
@@ -781,6 +794,42 @@ export async function runRecipe({ recipe, driver, params = {}, now = Date.now(),
       status = 'blocked';
       blocker = `Required step "${step.action}" failed: ${error?.message ?? error}`;
       break;
+    }
+  }
+  // Destination durability: an asynchronous cart re-render can reset a
+  // destination control after its step succeeded (CoffeeMan's quantity change
+  // re-renders the checkout form). The quote is only attributed to a
+  // destination that still holds when the totals are read, so every destination
+  // step is re-verified here, read-only, immediately before the page text is
+  // captured. A reset destination blocks the run instead of being attributed to
+  // the requested locality.
+  const destinationSteps = expandSteps(recipe, runParams).filter(step => step.verifies === 'destination');
+  const canRecheckDestination = typeof driver.readValue === 'function' || typeof driver.readSelectedLabel === 'function';
+  if (status === 'quoted' && destinationSteps.length && canRecheckDestination) {
+    for (const step of destinationSteps) {
+      const expected = step.action === 'fill' ? step.value : step.label;
+      try {
+        const current = step.action === 'fill'
+          ? { value: await driver.readValue(step.selector) }
+          : await driver.readSelectedLabel(step.selector);
+        if (!destinationMatches(step, current)) {
+          destinationVerified = false;
+          recordStep({ action: `${step.action}:recheck`, optional: Boolean(step.optional), verifies: 'destination' }, false, null, `no longer holds ${JSON.stringify(expected)}`);
+          if (!step.optional) {
+            status = 'blocked';
+            blocker = `The destination control was reset before the totals were read: ${step.selector} no longer holds ${JSON.stringify(expected)}.`;
+          }
+          break;
+        }
+      } catch (error) {
+        destinationVerified = false;
+        recordStep({ action: `${step.action}:recheck`, optional: Boolean(step.optional), verifies: 'destination' }, false, error);
+        if (!step.optional) {
+          status = 'blocked';
+          blocker = `Could not re-verify the destination before reading the totals: ${error?.message ?? error}`;
+        }
+        break;
+      }
     }
   }
   let text = '';
