@@ -2376,6 +2376,17 @@ labels (stock, stale, promotion) stay.
   rendered check at 2 kg: `{"courierConditionShown":true,"leaked":0,"rowCount":4}`. Report
   `docs/evidence/browser-qa-offline-20261013T0457Z.json`; the production run's captures are
   `docs/evidence/visual-review/production-3-91-live-{2kg-winner,failing-offer}-{card,viewport}.png`.
+- Local live Worker (`npx wrangler dev --port 8789`, fresh local SQLite Durable Object; the initial
+  refresh completed at 05:01:27Z with all three vendors saved, including CoffeeMan from the runner
+  network) — `npm run qa:browser -- http://127.0.0.1:8789` passed **110/110** checks with zero console
+  errors and the same clean pickup result. The live 2 kg board still matches the recorded free cart
+  (`freeCondition: singles-8`, ₪237.60) and every pickup row now carries only item-level labels plus
+  `Pickup only — not a delivered offer` (evidence
+  `docs/evidence/browser-qa-local-worker-20261013T0502Z.json` and
+  `docs/evidence/local-live-pickup-labels-20261013T0502Z.json`).
+- `npm run probe:production` — **35/35** read-only checks against the deployed site at 05:00 UTC,
+  including "the 2 kg single-pack cart applies the exact observed free condition, not a threshold" and
+  "3 kg of singles keeps the published base rate instead of inheriting free delivery".
 
 **Next step:** the **06:17 UTC cron tick** is the next actual vendor attempt; after it, record whether
 the CoffeeMan production-egress block (HTTP 403 from the Worker, HTTP 200 from the runner) persists and
