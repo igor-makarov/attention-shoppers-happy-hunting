@@ -2519,3 +2519,9 @@ of inheriting free delivery, the over-2000 g eight-pack stays unrankable with th
 and the board is not stale (`lastRefreshAt 06:17:59.310Z`, `stale: false`). No access control was bypassed
 and no Cloudflare administration was attempted; the runner-side HTTP 200 vs Worker-side 403 difference is
 recorded for the maintainer. Evidence: `docs/evidence/production-probe-20261013T0619Z.json`.
+
+**Deployment currency check (06:21Z, read-only).** The production site serves byte-identical public assets
+to the committed `main` HEAD — `product.js` sha256-16 `6d4375d9385d01db`, `ui.js` `bcf149afc1a17989`,
+`style.css` `882a90708554a5ed` and the rendered `/product/lavazza-crema-e-gusto-vacuum-ground` HTML
+`e9fe6e03af757302` all match locally — so the 3-90/3-91 UI and matcher fixes verified here are the code the
+deployed Worker is actually serving (docs/test-only commits since then do not change the bundle).
