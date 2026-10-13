@@ -152,21 +152,29 @@ export const coffeemanEightPackPolicy = {
  * rate comes from anonymous checkout carts observed on 2026-10-12
  * (19:56-20:09 UTC).
  *
- * The same carts establish the free condition at its actual scope: a ₪198
- * (6 × 250 g) cart was charged ₪25, while a ₪231 (7 × 250 g) cart and the
- * ₪264/₪237.60 (8 × 250 g) and ₪248 (2 × 4-pack) carts showed free home
- * courier. The vendor publishes no threshold and the ₪240 8-pack SKU cart kept
- * its own ₪20 rate (its own policy), so the free condition is stored for these
- * two listing URLs only, applied from a ₪231 item subtotal — the lowest
- * observed free subtotal. That boundary is deliberately conservative: a cart
- * below it keeps the published ₪25 even though the unpublished rule might
- * start lower, so the board can only under-promise free delivery, never invent
- * it. The condition carries its own `observed_cart` origin and evidence, and it
- * stops applying with the policy when `reviewBy` passes.
+ * The vendor publishes no free-shipping threshold, and the sampled carts do not
+ * establish one: a ₪198 (6 × 250 g) cart was charged ₪25 while a ₪231
+ * (7 × 250 g) cart, the ₪264 → ₪237.60 (8 × 250 g) cart and the ₪248
+ * (2 × 4-pack) cart showed free home courier. The observed free carts are
+ * therefore stored as exact cart conditions — listing scope, whole-pack count,
+ * ordered grams, item subtotal before any discount and the paid item total —
+ * instead of a monotone threshold. Free delivery applies only when the current
+ * cart matches an observed configuration; every other cart keeps the published
+ * ₪25 base rate, so a larger or otherwise unobserved cart (for example 12
+ * singles or three 4-packs) can never inherit free delivery merely because its
+ * subtotal is high. The ₪240 8-pack SKU cart kept its own ₪20 rate (its own
+ * policy) and never inherits these conditions.
+ *
+ * v3 supersedes the v2 monotone threshold (₪231, `at_least`) at read time: a
+ * persisted row stamped with the superseded rule stops applying it without
+ * waiting for the next vendor refresh, while the base ₪25 rate and the item
+ * observation time stay untouched. Each condition carries its own
+ * `observed_cart` evidence, and the conditions stop applying with the policy
+ * when `reviewBy` passes.
  */
 export const coffeemanSingleFourPackPolicy = {
   id: 'coffeeman-single-4pack-il-home-delivery',
-  version: 2,
+  version: 3,
   vendorId: 'coffeeman',
   productIds: [PRODUCT_ID],
   itemUrlPrefixes: [
@@ -178,25 +186,84 @@ export const coffeemanSingleFourPackPolicy = {
   certainty: 'verified',
   rule: {
     amount: { amount: 25, currency: 'ILS' },
-    // The published rate stays the base; the free condition below is the
-    // anonymous-cart observation, scoped to this policy's two listing URLs.
-    freeThreshold: { amount: 231, currency: 'ILS' },
-    thresholdSemantics: 'at_least',
-    freeThresholdOrigin: 'observed_cart',
-    freeThresholdEvidence: {
-      url: 'https://www.coffeeman.co.il/checkout.asp',
-      retrievedAt: '2026-10-12T20:09:00Z',
-      note: 'Anonymous checkout carts on 2026-10-12: ₪25 home courier on the ₪66/₪124/₪132/₪198 carts and free home courier from the ₪231 (7 × 250 g) cart; the ₪264 (₪237.60 after the automatic promotion) 8 × 250 g cart and the ₪248 two-4-pack cart were also free. No threshold is published on the product page, so ₪231 is the lowest observed free subtotal and the rule is applied conservatively from there.'
-    },
+    // No free threshold is recorded: the vendor publishes none and the sampled
+    // carts are not monotone (the ₪240 8-pack cart was charged ₪20 while the
+    // ₪231/₪248 single/4-pack carts were free). The free observations live in
+    // `freeCartConditions` at their exact observed scope instead.
+    freeThreshold: null,
+    thresholdSemantics: null,
     minOrder: null,
-    maxTotalGrams: null
+    maxTotalGrams: null,
+    freeCartConditions: [
+      {
+        id: 'singles-7',
+        service: 'home_delivery',
+        itemUrlPrefix: 'https://www.coffeeman.co.il/product/250-',
+        packCount: 1,
+        units: 7,
+        orderedGrams: 1750,
+        itemSubtotalIls: 231,
+        discountPercent: null,
+        paidItemTotalIls: 231,
+        methodLabel: 'home courier',
+        destinationEvidence: 'the anonymous checkout method picker displayed the method prices without asking for a locality',
+        observedAt: '2026-10-12T20:09:00Z',
+        evidence: {
+          url: 'https://www.coffeeman.co.il/checkout.asp',
+          note: 'Anonymous checkout cart 2026-10-12: 7 × 250 g singles, ₪231 item subtotal, home courier ₪0 and distribution-center ₪0.'
+        }
+      },
+      {
+        id: 'singles-8',
+        service: 'home_delivery',
+        itemUrlPrefix: 'https://www.coffeeman.co.il/product/250-',
+        packCount: 1,
+        units: 8,
+        orderedGrams: 2000,
+        itemSubtotalIls: 264,
+        discountPercent: 10,
+        paidItemTotalIls: 237.6,
+        methodLabel: 'home courier',
+        destinationEvidence: 'the anonymous checkout method picker displayed the method prices without asking for a locality',
+        observedAt: '2026-10-12T20:09:00Z',
+        evidence: {
+          url: 'https://www.coffeeman.co.il/checkout.asp',
+          note: 'Anonymous checkout cart 2026-10-12: 8 × 250 g singles, ₪264 item subtotal before the automatic 10% quantity discount, ₪237.60 paid, home courier ₪0.'
+        }
+      },
+      {
+        id: 'fourpack-2',
+        service: 'home_delivery',
+        itemUrlPrefix: 'https://www.coffeeman.co.il/product/4-',
+        packCount: 4,
+        units: 2,
+        orderedGrams: 2000,
+        itemSubtotalIls: 248,
+        discountPercent: null,
+        paidItemTotalIls: 248,
+        methodLabel: 'home courier',
+        destinationEvidence: 'the anonymous checkout method picker displayed the method prices without asking for a locality',
+        observedAt: '2026-10-12T20:09:00Z',
+        evidence: {
+          url: 'https://www.coffeeman.co.il/checkout.asp',
+          note: 'Anonymous checkout cart 2026-10-12: 2 × (4 × 250 g) multipacks, ₪248 item subtotal, home courier ₪0.'
+        }
+      }
+    ]
+  },
+  // The v2 rule applied an unconditional free threshold from ₪231. That was a
+  // scope error: the free carts were observed exactly, not as a threshold. A
+  // row stamped by v2 is migrated at read time so the superseded threshold
+  // stops applying promptly instead of waiting for the next vendor refresh.
+  supersedes: {
+    freeThreshold: { amount: 231, currency: 'ILS', semantics: 'at_least', origin: 'observed_cart', policyVersion: 2 }
   },
   alternatives: [{
     id: 'distribution-center',
     label: 'Distribution-center delivery up to 5 kg (cart-observed for 0.5–1 kg carts)',
     amount: { amount: 15, currency: 'ILS' },
     maxTotalGrams: 5000,
-    note: 'Anonymous cart 2026-10-12 (https://www.coffeeman.co.il/checkout.asp): ₪25 home courier (matching the published rate) and ₪15 distribution-center delivery up to 5 kg for 0.5–1 kg carts; the distribution-center fee became free on the ₪198 cart. Free home courier was observed from the ₪231 cart and on the larger 8 × 250 g and two-4-pack carts, so the free condition is applied from ₪231 for the single/4-pack listings while a smaller cart keeps the published ₪25.'
+    note: 'Anonymous cart 2026-10-12 (https://www.coffeeman.co.il/checkout.asp): ₪25 home courier (matching the published rate) and ₪15 distribution-center delivery up to 5 kg for 0.5–1 kg carts; the distribution-center fee became free on the ₪198 cart. Free home courier was observed only on the exact 7 × 250 g, 8 × 250 g and 2 × 4-pack carts; other cart sizes keep the published ₪25 base rate.'
   }],
   destination: {
     scope: 'country',
@@ -207,7 +274,7 @@ export const coffeemanSingleFourPackPolicy = {
   evidence: {
     url: 'https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico',
     retrievedAt: '2026-10-12T20:04:00Z',
-    note: 'The ₪25 home-courier rate is published on the single 250 g and 4 × 250 g product pages. The ₪15 distribution-center alternative and the cart-observed free condition (charged at ₪198, free from ₪231) were observed in anonymous checkout carts on 2026-10-12; see docs/evidence/browser-research/2026-10-12-coffeeman-cart-single-4pack.json.'
+    note: 'The ₪25 home-courier rate is published on the single 250 g and 4 × 250 g product pages. The ₪15 distribution-center alternative and the exact free-cart observations (charged at ₪198, free on the 7-singles, 8-singles and two-4-pack carts) were observed in anonymous checkout carts on 2026-10-12; see docs/evidence/browser-research/2026-10-12-coffeeman-cart-single-4pack.json.'
   },
   observedFor: {
     carts: ['2 × 250 g = 500 g', '4 × 250 g = 1 kg', '6 × 250 g = 1.5 kg (₪198, courier charged)', '7 × 250 g = 1.75 kg (₪231, free)', '8 × 250 g = 2 kg (₪264 → ₪237.60, free)', '2 × (4 × 250 g) = 2 kg (₪248, free)'],
