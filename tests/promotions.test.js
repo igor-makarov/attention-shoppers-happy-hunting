@@ -172,15 +172,20 @@ test('quoteBoard discounts 8 single packs with the published promotion but never
   assert.equal(singles.itemDiscount.percent, 10);
   assert.equal(singles.itemDiscount.amountIls, 26.4);
   assert.equal(singles.itemTotalIls, 237.6, 'the observed anonymous cart showed exactly ₪237.60');
-  assert.equal(singles.shipping.amountIls, 25, 'the published courier rate still applies; free shipping is never inferred');
-  assert.equal(singles.totalIls, 262.6);
+  // The same anonymous cart also showed free home courier from the ₪231 item
+  // subtotal, so the observed free condition applies at its scope.
+  assert.equal(singles.shipping.amountIls, 0, 'the observed ₪237.60 cart gets the cart-observed free courier condition');
+  assert.equal(singles.shipping.freeThresholdOrigin, 'observed_cart');
+  assert.equal(singles.totalIls, 237.6);
   assert.match(singles.labels.join(' '), /Published promotion applied: 10% off the item subtotal/);
+  assert.match(singles.labels.join(' '), /Free shipping threshold met \(from ₪231\.00, observed in the vendor’s anonymous cart\)/);
 
   const fourPack = at2000.ranked.find(quote => quote.key.includes('1000g'));
   const eightPack = at2000.ranked.find(quote => quote.key.includes('2000g'));
   assert.equal(fourPack.itemDiscount, null, 'the 4-pack is a multipack: no promotion');
   assert.equal(eightPack.itemDiscount, null, 'the 8-pack is a multipack: no promotion');
-  assert.equal(at2000.best.key, eightPack.key, 'the 8-pack still wins at 2 kg: ₪260 vs ₪262.60');
+  assert.equal(eightPack.shipping.freeThreshold ?? null, null, 'the 8-pack SKU keeps its own ₪20 quote without the free condition');
+  assert.equal(at2000.best.key, singles.key, 'the single-pack offer wins at 2 kg: ₪237.60 free vs the ₪240 Pucks-free and ₪260 8-pack totals');
   assert.equal(at2000.promotions[0].id, coffeemanGroundCoffeePercentPromotion.id);
 });
 

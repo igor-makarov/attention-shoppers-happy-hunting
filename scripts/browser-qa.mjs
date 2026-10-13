@@ -84,16 +84,21 @@ try {
       api500.shippingPolicies?.some(entry => entry.id === 'pucks-il-home-delivery' && entry.expired === false),
       JSON.stringify(api500.shippingPolicies));
     const single2000Api = api2000.ranked.find(quote => quote.vendor.id === 'coffeeman' && (quote.product.packCount ?? 1) === 1) ?? null;
-    check('fixtures: the published CoffeeMan promotion discounts 8 single packs to ₪237.60 while the 8-pack stays ₪260.00',
+    check('fixtures: the published CoffeeMan promotion discounts 8 single packs to ₪237.60 and the observed free condition makes that the delivered total',
       single2000Api?.itemSubtotalBeforeDiscountIls === 264
         && single2000Api?.itemDiscount?.amountIls === 26.4
         && single2000Api?.itemTotalIls === 237.6
-        && single2000Api?.totalIls === 262.6
-        && api2000.ranked.find(quote => quote.key.includes('2000g'))?.itemDiscount == null,
+        && single2000Api?.shipping?.amountIls === 0
+        && single2000Api?.shipping?.freeThreshold === 231
+        && single2000Api?.shipping?.freeThresholdOrigin === 'observed_cart'
+        && single2000Api?.totalIls === 237.6
+        && api2000.ranked.find(quote => quote.key.includes('2000g'))?.itemDiscount == null
+        && api2000.ranked.find(quote => quote.key.includes('2000g'))?.totalIls === 260,
       JSON.stringify(single2000Api && {
         item: single2000Api.itemTotalIls,
         before: single2000Api.itemSubtotalBeforeDiscountIls,
         discount: single2000Api.itemDiscount?.amountIls,
+        shipping: single2000Api.shipping?.amountIls,
         total: single2000Api.totalIls
       }));
     check('fixtures: the board exposes the validated promotion summary',
@@ -426,7 +431,11 @@ try {
         pack: card.querySelector('.offer__pack')?.textContent.trim() ?? null,
         item: cells[0]?.querySelector('.totals__value')?.textContent.trim() ?? null,
         itemMeta: cells[0]?.querySelector('.totals__meta--discount')?.textContent.trim() ?? null,
+        shipping: cells[1]?.querySelector('.totals__value')?.textContent.trim() ?? null,
+        shippingMeta: cells[1]?.querySelector('.totals__meta--certainty')?.textContent.trim() ?? null,
         total: cells[2]?.querySelector('.totals__value')?.textContent.trim() ?? null,
+        qualifier: card.querySelector('.qualifier')?.textContent.trim() ?? null,
+        conditions: card.querySelector('.conditions')?.textContent.trim() ?? null,
         detailsText: [...card.querySelectorAll('details')].map(node => node.textContent).join(' ')
       };
     });
@@ -444,11 +453,20 @@ try {
       /Published promotion: 10% off from ₪250\.00 item subtotal \(multipacks excluded(?:, applied from the validated published-rule fallback)?\)/.test(singleCard?.detailsText ?? '')
         && /10% הנחה/.test(singleCard?.detailsText ?? ''),
       (singleCard?.detailsText ?? '').match(/Published promotion[^.]*/)?.[0] ?? 'no promotion line');
-    check('promotion: no multipack card is discounted and no free shipping is inferred from the item promotion',
+    check('free condition: the 2 kg single-pack card shows the observed free delivery with its conditional label',
+      singleCard?.shipping === 'Free (threshold met)'
+        && /cart-observed/.test(singleCard?.shippingMeta ?? '')
+        && /Free delivery applied from an anonymous-cart observation/.test(singleCard?.qualifier ?? '')
+        && /Free-shipping threshold met \(observed from ₪231\.00/.test(singleCard?.conditions ?? '')
+        && /Free-shipping condition: observed from ₪231\.00 item subtotal in the vendor's anonymous cart/.test(singleCard?.detailsText ?? ''),
+      JSON.stringify({ shipping: singleCard?.shipping, meta: singleCard?.shippingMeta, qualifier: singleCard?.qualifier }));
+    check('promotion: no multipack card is discounted; the 8-pack keeps its own ₪20 quote and the two-4-pack cart uses the observed free condition',
       multipackCards.length >= 1
         && multipackCards.every(card => !card.itemMeta)
+        && multipackCards.some(card => card.shipping === '₪20.00')
+        && multipackCards.some(card => card.shipping === 'Free (threshold met)' && /anonymous-cart observation/.test(card.qualifier ?? ''))
         && singleCard?.item === '₪237.60',
-      multipackCards.map(card => `${card.pack} :: ${card.item} :: ${card.itemMeta ?? 'no discount'}`).join(' | '));
+      multipackCards.map(card => `${card.pack} :: ${card.item} :: ${card.itemMeta ?? 'no discount'} :: ${card.shipping}`).join(' | '));
   } else {
     check('promotion: this store has no discounted single-pack offer to render', true, 'no itemDiscount in the API at 2 kg');
   }

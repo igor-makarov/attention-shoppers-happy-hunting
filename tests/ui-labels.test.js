@@ -7,7 +7,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { timeLabel, dueLabel, itemDiscountText, promotionDetailText, failedCheckNote } from '../public/ui.js';
+import { timeLabel, dueLabel, itemDiscountText, promotionDetailText, failedCheckNote, shippingCertaintyText, coverageQualifier } from '../public/ui.js';
 
 test('timeLabel never calls a future timestamp "just now"', () => {
   const inHours = timeLabel(new Date(Date.now() + 5 * 3_600_000).toISOString());
@@ -37,6 +37,34 @@ test('a failed last check is warned on the card face and stays silent when the c
   assert.equal(failedCheckNote({ lastAttemptFailed: true }), 'Last check failed — showing the last successful observation.');
   assert.equal(failedCheckNote({ lastAttemptFailed: false }), null);
   assert.equal(failedCheckNote({}), null, 'a quote without the field never shows the warning');
+});
+
+test('an observed free condition is labelled conditional, never as a verified free rate', () => {
+  const free = {
+    shipping: {
+      certaintyLabel: 'Published rate (verified)',
+      freeThresholdOrigin: 'observed_cart',
+      amountIls: 0
+    }
+  };
+  assert.equal(shippingCertaintyText(free), 'Published rate (verified) · free condition cart-observed');
+  assert.match(coverageQualifier(free), /Free delivery applied from an anonymous-cart observation; confirm it at checkout\./);
+
+  const paid = {
+    shipping: {
+      certaintyLabel: 'Published rate (verified)',
+      freeThresholdOrigin: 'observed_cart',
+      amountIls: 25
+    }
+  };
+  assert.equal(shippingCertaintyText(paid), 'Published rate (verified)', 'below the observed subtotal the published rate is not qualified as free');
+  assert.equal(coverageQualifier(paid), null);
+
+  assert.equal(
+    coverageQualifier({ shipping: { certainty: 'checkout_quote', coverageCaveat: 'locality list not published' } }),
+    'Coverage not confirmed for every locality — full terms under Delivery options.',
+    'the existing coverage caveat still wins when no free condition is applied'
+  );
 });
 
 test('an applied promotion is disclosed on the card face and in the offer details', () => {
