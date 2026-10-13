@@ -320,7 +320,7 @@ function renderControls() {
   const destination = document.getElementById('destination');
   if (state.catalog?.destinations && !destination.dataset.ready) {
     for (const item of state.catalog.destinations) {
-      destination.append(el('option', { value: item.id, text: item.postcode ? `${item.label} · ${item.postcode} area` : item.label }));
+      destination.append(el('option', { value: item.id, text: item.postcode ? `${item.label} · ${item.postcode}` : item.label }));
     }
     destination.dataset.ready = 'true';
     destination.addEventListener('change', () => update({ destination: destination.value }));

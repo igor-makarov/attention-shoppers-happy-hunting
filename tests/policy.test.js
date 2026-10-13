@@ -291,9 +291,10 @@ test('CoffeeMan free delivery applies only to the exact observed carts; an unobs
   // delivery merely because its subtotal exceeds an observed free subtotal.
   const twelveSingles = quote([oldPersistedCoffeemanSingleObservation()], { targetGrams: 3000 });
   assert.equal(twelveSingles.best.units, 12);
-  assert.equal(twelveSingles.best.itemTotalIls, 396);
+  assert.equal(twelveSingles.best.itemSubtotalBeforeDiscountIls, 396);
+  assert.equal(twelveSingles.best.itemTotalIls, 356.4, 'the 10% promotion still applies to the item subtotal');
   assert.equal(twelveSingles.best.shipping.amountIls, 25, '3 kg of singles keeps the published base rate');
-  assert.equal(twelveSingles.best.totalIls, 421);
+  assert.equal(twelveSingles.best.totalIls, 381.4);
   assert.equal(twelveSingles.best.shipping.freeConditionUnmatchedAboveMin, true, 'the above-minimum unmatched cart is visibly conditional');
   assert.match(twelveSingles.best.shipping.freeConditionNote, /this cart keeps the published ₪25\.00 base rate/);
   assert.ok(twelveSingles.best.labels.some(label => /this unobserved cart keeps the published base rate/.test(label)));
@@ -371,7 +372,8 @@ test('a persisted CoffeeMan row stamped with the superseded v2 threshold migrate
   // the published ₪25 because no observed cart matches.
   const board = quote([stored], { targetGrams: 3000 });
   assert.equal(board.best.shipping.amountIls, 25, 'the superseded threshold no longer makes a large cart free');
-  assert.equal(board.best.totalIls, 421);
+  assert.equal(board.best.itemTotalIls, 356.4, 'the published 10% promotion still applies to the item subtotal');
+  assert.equal(board.best.totalIls, 381.4);
   assert.equal(board.best.shipping.freeThreshold, null);
   assert.equal(board.best.shipping.freeThresholdOrigin, null);
   assert.deepEqual(board.best.shipping.freeCartConditions.map(condition => condition.id), ['singles-7', 'singles-8', 'fourpack-2']);

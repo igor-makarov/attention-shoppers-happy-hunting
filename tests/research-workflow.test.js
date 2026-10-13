@@ -93,6 +93,7 @@ test('recipe placeholders expand to the run parameters', () => {
   const method = steps.find(step => step.action === 'clickAnyText');
   assert.deepEqual(method.texts, ['משלוח עד הבית'], 'the recipe selects the actual delivery method');
   assert.equal(method.optional, false, 'a quote without a chosen method would not show the fee, so the step is required');
+  assert.equal(method.confirmsService, 'home_delivery', 'the method step confirms the delivery method the quote belongs to');
 });
 
 test('Pucks totals parse the subtotal, flat fee and total, and recognize free shipping', () => {
@@ -269,9 +270,39 @@ test('runRecipe records every step and stops at the first required blocker', asy
   const cityStep = record.steps.find(step => step.step === 'fill' && step.detail);
   assert.match(cityStep.detail, /#city=תל אביב/, 'the evidence records the destination value the page actually holds');
   assert.equal(record.destinationVerified, true, 'a verified #city/#zip fill is recorded as a verified destination');
+  assert.equal(record.service, 'home_delivery', 'the successful method step records the actual confirmed method');
+  assert.equal(record.serviceConfirmed, true, 'the method is recorded as confirmed by the rendered page step');
   assert.equal(record.itemSubtotalIls, 60);
   assert.equal(record.shippingIls, 30);
   assert.equal(validateEvidence(record).ok, true);
+});
+
+test('an unconfirmed delivery method is recorded as unconfirmed, never implied', async () => {
+  // CoffeeMan's method step is optional: if the picker is not found the run can
+  // still read a shipping line, but that line must not be attributed to a named
+  // method the page never confirmed.
+  const driver = {
+    goto: async () => {},
+    gotoUnlessText: async () => 'navigated',
+    clickText: async () => {},
+    clickAnyText: async () => { throw new Error('no clickable element matched the courier method'); },
+    clickSelector: async () => 'a.slide_cart__btn-checkout',
+    selectLabel: async (selector, label) => label,
+    fill: async (selector, value) => ({ selector, value }),
+    setQuantity: async () => 2,
+    waitText: async () => true,
+    sleep: async () => {},
+    getText: async () => COFFEEMAN,
+    currentUrl: async () => 'https://www.coffeeman.co.il/checkout.asp'
+  };
+  const record = await runRecipe({ recipe: RECIPES.coffeeman, driver, params: { grams: 500, locality: 'תל אביב', postcode: '6100000' } });
+  assert.equal(record.service, null, 'no method is recorded when the page never confirmed one');
+  assert.equal(record.serviceConfirmed, false);
+  assert.match(record.qualification, /method could not be confirmed/i);
+  assert.equal(validateEvidence(record).ok, true, 'the disclosure makes the unconfirmed method valid evidence');
+  // The schema rejects a record that claims a confirmed method without naming it.
+  assert.equal(validateEvidence({ ...record, serviceConfirmed: true, service: null }).ok, false);
+  assert.equal(validateEvidence({ ...record, qualification: null }).ok, false, 'an unconfirmed quoted method must be disclosed');
 });
 
 test('a run blocks when the required delivery method cannot be selected', async () => {

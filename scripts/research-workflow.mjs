@@ -58,8 +58,9 @@ export const RECIPES = {
       { action: 'fill', selector: '#city', value: '{locality}', optional: false, verifies: 'destination' },
       { action: 'fill', selector: '#zip', value: '{postcode}', optional: false, verifies: 'destination' },
       // The ₪30 home-delivery fee reaches the summary only after the delivery
-      // card is selected, so the recipe must choose the actual method.
-      { action: 'clickAnyText', texts: ['משלוח עד הבית'], optional: false },
+      // card is selected, so the recipe must choose the actual method; the
+      // successful step also confirms which method the quote belongs to.
+      { action: 'clickAnyText', texts: ['משלוח עד הבית'], optional: false, confirmsService: 'home_delivery' },
       { action: 'sleep', ms: 1500 },
       { action: 'readTotals' }
     ]
@@ -84,8 +85,9 @@ export const RECIPES = {
       { action: 'selectLabel', selector: 'select', label: '{locality}', optional: true, verifies: 'destination' },
       { action: 'fill', selector: 'input[name*="zip" i], input[name*="postal" i], input[id*="zip" i], input[id*="postal" i]', value: '{postcode}', optional: true, verifies: 'destination' },
       // Select the published home-courier method when the picker offers it, so
-      // the summary reflects a chosen method rather than a pre-selection.
-      { action: 'clickAnyText', texts: ['משלוח לבית הלקוח עם שליח'], optional: true },
+      // the summary reflects a chosen method rather than a pre-selection. The
+      // step confirms the method the displayed shipping line belongs to.
+      { action: 'clickAnyText', texts: ['משלוח לבית הלקוח עם שליח'], optional: true, confirmsService: 'home_delivery' },
       { action: 'sleep', ms: 1500 },
       { action: 'readTotals' }
     ]
@@ -117,8 +119,9 @@ export const RECIPES = {
       // The delivery methods are a select (#delivery): pickup point ₪15,
       // door-to-door courier ₪30, self-pickup ₪0. The ranked method is the
       // door-to-door courier; the fee reaches the summary only after it is
-      // selected, so the step is required.
-      { action: 'selectLabel', selector: '#delivery', label: 'שליחות מדלת', optional: false },
+      // selected, so the step is required. The successful step also confirms
+      // the method the displayed shipping line belongs to.
+      { action: 'selectLabel', selector: '#delivery', label: 'שליחות מדלת', optional: false, confirmsService: 'home_delivery' },
       { action: 'sleep', ms: 1500 },
       { action: 'readTotals' }
     ]
@@ -286,6 +289,8 @@ export function buildEvidenceRecord({
   steps = [],
   actualPacks = null,
   destinationVerified = null,
+  service = null,
+  serviceConfirmed = null,
   now = Date.now()
 } = {}) {
   const grams = Number(params.grams) > 0 ? Number(params.grams) : recipe.packGrams;
@@ -300,6 +305,12 @@ export function buildEvidenceRecord({
   const destinationNote = destinationVerified === false && (params.locality || params.postcode)
     ? 'The destination (locality/postcode) was requested but could not be verified on the rendered page, so the displayed quote is not confirmed for that destination.'
     : null;
+  // The displayed shipping line belongs to a named method only when the recipe's
+  // method-selection step succeeded on the page; otherwise the record must say
+  // the method is unconfirmed instead of implying one.
+  const serviceNote = serviceConfirmed === false
+    ? 'The delivery method could not be confirmed on the rendered page, so the displayed shipping line is not attributed to a named method.'
+    : null;
   return {
     kind: 'browser-research-quote',
     schemaVersion: EVIDENCE_SCHEMA_VERSION,
@@ -313,7 +324,8 @@ export function buildEvidenceRecord({
     locality: params.locality ?? null,
     postcode: params.postcode ?? null,
     destinationVerified: destinationVerified === true ? true : destinationVerified === false ? false : null,
-    service: params.service ?? null,
+    service: service ?? null,
+    serviceConfirmed: serviceConfirmed === true ? true : serviceConfirmed === false ? false : null,
     status: resolvedStatus,
     itemSubtotalIls: totals.itemSubtotalIls ?? null,
     shippingIls: totals.shippingIls ?? null,
@@ -323,7 +335,7 @@ export function buildEvidenceRecord({
     freeThresholdText: totals.freeThresholdText ?? null,
     currency: totals.currency ?? 'ILS',
     arithmeticOk,
-    qualification: [totals.qualification, destinationNote].filter(Boolean).join(' ') || null,
+    qualification: [totals.qualification, destinationNote, serviceNote].filter(Boolean).join(' ') || null,
     blocker: blocker ? sanitizeExcerpt(blocker, 300) : null,
     excerpt: totals.excerpt ? sanitizeExcerpt(totals.excerpt) : null,
     steps: steps.map(step => ({ step: step.step, ok: step.ok, optional: Boolean(step.optional), error: step.error ? sanitizeExcerpt(step.error, 200) : null, detail: step.detail ? sanitizeExcerpt(step.detail, 120) : null })),
@@ -354,6 +366,14 @@ export function validateEvidence(record) {
     if (record.destinationVerified === false && !/destination .*could not be verified/i.test(record.qualification ?? '')) {
       errors.push('a quoted record with an unverified destination must say so in qualification');
     }
+  }
+  // The method a shipping line belongs to is part of the reusable evidence: a
+  // record may only claim a confirmed method when the page step selected it,
+  // and a quoted record that could not confirm the method must say so.
+  if (record.service != null && typeof record.service !== 'string') errors.push('service must be a string or null');
+  if (record.serviceConfirmed === true && !record.service) errors.push('a confirmed service must record the method name');
+  if (record.serviceConfirmed === false && record.status === 'quoted' && !/method .*could not be confirmed/i.test(record.qualification ?? '')) {
+    errors.push('a quoted record with an unconfirmed method must say so in qualification');
   }
   if (record.status === 'blocked' && !record.blocker) errors.push('a blocked record must explain the blocker');
   if (record.blocker && /[?&](?:sess|session|token|sid|cart_id|PHPSESSID)=/i.test(record.blocker)) {
@@ -401,6 +421,10 @@ export async function runRecipe({ recipe, driver, params = {}, now = Date.now(),
   // soon as one fails or sets something else, so the evidence record can say the
   // quote is not confirmed for the requested destination.
   let destinationVerified = null;
+  // The delivery method is confirmed only by a successful method-selection step
+  // on the rendered page; a requested parameter alone is never a confirmation.
+  let confirmedService = null;
+  let serviceStepSeen = false;
   const isDestinationStep = step => step.verifies === 'destination';
   const destinationMatches = (step, result) => {
     const expected = step.action === 'fill' ? step.value : step.label;
@@ -421,6 +445,10 @@ export async function runRecipe({ recipe, driver, params = {}, now = Date.now(),
     try {
       const result = await executeStep(step, driver, runParams);
       if (step.action === 'setQuantity' && Number.isFinite(result)) actualPacks = result;
+      if (step.confirmsService) {
+        serviceStepSeen = true;
+        confirmedService = step.confirmsService;
+      }
       if (isDestinationStep(step)) {
         if (!destinationMatches(step, result)) {
           const actual = step.action === 'fill' ? result?.value ?? null : result ?? null;
@@ -432,6 +460,10 @@ export async function runRecipe({ recipe, driver, params = {}, now = Date.now(),
       recordStep(step, true, null, stepDetail(step, result));
     } catch (error) {
       recordStep(step, false, error);
+      if (step.confirmsService) {
+        serviceStepSeen = true;
+        confirmedService = null;
+      }
       if (isDestinationStep(step)) destinationVerified = false;
       if (step.optional) continue;
       status = 'blocked';
@@ -497,6 +529,8 @@ export async function runRecipe({ recipe, driver, params = {}, now = Date.now(),
     steps,
     actualPacks,
     destinationVerified,
+    service: confirmedService,
+    serviceConfirmed: serviceStepSeen ? confirmedService != null : null,
     now
   });
 }

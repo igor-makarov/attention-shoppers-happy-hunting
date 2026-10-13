@@ -58,11 +58,13 @@ function productCard(product, vendors) {
   const vendorCount = vendors.length;
   const listingCount = vendors.reduce((sum, vendor) => sum + (vendor.offers?.length ?? 0), 0);
   const vendorNames = vendors.map(vendor => vendor.name).filter(Boolean);
+  // Concise index card: identity, packaging and where the offers come from.
+  // The comparison workflow and its caveats live on the product page, not here.
   const card = el('article', { class: 'product-card' },
     el('p', { class: 'product-card__brand', text: product.brand }),
     el('h2', { class: 'product-card__name' }, bidi(`${product.brand} ${product.line}`)),
-    el('p', { class: 'product-card__meta', text: `${product.form} coffee in a ${product.packaging} · sold as 250 g packs and multipacks · one comparison for all tracked listings` }),
-    el('p', { class: 'product-card__summary', text: `Compare item subtotal, named delivery method and charge, and the delivered total for a chosen quantity and Israeli locality. ${vendorCount} tracked vendor${vendorCount === 1 ? '' : 's'}${listingCount ? ` · ${listingCount} listing${listingCount === 1 ? '' : 's'}` : ''}${vendorNames.length ? `: ${vendorNames.join(', ')}` : ''}.` }),
+    el('p', { class: 'product-card__meta', text: `${product.form} coffee · ${product.packaging} · 250 g packs and multipacks` }),
+    el('p', { class: 'product-card__summary', text: `${vendorCount} vendor${vendorCount === 1 ? '' : 's'} · ${listingCount} listing${listingCount === 1 ? '' : 's'}${vendorNames.length ? `: ${vendorNames.join(', ')}` : ''}` }),
     el('p', { class: 'product-card__action' },
       el('a', { class: 'product-card__link', href: `/product/${encodeURIComponent(product.id)}`, text: 'Compare delivered offers' })));
   return card;

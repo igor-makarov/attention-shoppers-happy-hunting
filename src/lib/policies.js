@@ -291,11 +291,14 @@ export const coffeemanSingleFourPackPolicy = {
  * 2026-10-13 (02:01-02:02 UTC). The courier rate and the pickup-point rate are
  * published next to the product; the checkout confirmed the closed destination
  * lists. The 2026-10-13 runs selected Jerusalem, Haifa and Be'er Sheva in the
- * same anonymous estimator: each 2 × 250 g cart quoted ₪76 + ₪30 = ₪106,
- * reproducing the published ₪30 rate at three more destinations with the fee
- * unchanged. The rule itself is unchanged, so the version bump carries only
- * newer coverage provenance (and the read-time evaluator refreshes that
- * provenance on already-stamped rows).
+ * same anonymous estimator, selected the door-to-door courier method and then
+ * read the summary: each 2 × 250 g cart quoted ₪76 + ₪30 = ₪106, reproducing
+ * the published ₪30 rate at three more destinations with the fee unchanged.
+ * Each run's evidence record carries the confirmed `home_delivery` service from
+ * the successful method-selection step, so the ₪30 line is attributed to the
+ * door-to-door method rather than an unnamed rate. The rule itself is
+ * unchanged, so the version bump carries only newer coverage provenance (and
+ * the read-time evaluator refreshes that provenance on already-stamped rows).
  */
 export const coffee4uHomeDeliveryPolicy = {
   id: 'coffee4u-il-home-delivery',
@@ -342,6 +345,7 @@ export const coffee4uHomeDeliveryPolicy = {
   observedFor: {
     carts: ['1 × 250 g', '2 × 250 g (500 g carts to Jerusalem, Haifa and Be’er Sheva, 2026-10-13)'],
     destinations: ['Tel Aviv - Yafo', 'Eilat', 'ירושלים', 'חיפה', 'באר שבע'],
+    method: 'home_delivery (door-to-door courier, selected in the rendered checkout; each run’s evidence record carries the confirmed service)',
     note: 'No street address or personal detail was entered and no order was submitted.'
   },
   reviewBy: '2026-11-11T00:00:00.000Z'

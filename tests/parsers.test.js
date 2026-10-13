@@ -114,7 +114,7 @@ test('coffeeman cart research adds the distribution-center alternative and the o
   assert.equal(eight.shipping.alternatives[0].amount.amount, 20, 'the 8-pack distribution-center alternative carries the observed amount');
   assert.match(eight.shipping.alternatives[0].label, /the 2 kg cart/);
   assert.equal(eight.shipping.freeThreshold ?? null, null, 'the ₪240 8-pack SKU keeps its own ₪20 quote, never the single/4-pack free condition');
-  assert.deepEqual(eight.shipping.freeCartConditions, [], 'the 8-pack SKU never carries the single/4-pack free conditions');
+  assert.ok(eight.shipping.freeCartConditions == null, 'the 8-pack SKU never carries the single/4-pack free conditions');
   assert.equal(eight.shipping.evidence.retrievedAt, '2026-10-12T20:07:00Z', 'the re-check time is kept as shipping evidence');
 });
 

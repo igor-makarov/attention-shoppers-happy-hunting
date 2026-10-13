@@ -488,6 +488,10 @@ details.disclosure .disclosure__body .num { font-variant-numeric: tabular-nums; 
 @media (max-width: 720px) {
   .controls { grid-template-columns: 1fr 1fr; gap: 12px 14px; }
   .controls__group:first-child { grid-column: 1 / -1; }
+  /* The locality select takes the full row on small screens: in a half-column
+     the selected locality text is clipped at 390 px, which hides the chosen
+     destination. */
+  .controls__group:last-child { grid-column: 1 / -1; }
   .totals { grid-template-columns: 1fr 1fr; }
   .totals__cell { padding: 10px 12px 10px 0; }
   .totals__cell + .totals__cell { padding-left: 12px; }

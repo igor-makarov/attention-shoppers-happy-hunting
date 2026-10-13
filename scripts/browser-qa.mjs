@@ -68,6 +68,7 @@ try {
   const api1000 = await fetchBoard(base, 1000, 'tel-aviv');
   const api1000Eilat = await fetchBoard(base, 1000, 'eilat');
   const api2000 = await fetchBoard(base, 2000, 'tel-aviv');
+  const api3000 = await fetchBoard(base, 3000, 'tel-aviv');
   const best = api500.best;
   if (!best) throw new Error('the board API has no ranked offer, so UI comparison checks cannot run');
   const coffee4uQuote = api500.ranked.find(quote => quote.vendor.id === 'coffee4u') ?? null;
@@ -84,13 +85,15 @@ try {
       api500.shippingPolicies?.some(entry => entry.id === 'pucks-il-home-delivery' && entry.expired === false),
       JSON.stringify(api500.shippingPolicies));
     const single2000Api = api2000.ranked.find(quote => quote.vendor.id === 'coffeeman' && (quote.product.packCount ?? 1) === 1) ?? null;
-    check('fixtures: the published CoffeeMan promotion discounts 8 single packs to ₪237.60 and the observed free condition makes that the delivered total',
+    check('fixtures: the published CoffeeMan promotion discounts 8 single packs to ₪237.60 and the exact observed cart condition makes that the delivered total',
       single2000Api?.itemSubtotalBeforeDiscountIls === 264
         && single2000Api?.itemDiscount?.amountIls === 26.4
         && single2000Api?.itemTotalIls === 237.6
         && single2000Api?.shipping?.amountIls === 0
-        && single2000Api?.shipping?.freeThreshold === 231
-        && single2000Api?.shipping?.freeThresholdOrigin === 'observed_cart'
+        && single2000Api?.shipping?.freeThreshold === null
+        && single2000Api?.shipping?.freeCondition?.id === 'singles-8'
+        && single2000Api?.shipping?.freeCondition?.itemSubtotalIls === 264
+        && single2000Api?.shipping?.freeCartConditions?.length === 3
         && single2000Api?.totalIls === 237.6
         && api2000.ranked.find(quote => quote.key.includes('2000g'))?.itemDiscount == null
         && api2000.ranked.find(quote => quote.key.includes('2000g'))?.totalIls === 260,
@@ -99,8 +102,19 @@ try {
         before: single2000Api.itemSubtotalBeforeDiscountIls,
         discount: single2000Api.itemDiscount?.amountIls,
         shipping: single2000Api.shipping?.amountIls,
+        freeCondition: single2000Api.shipping?.freeCondition?.id ?? null,
         total: single2000Api.totalIls
       }));
+    // Scope fix: an unobserved larger cart keeps the published base rate even
+    // though its subtotal is above an observed free subtotal.
+    const single3000Api = api3000.ranked.find(quote => quote.vendor.id === 'coffeeman' && (quote.product.packCount ?? 1) === 1) ?? null;
+    check('fixtures: 3 kg of singles is not made free by a subtotal above the observed carts',
+      single3000Api?.units === 12
+        && single3000Api?.shipping?.amountIls === 25
+        && single3000Api?.shipping?.freeCondition == null
+        && single3000Api?.shipping?.freeConditionUnmatchedAboveMin === true
+        && single3000Api?.totalIls === 381.4,
+      JSON.stringify(single3000Api && { units: single3000Api.units, shipping: single3000Api.shipping?.amountIls, total: single3000Api.totalIls }));
     check('fixtures: the board exposes the validated promotion summary',
       api2000.promotions?.some(entry => entry.id === 'coffeeman-ground-coffee-percent-off' && entry.percent === 10 && entry.expired === false),
       JSON.stringify(api2000.promotions));
@@ -148,9 +162,12 @@ try {
   report.home = { heading: home.heading, cardCount: home.cardCount, cardHref: home.cardHref };
   check('home: title is "Attention shoppers" without a trailing period', home.heading === 'Attention shoppers', home.heading);
   check('home: the catalog renders exactly the tracked product as a card', home.cardCount === 1 && home.cardName === `${product.brand} ${product.line}`, `${home.cardCount} × ${home.cardName}`);
-  check('home: the card summarizes identity, packaging, vendors and the one comparison',
-    /vacuum brick/.test(home.cardMeta ?? '') && /one comparison/i.test(home.cardMeta ?? '')
-      && /vendor/i.test(home.cardSummary ?? '') && !/blend variant/i.test(home.bodyText ?? ''),
+  check('home: the card summarizes identity, packaging and where the offers come from concisely',
+    /vacuum brick/.test(home.cardMeta ?? '') && /packs and multipacks/.test(home.cardMeta ?? '')
+      && /vendor/i.test(home.cardSummary ?? '')
+      && (home.cardMeta ?? '').length <= 90 && (home.cardSummary ?? '').length <= 140
+      && !/one comparison|Compare item subtotal/i.test(`${home.cardMeta} ${home.cardSummary}`)
+      && !/blend variant/i.test(home.bodyText ?? ''),
     `${home.cardMeta} :: ${home.cardSummary}`);
   check('home: the card links to the directly loadable product page', home.cardHref === productPath, `${home.cardHref} vs ${productPath}`);
   check('home: the full vendor comparison board is not rendered on the home route', home.comparisonOnHome === false, 'no offer cards or totals on /');
