@@ -334,6 +334,68 @@ try {
       JSON.stringify(liveFailingText));
   }
 
+  // Live mode only: the deployed store's 2 kg winner can itself carry a failed
+  // last check while its last-known-good observation still ranks (CoffeeMan's
+  // Worker-egress HTTP 403 on 2026-10-13). Save that winner on 390×844 with the
+  // money values and the warning inside the first viewport, not only as a
+  // full-page capture: the owner's review asked for both the 500 g card and the
+  // 2 kg CoffeeMan winner in the real failed state.
+  if (LIVE_BASE && api2000.best) {
+    await wd('POST', '/window/rect', { width: 390, height: 844, x: 0, y: 0 });
+    await wd('POST', '/url', { url: `${base}${productPath}?grams=2000&dest=tel-aviv` });
+    await waitForProduct(wd);
+    const liveWinner2kg = await evaluate(wd, `(() => {
+      const rect = node => { const r = node.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right) }; };
+      const card = document.querySelector('#best-offer');
+      const cells = [...card.querySelectorAll('.totals__cell')];
+      return {
+        innerWidth: window.innerWidth,
+        innerHeight: window.innerHeight,
+        vendor: card.querySelector('.offer__vendor')?.innerText.trim() ?? null,
+        pack: card.querySelector('.offer__pack')?.textContent.trim() ?? null,
+        item: cells[0]?.querySelector('.totals__value')?.textContent.trim() ?? null,
+        shipping: cells[1]?.querySelector('.totals__value')?.textContent.trim() ?? null,
+        method: cells[1]?.querySelector('.totals__meta--method')?.textContent.trim() ?? null,
+        total: cells[2]?.querySelector('.totals__value')?.textContent.trim() ?? null,
+        itemRect: rect(cells[0]?.querySelector('.totals__value')),
+        methodRect: rect(cells[1]?.querySelector('.totals__meta--method')),
+        totalRect: rect(cells[2]?.querySelector('.totals__value')),
+        failure: card.querySelector('.qualifier--failure')?.textContent.trim() ?? null,
+        failureRect: card.querySelector('.qualifier--failure') ? rect(card.querySelector('.qualifier--failure')) : null,
+        overflow: document.documentElement.scrollWidth > window.innerWidth + 1
+      };
+    })()`);
+    const liveShipping = api2000.best.shipping ?? {};
+    const expectedLiveShipping = liveShipping.amountIls === 0
+      ? (liveShipping.freeCondition ? 'Free (observed for this cart)' : liveShipping.freeThreshold != null ? 'Free (threshold met)' : 'Free')
+      : ils(liveShipping.amountIls);
+    check('live mobile: the real 2 kg winner shows vendor, packs/grams, item, named method/charge and total in the first viewport',
+      (liveWinner2kg.vendor ?? '').includes(api2000.best.vendor.name)
+        && liveWinner2kg.pack === `${packDescription(api2000.best)} · ${quantityDescription(api2000.best)}`
+        && liveWinner2kg.item === ils(api2000.best.itemTotalIls)
+        && liveWinner2kg.shipping === expectedLiveShipping
+        && liveWinner2kg.method === (liveShipping.serviceLabel ?? 'Delivery method not stated')
+        && liveWinner2kg.total === ils(api2000.best.totalIls)
+        && liveWinner2kg.itemRect.bottom <= liveWinner2kg.innerHeight
+        && liveWinner2kg.methodRect.bottom <= liveWinner2kg.innerHeight
+        && liveWinner2kg.totalRect.bottom <= liveWinner2kg.innerHeight
+        && liveWinner2kg.overflow === false,
+      JSON.stringify(liveWinner2kg));
+    if (api2000.best.lastAttemptFailed) {
+      check('live mobile: the real 2 kg winner with the failed last check keeps its warning visible in the first viewport',
+        /Last check failed/.test(liveWinner2kg.failure ?? '')
+          && liveWinner2kg.failureRect?.top <= liveWinner2kg.innerHeight,
+        JSON.stringify({ failure: liveWinner2kg.failure, failureRect: liveWinner2kg.failureRect, viewport: liveWinner2kg.innerHeight }));
+    }
+    await elementScreenshot(wd, `document.querySelector('#best-offer')`, 'product-live-2kg-winner-card.png');
+    await screenshot(wd, 'product-live-2kg-winner-viewport.png');
+    await contrastReport(wd, 'body', 'the live 2 kg winner with the failed-check warning (mobile)');
+    // Restore the 500 g product state the following checks were built on.
+    await wd('POST', '/window/rect', { width: 1440, height: 1000, x: 0, y: 0 });
+    await wd('POST', '/url', { url: `${base}${productPath}?grams=500&dest=tel-aviv` });
+    await waitForProduct(wd);
+  }
+
   // Opening the delivery options disclosure reveals conditions and the full caveat
   // exactly once, and closing it hides them again.
   const deliveryOpened = await setDetailsOpen(wd, '#best-offer details', true);

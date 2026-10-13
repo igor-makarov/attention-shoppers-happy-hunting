@@ -49,7 +49,8 @@ test('browser QA saves cropped element views of the affected offer cards', () =>
     'product-500g-best-card-mobile.png',
     'product-2kg-mobile-winner-card.png',
     'product-500g-mobile-coffeeman-card.png',
-    'product-live-failing-offer-card.png'
+    'product-live-failing-offer-card.png',
+    'product-live-2kg-winner-card.png'
   ]) {
     assert.ok(source.includes(`'${name}'`), `missing element screenshot ${name}`);
   }
