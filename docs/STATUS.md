@@ -2758,8 +2758,11 @@ destination evidence; both destinations are DOM-verified in the records.
 destination-coverage update), the offer keeps its observed **₪20** courier quote, and its item
 observation is still `2026-10-12T15:51:52.931Z`, exactly the CoffeeMan vendor `lastSuccessAt` — the
 read-time policy refresh did not advance any price/stock timestamp and `lastRefreshAt` remains
-`2026-10-13T06:17:59.310Z`. The probe at 09:56-09:57 UTC passed **38/38** checks and is saved as
-`docs/evidence/production-probe-20261013T0957Z.json`. The schedule check again names the **12:17 UTC
+`2026-10-13T06:17:59.310Z`. The read-only probes at 09:56-09:57 and 10:02 UTC passed **36/36** checks and are
+saved as `docs/evidence/production-probe-20261013T0957Z.json` and
+`docs/evidence/production-probe-20261013T1002Z.json` (the second run normalizes the unused
+threshold-semantics field on null-threshold rows, so the all-boards policy check reports
+`all current (19 stamps)` instead of the misleading `awaiting vendor refresh`). The schedule check again names the **12:17 UTC
 tick** as the next actual vendor attempt (all three vendors; CoffeeMan still has `consecutiveFailures 2`
 from its Worker-egress HTTP 403, last good 2026-10-12T15:51:52.931Z).
 

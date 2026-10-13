@@ -308,9 +308,16 @@ for (const boardName of ['board500', 'board1000', 'board2000', 'board3000']) {
       policyVersionMismatches.push(`${label} missing from status`);
       continue;
     }
+    // The threshold-semantics field only carries meaning when a threshold is
+    // actually present; the board prints `at_least` even on null-threshold
+    // rows, so it is normalized away when both sides have no threshold.
+    const boardThreshold = quote.shipping?.freeThreshold ?? null;
+    const currentThreshold = current.freeThreshold ?? null;
+    const boardSemantics = boardThreshold == null ? null : (quote.shipping?.freeThresholdSemantics ?? null);
+    const currentSemantics = currentThreshold == null ? null : (current.thresholdSemantics ?? null);
     const sameRule = (current.service ?? null) === (quote.shipping?.service ?? null)
-      && (current.freeThreshold ?? null) === (quote.shipping?.freeThreshold ?? null)
-      && (current.thresholdSemantics ?? null) === (quote.shipping?.freeThresholdSemantics ?? null)
+      && currentThreshold === boardThreshold
+      && currentSemantics === boardSemantics
       && (current.freeCartConditions ?? []).map(condition => condition.id).join(',') === (quote.shipping?.freeCartConditions ?? []).map(condition => condition.id).join(',');
     if (!sameRule) {
       policyVersionAwaiting.push(`${label} vs status v${current.version}`);
