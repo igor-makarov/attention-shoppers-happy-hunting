@@ -471,18 +471,18 @@ try {
       /Published promotion: 10% off from ₪250\.00 item subtotal \(multipacks excluded(?:, applied from the validated published-rule fallback)?\)/.test(singleCard?.detailsText ?? '')
         && /10% הנחה/.test(singleCard?.detailsText ?? ''),
       (singleCard?.detailsText ?? '').match(/Published promotion[^.]*/)?.[0] ?? 'no promotion line');
-    check('free condition: the 2 kg single-pack card shows the observed free delivery with its conditional label',
-      singleCard?.shipping === 'Free (threshold met)'
+    check('free condition: the 2 kg single-pack card shows the exact observed free cart with its conditional label',
+      singleCard?.shipping === 'Free (observed for this cart)'
         && /cart-observed/.test(singleCard?.shippingMeta ?? '')
-        && /Free delivery applied from an anonymous-cart observation/.test(singleCard?.qualifier ?? '')
-        && /Free-shipping threshold met \(observed from ₪231\.00/.test(singleCard?.conditions ?? '')
-        && /Free-shipping condition: observed from ₪231\.00 item subtotal in the vendor's anonymous cart/.test(singleCard?.detailsText ?? ''),
+        && /Free delivery applied from an anonymous-cart observation of this exact cart/.test(singleCard?.qualifier ?? '')
+        && /Free home courier observed for this exact cart \(8 × 250 g packs = 2000 g, ₪264\.00 item subtotal before the 10% quantity discount\)/.test(singleCard?.conditions ?? '')
+        && /Free-delivery condition: the vendor's anonymous cart showed free home courier on exactly this cart \(8 × 250 g packs = 2000 g, ₪264\.00 item subtotal before the 10% quantity discount/.test(singleCard?.detailsText ?? ''),
       JSON.stringify({ shipping: singleCard?.shipping, meta: singleCard?.shippingMeta, qualifier: singleCard?.qualifier }));
-    check('promotion: no multipack card is discounted; the 8-pack keeps its own ₪20 quote and the two-4-pack cart uses the observed free condition',
+    check('promotion: no multipack card is discounted; the 8-pack keeps its own ₪20 quote and the two-4-pack cart uses its observed free condition',
       multipackCards.length >= 1
         && multipackCards.every(card => !card.itemMeta)
         && multipackCards.some(card => card.shipping === '₪20.00')
-        && multipackCards.some(card => card.shipping === 'Free (threshold met)' && /anonymous-cart observation/.test(card.qualifier ?? ''))
+        && multipackCards.some(card => card.shipping === 'Free (observed for this cart)' && /exact cart/.test(card.qualifier ?? ''))
         && singleCard?.item === '₪237.60',
       multipackCards.map(card => `${card.pack} :: ${card.item} :: ${card.itemMeta ?? 'no discount'} :: ${card.shipping}`).join(' | '));
   } else {
@@ -587,7 +587,19 @@ try {
       bodyOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
       minTap: Math.min(...[...document.querySelectorAll('#quantity-group button')].map(b => b.getBoundingClientRect().height)),
       disclosuresOpen: [...document.querySelectorAll('#board details.disclosure')].some(d => d.open),
-      pageHeight: document.documentElement.scrollHeight
+      pageHeight: document.documentElement.scrollHeight,
+      destination: (() => {
+        const select = document.getElementById('destination');
+        const label = document.querySelector('.controls__label[for="destination"]');
+        if (!select) return null;
+        return {
+          width: Math.round(select.getBoundingClientRect().width),
+          text: select.selectedOptions?.[0]?.textContent ?? '',
+          labelText: label?.textContent ?? null,
+          labelHeight: label ? Math.round(label.getBoundingClientRect().height) : null,
+          labelWidth: label ? Math.round(label.getBoundingClientRect().width) : null
+        };
+      })()
     };
   })()`);
   report.mobile = mobile;
@@ -601,6 +613,14 @@ try {
   check('mobile: the actual money values are the API values', mobile.cells[0].value === ils(best.itemTotalIls) && mobile.cells[2].value === expected500, mobile.cells.map(c => c.value).join(' | '));
   check('mobile: disclosures stay collapsed by default', mobile.disclosuresOpen === false, `open=${mobile.disclosuresOpen}`);
   check('mobile: quantity buttons keep a 44px touch target', mobile.minTap >= 44, String(mobile.minTap));
+  // The locality select must use the full row on 390 px: in a half column the
+  // selected locality text was clipped, hiding the chosen destination.
+  check('mobile: the selected locality is readable on a full-width control',
+    (mobile.destination?.width ?? 0) >= 300
+      && /Tel Aviv/.test(mobile.destination?.text ?? '')
+      && (mobile.destination?.labelHeight ?? 99) < 30
+      && !/·\s*6100000 area/.test(mobile.destination?.text ?? ''),
+    JSON.stringify(mobile.destination));
   check('mobile: the page is much shorter than the old comparison board', mobile.pageHeight <= 2600, `height=${mobile.pageHeight}`);
   await screenshot(wd, 'product-mobile-390.png');
   await wd('POST', '/url', { url: `${base}/` });
@@ -715,6 +735,100 @@ try {
     check('failure: a ranked offer whose last check failed shows the same warning in the comparison list',
       failedCardNotes.compare.some(text => /Last check failed/.test(text)), failedCardNotes.compare.join(' | '));
     await screenshot(wd, 'product-desktop-failed-attempt.png');
+
+    // Mobile readability of the affected offer with the real last-check-failed
+    // state. The 2 kg CoffeeMan winner must show vendor, packs/grams, item
+    // subtotal, named method/charge and delivered total inside the first
+    // 390×844 viewport; the 500 g CoffeeMan card is scrolled into view and must
+    // show the same values together.
+    await wd('POST', '/window/rect', { width: 390, height: 844, x: 0, y: 0 });
+    await wd('POST', '/url', { url: `${failedServer.url}${productPath}?grams=2000&dest=tel-aviv` });
+    await waitForProduct(wd);
+    const mobileWinner2kg = await evaluate(wd, `(() => {
+      const rect = node => { const r = node.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right) }; };
+      const card = document.querySelector('#best-offer');
+      const cells = [...card.querySelectorAll('.totals__cell')];
+      return {
+        innerWidth: window.innerWidth,
+        innerHeight: window.innerHeight,
+        vendor: card.querySelector('.offer__vendor')?.innerText.trim() ?? null,
+        pack: card.querySelector('.offer__pack')?.textContent.trim() ?? null,
+        item: cells[0]?.querySelector('.totals__value')?.textContent.trim() ?? null,
+        shipping: cells[1]?.querySelector('.totals__value')?.textContent.trim() ?? null,
+        method: cells[1]?.querySelector('.totals__meta--method')?.textContent.trim() ?? null,
+        total: cells[2]?.querySelector('.totals__value')?.textContent.trim() ?? null,
+        totalRect: rect(cells[2]?.querySelector('.totals__value')),
+        methodRect: rect(cells[1]?.querySelector('.totals__meta--method')),
+        failure: card.querySelector('.qualifier--failure')?.textContent.trim() ?? null,
+        failureRect: card.querySelector('.qualifier--failure') ? rect(card.querySelector('.qualifier--failure')) : null,
+        overflow: document.documentElement.scrollWidth > window.innerWidth + 1
+      };
+    })()`);
+    const failed2kgBoard = await fetchBoard(failedServer.url, 2000, 'tel-aviv');
+    const failed2kgBest = failed2kgBoard.best ?? null;
+    check('mobile failure: the 2 kg CoffeeMan winner shows vendor, packs/grams, item, named method/charge and total in the first viewport',
+      /CoffeeMan/.test(mobileWinner2kg.vendor ?? '')
+        && mobileWinner2kg.pack === '250 g pack · 8 × 250 g packs = 2000 g'
+        && mobileWinner2kg.item === ils(failed2kgBest?.itemTotalIls)
+        && mobileWinner2kg.shipping === 'Free (observed for this cart)'
+        && mobileWinner2kg.method === 'Home delivery'
+        && mobileWinner2kg.total === ils(failed2kgBest?.totalIls)
+        && /Last check failed/.test(mobileWinner2kg.failure ?? '')
+        && mobileWinner2kg.methodRect.bottom <= mobileWinner2kg.innerHeight
+        && mobileWinner2kg.totalRect.bottom <= mobileWinner2kg.innerHeight
+        && mobileWinner2kg.failureRect?.top <= mobileWinner2kg.innerHeight
+        && mobileWinner2kg.overflow === false,
+      JSON.stringify(mobileWinner2kg));
+    await screenshot(wd, 'product-2kg-mobile-failed-390.png');
+
+    await wd('POST', '/url', { url: `${failedServer.url}${productPath}?grams=500&dest=tel-aviv` });
+    await waitForProduct(wd);
+    await setDetailsOpen(wd, '#compare-other-offers', true);
+    await evaluate(wd, `(() => {
+      const card = [...document.querySelectorAll('#compare-other-offers .offer')].find(node => node.querySelector('.offer__vendor')?.innerText.includes('CoffeeMan'));
+      card?.scrollIntoView({ block: 'start', behavior: 'instant' });
+      return Boolean(card);
+    })()`);
+    // The page sets `scroll-behavior: smooth`; wait for the instant scroll to
+    // settle before measuring the card in the viewport.
+    await delay(400);
+    const mobileCoffeeMan500 = await evaluate(wd, `(() => {
+      const rect = node => { const r = node.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right) }; };
+      const card = [...document.querySelectorAll('#compare-other-offers .offer')].find(node => node.querySelector('.offer__vendor')?.innerText.includes('CoffeeMan'));
+      if (!card) return null;
+      const cells = [...card.querySelectorAll('.totals__cell')];
+      return {
+        innerWidth: window.innerWidth,
+        innerHeight: window.innerHeight,
+        vendor: card.querySelector('.offer__vendor')?.innerText.trim() ?? null,
+        pack: card.querySelector('.offer__pack')?.textContent.trim() ?? null,
+        item: cells[0]?.querySelector('.totals__value')?.textContent.trim() ?? null,
+        shipping: cells[1]?.querySelector('.totals__value')?.textContent.trim() ?? null,
+        method: cells[1]?.querySelector('.totals__meta--method')?.textContent.trim() ?? null,
+        total: cells[2]?.querySelector('.totals__value')?.textContent.trim() ?? null,
+        cardRect: rect(card),
+        failure: card.querySelector('.qualifier--failure')?.textContent.trim() ?? null,
+        overflow: document.documentElement.scrollWidth > window.innerWidth + 1
+      };
+    })()`);
+    const failed500Board = await fetchBoard(failedServer.url, 500, 'tel-aviv');
+    const failed500CoffeeMan = failed500Board.ranked.find(quote => quote.vendor.id === 'coffeeman' && (quote.product.packCount ?? 1) === 1) ?? null;
+    check('mobile failure: the scrolled-in 500 g CoffeeMan card shows vendor, packs/grams, item, named method/charge and total together',
+      mobileCoffeeMan500 != null
+        && /CoffeeMan/.test(mobileCoffeeMan500.vendor ?? '')
+        && mobileCoffeeMan500.pack === '250 g pack · 2 × 250 g packs = 500 g'
+        && mobileCoffeeMan500.item === ils(failed500CoffeeMan?.itemTotalIls)
+        && mobileCoffeeMan500.shipping === ils(failed500CoffeeMan?.shipping.amountIls)
+        && mobileCoffeeMan500.method === 'Home delivery'
+        && mobileCoffeeMan500.total === ils(failed500CoffeeMan?.totalIls)
+        && /Last check failed/.test(mobileCoffeeMan500.failure ?? '')
+        && mobileCoffeeMan500.cardRect.top >= 0
+        && mobileCoffeeMan500.cardRect.top <= mobileCoffeeMan500.innerHeight
+        && mobileCoffeeMan500.overflow === false,
+      JSON.stringify(mobileCoffeeMan500));
+    await screenshot(wd, 'product-500g-mobile-failed-390.png');
+    await setDetailsOpen(wd, '#compare-other-offers', false);
+    await wd('POST', '/window/rect', { width: 1440, height: 1000, x: 0, y: 0 });
   } finally {
     await failedServer.close();
   }

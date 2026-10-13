@@ -217,6 +217,7 @@ test('the checked-in shipping policies are structurally valid', () => {
   assert.deepEqual(singleFour.rule.freeCartConditions.map(condition => condition.id), ['singles-7', 'singles-8', 'fourpack-2']);
   const sevenSingles = singleFour.rule.freeCartConditions.find(condition => condition.id === 'singles-7');
   assert.equal(sevenSingles.units, 7);
+  assert.equal(sevenSingles.sku, '930333', 'each condition carries the listing SKU it was observed for');
   assert.equal(sevenSingles.orderedGrams, 1750);
   assert.equal(sevenSingles.itemSubtotalIls, 231);
   assert.equal(sevenSingles.service, 'home_delivery', 'each condition names the delivery method it was observed for');
@@ -227,6 +228,7 @@ test('the checked-in shipping policies are structurally valid', () => {
   assert.equal(eightSingles.paidItemTotalIls, 237.6);
   const twoFourPacks = singleFour.rule.freeCartConditions.find(condition => condition.id === 'fourpack-2');
   assert.equal(twoFourPacks.packCount, 4);
+  assert.equal(twoFourPacks.sku, '930334');
   assert.equal(twoFourPacks.units, 2);
   assert.equal(twoFourPacks.itemSubtotalIls, 248);
   assert.equal(singleFour.supersedes.freeThreshold.amount, 231, 'the superseded v2 threshold is named exactly for the read-time migration');

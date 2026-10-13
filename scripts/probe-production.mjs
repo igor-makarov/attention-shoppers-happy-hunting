@@ -99,6 +99,8 @@ const summarizeBoard = board => ({
     itemTotalIls: quote.itemTotalIls,
     shippingIls: quote.shipping?.amountIls ?? null,
     shippingCertainty: quote.shipping?.certainty ?? null,
+    freeCondition: quote.shipping?.freeCondition?.id ?? null,
+    freeCartConditions: (quote.shipping?.freeCartConditions ?? []).map(condition => condition.id),
     totalIls: quote.totalIls,
     ilsPerKg: quote.ilsPerKg
   })),
@@ -137,6 +139,8 @@ const endpoints = {
   catalog: await get('/api/catalog'),
   board500: await get('/api/board?grams=500&dest=tel-aviv'),
   board1000: await get('/api/board?grams=1000&dest=tel-aviv'),
+  board2000: await get('/api/board?grams=2000&dest=tel-aviv'),
+  board3000: await get('/api/board?grams=3000&dest=tel-aviv'),
   boardUnstated: await get('/api/board?variant=unspecified&grams=500&dest=tel-aviv'),
   retiredUrl: await get('/api/board?product=lavazza-qualita-oro-vacuum-ground&grams=500&dest=tel-aviv')
 };
@@ -174,6 +178,8 @@ check(
 const boards = {
   board500: endpoints.board500.body,
   board1000: endpoints.board1000.body,
+  board2000: endpoints.board2000.body,
+  board3000: endpoints.board3000.body,
   boardUnstated: endpoints.boardUnstated.body,
   retiredUrl: endpoints.retiredUrl.body
 };
@@ -255,7 +261,8 @@ for (const quote of boards.board500?.ranked ?? []) {
   }
   const sameRule = (current.service ?? null) === (quote.shipping?.service ?? null)
     && (current.freeThreshold ?? null) === (quote.shipping?.freeThreshold ?? null)
-    && (current.thresholdSemantics ?? null) === (quote.shipping?.freeThresholdSemantics ?? null);
+    && (current.thresholdSemantics ?? null) === (quote.shipping?.freeThresholdSemantics ?? null)
+    && (current.freeCartConditions ?? []).map(condition => condition.id).join(',') === (quote.shipping?.freeCartConditions ?? []).map(condition => condition.id).join(',');
   if (!sameRule) {
     policyVersionAwaiting.push(`${stamp.id}: board v${stamp.version}, current v${current.version}`);
     continue;
@@ -271,6 +278,35 @@ check(
     ? policyVersionMismatches.join(', ')
     : policyVersionAwaiting.length ? `awaiting vendor refresh: ${policyVersionAwaiting.join(', ')}` : 'all current'
 );
+
+// Scoped cart-observed free conditions: once the deployed build exposes them,
+// the exact observed 2 kg cart must be free while a larger unobserved cart must
+// keep the published base rate. The check is skipped while the previous build is
+// still rolling out, so the probe does not report a false regression.
+const singlePack = (board, vendorId) => (board?.ranked ?? []).find(quote => quote.vendor?.id === vendorId && (quote.product?.packCount ?? 1) === 1) ?? null;
+const scopedConditionsDeployed = shippingPolicies.some(policy => (policy?.freeCartConditions ?? []).length > 0)
+  || (boards.board2000?.ranked ?? []).some(quote => (quote.shipping?.freeCartConditions ?? []).length > 0);
+if (scopedConditionsDeployed) {
+  const single2000 = singlePack(boards.board2000, 'coffeeman');
+  const single3000 = singlePack(boards.board3000, 'coffeeman');
+  check(
+    'the 2 kg single-pack cart applies the exact observed free condition, not a threshold',
+    single2000?.shipping?.freeCondition?.id === 'singles-8'
+      && single2000?.shipping?.freeThreshold === null
+      && single2000?.shipping?.amountIls === 0,
+    JSON.stringify(single2000 && { freeCondition: single2000.shipping?.freeCondition?.id ?? null, freeThreshold: single2000.shipping?.freeThreshold ?? null, shipping: single2000.shipping?.amountIls })
+  );
+  check(
+    '3 kg of singles keeps the published base rate instead of inheriting free delivery',
+    single3000?.units === 12
+      && single3000?.shipping?.amountIls === 25
+      && single3000?.shipping?.freeCondition == null
+      && single3000?.shipping?.freeConditionUnmatchedAboveMin === true,
+    JSON.stringify(single3000 && { units: single3000.units, shipping: single3000.shipping?.amountIls, freeCondition: single3000.shipping?.freeCondition?.id ?? null })
+  );
+} else {
+  check('scoped free conditions are not deployed yet', true, 'the previous build is still serving the board; skipped');
+}
 
 // Published quantity promotions: only checked once the deployed build exposes
 // them, so the probe stays green while the main-push deploy is still rolling

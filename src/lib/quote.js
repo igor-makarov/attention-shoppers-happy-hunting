@@ -631,6 +631,7 @@ export function freeCartConditionMatches(condition, observation, quote) {
   if (!condition) return false;
   if (condition.itemUrlPrefix && !String(observation?.itemUrl ?? '').startsWith(condition.itemUrlPrefix)) return false;
   if (condition.service && quote?.shipping?.service && condition.service !== quote.shipping.service) return false;
+  if (condition.sku && quote?.product?.sku && condition.sku !== quote.product.sku) return false;
   if (condition.packCount != null && (quote?.product?.packCount ?? 1) !== condition.packCount) return false;
   if (condition.units != null && quote?.units !== condition.units) return false;
   if (condition.orderedGrams != null && quote?.orderedGrams !== condition.orderedGrams) return false;

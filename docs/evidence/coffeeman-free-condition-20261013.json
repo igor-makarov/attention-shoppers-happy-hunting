@@ -1,10 +1,11 @@
 {
  "kind": "policy-reproduction",
- "topic": "CoffeeMan's anonymous-cart free-delivery observation applied at its observed scope",
- "capturedAt": "2026-10-13T01:27:49.226Z",
- "policy": "coffeeman-single-4pack-il-home-delivery v2",
+ "topic": "CoffeeMan's anonymous-cart free-delivery observations applied at their exact cart scope (no monotone threshold)",
+ "revision": "2026-10-13: the earlier threshold-based reproduction was superseded after review; the policy now stores the exact observed free carts (7 singles, 8 singles, 2 × 4-pack) and every other cart keeps the published ₪25 base rate.",
+ "capturedAt": "2026-10-13T02:30:00.000Z",
+ "policy": "coffeeman-single-4pack-il-home-delivery v3",
  "evidenceSource": "docs/evidence/browser-research/2026-10-12-coffeeman-cart-single-4pack.json",
- "method": "The live-parsed CoffeeMan listings were quoted through the production quote engine at each cart size observed in the anonymous checkout on 2026-10-12; no order, login, account, street address or bot-challenge bypass was involved in that research.",
+ "method": "Persisted-shaped CoffeeMan rows (unknown shipping, as earlier parser versions stored them) were quoted through the production quote engine at each cart size; the engine enriches them from the validated policy at read time. No order, login, account, street address or bot-challenge bypass was involved in the research.",
  "matrix": [
   {
    "listing": "single 250 g",
@@ -12,15 +13,15 @@
    "observedCourierIls": 25,
    "engine": {
     "units": 2,
+    "orderedGrams": 500,
     "itemSubtotalBeforeDiscountIls": null,
     "itemTotalIls": 66,
     "shippingAmountIls": 25,
+    "freeThreshold": null,
+    "freeCondition": null,
+    "freeConditionUnmatchedAboveMin": null,
     "totalIls": 91,
-    "freeThreshold": 231,
-    "freeThresholdOrigin": "observed_cart",
-    "labels": [
-     "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout."
-    ]
+    "rankable": true
    }
   },
   {
@@ -29,15 +30,15 @@
    "observedCourierIls": 25,
    "engine": {
     "units": 4,
+    "orderedGrams": 1000,
     "itemSubtotalBeforeDiscountIls": null,
     "itemTotalIls": 132,
     "shippingAmountIls": 25,
+    "freeThreshold": null,
+    "freeCondition": null,
+    "freeConditionUnmatchedAboveMin": null,
     "totalIls": 157,
-    "freeThreshold": 231,
-    "freeThresholdOrigin": "observed_cart",
-    "labels": [
-     "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout."
-    ]
+    "rankable": true
    }
   },
   {
@@ -46,15 +47,15 @@
    "observedCourierIls": 25,
    "engine": {
     "units": 6,
+    "orderedGrams": 1500,
     "itemSubtotalBeforeDiscountIls": null,
     "itemTotalIls": 198,
     "shippingAmountIls": 25,
+    "freeThreshold": null,
+    "freeCondition": null,
+    "freeConditionUnmatchedAboveMin": null,
     "totalIls": 223,
-    "freeThreshold": 231,
-    "freeThresholdOrigin": "observed_cart",
-    "labels": [
-     "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout."
-    ]
+    "rankable": true
    }
   },
   {
@@ -63,16 +64,15 @@
    "observedCourierIls": 0,
    "engine": {
     "units": 7,
+    "orderedGrams": 1750,
     "itemSubtotalBeforeDiscountIls": null,
     "itemTotalIls": 231,
     "shippingAmountIls": 0,
+    "freeThreshold": null,
+    "freeCondition": "singles-7",
+    "freeConditionUnmatchedAboveMin": null,
     "totalIls": 231,
-    "freeThreshold": 231,
-    "freeThresholdOrigin": "observed_cart",
-    "labels": [
-     "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout.",
-     "Free shipping threshold met (from ₪231.00, observed in the vendor’s anonymous cart)"
-    ]
+    "rankable": true
    }
   },
   {
@@ -81,17 +81,15 @@
    "observedCourierIls": 0,
    "engine": {
     "units": 8,
+    "orderedGrams": 2000,
     "itemSubtotalBeforeDiscountIls": 264,
     "itemTotalIls": 237.6,
     "shippingAmountIls": 0,
+    "freeThreshold": null,
+    "freeCondition": "singles-8",
+    "freeConditionUnmatchedAboveMin": null,
     "totalIls": 237.6,
-    "freeThreshold": 231,
-    "freeThresholdOrigin": "observed_cart",
-    "labels": [
-     "Published promotion applied: 10% off the item subtotal (was ₪264.00)",
-     "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout.",
-     "Free shipping threshold met (from ₪231.00, observed in the vendor’s anonymous cart)"
-    ]
+    "rankable": true
    }
   },
   {
@@ -100,15 +98,15 @@
    "observedCourierIls": 25,
    "engine": {
     "units": 1,
+    "orderedGrams": 1000,
     "itemSubtotalBeforeDiscountIls": null,
     "itemTotalIls": 124,
     "shippingAmountIls": 25,
+    "freeThreshold": null,
+    "freeCondition": null,
+    "freeConditionUnmatchedAboveMin": null,
     "totalIls": 149,
-    "freeThreshold": 231,
-    "freeThresholdOrigin": "observed_cart",
-    "labels": [
-     "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout."
-    ]
+    "rankable": true
    }
   },
   {
@@ -117,16 +115,15 @@
    "observedCourierIls": 0,
    "engine": {
     "units": 2,
+    "orderedGrams": 2000,
     "itemSubtotalBeforeDiscountIls": null,
     "itemTotalIls": 248,
     "shippingAmountIls": 0,
+    "freeThreshold": null,
+    "freeCondition": "fourpack-2",
+    "freeConditionUnmatchedAboveMin": null,
     "totalIls": 248,
-    "freeThreshold": 231,
-    "freeThresholdOrigin": "observed_cart",
-    "labels": [
-     "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout.",
-     "Free shipping threshold met (from ₪231.00, observed in the vendor’s anonymous cart)"
-    ]
+    "rankable": true
    }
   },
   {
@@ -135,18 +132,69 @@
    "observedCourierIls": 20,
    "engine": {
     "units": 1,
+    "orderedGrams": 2000,
     "itemSubtotalBeforeDiscountIls": null,
     "itemTotalIls": 240,
     "shippingAmountIls": 20,
-    "totalIls": 260,
     "freeThreshold": null,
-    "freeThresholdOrigin": null,
-    "labels": [
-     "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list, which the product page does not publish. Confirm the destination at checkout."
-    ]
+    "freeCondition": null,
+    "freeConditionUnmatchedAboveMin": null,
+    "totalIls": 260,
+    "rankable": true
+   }
+  },
+  {
+   "listing": "single 250 g",
+   "cart": "12 × 250 g = 3 kg (unobserved)",
+   "observedCourierIls": null,
+   "engine": {
+    "units": 12,
+    "orderedGrams": 3000,
+    "itemSubtotalBeforeDiscountIls": 396,
+    "itemTotalIls": 356.4,
+    "shippingAmountIls": 25,
+    "freeThreshold": null,
+    "freeCondition": null,
+    "freeConditionUnmatchedAboveMin": true,
+    "totalIls": 381.4,
+    "rankable": true
+   }
+  },
+  {
+   "listing": "4 × 250 g multipack",
+   "cart": "3 × 4-pack = 3 kg (unobserved)",
+   "observedCourierIls": null,
+   "engine": {
+    "units": 3,
+    "orderedGrams": 3000,
+    "itemSubtotalBeforeDiscountIls": null,
+    "itemTotalIls": 372,
+    "shippingAmountIls": 25,
+    "freeThreshold": null,
+    "freeCondition": null,
+    "freeConditionUnmatchedAboveMin": true,
+    "totalIls": 397,
+    "rankable": true
+   }
+  },
+  {
+   "listing": "single 250 g",
+   "cart": "8 × 250 g at ₪34 (repriced, unobserved)",
+   "observedCourierIls": null,
+   "engine": {
+    "units": 8,
+    "orderedGrams": 2000,
+    "itemSubtotalBeforeDiscountIls": 272,
+    "itemTotalIls": 244.8,
+    "shippingAmountIls": 25,
+    "freeThreshold": null,
+    "freeCondition": null,
+    "freeConditionUnmatchedAboveMin": true,
+    "totalIls": 269.8,
+    "rankable": true
    }
   }
  ],
  "reproduced": true,
- "note": "The ₪231 threshold is the lowest observed free subtotal (the ₪198 cart was charged ₪25), so the engine can only under-promise free delivery below it. The ₪240 8-pack SKU keeps its own ₪20 policy and never inherits the free condition."
+ "note": "Free delivery is applied only when the current cart matches an observed free configuration exactly (listing scope, whole-pack count, ordered grams, item subtotal before any discount). The 3 kg singles, three-4-pack and repriced 8-singles carts were never observed and keep the published ₪25 rate even though their subtotals are above an observed free subtotal. The ₪240 8-pack SKU keeps its own ₪20 policy and never inherits the free conditions."
 }

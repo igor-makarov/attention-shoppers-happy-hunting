@@ -199,6 +199,7 @@ export const coffeemanSingleFourPackPolicy = {
         id: 'singles-7',
         service: 'home_delivery',
         itemUrlPrefix: 'https://www.coffeeman.co.il/product/250-',
+        sku: '930333',
         packCount: 1,
         units: 7,
         orderedGrams: 1750,
@@ -217,6 +218,7 @@ export const coffeemanSingleFourPackPolicy = {
         id: 'singles-8',
         service: 'home_delivery',
         itemUrlPrefix: 'https://www.coffeeman.co.il/product/250-',
+        sku: '930333',
         packCount: 1,
         units: 8,
         orderedGrams: 2000,
@@ -235,6 +237,7 @@ export const coffeemanSingleFourPackPolicy = {
         id: 'fourpack-2',
         service: 'home_delivery',
         itemUrlPrefix: 'https://www.coffeeman.co.il/product/4-',
+        sku: '930334',
         packCount: 4,
         units: 2,
         orderedGrams: 2000,
@@ -409,6 +412,7 @@ export function validatePolicy(policy) {
         if (!condition || typeof condition !== 'object') { errors.push(`${at} is not an object`); return; }
         if (!condition.id || typeof condition.id !== 'string') errors.push(`${at}.id is required`);
         if (!condition.service || typeof condition.service !== 'string') errors.push(`${at}.service is required`);
+        if (condition.sku != null && typeof condition.sku !== 'string') errors.push(`${at}.sku must be a string when present`);
         if (!condition.itemUrlPrefix || typeof condition.itemUrlPrefix !== 'string') errors.push(`${at}.itemUrlPrefix is required`);
         if (!Number.isInteger(condition.packCount) || condition.packCount < 1) errors.push(`${at}.packCount must be a positive integer`);
         if (!Number.isInteger(condition.units) || condition.units < 1) errors.push(`${at}.units must be a positive integer`);
@@ -752,6 +756,7 @@ export function policySummary(now = Date.now(), policies = SHIPPING_POLICIES) {
     freeThresholdOrigin: policy.rule?.freeThresholdOrigin ?? null,
     freeCartConditions: (policy.rule?.freeCartConditions ?? []).map(condition => ({
       id: condition.id,
+      sku: condition.sku ?? null,
       units: condition.units,
       packCount: condition.packCount,
       orderedGrams: condition.orderedGrams,
