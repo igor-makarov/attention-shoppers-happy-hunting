@@ -17,6 +17,7 @@
 
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { CRON_EXPRESSION, nextCronTick, firstTickAtOrAfter } from './cron-schedule.mjs';
 
 const args = process.argv.slice(2);
 const valueOf = flag => {
@@ -145,6 +146,12 @@ const endpoints = {
   retiredUrl: await get('/api/board?product=lavazza-qualita-oro-vacuum-ground&grams=500&dest=tel-aviv')
 };
 const finishedAt = new Date().toISOString();
+// The Worker runs only on the Cloudflare cron ticks in wrangler.jsonc. A stored
+// vendor `nextAttemptAt` is a backoff deadline, not an attempt time: CoffeeMan's
+// 06:17 UTC failure left a 07:17:42Z deadline, but the next tick that can execute
+// it is 12:17 UTC. Report the actual tick so a later iteration cannot read the
+// deadline as a scheduled retry (the 3-94 status nearly did).
+const nextTickAt = nextCronTick(finishedAt);
 
 for (const [name, response] of Object.entries(endpoints)) {
   check(`${name} responds HTTP 200`, response.status === 200, response.error ?? `HTTP ${response.status}`);
@@ -173,6 +180,20 @@ check(
   'health and status agree on the last completed refresh',
   (endpoints.health.body?.lastRefreshAt ?? null) === (statusBody.lastRefreshAt ?? null),
   `health=${endpoints.health.body?.lastRefreshAt ?? null} status=${statusBody.lastRefreshAt ?? null}`
+);
+
+// Distinguish the next actual execution from the stored backoff deadlines.
+const vendorAttempts = (statusBody.vendors ?? []).map(vendor => ({
+  vendorId: vendor.vendorId,
+  nextAttemptAt: vendor.nextAttemptAt ?? null,
+  firstTickAtOrAfterDue: firstTickAtOrAfter(vendor.nextAttemptAt),
+  dueAtOrBeforeNextTick: vendor.nextAttemptAt != null && Date.parse(vendor.nextAttemptAt) <= Date.parse(nextTickAt)
+}));
+const lastRefreshMs = Date.parse(statusBody.lastRefreshAt ?? finishedAt);
+check(
+  'the next actual vendor attempt is the next cron tick, not a stored backoff deadline',
+  Number.isFinite(Date.parse(nextTickAt)) && Date.parse(nextTickAt) > lastRefreshMs,
+  `cron ${CRON_EXPRESSION} -> ${nextTickAt}; deadlines ${vendorAttempts.map(vendor => `${vendor.vendorId}@${vendor.nextAttemptAt ?? 'none'}${vendor.dueAtOrBeforeNextTick ? ' (due at this tick)' : ''}`).join(' ') || 'none'}`
 );
 
 const boards = {
@@ -332,6 +353,12 @@ const snapshot = {
   capturedAt: `${startedAt} to ${finishedAt}`,
   mode: 'read-only public GETs from the coding runner; no Cloudflare credentials, admin API, deploy or remote resource change',
   url: baseUrl,
+  schedule: {
+    cron: CRON_EXPRESSION,
+    nextActualTickAt: nextTickAt,
+    note: 'The Worker executes only on its cron ticks. A stored vendor nextAttemptAt is a backoff deadline and is not an attempt time; a due vendor is attempted at the first tick at or after the deadline. `firstTickAtOrAfterDue` is that tick, with no early-due tolerance applied.',
+    vendors: vendorAttempts
+  },
   endpoints: Object.fromEntries(Object.entries(endpoints).map(([name, response]) => [name, {
     status: response.status,
     error: response.error ?? null,
@@ -359,7 +386,8 @@ if (jsonOnly) {
   console.log(`Health: ${endpoints.health.status} lastRefreshAt=${endpoints.health.body?.lastRefreshAt ?? null} lastObservationAt=${endpoints.health.body?.lastObservationAt ?? null}`);
   console.log(`Status: observations=${status.observations ?? null} lastRefreshAt=${status.lastRefreshAt ?? null} stale=${status.freshness?.stale ?? null} ageHours=${status.freshness?.ageHours ?? null}`);
   console.log(`Catalog: products=[${catalogProducts.join(', ')}] vendors=[${(catalog.vendors ?? []).map(vendor => vendor.id).join(', ')}]`);
-  console.log(`Vendor next attempts: ${(status.vendors ?? []).map(vendor => `${vendor.vendorId}@${vendor.nextAttemptAt}`).join(' ')}`);
+  console.log(`Vendor backoff deadlines: ${vendorAttempts.map(vendor => `${vendor.vendorId}@${vendor.nextAttemptAt ?? 'none'} -> first tick at/after due ${vendor.firstTickAtOrAfterDue ?? 'n/a'}`).join(' ')}`);
+  console.log(`Next actual cron tick: ${nextTickAt} (cron ${CRON_EXPRESSION}); a deadline between ticks is not a retry`);
   console.log(`Shipping policies: ${shippingPolicies.map(policy => `${policy.id} v${policy.version} (${policy.origin}, reviewBy ${policy.reviewBy}${policy.expired ? ', EXPIRED' : ''})`).join(' | ')}`);
   if (promotions) {
     console.log(`Promotions: ${promotions.map(promotion => `${promotion.id} v${promotion.version} (${promotion.percent}% from ₪${promotion.minItemSubtotal}${promotion.expired ? ', EXPIRED' : ''})`).join(' | ')}`);

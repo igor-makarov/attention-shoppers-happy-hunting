@@ -46,7 +46,8 @@ console errors and `npm run verify` at **173/173** tests plus the dry-run bundle
 Iteration 3-94 independently re-verified that capture work at the final 3-93 commit (fresh `npm run verify`
 173/173, offline browser QA 114/114 with all three first screens exact 390×844 at `scrollY 0`), observed
 the actual **06:17 UTC cron tick** (Pucks/Coffee4U refreshed; CoffeeMan's Worker-egress **HTTP 403**
-persists with `consecutiveFailures 2` and backoff to 07:17:42Z, while its last-known-good 2 kg cart stays
+persists with `consecutiveFailures 2` and a backoff deadline of 07:17:42Z (a stored due time, not a run —
+the next cron tick that can attempt it is 12:17 UTC), while its last-known-good 2 kg cart stays
 ranked at ₪237.60 with the failure warning and unobserved carts keep the published base rate), and
 confirmed production serves the committed public assets byte-for-byte.
 Iteration 3-81 removes the last variant coupling from the data layer: a stored offer's identity key no
@@ -2517,7 +2518,8 @@ offers (`lastSuccessAt 2026-10-12T15:51:52.931Z`, `consecutiveFailures 1`, backo
 `cron` run `2026-10-13T06:17:42.285Z → 06:17:59.310Z`, 6 vendor requests. Pucks and Coffee4U saved fresh
 observations at 06:17:42Z; **CoffeeMan failed again with `HTTP 403` on all three offers** from the Worker
 egress, so `consecutiveFailures` is now 2, `lastSuccessAt` remains `2026-10-12T15:51:52.931Z`, and the
-next attempt backs off to 07:17:42Z. Retention is honest: `/api/board?grams=2000&dest=tel-aviv` still ranks
+next attempt backs off to 07:17:42Z (a due time; the next cron tick that can attempt it is 12:17 UTC, which
+iteration 3-97 records explicitly). Retention is honest: `/api/board?grams=2000&dest=tel-aviv` still ranks
 CoffeeMan's last-known-good 2 kg cart at ₪237.60 (`lastAttemptFailed: true`, `observedAt
 2026-10-12T15:51:52.931Z`, `serviceLabel "Home delivery"`, free condition `singles-8`, the 10% promotion
 and the coverage caveat in its labels), 3 kg of singles keeps the published ₪25 base rate (₪381.40) instead
@@ -2532,7 +2534,8 @@ to the committed `main` HEAD — `product.js` sha256-16 `6d4375d9385d01db`, `ui.
 `e9fe6e03af757302` all match locally — so the 3-90/3-91 UI and matcher fixes verified here are the code the
 deployed Worker is actually serving (docs/test-only commits since then do not change the bundle).
 
-**Next step:** the next vendor attempt is CoffeeMan's backoff retry at **07:17:42Z** (Pucks/Coffee4U next
-at 12:17:42Z). Record whether the Worker-egress 403 persists; if it does, keep the last-known-good
-observation and warning rather than bypassing the vendor control, and spend the iteration on verified
-Crema e Gusto work rather than repeated unchanged probes.
+**Next step:** the next actual vendor attempt is the **12:17 UTC cron tick** (the Worker's only trigger,
+`17 */6 * * *`), when CoffeeMan is long due (its stored backoff deadline is 07:17:42Z — a due time, not a
+run) and Pucks/Coffee4U are due at 12:17:42Z. Record whether the Worker-egress 403 persists; if it does,
+keep the last-known-good observation and warning rather than bypassing the vendor control, and spend the
+iteration on verified Crema e Gusto work rather than repeated unchanged probes.
