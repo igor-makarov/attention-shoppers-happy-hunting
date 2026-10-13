@@ -5,10 +5,15 @@ there is no variant selector, menu entry, warning, "other variant" count or vari
 UI, and every eligible tracked Crema e Gusto vacuum-packed ground listing — including the Coffee4U listing
 whose blend wording is not stated — is compared in one board for the selected quantity, locality and
 delivery method. The Canton Zürich product index + dedicated product page, the browser-researched shipping
-policies and the progressive-disclosure layout are validated locally (136/136 tests, 80/80 offline and 78/78
-live browser checks) and against the deployed site: the four-policy build is live (production probe 24/24
-at 23:12 UTC, live browser QA 78/78 at 23:12 UTC with zero console errors), the Pucks free-above-₪100 rule
+policies and the progressive-disclosure layout are validated locally (153/153 tests, 88/88 offline and 85/85
+production browser checks) and against the deployed site: the four-policy build is live (production probe 25/25
+at 00:19 UTC, live browser QA 85/85 at 00:28 UTC with zero console errors), the Pucks free-above-₪100 rule
 is applied to the old persisted store at read time, and obsolete `variant=` URLs resolve to that one board.
+Iteration 3-81 removes the last variant coupling from the data layer: a stored offer's identity key no
+longer contains the blend wording a listing prints, legacy blend-keyed rows are collapsed at read time
+with their stable-key replacement (newest observation wins), and failure markers plus previous-check
+evidence resolve to the newest row for the same listing URL, so the variant removal cannot duplicate one
+SKU or hide a failed check in an old persisted store.
 Iteration 3-79 adds the vendor's **published quantity promotion** (CoffeeMan 10% off the ground-coffee
 item subtotal from a ₪250 subtotal, multipacks excluded), parsed from the product-page banner each
 refresh and applied to the item subtotal with the vendor's own wording disclosed: the 8 × 250 g singles
@@ -94,10 +99,13 @@ product line requires an explicit new owner instruction.
 - **No blend/variant feature (owner correction, 2026-10-12)**: every eligible Crema e Gusto ground
   listing is compared together. The Coffee4U listing, which states no blend wording, is included rather
   than hidden behind a selector; a listing that prints Classico/Forte wording keeps that wording only as
-  raw listing identity inside its optional offer details. `quoteBoard()` has no variant filter or
-  exclusion count, `?variant=` is ignored by the Worker and the offline harness, and old shared URLs keep
-  product/quantity/locality while the product page strips the obsolete parameter from the address bar.
-  Single 250 g, 4 × 250 g and 8 × 250 g offers are never merged.
+  raw listing identity metadata (`product.variantId`/`variantLabel` on the offer, shown only inside its
+  optional offer details) and never as a filter, menu, warning or badge. `quoteBoard()` has no variant
+  filter or exclusion count, `?variant=` is ignored by the Worker and the offline harness, and old shared
+  URLs keep product/quantity/locality while the product page strips the obsolete parameter from the
+  address bar. A stored offer's identity key is vendor + SKU/product + form + pack size, not the blend
+  wording, and rows for one listing URL are collapsed at read time (newest observation wins), so a
+  wording change cannot duplicate one SKU. Single 250 g, 4 × 250 g and 8 × 250 g offers are never merged.
 - **Retired lines cannot reappear**: `classifyListing()` rejects a retired listing with a reason naming
   the retired line; `resolveProductRequest()` maps an old `?product=lavazza-qualita-oro-vacuum-ground`
   (or Rossa/Suerte) URL back to the tracked product and returns `requestedRetiredProduct` so the board
@@ -457,7 +465,7 @@ labels and the next-source-check footer line, recorded in
 | Production refresh / persistence | **Independently verified**: the probe's first `/health` GET started the documented initial refresh (15:51:52.931Z → 15:52:12.546Z, 4 bounded requests, CoffeeMan saved 3; Pucks/Coffee4U inside their backoff window). `/api/status` then showed `lastRefreshAt` 15:52:12.546Z, fresh, five observations and the Bank of Israel table asOf 12:23:04.599Z. The post-deploy probe, the 16:53 probe and the 3-64 probe at 17:26 UTC found the same persisted store with the same timestamps (ageHours 1.0, stale false) and the same three vendor `nextAttemptAt` values (19:34/19:46/21:52 UTC). The 6-hour cron trigger was independently observed firing on 2026-10-13: the 18:17 UTC tick skipped every vendor inside its window (0 requests, `lastRefreshAt` unchanged, expected) and the **00:17 UTC tick refreshed Pucks and Coffee4U with 6 bounded requests and a completed run at 00:18:15.896Z**; CoffeeMan was blocked from the Worker egress (HTTP 403, see the probe evidence). |
 | Production board values | **Independently verified at 21:49 UTC after the 3-75 build deployed**: 500 g best **Pucks ₪90.00** (2 × ₪30 + the researched ₪30 rule applied at read time), CoffeeMan ₪91.00, **Coffee4U ₪106.00 in the same comparison**, CoffeeMan 4-pack ₪149.00; 1 kg best Pucks ₪120.00 (free above the ₪100 item subtotal); the CoffeeMan 8-pack stays unrankable at ₪240 because its cart-observed ₪20 rate is not a shared policy yet. The old persisted Pucks row (observed 13:34 UTC with unknown shipping) gained the validated rule without a vendor refresh, which independently confirms the read-time policy-enrichment/old-store gap fix in production. |
 | Production UI | **Independently verified**: the fixture-free live browser QA mode drove the deployed site in headless Chrome — **53/53** checks passed with zero console errors on 2026-10-12 16:20 UTC, again at 17:05 UTC after the 3-63 push, and **59/59** at 17:31 UTC after the failed-attempt build deployed (evidence `docs/evidence/browser-qa-production-20261012T1620Z.json`, `docs/evidence/browser-qa-production-20261012T1705Z.json`, `docs/evidence/browser-qa-production-20261012T1731Z.json`). **The 3-75 unified-comparison UI is live and passed 76/76 checks at 21:59 UTC** — no variant control, Coffee4U in the same comparison, home→product navigation, disclosures, quantity/destination changes and mobile first-viewport money values all verified against the deployed site (evidence `docs/evidence/browser-qa-production-20261012T2200Z.json`). |
-| Deployed build version | **The 3-61 build is live** (verified 16:17-16:18 UTC: `/health` carries `lastObservationAt`, a 3-61-only field; `/api/status` reports `freshness.dataAsOf`). **The failed-attempt build (3-63 save / 3-64) is also live**: the production `/api/board` quotes now carry `lastAttemptFailed`/`lastError` (a public field added in commit da47521) and the deployed `public/app.js` contains the `Last attempt failed` / `showing the last successful observation` strings (read-only GETs at 17:31-17:33 UTC; `docs/evidence/production-build-marker-20261012T1733Z.json`). **The 3-75 blend/variant-removal build is live** (verified 21:49-21:52 UTC, read-only GETs): `/api/board` returns no `variantId` and no `counts.excludedByVariant`, `?variant=unspecified` returns the same ranked list as the default request with Coffee4U included, `/api/catalog` notes describe the unified comparison, the served `product.js` strips the obsolete parameter and contains no `#variant` lookup, the served `home.js` says "one comparison for all tracked listings" and drops `variant` when forwarding, and the directly loaded product page contains zero `variant` occurrences. Evidence: `docs/evidence/production-build-marker-20261012T2152Z.json`. The 3-62 phase-lock change has no public-API marker (it only changes vendor due-time evaluation), but the **00:17 UTC tick on 2026-10-13 refreshed instead of skipping**, which is the behavior the fix introduces; the 06:17 UTC tick is expected to refresh again. |
+| Deployed build version | **The 3-61 build is live** (verified 16:17-16:18 UTC: `/health` carries `lastObservationAt`, a 3-61-only field; `/api/status` reports `freshness.dataAsOf`). **The failed-attempt build (3-63 save / 3-64) is also live**: the production `/api/board` quotes now carry `lastAttemptFailed`/`lastError` (a public field added in commit da47521) and the deployed `public/app.js` contains the `Last attempt failed` / `showing the last successful observation` strings (read-only GETs at 17:31-17:33 UTC; `docs/evidence/production-build-marker-20261012T1733Z.json`). **The 3-75 blend/variant-removal build is live** (verified 21:49-21:52 UTC, read-only GETs): `/api/board` returns no board-level `variantId` and no `counts.excludedByVariant` (per-offer `product.variantId`/`variantLabel` remain raw listing identity metadata only), `?variant=unspecified` returns the same ranked list as the default request with Coffee4U included, `/api/catalog` notes describe the unified comparison, the served `product.js` strips the obsolete parameter and contains no `#variant` lookup, the served `home.js` says "one comparison for all tracked listings" and drops `variant` when forwarding, and the directly loaded product page contains zero `variant` occurrences. Evidence: `docs/evidence/production-build-marker-20261012T2152Z.json`. The 3-62 phase-lock change has no public-API marker (it only changes vendor due-time evaluation), but the **00:17 UTC tick on 2026-10-13 refreshed instead of skipping**, which is the behavior the fix introduces; the 06:17 UTC tick is expected to refresh again. |
 | Main-push auto-deploy | **Independently verified for the 3-61 push and again for the 3-64 build**: after the supervisor published the 3-61 commits to main, the serving production build changed to one that includes the 3-61 fields, with the Durable Object store persisting across the deploy; after the da47521/3-64 commits, the production board API began returning the new `lastAttemptFailed`/`lastError` quote fields and the deployed `app.js` gained the failed-attempt labels (read-only GETs at 17:31 UTC). The 3-62 phase-lock push is on main and is expected to deploy the same way, but its effect is only observable through a cron tick. The 6-hour cron trigger and future builds still need the owner's dashboard confirmation. |
 | Local refresh-while-no-browser-open | Verified locally through `wrangler dev` + the documented scheduled trigger (item 6 above) and again with the 3-61 fresh store (item 11). |
 | No Cloudflare administration | Maintained: no CF API calls, deploys, logins or token discovery in this repository or its history. The production probe used plain public HTTPS GETs only. |
@@ -487,9 +495,10 @@ loop without pasting credentials.
 
 The 3-75 read-only probes at 21:49 and 21:52 UTC (20/20 and 22/22 checks, the second with two new
 inert-variant-parameter regressions) additionally verified that the blend/variant-removal
-build is live in production: the API serves no `variantId`/`excludedByVariant`, `?variant=unspecified`
-returns the identical unified ranking with Coffee4U included, and the served assets match the committed
-code (`docs/evidence/production-probe-20261012T2149Z.json`,
+build is live in production: the board-level `variantId`/`excludedByVariant` fields are gone (per-offer
+`product.variantId`/`variantLabel` remain only as raw listing identity metadata in optional offer
+details), `?variant=unspecified` returns the identical unified ranking with Coffee4U included, and the
+served assets match the committed code (`docs/evidence/production-probe-20261012T2149Z.json`,
 `docs/evidence/production-build-marker-20261012T2152Z.json`). The production store is still the
 15:52:12.546Z snapshot, so the 21:49 board's researched Pucks rate comes from read-time policy
 enrichment, not a new vendor fetch — the 00:17 UTC cron tick is still the point where the store itself
@@ -1241,7 +1250,8 @@ from the home page, the product page, the Worker API and the offline QA harness:
   (2 × ₪33 + ₪25), **Coffee4U ₪106** (2 × ₪38 + ₪30), then the CoffeeMan 4-pack ₪149 and 8-pack ₪260;
   the Coffee4U quote carries its raw `variantLabel: "Variant not stated"` as provenance while ranking in
   the same board. The same request with `&variant=unspecified` or `&variant=classico` returns an
-  identical ranking, and no response carries `variantId` or `excludedByVariant`.
+  identical ranking, and no response carries a board-level `variantId` or `excludedByVariant` (per-offer
+  raw listing identity metadata remains as provenance).
   Evidence: `docs/evidence/worker-runtime-status-2026-10-12T2151Z.json`.
 - `npm run qa:browser` (offline fixtures) — **78/78** checks pass: home card says "one comparison for all
   tracked listings", the product page has zero variant controls and no "blend variant"/"another variant"
@@ -1265,7 +1275,7 @@ from the home page, the product page, the Worker API and the offline QA harness:
 
 - Production read-only probe (21:49 and 21:52 UTC, public HTTPS GETs, no credentials): **20/20 and
   22/22** checks pass. The production build is already the unified-comparison build: `/api/board` has no
-  `variantId`/`excludedByVariant`, `?variant=unspecified` returns the same ranking with Coffee4U in it,
+  `variantId`/`excludedByVariant` board-level fields, `?variant=unspecified` returns the same ranking with Coffee4U in it,
   `/api/catalog` carries the unified notes and no variant menu, the served `product.js` strips the
   obsolete parameter, the served `home.js` says "one comparison for all tracked listings", and the
   directly loaded product page has zero `variant` occurrences. The production store is still the

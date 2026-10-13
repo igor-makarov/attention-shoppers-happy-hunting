@@ -38,7 +38,13 @@ refreshed, while a recorded but old completion still reports the scheduled pipel
 vendor check does not erase the last known good row: the attempt time and reason are stamped on that
 offer's existing observation row (or a marker is kept when the offer never succeeded), so the board still
 ranks the last successful price and stock while saying the most recent attempt failed, and a later
-successful check clears the mark.
+successful check clears the mark. A stored offer's identity is vendor + SKU/product + form + pack size —
+never the blend wording a listing happens to print (owner correction, 2026-10-12), so a listing that
+changes or drops that wording cannot persist a second row for one SKU. Rows written under the old
+blend-wording key and their stable-key replacements are collapsed at read time by vendor + listing URL,
+keeping the newest observation, and failure markers plus the previous-check comparison resolve to the
+newest row for the same URL, so the key migration can never show a duplicate offer, hide a failed check
+or lose the previous price evidence.
 
 `src/lib/policies.js` is the shared, versioned shipping-evidence model. A policy states the vendor,
 product/SKU scope, service, destination scope, the amount or free-shipping threshold rule (with the

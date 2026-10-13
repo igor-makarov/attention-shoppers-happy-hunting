@@ -390,6 +390,136 @@ test('a partial vendor failure stamps only the failed offer row and a later succ
   assert.equal(recovered.attemptedAt, new Date(t2).toISOString());
 });
 
+test('the persisted offer key is independent of the blend wording a listing prints', () => {
+  const observationFor = variantId => createObservation({
+    vendor: { id: 'key-demo', name: 'Key demo', homepage: 'https://key-demo.example' },
+    itemUrl: 'https://key-demo.example/product/crema',
+    product: {
+      productId: 'lavazza-crema-e-gusto-vacuum-ground',
+      name: 'Lavazza Crema e Gusto 250 g ground',
+      sku: 'KEY-1',
+      variantId,
+      variantLabel: variantId === 'classico' ? 'Classico' : 'Variant not stated',
+      form: 'ground',
+      packGrams: 250,
+      packCount: 1,
+      totalGrams: 250
+    },
+    price: { amount: 33, currency: 'ILS' },
+    availability: 'in_stock',
+    shipping: { mode: 'delivery', certainty: 'verified', amount: { amount: 25, currency: 'ILS' } },
+    now: NOW
+  });
+  const stated = observationFor('classico');
+  const unstated = observationFor('unspecified');
+  assert.equal(stated.key, unstated.key, 'the blend wording never changes the offer identity');
+  assert.ok(!/classico|unspecified/.test(stated.key), 'the key carries no blend wording');
+  assert.equal(stated.product.variantId, 'classico', 'the raw wording stays on the payload as provenance');
+  assert.equal(unstated.product.variantId, 'unspecified');
+});
+
+test('a legacy blend-keyed row is not duplicated by its stable-key replacement and keeps the previous check', async () => {
+  const url = 'https://legacy-demo.example/product/crema';
+  const legacyRow = {
+    ...createObservation({
+      vendor: { id: 'legacy-demo', name: 'Legacy demo', homepage: 'https://legacy-demo.example' },
+      itemUrl: url,
+      product: {
+        productId: 'lavazza-crema-e-gusto-vacuum-ground',
+        name: 'Lavazza Crema e Gusto Classico 250 g ground',
+        sku: 'LEG-1',
+        variantId: 'classico',
+        variantLabel: 'Classico',
+        form: 'ground',
+        packGrams: 250,
+        packCount: 1,
+        totalGrams: 250
+      },
+      price: { amount: 33, currency: 'ILS' },
+      availability: 'in_stock',
+      shipping: { mode: 'delivery', certainty: 'verified', amount: { amount: 25, currency: 'ILS' } },
+      now: Date.parse('2026-10-12T06:00:00.000Z')
+    }),
+    // The pre-correction key included the blend wording the listing printed.
+    key: 'legacy-demo:LEG-1:classico:ground:250g:x1'
+  };
+  const store = createMemoryStore({ observations: [legacyRow] });
+  const offers = [{ id: 'crema', url }];
+  let mode = 'ok';
+  const vendor = {
+    id: 'legacy-demo',
+    name: 'Legacy demo',
+    homepage: 'https://legacy-demo.example',
+    allowedHosts: ['legacy-demo.example'],
+    parserVersion: 'legacy-demo/1',
+    offers,
+    observe: async ({ now }) => (mode === 'fail'
+      ? { observations: [], failures: [{ offerId: 'crema', error: 'HTTP 503 from the vendor product page' }] }
+      : {
+          observations: [createObservation({
+            vendor: vendor,
+            itemUrl: url,
+            product: {
+              productId: 'lavazza-crema-e-gusto-vacuum-ground',
+              name: 'Lavazza Crema e Gusto 250 g ground',
+              sku: 'LEG-1',
+              variantId: 'unspecified',
+              variantLabel: 'Variant not stated',
+              form: 'ground',
+              packGrams: 250,
+              packCount: 1,
+              totalGrams: 250
+            },
+            price: { amount: 34, currency: 'ILS' },
+            availability: 'in_stock',
+            shipping: { mode: 'delivery', certainty: 'verified', amount: { amount: 25, currency: 'ILS' } },
+            now
+          })],
+          failures: []
+        })
+  };
+
+  const t1 = Date.parse('2026-10-12T12:00:00.000Z');
+  await run({ store, vendors: [vendor], includeFx: false, now: t1 });
+  const afterSuccess = await store.snapshot();
+  const stableRow = afterSuccess.observations.find(row => row.key === 'legacy-demo:LEG-1:ground:250g:x1');
+  assert.ok(stableRow, 'the refresh saves the stable-key row');
+  assert.equal(stableRow.previous.price.amount, 33, 'the legacy row is still the previous successful check');
+  const board = quoteBoard({
+    observations: afterSuccess.observations,
+    productId: 'lavazza-crema-e-gusto-vacuum-ground',
+    targetGrams: 250,
+    destination: findDestination('tel-aviv'),
+    fx: null,
+    now: t1
+  });
+  assert.equal(board.counts.observed, 1, 'the legacy row and its replacement are one offer');
+  assert.equal(board.ranked.length, 1);
+  assert.equal(board.best.key, 'legacy-demo:LEG-1:ground:250g:x1', 'the newest row is the offer');
+  assert.equal(board.best.itemPrice.amount, 34, 'the old price is not shown as a second offer');
+
+  // A later failed check must stamp the row the board actually shows, not the
+  // hidden legacy row.
+  mode = 'fail';
+  const t2 = t1 + REFRESH_INTERVAL_MS + 1000;
+  await run({ store, vendors: [vendor], includeFx: false, now: t2 });
+  const afterFailure = await store.snapshot();
+  const stamped = afterFailure.observations.find(row => row.key === 'legacy-demo:LEG-1:ground:250g:x1');
+  const legacyUntouched = afterFailure.observations.find(row => row.key === 'legacy-demo:LEG-1:classico:ground:250g:x1');
+  assert.equal(stamped.lastError, 'HTTP 503 from the vendor product page', 'the failure lands on the row the board shows');
+  assert.equal(legacyUntouched.lastError ?? null, null, 'the hidden legacy row is not the failure target');
+  const failedBoard = quoteBoard({
+    observations: afterFailure.observations,
+    productId: 'lavazza-crema-e-gusto-vacuum-ground',
+    targetGrams: 250,
+    destination: findDestination('tel-aviv'),
+    fx: null,
+    now: t2
+  });
+  assert.equal(failedBoard.ranked.length, 1);
+  assert.equal(failedBoard.best.lastAttemptFailed, true, 'the visible offer carries the failure warning');
+});
+
 test('a failing FX fetch keeps the previous rate table', async () => {
   const store = createMemoryStore();
   await run({ store, fetchImpl: fixtureFetch(), now: NOW });

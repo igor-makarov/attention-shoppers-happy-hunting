@@ -71,6 +71,51 @@ export function shippingServiceLabel(service, mode = 'delivery') {
   return mode === 'pickup' ? SHIPPING_SERVICE_LABELS.self_pickup : 'Delivery method not stated';
 }
 
+/**
+ * Stable identity of a persisted offer: the vendor plus the listing URL. The
+ * observation key before the 2026-10-12 owner correction also contained the
+ * blend wording a listing printed, so a wording change could leave two rows for
+ * one SKU. Identity deliberately ignores that wording (and the observation
+ * time), while distinct listings, pack sizes and multipacks keep distinct URLs
+ * and therefore stay separate offers.
+ */
+export function offerIdentity(observation) {
+  const vendorId = observation?.vendor?.id ?? '';
+  return `${vendorId}:${observation?.itemUrl ?? observation?.key ?? ''}`;
+}
+
+/**
+ * Collapse rows that describe the same offer, keeping the most recently
+ * observed row (failure markers without an observation time are passed through
+ * and dropped by the quoting loop, exactly as before). This is what keeps a
+ * legacy blend-keyed row from appearing as a duplicate next to its
+ * re-observed replacement in an old persisted store.
+ */
+export function dedupeObservations(observations = []) {
+  const newest = new Map();
+  for (const observation of observations) {
+    if (!observation?.observedAt) continue;
+    const identity = offerIdentity(observation);
+    const current = newest.get(identity);
+    if (!current || Date.parse(observation.observedAt) > Date.parse(current.observedAt)) {
+      newest.set(identity, observation);
+    }
+  }
+  const seen = new Set();
+  const out = [];
+  for (const observation of observations) {
+    if (!observation?.observedAt) {
+      out.push(observation);
+      continue;
+    }
+    const identity = offerIdentity(observation);
+    if (seen.has(identity) || newest.get(identity) !== observation) continue;
+    seen.add(identity);
+    out.push(observation);
+  }
+  return out;
+}
+
 export function quoteBoard({
   observations = [],
   productId,
@@ -89,12 +134,16 @@ export function quoteBoard({
 } = {}) {
   const grams = clampGrams(targetGrams);
   const quotes = [];
-  for (const observation of observations) {
-    if (productId && observation?.product?.productId !== productId) continue;
-    if (observation?.product?.form !== 'ground') continue;
-    // Owner correction, 2026-10-12: every eligible Crema e Gusto ground listing
-    // is compared together. A vendor's blend wording (or the absence of one) is
-    // raw listing identity metadata, never a filter, so it is not read here.
+  // Owner correction, 2026-10-12: one listing is one offer. Candidate rows are
+  // collapsed by vendor + listing URL, keeping the most recent observation, so a
+  // row stored under the old blend-wording key can never appear as a second
+  // offer next to its own re-observed row. Different listings, pack sizes and
+  // multipacks have different URLs/SKUs and stay separate.
+  const candidates = observations.filter(observation =>
+    (!productId || observation?.product?.productId === productId)
+    && observation?.product?.form === 'ground'
+  );
+  for (const observation of dedupeObservations(candidates)) {
     // Read-time policy enrichment: an old stored row whose shipping was unknown
     // gains a validated rule without waiting for the next vendor refresh. The
     // observation's own price, stock and observedAt are never touched.

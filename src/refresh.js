@@ -207,12 +207,20 @@ async function refreshVendor({ store, vendor, state, fetchImpl, now, counter, lo
   // last successful observation row when one exists. The row keeps its observedAt,
   // price and stock, while `attemptedAt`/`lastError` describe the most recent check
   // attempt — including a failed one — instead of leaving a detached marker that no
-  // board row can show. Offers that never succeeded keep the marker key.
+  // board row can show. Offers that never succeeded keep the marker key. When a
+  // legacy blend-keyed row and its stable-keyed replacement both exist for the same
+  // listing URL, the marker must land on the newest row because that is the one the
+  // board shows.
   const attemptKeyFor = offer => {
-    const existing = previousByKey
-      ? [...previousByKey.values()].find(row => row?.observedAt && row?.itemUrl === offer?.url)
-      : null;
-    return existing?.key ?? `${vendor.id}:offer:${offer?.id ?? 'unknown'}`;
+    const candidates = previousByKey
+      ? [...previousByKey.values()].filter(row => row?.observedAt && row?.itemUrl === offer?.url)
+      : [];
+    if (candidates.length) {
+      return candidates.reduce((newest, row) =>
+        Date.parse(row.observedAt) > Date.parse(newest.observedAt) ? row : newest
+      ).key;
+    }
+    return `${vendor.id}:offer:${offer?.id ?? 'unknown'}`;
   };
   try {
     const outcome = await vendor.observe({ fetchText, now, logger });
@@ -221,8 +229,17 @@ async function refreshVendor({ store, vendor, state, fetchImpl, now, counter, lo
       observation.lastError = null;
       // Keep one step of comparison evidence: what the same offer showed at the
       // previous successful check. Attempt markers have no observedAt and are
-      // skipped, so a failed refresh never fabricates a previous price.
-      const previous = previousByKey?.get(observation.key);
+      // skipped, so a failed refresh never fabricates a previous price. A row
+      // saved under the pre-correction key (which included the blend wording a
+      // listing printed) is still the same offer, so fall back to the newest
+      // successful row for the same listing URL and keep the comparison across
+      // the key change instead of losing it once.
+      let previous = previousByKey?.get(observation.key);
+      if (!previous?.observedAt && previousByKey) {
+        previous = [...previousByKey.values()]
+          .filter(row => row?.observedAt && row?.itemUrl === observation.itemUrl)
+          .sort((a, b) => Date.parse(b.observedAt) - Date.parse(a.observedAt))[0];
+      }
       if (previous?.observedAt && previous?.price?.amount != null) {
         observation.previous = {
           observedAt: previous.observedAt,

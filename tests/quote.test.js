@@ -7,10 +7,13 @@ const FRESH = '2026-10-12T09:00:00.000Z';
 const STALE = '2026-10-10T09:00:00.000Z';
 
 function observation(overrides = {}) {
+  const key = overrides.key ?? 'vendor:sku';
   const base = {
-    key: 'vendor:sku',
+    key,
     vendor: { id: 'vendor', name: 'Vendor', homepage: 'https://vendor.test' },
-    itemUrl: 'https://vendor.test/p/1',
+    // The board collapses rows that share a vendor and listing URL into one
+    // offer, so each synthetic offer gets its own URL unless a test overrides it.
+    itemUrl: `https://vendor.test/p/${encodeURIComponent(key)}`,
     product: {
       productId: 'lavazza-crema-e-gusto-vacuum-ground',
       name: 'Lavazza Crema e Gusto Classico 250 g ground',
@@ -147,6 +150,33 @@ test('pack sizes stay separate offers while stated blend wording stays identity 
   assert.equal(byKey['multi:1'].product.variantLabel, 'Classico');
   assert.equal(byKey['forte:1'].product.variantLabel, 'Forte');
   assert.equal(byKey['forte:1'].ilsPerKg, 80);
+});
+
+test('one listing that changes its blend wording is never shown as two offers', () => {
+  // A store can hold an old classico-keyed row next to the stable key its
+  // re-observation now uses. They describe one listing URL, so the board keeps
+  // the newest observation and never lists the same offer twice.
+  const legacy = observation({
+    key: 'demo:sku-1:classico:ground:250g:x1',
+    vendor: { id: 'demo', name: 'Demo vendor' },
+    itemUrl: 'https://demo.test/p/crema',
+    product: { variantId: 'classico', variantLabel: 'Classico' },
+    price: { amount: 40, currency: 'ILS' },
+    observedAt: '2026-10-12T06:00:00.000Z'
+  });
+  const stable = observation({
+    key: 'demo:sku-1:ground:250g:x1',
+    vendor: { id: 'demo', name: 'Demo vendor' },
+    itemUrl: 'https://demo.test/p/crema',
+    product: { variantId: 'unspecified', variantLabel: 'Variant not stated' },
+    price: { amount: 42, currency: 'ILS' },
+    observedAt: '2026-10-12T10:00:00.000Z'
+  });
+  const board = quote([legacy, stable]);
+  assert.equal(board.counts.observed, 1, 'the two rows are one offer');
+  assert.equal(board.ranked.length, 1);
+  assert.equal(board.best.key, 'demo:sku-1:ground:250g:x1', 'the newest observation wins');
+  assert.equal(board.best.itemPrice.amount, 42, 'the old price is not resurrected as a second offer');
 });
 
 test('quantity changes units and totals without losing pack rounding', () => {

@@ -23,10 +23,15 @@ export function vendorHosts(vendors = registeredVendors()) {
 
 export function createObservation({ vendor, itemUrl, product, price, availability, availabilityEvidence, shipping, promotions = [], mandatoryFees = [], now }) {
   const observedAt = new Date(now ?? Date.now()).toISOString();
+  // Owner correction, 2026-10-12: there is no blend/variant feature, so the
+  // persisted offer identity must not depend on the blend wording a listing
+  // prints. Keeping it in the key would let a listing that changes (or drops)
+  // that wording persist a second row for one SKU and show the same offer
+  // twice. Identity is vendor + SKU/product + form + pack size only; the raw
+  // wording stays on the product payload as provenance.
   const key = [
     vendor.id,
     product.sku ?? product.productId,
-    product.variantId ?? 'unspecified',
     product.form,
     `${product.totalGrams ?? 'x'}g`,
     `x${product.packCount ?? 1}`
