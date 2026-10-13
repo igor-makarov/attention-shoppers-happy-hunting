@@ -547,11 +547,15 @@ export function buildEvidenceRecord({
   }
   const arithmeticOk = itemSubtotalBeforeDiscount != null && shippingIls != null && totals.deliveredTotalIls != null
     && Math.abs((paidItemTotal ?? itemSubtotalBeforeDiscount) + shippingIls - totals.deliveredTotalIls) <= 0.05;
-  let resolvedStatus = status === 'quoted' && !arithmeticOk ? 'partial' : status;
+  let resolvedStatus = status;
   let resolvedBlocker = blocker ? sanitizeExcerpt(blocker, 300) : null;
   if (resolvedStatus === 'quoted' && shippingIls == null) {
+    // Without a shipping amount there is no delivered quote at all, so the
+    // record is blocked rather than partial.
     resolvedStatus = 'blocked';
     resolvedBlocker = resolvedBlocker ?? `The rendered flow did not display an applied shipping row for this quantity and destination${freeDecision.reasons.length ? `: ${freeDecision.reasons.join('; ')}.` : '.'}`;
+  } else if (resolvedStatus === 'quoted' && !arithmeticOk) {
+    resolvedStatus = 'partial';
   }
   // A requested locality/postcode that the recipe could not set on the page must
   // not read as a destination quote: keep the requested values but say plainly

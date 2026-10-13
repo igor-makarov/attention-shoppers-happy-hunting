@@ -489,3 +489,191 @@ test('runRecipe marks a hard failure as blocked with the exact step', async () =
   assert.match(record.blocker, /Required step "goto" failed/);
   assert.equal(validateEvidence(record).ok, true);
 });
+
+// The real rendered checkout text captured by the reusable CoffeeMan recipe on
+// 2026-10-13 for the 8 × 250 g cart: the automatic 10% promotion is applied
+// (₪-26.40), the checkout omits the applied shipping row, and both rendered
+// method options display ₪0. The footer disclaimer also contains the word
+// "הנחה" without an amount, so the discount reader must not treat it as one.
+const COFFEEMAN_8_SINGLES_FREE = `עגלת הקניות
+8
+מוצרים בעגלה
+חסר לך עוד ₪ 226.00 לקבלת ספלי legend אספרסו עם לוגו Miscela D’Oro
+250 גרם קפה טחון lavazza Crema e Gusto Classico חוזק 7
+₪ 264.00
++-
+מבצע מיכל ואקום שקוף חשמלי לאיחסון קפה חל על מוצר זה
+בכל קנייה באתר של קפה, קפסולות ואביזרים מעל 990 ש"ח קבל מיכל ואקום שקוף חשמלי לאיחסון קפה בשווי של 299 ש"ח , מתנה !
+מבצע כל הקפה טחון ב-10% הנחה.-
+₪ -26.40
+פרטי תשלום כולל משלוח
+*בחר שיטת משלוח
+משלוח לבית הלקוח עם שליח - 0 ₪
+משלוח ממרכז חלוקה עד 5 ק"ג - 0 ₪
+סכום כולל מע"מ
+₪237.60
+משלוחים מהירים עד
+באתר החברה ניתנת לעיתים הנחה למחיר הקטלוגי. הנחה זו אינה מבצע.
+מעקב משלוחים`;
+
+function freeCartDriver(text) {
+  return {
+    goto: async () => 'navigated',
+    gotoUnlessText: async () => 'navigated',
+    clickText: async () => 'clicked',
+    clickAnyText: async () => 'קנה עכשיו',
+    clickSelector: async () => 'a',
+    selectLabel: async (selector, label) => (selector === '#delivery' ? 'משלוח לבית הלקוח עם שליח - 0 ₪' : label),
+    fill: async (selector, value) => ({ selector, value }),
+    setQuantity: async () => 8,
+    waitText: async () => true,
+    sleep: async () => {},
+    getText: async () => text,
+    currentUrl: async () => 'https://www.coffeeman.co.il/checkout.asp'
+  };
+}
+
+test('CoffeeMan free-cart text distinguishes the pre-discount subtotal, the applied discount and the paid total', () => {
+  const totals = parseCoffeemanTotals(COFFEEMAN_8_SINGLES_FREE);
+  assert.equal(totals.itemSubtotalBeforeDiscountIls, 264);
+  assert.equal(totals.itemSubtotalIls, 264, 'the displayed item subtotal is the pre-discount amount');
+  assert.equal(totals.discountIls, -26.4);
+  assert.equal(totals.discountPercent, 10);
+  assert.match(totals.discountLabel, /10% הנחה/);
+  assert.equal(totals.discountAmbiguous, false);
+  assert.equal(totals.paidItemTotalIls, 237.6);
+  assert.equal(totals.shippingIls, null, 'an omitted applied shipping row is never invented as free by the parser');
+  assert.equal(totals.deliveredTotalIls, 237.6);
+  assert.deepEqual(totals.methodOptions.map(option => option.amountIls), [0, 0], 'both rendered method options show zero for this cart');
+});
+
+test('the recipe records a schema-valid free quote when the omitted row is independently evidenced', async () => {
+  const record = await runRecipe({
+    recipe: RECIPES.coffeeman,
+    driver: freeCartDriver(COFFEEMAN_8_SINGLES_FREE),
+    params: { grams: 2000, locality: 'תל אביב - יפו' },
+    now: Date.parse('2026-10-13T09:30:00Z')
+  });
+  assert.equal(record.status, 'quoted');
+  assert.equal(record.schemaVersion, 2);
+  assert.equal(record.sku, '930333');
+  assert.equal(record.itemSubtotalBeforeDiscountIls, 264);
+  assert.equal(record.discountIls, -26.4);
+  assert.equal(record.discountPercent, 10);
+  assert.equal(record.paidItemTotalIls, 237.6);
+  assert.equal(record.shippingIls, 0);
+  assert.equal(record.shippingLabel, 'free');
+  assert.equal(record.shippingEvidenceSource, 'selected-method-option');
+  assert.match(record.shippingEvidenceNote, /omitted the applied shipping row/);
+  assert.equal(record.deliveredTotalIls, 237.6);
+  assert.equal(record.serviceLabel, 'משלוח לבית הלקוח עם שליח - 0 ₪');
+  assert.equal(record.serviceConfirmed, true);
+  assert.equal(record.destinationVerified, true);
+  assert.equal(record.observedPacks, 8);
+  assert.equal(record.arithmeticOk, true);
+  assert.deepEqual(validateEvidence(record), { ok: true, errors: [] });
+  assert.ok(record.steps.some(step => step.step === 'selectLabel' && /selected: .*0 ₪/.test(step.detail ?? '')), 'the method-selection step keeps its displayed zero rate');
+  assert.ok(record.moneyLines.some(line => /-26\.40/.test(line)), 'the applied discount line is kept as sanitized evidence');
+});
+
+test('an omitted shipping row without the independent evidence stays blocked, never free', async () => {
+  // The selected option is displayed at ₪25 while the applied summary row is
+  // missing: the omitted row must not become free from a different option price.
+  const paidLabelDriver = {
+    ...freeCartDriver(COFFEEMAN_8_SINGLES_FREE),
+    selectLabel: async (selector, label) => (selector === '#delivery' ? 'משלוח לבית הלקוח עם שליח - 25.00 ₪' : label)
+  };
+  const paidLabel = await runRecipe({ recipe: RECIPES.coffeeman, driver: paidLabelDriver, params: { grams: 2000, locality: 'תל אביב - יפו' } });
+  assert.equal(paidLabel.status, 'blocked');
+  assert.equal(paidLabel.shippingIls, null);
+  assert.equal(paidLabel.shippingEvidenceSource, null);
+  assert.match(paidLabel.blocker, /not displayed at zero/);
+  assert.equal(validateEvidence(paidLabel).ok, true);
+
+  // A method step that cannot confirm any method leaves the omitted row unknown.
+  const noMethodDriver = {
+    ...freeCartDriver(COFFEEMAN_8_SINGLES_FREE),
+    selectLabel: async (selector, label) => {
+      if (selector === '#delivery') throw new Error('selectLabel: no option matches משלוח לבית הלקוח');
+      return label;
+    }
+  };
+  const noMethod = await runRecipe({ recipe: RECIPES.coffeeman, driver: noMethodDriver, params: { grams: 2000, locality: 'תל אביב - יפו' } });
+  assert.equal(noMethod.status, 'blocked');
+  assert.equal(noMethod.shippingIls, null);
+  assert.equal(noMethod.serviceConfirmed, false);
+  assert.match(noMethod.blocker, /Required step "selectLabel" failed/);
+  assert.equal(validateEvidence(noMethod).ok, true);
+});
+
+test('the omitted-row decision rejects each missing piece of independent evidence', () => {
+  const base = {
+    recipe: RECIPES.coffeeman,
+    params: { grams: 2000, locality: 'תל אביב - יפו' },
+    status: 'quoted',
+    totals: parseCoffeemanTotals(COFFEEMAN_8_SINGLES_FREE),
+    service: 'home_delivery',
+    serviceConfirmed: true,
+    serviceLabel: 'משלוח לבית הלקוח עם שליח - 0 ₪',
+    destinationVerified: true,
+    actualPacks: 8,
+    now: Date.parse('2026-10-13T09:30:00Z')
+  };
+  const accepted = buildEvidenceRecord(base);
+  assert.equal(accepted.status, 'quoted');
+  assert.equal(accepted.shippingIls, 0);
+
+  const cases = [
+    ['unverified destination', { destinationVerified: false }, /destination was not verified/],
+    ['unconfirmed method', { serviceConfirmed: false, service: null, serviceLabel: null }, /not confirmed/],
+    ['wrong whole-pack quantity', { actualPacks: 7 }, /not the requested 8/],
+    ['non-zero selected option', { serviceLabel: 'משלוח לבית הלקוח עם שליח - 25.00 ₪' }, /not displayed at zero/],
+    ['unselected option price', { totals: { ...base.totals, methodOptions: [{ label: 'משלוח לבית הלקוח עם שליח - 25.00 ₪', amountIls: 25 }] } }, /method list did not show the selected method at zero/],
+    ['ambiguous promotion', { totals: { ...base.totals, discountIls: null, discountPercent: null, paidItemTotalIls: null, discountAmbiguous: true } }, /promotion could not be read/],
+    ['incomplete charges', { totals: { ...base.totals, deliveredTotalIls: 264 } }, /final total is not consistent/],
+    ['missing SKU', { recipe: { ...RECIPES.coffeeman, sku: null } }, /SKU was not recorded/]
+  ];
+  for (const [name, overrides, expected] of cases) {
+    const record = buildEvidenceRecord({ ...base, ...overrides });
+    assert.equal(record.status, 'blocked', `${name} must stay blocked`);
+    assert.equal(record.shippingIls, null, `${name} must not become free shipping`);
+    assert.equal(record.shippingEvidenceSource, null, `${name} must not claim a shipping evidence source`);
+    assert.match(record.blocker, expected, name);
+    assert.equal(validateEvidence(record).ok, true, `${name} blocked record must validate`);
+  }
+});
+
+test('schema version 2 rejects a selected-method-option record that drops required evidence', () => {
+  const record = buildEvidenceRecord({
+    recipe: RECIPES.coffeeman,
+    params: { grams: 2000, locality: 'תל אביב - יפו' },
+    status: 'quoted',
+    totals: parseCoffeemanTotals(COFFEEMAN_8_SINGLES_FREE),
+    service: 'home_delivery',
+    serviceConfirmed: true,
+    serviceLabel: 'משלוח לבית הלקוח עם שליח - 0 ₪',
+    destinationVerified: true,
+    actualPacks: 8,
+    now: Date.parse('2026-10-13T09:30:00Z')
+  });
+  assert.equal(validateEvidence(record).ok, true);
+  for (const key of ['shippingEvidenceNote', 'sku', 'observedPacks', 'serviceLabel', 'discountIls']) {
+    assert.equal(validateEvidence({ ...record, [key]: null }).ok, false, `dropping ${key} must fail validation`);
+  }
+  assert.equal(validateEvidence({ ...record, shippingIls: 5 }).ok, false, 'a selected-method-option zero cannot carry a charge');
+  assert.equal(validateEvidence({ ...record, arithmeticOk: false }).ok, false);
+});
+
+test('version-1 records stay valid historical evidence', () => {
+  const legacy = {
+    kind: 'browser-research-quote',
+    schemaVersion: 1,
+    vendorId: 'coffeeman',
+    vendorName: 'CoffeeMan (Amigo)',
+    status: 'blocked',
+    observedAt: '2026-10-13T08:48:00.000Z',
+    blocker: 'The rendered flow did not display a shipping line for this quantity and destination.'
+  };
+  assert.deepEqual(validateEvidence(legacy), { ok: true, errors: [] });
+  assert.equal(validateEvidence({ ...legacy, schemaVersion: 3 }).ok, false);
+});
