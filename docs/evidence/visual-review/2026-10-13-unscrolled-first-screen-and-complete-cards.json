@@ -1,0 +1,399 @@
+{
+  "capturedAt": "2026-10-13T05:38-05:39Z",
+  "iteration": "3-93",
+  "purpose": "Address the overseer acceptance gap: save and verify a genuinely unscrolled first-screen capture (scrollY 0, exactly 390×844 content viewport) before any card scrolling/viewport enlargement, keep the complete-card capture as additional evidence, and identify production, local-Worker and fixture-backed views separately.",
+  "pngReaderLimitation": "The pinned file-read tool rejects image input, so these PNGs were not machine-inspected as images. The recorded DOM geometry, PNG dimensions, scrollY values and coarse pixel-density maps below are the evidence; they do not establish that the rendered text is correct by themselves.",
+  "commands": {
+    "production": "npm run qa:browser -- https://attention-shoppers.igormaka.workers.dev",
+    "offlineFixtures": "npm run qa:browser",
+    "localWorker": "QA_OUT=.shurik-local/qa/local-worker npm run qa:browser -- http://127.0.0.1:8789 (fresh wrangler dev store; initial refresh 2026-10-13T05:35:39Z)"
+  },
+  "results": {
+    "production": {
+      "checks": 117,
+      "failed": false,
+      "consoleErrors": 0,
+      "output": ".shurik-local/qa/live"
+    },
+    "offlineFixtures": {
+      "checks": 114,
+      "failed": false,
+      "consoleErrors": 0,
+      "output": ".shurik-local/qa/fixtures"
+    },
+    "localWorker": {
+      "checks": 113,
+      "failed": false,
+      "consoleErrors": 0,
+      "output": ".shurik-local/qa/local-worker"
+    }
+  },
+  "firstScreenCaptures": {
+    "production": [
+      {
+        "name": "product-live-2kg-winner-first-screen.png",
+        "width": 390,
+        "height": 844,
+        "innerHeight": 844,
+        "innerWidth": 390,
+        "scrollY": 0,
+        "exact": true
+      },
+      {
+        "name": "product-mobile-390.png",
+        "width": 390,
+        "height": 844,
+        "innerHeight": 844,
+        "innerWidth": 390,
+        "scrollY": 0,
+        "exact": true
+      },
+      {
+        "name": "home-mobile-390.png",
+        "width": 390,
+        "height": 844,
+        "innerHeight": 844,
+        "innerWidth": 390,
+        "scrollY": 0,
+        "exact": true
+      },
+      {
+        "name": "product-2kg-mobile-failed-390.png",
+        "width": 390,
+        "height": 844,
+        "innerHeight": 844,
+        "innerWidth": 390,
+        "scrollY": 0,
+        "exact": true
+      }
+    ],
+    "offlineFixtures": [
+      {
+        "name": "product-mobile-390.png",
+        "width": 390,
+        "height": 844,
+        "innerHeight": 844,
+        "innerWidth": 390,
+        "scrollY": 0,
+        "exact": true
+      },
+      {
+        "name": "home-mobile-390.png",
+        "width": 390,
+        "height": 844,
+        "innerHeight": 844,
+        "innerWidth": 390,
+        "scrollY": 0,
+        "exact": true
+      },
+      {
+        "name": "product-2kg-mobile-failed-390.png",
+        "width": 390,
+        "height": 844,
+        "innerHeight": 844,
+        "innerWidth": 390,
+        "scrollY": 0,
+        "exact": true
+      }
+    ],
+    "localWorker": [
+      {
+        "name": "product-live-2kg-winner-first-screen.png",
+        "width": 390,
+        "height": 844,
+        "innerHeight": 844,
+        "innerWidth": 390,
+        "scrollY": 0,
+        "exact": true
+      },
+      {
+        "name": "product-mobile-390.png",
+        "width": 390,
+        "height": 844,
+        "innerHeight": 844,
+        "innerWidth": 390,
+        "scrollY": 0,
+        "exact": true
+      },
+      {
+        "name": "home-mobile-390.png",
+        "width": 390,
+        "height": 844,
+        "innerHeight": 844,
+        "innerWidth": 390,
+        "scrollY": 0,
+        "exact": true
+      },
+      {
+        "name": "product-2kg-mobile-failed-390.png",
+        "width": 390,
+        "height": 844,
+        "innerHeight": 844,
+        "innerWidth": 390,
+        "scrollY": 0,
+        "exact": true
+      }
+    ]
+  },
+  "checks": {
+    "production": [
+      {
+        "name": "live mobile: the unscrolled first screen keeps the heading, quantity/locality controls and the real 2 kg winner decision values",
+        "ok": true,
+        "detail": "{\"destinationRect\":{\"bottom\":256,\"left\":16,\"right\":359,\"top\":212},\"failure\":\"Last check failed — showing the last successful observation.\",\"failureRect\":{\"bottom\":697,\"left\":34,\"right\":344,\"top\":648},\"innerHeight\":844,\"innerWidth\":390,\"item\":\"₪237.60\",\"itemRect\":{\"bottom\":421,\"left\":34,\"right\":177,\"top\":399},\"method\":\"Home delivery\",\"methodRect\":{\"bottom\":485,\"left\":202,\"right\":332,\"top\":466},\"overflow\":false,\"pack\":\"250 g pack · 8 × 250 g packs = 2000 g\",\"qualifier\":\"Conditional total: Free delivery applied from an anonymous-cart observation of this exact cart; confirm it at checkout. Coverage not confirmed for every locality — full terms under Delivery options.\",\"qualifierRect\":{\"bottom\":812,\"left\":34,\"right\":344,\"top\":705},\"quantityRect\":{\"bottom\":174,\"left\":16,\"right\":359,\"top\":130},\"scrollY\":0,\"shipping\":\"Free (observed for this cart)\",\"titleRect\":{\"bottom\":73,\"left\":16,\"right\":359,\"top\":47},\"total\":\"₪237.60\",\"totalRect\":{\"bottom\":613,\"left\":34,\"right\":332,\"top\":591},\"vendor\":\"CoffeeMan (אמיגו) IN STOCK (OBSERVED)\"}"
+      },
+      {
+        "name": "live mobile: the saved 2 kg winner first-screen view is unscrolled and exactly 390×844",
+        "ok": true,
+        "detail": "{\"shot\":{\"name\":\"product-live-2kg-winner-first-screen.png\",\"width\":390,\"height\":844,\"innerHeight\":844,\"innerWidth\":390,\"scrollY\":0,\"exact\":true},\"measuredScrollY\":0}"
+      },
+      {
+        "name": "live mobile: the real 2 kg winner with the failed last check keeps its full warning sentence inside the real content viewport",
+        "ok": true,
+        "detail": "{\"failure\":\"Last check failed — showing the last successful observation.\",\"failureRect\":{\"bottom\":697,\"left\":34,\"right\":344,\"top\":648},\"qualifierRect\":{\"bottom\":812,\"left\":34,\"right\":344,\"top\":705},\"viewport\":844,\"scrollY\":0}"
+      },
+      {
+        "name": "live mobile: the saved 2 kg winner complete-card view is genuinely complete, including the full failure sentence",
+        "ok": true,
+        "detail": "{\"card\":{\"name\":\"product-live-2kg-winner-card.png\",\"width\":343,\"height\":675,\"cardRect\":{\"bottom\":674,\"height\":675,\"innerHeight\":844,\"top\":0,\"width\":343},\"complete\":true}}"
+      },
+      {
+        "name": "live: the real failing ranked offer is saved as a complete readable card view with its warning",
+        "ok": true,
+        "detail": "{\"shot\":{\"name\":\"product-live-failing-offer-card.png\",\"width\":341,\"height\":527,\"cardRect\":{\"bottom\":527,\"height\":527,\"innerHeight\":844,\"top\":0,\"width\":341},\"complete\":true},\"text\":{\"failure\":\"Last check failed — showing the last successful observation.\",\"method\":\"Home delivery\",\"pack\":\"250 g pack · 2 × 250 g packs = 500 g\",\"totals\":[\"₪66.00\",\"₪25.00\",\"₪91.00\"],\"vendor\":\"CoffeeMan (אמיגו) IN STOCK (OBSERVED)\"}}"
+      },
+      {
+        "name": "live: the saved failing-offer scrolled view is exactly the 390×844 content size in page context",
+        "ok": true,
+        "detail": "{\"shot\":{\"name\":\"product-live-failing-offer-scrolled-view.png\",\"width\":390,\"height\":844},\"innerHeight\":844,\"innerWidth\":390,\"scrollY\":353}"
+      },
+      {
+        "name": "mobile: the unscrolled first screen keeps the page heading, quantity and locality controls inside the real content viewport",
+        "ok": true,
+        "detail": "{\"title\":{\"bottom\":73,\"left\":16,\"right\":359,\"top\":47},\"quantity\":{\"bottom\":174,\"left\":16,\"right\":359,\"top\":130},\"destination\":{\"bottom\":256,\"left\":16,\"right\":359,\"top\":212},\"viewport\":844}"
+      },
+      {
+        "name": "mobile: the saved first-screen view is unscrolled and exactly the 390×844 content viewport",
+        "ok": true,
+        "detail": "{\"shot\":{\"name\":\"product-mobile-390.png\",\"width\":390,\"height\":844,\"innerHeight\":844,\"innerWidth\":390,\"scrollY\":0,\"exact\":true},\"measuredScrollY\":0}"
+      },
+      {
+        "name": "mobile home: the saved first-screen view is unscrolled and exactly the 390×844 content viewport",
+        "ok": true,
+        "detail": "{\"shot\":{\"name\":\"home-mobile-390.png\",\"width\":390,\"height\":844,\"innerHeight\":844,\"innerWidth\":390,\"scrollY\":0,\"exact\":true},\"measuredScrollY\":0}"
+      }
+    ],
+    "offlineFixtures": [
+      {
+        "name": "mobile failure: the unscrolled first screen keeps the heading, quantity/locality controls and the 2 kg CoffeeMan winner decision values",
+        "ok": true,
+        "detail": "{\"destinationRect\":{\"bottom\":256,\"left\":16,\"right\":359,\"top\":212},\"failure\":\"Last check failed — showing the last successful observation.\",\"failureRect\":{\"bottom\":697,\"left\":34,\"right\":344,\"top\":648},\"innerHeight\":844,\"innerWidth\":390,\"item\":\"₪237.60\",\"itemRect\":{\"bottom\":421,\"left\":34,\"right\":177,\"top\":399},\"method\":\"Home delivery\",\"methodRect\":{\"bottom\":485,\"left\":202,\"right\":332,\"top\":466},\"overflow\":false,\"pack\":\"250 g pack · 8 × 250 g packs = 2000 g\",\"qualifier\":\"Conditional total: Free delivery applied from an anonymous-cart observation of this exact cart; confirm it at checkout. Coverage not confirmed for every locality — full terms under Delivery options.\",\"qualifierRect\":{\"bottom\":812,\"left\":34,\"right\":344,\"top\":705},\"quantityRect\":{\"bottom\":174,\"left\":16,\"right\":359,\"top\":130},\"scrollY\":0,\"shipping\":\"Free (observed for this cart)\",\"titleRect\":{\"bottom\":73,\"left\":16,\"right\":359,\"top\":47},\"total\":\"₪237.60\",\"totalRect\":{\"bottom\":613,\"left\":34,\"right\":332,\"top\":591},\"vendor\":\"CoffeeMan (אמיגו) IN STOCK (OBSERVED)\"}"
+      },
+      {
+        "name": "mobile failure: the saved 2 kg failed-state first-screen view is unscrolled and exactly the 390×844 content viewport",
+        "ok": true,
+        "detail": "{\"shot\":{\"name\":\"product-2kg-mobile-failed-390.png\",\"width\":390,\"height\":844,\"innerHeight\":844,\"innerWidth\":390,\"scrollY\":0,\"exact\":true},\"measuredScrollY\":0}"
+      },
+      {
+        "name": "mobile failure: the saved 2 kg winner card view is complete, including the full failure sentence",
+        "ok": true,
+        "detail": "{\"name\":\"product-2kg-mobile-winner-card.png\",\"width\":343,\"height\":675,\"cardRect\":{\"bottom\":674,\"height\":675,\"innerHeight\":844,\"top\":0,\"width\":343},\"complete\":true}"
+      },
+      {
+        "name": "mobile failure: the saved 500 g CoffeeMan scrolled card view is exactly the 390×844 content size",
+        "ok": true,
+        "detail": "{\"name\":\"product-500g-mobile-coffeeman-scrolled-view.png\",\"width\":390,\"height\":844}"
+      },
+      {
+        "name": "mobile failure: the saved 500 g CoffeeMan card view is complete, including the full failure sentence",
+        "ok": true,
+        "detail": "{\"name\":\"product-500g-mobile-coffeeman-card.png\",\"width\":341,\"height\":527,\"cardRect\":{\"bottom\":527,\"height\":527,\"innerHeight\":844,\"top\":0,\"width\":341},\"complete\":true}"
+      }
+    ],
+    "localWorker": [
+      {
+        "name": "live mobile: the unscrolled first screen keeps the heading, quantity/locality controls and the real 2 kg winner decision values",
+        "ok": true,
+        "detail": "{\"destinationRect\":{\"bottom\":256,\"left\":16,\"right\":359,\"top\":212},\"failure\":null,\"failureRect\":null,\"innerHeight\":844,\"innerWidth\":390,\"item\":\"₪237.60\",\"itemRect\":{\"bottom\":421,\"left\":34,\"right\":177,\"top\":399},\"method\":\"Home delivery\",\"methodRect\":{\"bottom\":485,\"left\":202,\"right\":332,\"top\":466},\"overflow\":false,\"pack\":\"250 g pack · 8 × 250 g packs = 2000 g\",\"qualifier\":\"Conditional total: Free delivery applied from an anonymous-cart observation of this exact cart; confirm it at checkout. Coverage not confirmed for every locality — full terms under Delivery options.\",\"qualifierRect\":{\"bottom\":754,\"left\":34,\"right\":344,\"top\":648},\"quantityRect\":{\"bottom\":174,\"left\":16,\"right\":359,\"top\":130},\"scrollY\":0,\"shipping\":\"Free (observed for this cart)\",\"titleRect\":{\"bottom\":73,\"left\":16,\"right\":359,\"top\":47},\"total\":\"₪237.60\",\"totalRect\":{\"bottom\":613,\"left\":34,\"right\":332,\"top\":591},\"vendor\":\"CoffeeMan (אמיגו) IN STOCK (OBSERVED)\"}"
+      },
+      {
+        "name": "live mobile: the saved 2 kg winner first-screen view is unscrolled and exactly 390×844",
+        "ok": true,
+        "detail": "{\"shot\":{\"name\":\"product-live-2kg-winner-first-screen.png\",\"width\":390,\"height\":844,\"innerHeight\":844,\"innerWidth\":390,\"scrollY\":0,\"exact\":true},\"measuredScrollY\":0}"
+      },
+      {
+        "name": "live mobile: the saved 2 kg winner complete-card view is genuinely complete, including the full failure sentence",
+        "ok": true,
+        "detail": "{\"card\":{\"name\":\"product-live-2kg-winner-card.png\",\"width\":343,\"height\":617,\"cardRect\":{\"bottom\":617,\"height\":617,\"innerHeight\":844,\"top\":0,\"width\":343},\"complete\":true}}"
+      }
+    ]
+  },
+  "captureProvenance": {
+    "productionRunBase": "https://attention-shoppers.igormaka.workers.dev",
+    "productionCapturesAreLiveProduction": [
+      "production-3-93-live-2kg-winner-first-screen.png",
+      "production-3-93-live-2kg-winner-card.png",
+      "production-3-93-product-mobile-390-default-500g.png",
+      "production-3-93-product-500g-best-card-mobile.png",
+      "production-3-93-live-failing-offer-card.png",
+      "production-3-93-live-failing-offer-scrolled-view.png",
+      "production-3-93-home-mobile-390.png",
+      "production-3-93-home-desktop-1440.png",
+      "production-3-93-product-desktop-1440.png",
+      "production-3-93-product-500g-best-card-desktop.png",
+      "production-3-93-product-promotion-2000g-desktop.png"
+    ],
+    "fixtureBackedCapturesInTheLiveRun": [
+      "product-desktop-failed-attempt.png",
+      "product-2kg-mobile-failed-390.png",
+      "product-2kg-mobile-winner-card.png",
+      "product-500g-mobile-coffeeman-scrolled-view.png",
+      "product-500g-mobile-coffeeman-card.png",
+      "product-desktop-unknown-shipping.png"
+    ],
+    "fixtureBackedNote": "The failed/stale/terms/unknown scenario servers render recorded production values deterministically; they are not live vendor observations. In this live run the fixture-backed 2 kg failed-state captures were byte-identical to the production ones (md5 below), which is a fixture-fidelity observation, not a second independent live probe.",
+    "localWorkerBase": "http://127.0.0.1:8789",
+    "localWorkerNote": "The local wrangler dev Worker refreshed from the runner network at 05:35:39Z; CoffeeMan was healthy there, so its 2 kg winner has no failure note (card height 617 vs 675 on production)."
+  },
+  "captures": {
+    "production-3-93-live-2kg-winner-first-screen.png": {
+      "width": 390,
+      "height": 844,
+      "md5": "914e6ee88b890bb0664b862942a3653f"
+    },
+    "production-3-93-live-2kg-winner-card.png": {
+      "width": 343,
+      "height": 675,
+      "md5": "c71d053af580b3c650c6dbd7a683eb56"
+    },
+    "production-3-93-product-mobile-390-default-500g.png": {
+      "width": 390,
+      "height": 844,
+      "md5": "7d52948ef651464916ab2dd3fe5065fa"
+    },
+    "production-3-93-product-500g-best-card-mobile.png": {
+      "width": 343,
+      "height": 517,
+      "md5": "d99a1126118879250ad0d3e1f7033ae5"
+    },
+    "production-3-93-live-failing-offer-card.png": {
+      "width": 341,
+      "height": 527,
+      "md5": "9b58ee6cf5b1a7f17571712aa58c82eb"
+    },
+    "production-3-93-live-failing-offer-scrolled-view.png": {
+      "width": 390,
+      "height": 844,
+      "md5": "c15888dbd5b93e3da96bbd6ef2d8cb7d"
+    },
+    "production-3-93-home-mobile-390.png": {
+      "width": 390,
+      "height": 844,
+      "md5": "e3d92166e8813731cba3e5f9d5d3d3e9"
+    },
+    "production-3-93-home-desktop-1440.png": {
+      "width": 1440,
+      "height": 1000,
+      "md5": "d3a896f3a06197586c375e24f8113881"
+    },
+    "production-3-93-product-desktop-1440.png": {
+      "width": 1440,
+      "height": 1000,
+      "md5": "441a3d0fc0153ded51680860b4b17086"
+    },
+    "production-3-93-product-500g-best-card-desktop.png": {
+      "width": 1192,
+      "height": 369,
+      "md5": "0eadaa85fb9f30cb902dbedadfce6840"
+    },
+    "production-3-93-product-promotion-2000g-desktop.png": {
+      "width": 1440,
+      "height": 1000,
+      "md5": "862bc7e920e35c957633f0583787cdde"
+    },
+    "local-worker-3-93-2kg-winner-first-screen.png": {
+      "width": 390,
+      "height": 844,
+      "md5": "86c0f03f605f8a40fe93693268860d1d"
+    },
+    "local-worker-3-93-2kg-winner-card.png": {
+      "width": 343,
+      "height": 617,
+      "md5": "0c0d29c2ed1f416b9ab28a357031f28d"
+    },
+    "fixtures-3-93-2kg-failed-first-screen.png": {
+      "width": 390,
+      "height": 844,
+      "md5": "914e6ee88b890bb0664b862942a3653f"
+    },
+    "fixtures-3-93-2kg-winner-card.png": {
+      "width": 343,
+      "height": 675,
+      "md5": "c71d053af580b3c650c6dbd7a683eb56"
+    },
+    "fixtures-3-93-500g-coffeeman-card.png": {
+      "width": 341,
+      "height": 527,
+      "md5": "276f9fd00e08321ece8dee02ac28780e"
+    }
+  },
+  "oldMislabeledCaptureComparison": {
+    "oldFile": "production-3-91-live-2kg-winner-viewport.png",
+    "oldNote": "Taken after completeCardScreenshot() had scrolled the card to the top; 390×844 PNG but not the loaded first screen (the 3-91 review found the page heading, quantity and locality controls missing).",
+    "oldMd5": "5dd2d3b30e9d2d0080648334a04c0ae1",
+    "newMd5": "914e6ee88b890bb0664b862942a3653f",
+    "newNote": "Captured before any card scrolling or viewport enlargement at scrollY 0; DOM geometry in the same state shows the product heading y=47-73, quantity controls y=130-174 and locality control y=212-256 inside the 844 px viewport.",
+    "coarseTenBandDarkPixelDensity": {
+      "note": "Fraction of pixels below luminance 160 per horizontal tenth, computed with scripts/inspect-screenshot.mjs decodePng. Coarse corroboration only, not native image reading.",
+      "old": [
+        0.2361,
+        0.0965,
+        0.0831,
+        0.0703,
+        0.0723,
+        0.104,
+        0.0941,
+        0.068,
+        0.0666,
+        0.0576
+      ],
+      "new": [
+        0.1325,
+        0.1578,
+        0.101,
+        0.2352,
+        0.1024,
+        0.0978,
+        0.0389,
+        0.0527,
+        0.0727,
+        0.0717
+      ]
+    }
+  },
+  "keyProductionGeometry": {
+    "note": "From the live 2 kg winner check detail (same scroll state as product-live-2kg-winner-first-screen.png).",
+    "viewport": {
+      "innerWidth": 390,
+      "innerHeight": 844,
+      "scrollY": 0
+    },
+    "heading": {
+      "top": 47,
+      "bottom": 73
+    },
+    "quantityControls": {
+      "top": 130,
+      "bottom": 174
+    },
+    "localityControl": {
+      "top": 212,
+      "bottom": 256
+    },
+    "itemSubtotal": "₪237.60 (bottom 421)",
+    "namedMethod": "Home delivery (bottom 485)",
+    "deliveredTotal": "₪237.60 (bottom 613)",
+    "failedCheckSentence": "Last check failed — showing the last successful observation. (bottom 697)",
+    "conditionalCoverageQualifier": "bottom 812"
+  }
+}

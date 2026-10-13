@@ -134,27 +134,38 @@ conditional)` label so its quantity/destination condition stays visible.
   QA report: home 5.74:1, product desktop/mobile 4.61:1 (`In stock (observed)` on green-soft, matching
   the token table), failed 2 kg winner 4.61:1, failed 500 g CoffeeMan card 4.61:1, stale-refresh state
   4.61:1, unknown-shipping state 4.61:1, and the 3 px `rgb(0, 112, 180)` focus outline 5.28:1 against
-  the control background. The suite passes **111/111** offline fixture checks and **113/113** live
-  production checks (2026-10-13, iteration 3-90) with zero contrast violations, zero console errors, no
-  horizontal overflow, no emoji and no `[object HTML…]` artifacts.
+  the control background. The suite passes **114/114** offline fixture checks, **113/113** local-live
+  Worker checks and **117/117** live production checks (2026-10-13, iteration 3-93) with zero contrast
+  violations, zero console errors, no horizontal overflow, no emoji and no `[object HTML…]` artifacts.
 - Readable offer views: the affected offers are also saved as **complete** element captures (the whole
-  card, verified to fit the raised capture viewport) in addition to the correctly sized first-screen
-  captures — the 500 g best card, the 2 kg CoffeeMan winner and the 500 g CoffeeMan comparison card in
-  the real last-check-failed state, plus the actual failing ranked offer from the production store
-  (CoffeeMan's HTTP 403 rows) when live mode finds one. A cropped or clipped element capture (the
-  visible intersection with the viewport) is not accepted as evidence that a warning sentence was
-  readable: the capture's PNG height must equal the card's own rendered height and the card must be
-  fully inside the capture viewport before the shot. See
-  `docs/evidence/visual-review/2026-10-13-rendered-contrast-and-offer-views.json`.
+  card, verified to fit the raised capture viewport) — the 500 g best card, the 2 kg CoffeeMan winner
+  and the 500 g CoffeeMan comparison card in the real last-check-failed state, plus the actual failing
+  ranked offer from the production store (CoffeeMan's HTTP 403 rows) when live mode finds one. A cropped
+  or clipped element capture (the visible intersection with the viewport) is not accepted as evidence
+  that a warning sentence was readable: the capture's PNG height must equal the card's own rendered
+  height and the card must be fully inside the capture viewport before the shot. `completeCardScreenshot()`
+  restores the pre-capture scroll position afterwards, so a later capture cannot silently become a
+  scrolled card view. See
+  `docs/evidence/visual-review/2026-10-13-rendered-contrast-and-offer-views.json` and
+  `docs/evidence/visual-review/2026-10-13-unscrolled-first-screen-and-complete-cards.json`.
 - First mobile screen: `scripts/browser-qa.mjs` sets the **real content viewport** through ChromeDriver's
   CDP `Emulation.setDeviceMetricsOverride` and verifies `window.innerWidth`/`innerHeight`, because
   WebDriver's `window/rect` sets the outer window (an outer 390×844 produced a 701 px inner height and
-  let a cut-off warning pass). At 390×844, the offline fixture 500 g best card spans y≈271-788, item
-  subtotal/shipping end at y≈503, the named method at y≈441, the delivered total at y≈551 and the
-  coverage qualifier at y≈586-654. In the real 2 kg last-check-failed state the failure sentence ends at
-  y≈697 and the conditional/coverage qualifier ends at y≈812, both inside the 844 px viewport. The
-  product page is ≈1,453 px tall at 390 px (five offers + disclosures) versus ≈5,491 px before the
-  redesign.
+  let a cut-off warning pass). The unscrolled first screen of each product/home URL is saved by
+  `firstScreenScreenshot()` **before** any card scrolling or viewport enlargement: it resets the scroll
+  position explicitly, records `scrollY`/`innerWidth`/`innerHeight`, requires `scrollY === 0` at exactly
+  390×844 (both in the DOM state and in the saved PNG) and is taken before `completeCardScreenshot()` runs.
+  The 3-93 run also requires the page heading, quantity and locality controls to end inside that same
+  viewport alongside the decision values. At 390×844, the offline fixture 500 g best card spans
+  y≈271-788, item subtotal/shipping end at y≈503, the named method at y≈441, the delivered total at
+  y≈551 and the coverage qualifier at y≈586-654. In the real 2 kg last-check-failed state the heading
+  ends at y=73, the quantity controls at y=174, the locality control at y=256, item subtotal y=421,
+  named method y=485, delivered total y=613, the failure sentence y=697 and the conditional/coverage
+  qualifier y=812, all inside the 844 px viewport. The product page is ≈1,453 px tall at 390 px (five
+  offers + disclosures) versus ≈5,491 px before the redesign. Fixture and live captures are written to
+  separate directories (`.shurik-local/qa/fixtures` / `.shurik-local/qa/live`; `QA_OUT` overrides), and
+  the report names the captures rendered by the deterministic fixture scenario servers so recorded-value
+  views are not mistaken for live vendor observations.
 - Home page: the single product card is visible on the first mobile screen, the home route renders no
   offer cards or totals, and the card link navigates to the directly loadable product URL. Screenshots:
   `docs/evidence/ui-review/{home,product}-{desktop-1440x1000,mobile-390x844}-20261012.png`.

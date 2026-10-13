@@ -34,6 +34,15 @@ The mobile vertical stack is tightened slightly (text sizes and 44 px tap target
 2 kg failed-state warning ends at y≈697 and its qualifier at y≈812 of the real 844 px content viewport
 on the deployed site (pre-deploy production measured the same warning ending at y=724 and the qualifier
 at y=843). Iteration 3-91 also keeps courier-only labels off the self-pickup terms.
+Iteration 3-93 closes the overseer's remaining capture gap: `scripts/browser-qa.mjs` now saves each
+product/home **unscrolled first screen before any card scrolling or viewport enlargement** through a
+dedicated helper that resets scroll explicitly and requires `scrollY 0` at exactly 390×844 in both the
+DOM state and the PNG, verifies the page heading, quantity and locality controls plus the full decision
+values and failure/coverage warning bottoms inside that same viewport, restores the pre-capture scroll
+position after complete-card captures, and keeps fixture, local-Worker and production captures in
+separate directories. The complete-card views remain additional evidence. Verified 2026-10-13: offline
+fixture QA **114/114**, production live QA **117/117** and local-live Worker QA **113/113**, all with zero
+console errors and `npm run verify` at **173/173** tests plus the dry-run bundle.
 Iteration 3-81 removes the last variant coupling from the data layer: a stored offer's identity key no
 longer contains the blend wording a listing prints, legacy blend-keyed rows are collapsed at read time
 with their stable-key replacement (newest observation wins), and failure markers plus previous-check
@@ -2396,5 +2405,80 @@ labels (stock, stale, promotion) stay.
 
 **Next step:** the **06:17 UTC cron tick** is the next actual vendor attempt; after it, record whether
 the CoffeeMan production-egress block (HTTP 403 from the Worker, HTTP 200 from the runner) persists and
+whether the refreshed rows parse, then continue within Crema e Gusto coverage, shipping evidence,
+freshness and comparison quality.
+
+## Iteration 3-93 — a genuinely unscrolled first screen; complete cards stay additional evidence (2026-10-13)
+
+**The capture defect the overseer found.** `completeCardScreenshot()` scrolled the offer card to the top of
+the raised capture viewport and never restored the page's scroll position. The following
+`screenshot(wd, 'product-live-2kg-winner-viewport.png')` was therefore a scrolled card view: it started
+with CoffeeMan's card below the compact masthead and omitted the page heading, quantity and locality
+controls, so it could not evidence the first screen after loading the product URL. The card capture itself
+was genuinely complete (343×675); the first-screen claim was the broken part.
+
+**Fix in `scripts/browser-qa.mjs`.**
+
+- `completeCardScreenshot()` records the pre-capture `scrollY`, and after restoring the content viewport
+  to 390×844 it scrolls back to that exact position. A later capture can no longer silently become a
+  scrolled card view.
+- A new `firstScreenScreenshot()` saves the unscrolled first screen **before any card scrolling or
+  viewport enlargement**: it resets scroll explicitly (`window.scrollTo({ top: 0, behavior: 'instant' })`),
+  records the measured `scrollY`/`innerWidth`/`innerHeight`, saves the PNG, and requires the PNG and the
+  DOM state to be exactly the requested 390×844 with `scrollY === 0` (`exact: true`). Every first-screen
+  record is appended to `report.firstScreenCaptures`.
+- The product and home mobile flows call it in that order; the live production 2 kg winner first screen is
+  captured before its complete-card capture, and the check sequence proves the ordering in
+  `tests/browser-qa-tooling.test.js`.
+- The same-state DOM measurement now also records the `#product-title`, `#quantity-group` and
+  `#destination` rects, and the checks require their bottoms to end inside the same 844 px viewport as the
+  item subtotal, named method, delivered total, failure sentence and conditional/coverage qualifier. That
+  is the direct evidence the first screen contains the heading and controls the old capture omitted.
+- Captures from the deterministic failed/stale/terms/unknown fixture scenario servers are listed in
+  `report.fixtureBackedCaptures` (they render recorded production values, not live vendor observations).
+  Fixture and live runs write to `.shurik-local/qa/fixtures` and `.shurik-local/qa/live`; a local live
+  Worker run sets `QA_OUT=.shurik-local/qa/local-worker` so it cannot overwrite the production captures.
+  The report records its `output` directory.
+- The misleading post-scroll file name is gone: the production failing offer in page context is now
+  `product-live-failing-offer-scrolled-view.png`, and the 500 g CoffeeMan scrolled card view is
+  `product-500g-mobile-coffeeman-scrolled-view.png`; both are verified as exactly 390×844 and labelled as
+  scrolled views, not first screens.
+
+**Verified (2026-10-13 UTC).**
+
+- `npm run verify` — **173/173** `node:test` cases (including the new ordering/`scrollY`/exact-size source
+  guards) plus the `wrangler deploy --dry-run` bundle (141.83 KiB / gzip 34.27 KiB; bindings
+  `BOARD` + `ASSETS`).
+- `npm run qa:browser` (offline fixtures) — **114/114** checks, zero console errors. All three first-screen
+  captures are 390×844 with `scrollY: 0`, `innerWidth: 390`, `innerHeight: 844`, `exact: true`; the 500 g
+  heading ends y=73, quantity y=174, locality y=256, item/method/total y=503/441/551 and the coverage
+  qualifier y=654; the fixture failed 2 kg state keeps item y=421, method y=485, total y=613, failure
+  y=697 and qualifier y=812; complete cards are 343×675 (2 kg winner) and 341×527 (500 g CoffeeMan).
+- `npm run qa:browser -- https://attention-shoppers.igormaka.workers.dev` — **117/117** checks against the
+  deployed site, zero console errors (read-only public GETs; no deploy and no Cloudflare action). The new
+  production captures are `production-3-93-live-2kg-winner-first-screen.png` (390×844, scrollY 0, heading
+  y=47-73, quantity y=130-174, locality y=212-256, item ₪237.60 y=421, named `Home delivery` y=485, total
+  ₪237.60 y=613, full failure sentence y=648-697, coverage qualifier y=705-812) and
+  `production-3-93-live-2kg-winner-card.png` (343×675, complete). The default 500 g production first
+  screen is `production-3-93-product-mobile-390-default-500g.png` (390×844, scrollY 0; Pucks best card
+  ₪60 + ₪30 = ₪90) with its complete card `production-3-93-product-500g-best-card-mobile.png` (343×517);
+  the production failing CoffeeMan offer saves as a complete 341×527 card.
+- Local live Worker (`npx wrangler dev --port 8789`, fresh SQLite Durable Object; initial refresh
+  05:35:39Z from the runner network with all three vendors healthy) — **113/113** checks, zero console
+  errors. The local 2 kg winner is the same ₪237.60 cart without a failure note; its first screen is
+  390×844 at scrollY 0 and its complete card is 343×617.
+- The old `production-3-91-live-2kg-winner-viewport.png` (md5 `5dd2d3b30e9d2d0080648334a04c0ae1`) differs
+  from the new production first screen (md5 `914e6ee88b890bb0664b862942a3653f`); the recorded same-state
+  DOM geometry is the proof of what the new PNG contains. PNG limitation retained accurately: the pinned
+  file-read tool rejects image input, so the captures were not machine-inspected as images; the coarse
+  10-band dark-pixel densities and DOM geometry are corroboration, not native visual review.
+
+**Evidence:** `docs/evidence/browser-qa-production-20261013T0538Z.json`,
+`docs/evidence/browser-qa-offline-20261013T0539Z.json`,
+`docs/evidence/browser-qa-local-worker-20261013T0539Z.json`, the new captures and the record
+`docs/evidence/visual-review/2026-10-13-unscrolled-first-screen-and-complete-cards.json`.
+
+**Next step:** the **06:17 UTC cron tick** remains the next actual vendor attempt; record whether the
+CoffeeMan production-egress block (HTTP 403 from the Worker, HTTP 200 from the runner) persists and
 whether the refreshed rows parse, then continue within Crema e Gusto coverage, shipping evidence,
 freshness and comparison quality.
