@@ -51,7 +51,19 @@ const report = {
   contrast: {},
   consoleErrors: [],
   viewports: [],
-  firstScreenCaptures: []
+  firstScreenCaptures: [],
+  // Screenshots produced by the deterministic QA fixture servers (the failed/
+  // stale/terms/unknown scenarios) rather than the base URL. A live run renders
+  // these from recorded production values; they are not live vendor
+  // observations and must be labelled fixture-backed in evidence.
+  fixtureBackedCaptures: [
+    'product-desktop-failed-attempt.png',
+    'product-2kg-mobile-failed-390.png',
+    'product-2kg-mobile-winner-card.png',
+    'product-500g-mobile-coffeeman-scrolled-view.png',
+    'product-500g-mobile-coffeeman-card.png',
+    'product-desktop-unknown-shipping.png'
+  ]
 };
 const check = (name, condition, detail = '') => {
   report.checks.push({ name, ok: Boolean(condition), detail });
@@ -377,6 +389,9 @@ try {
         innerWidth: window.innerWidth,
         innerHeight: window.innerHeight,
         scrollY: Math.round(window.scrollY),
+        titleRect: rect(document.getElementById('product-title')),
+        quantityRect: rect(document.getElementById('quantity-group')),
+        destinationRect: rect(document.getElementById('destination')),
         vendor: card.querySelector('.offer__vendor')?.innerText.trim() ?? null,
         pack: card.querySelector('.offer__pack')?.textContent.trim() ?? null,
         item: cells[0]?.querySelector('.totals__value')?.textContent.trim() ?? null,
@@ -397,7 +412,7 @@ try {
     const expectedLiveShipping = liveShipping.amountIls === 0
       ? (liveShipping.freeCondition ? 'Free (observed for this cart)' : liveShipping.freeThreshold != null ? 'Free (threshold met)' : 'Free')
       : ils(liveShipping.amountIls);
-    check('live mobile: the real 2 kg winner shows vendor, packs/grams, item, named method/charge and total in the unscrolled first viewport',
+    check('live mobile: the unscrolled first screen keeps the heading, quantity/locality controls and the real 2 kg winner decision values',
       liveWinner2kg.scrollY === 0
         && (liveWinner2kg.vendor ?? '').includes(api2000.best.vendor.name)
         && liveWinner2kg.pack === `${packDescription(api2000.best)} · ${quantityDescription(api2000.best)}`
@@ -405,6 +420,9 @@ try {
         && liveWinner2kg.shipping === expectedLiveShipping
         && liveWinner2kg.method === (liveShipping.serviceLabel ?? 'Delivery method not stated')
         && liveWinner2kg.total === ils(api2000.best.totalIls)
+        && liveWinner2kg.titleRect.bottom <= liveWinner2kg.innerHeight
+        && liveWinner2kg.quantityRect.bottom <= liveWinner2kg.innerHeight
+        && liveWinner2kg.destinationRect.bottom <= liveWinner2kg.innerHeight
         && liveWinner2kg.itemRect.bottom <= liveWinner2kg.innerHeight
         && liveWinner2kg.methodRect.bottom <= liveWinner2kg.innerHeight
         && liveWinner2kg.totalRect.bottom <= liveWinner2kg.innerHeight
@@ -972,6 +990,9 @@ try {
         innerWidth: window.innerWidth,
         innerHeight: window.innerHeight,
         scrollY: Math.round(window.scrollY),
+        titleRect: rect(document.getElementById('product-title')),
+        quantityRect: rect(document.getElementById('quantity-group')),
+        destinationRect: rect(document.getElementById('destination')),
         vendor: card.querySelector('.offer__vendor')?.innerText.trim() ?? null,
         pack: card.querySelector('.offer__pack')?.textContent.trim() ?? null,
         item: cells[0]?.querySelector('.totals__value')?.textContent.trim() ?? null,
@@ -990,7 +1011,7 @@ try {
     })()`);
     const failed2kgBoard = await fetchBoard(failedServer.url, 2000, 'tel-aviv');
     const failed2kgBest = failed2kgBoard.best ?? null;
-    check('mobile failure: the 2 kg CoffeeMan winner shows vendor, packs/grams, item, named method/charge and total in the unscrolled first viewport',
+    check('mobile failure: the unscrolled first screen keeps the heading, quantity/locality controls and the 2 kg CoffeeMan winner decision values',
       mobileWinner2kg.innerWidth === 390 && mobileWinner2kg.innerHeight === 844 && mobileWinner2kg.scrollY === 0
         && /CoffeeMan/.test(mobileWinner2kg.vendor ?? '')
         && mobileWinner2kg.pack === '250 g pack · 8 × 250 g packs = 2000 g'
@@ -999,6 +1020,9 @@ try {
         && mobileWinner2kg.method === 'Home delivery'
         && mobileWinner2kg.total === ils(failed2kgBest?.totalIls)
         && /Last check failed/.test(mobileWinner2kg.failure ?? '')
+        && mobileWinner2kg.titleRect.bottom <= mobileWinner2kg.innerHeight
+        && mobileWinner2kg.quantityRect.bottom <= mobileWinner2kg.innerHeight
+        && mobileWinner2kg.destinationRect.bottom <= mobileWinner2kg.innerHeight
         && mobileWinner2kg.itemRect.bottom <= mobileWinner2kg.innerHeight
         && mobileWinner2kg.methodRect.bottom <= mobileWinner2kg.innerHeight
         && mobileWinner2kg.totalRect.bottom <= mobileWinner2kg.innerHeight
@@ -1087,7 +1111,10 @@ try {
         && mobileCoffeeMan500.failureRect?.bottom <= mobileCoffeeMan500.innerHeight
         && mobileCoffeeMan500.overflow === false,
       JSON.stringify(mobileCoffeeMan500));
-    await screenshot(wd, 'product-500g-mobile-failed-390.png');
+    const failed500ScrolledShot = await screenshot(wd, 'product-500g-mobile-coffeeman-scrolled-view.png');
+    check('mobile failure: the saved 500 g CoffeeMan scrolled card view is exactly the 390×844 content size',
+      failed500ScrolledShot.width === 390 && failed500ScrolledShot.height === 844,
+      JSON.stringify(failed500ScrolledShot));
     await contrastReport(wd, 'body', 'the 500 g CoffeeMan comparison card with the failed-check warning (mobile)');
     const failed500CardShot = await completeCardScreenshot(wd,
       `(() => [...document.querySelectorAll('#compare-other-offers .offer')].find(node => node.querySelector('.offer__vendor')?.innerText.includes('CoffeeMan')))() ?? null`,

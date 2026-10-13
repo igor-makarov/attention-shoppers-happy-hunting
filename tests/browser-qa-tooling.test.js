@@ -80,9 +80,38 @@ test('browser QA requires full warning sentences and complete card captures', ()
   assert.match(source, /pngSize/);
 });
 
+test('browser QA saves an unscrolled first screen before any card scrolling and restores scroll after card captures', () => {
+  assert.match(source, /async function firstScreenScreenshot/);
+  // The helper resets scroll explicitly, records the measured scrollY/innerWidth/
+  // innerHeight and requires the saved PNG to be exactly the requested size.
+  assert.match(source, /window\.scrollTo\(\{ top: 0, left: 0, behavior: 'instant' \}\)/);
+  assert.match(source, /scrollY === 0/);
+  assert.match(source, /exactly 390×844/);
+  // completeCardScreenshot must restore the pre-capture scroll position so a
+  // later "viewport" capture cannot silently be a scrolled card view.
+  assert.ok(source.includes('top: ${rect.scrollY}'), 'completeCardScreenshot must restore the pre-capture scroll position');
+  const firstIdx = source.indexOf("firstScreenScreenshot(wd, 'product-live-2kg-winner-first-screen.png')");
+  const cardIdx = source.indexOf("completeCardScreenshot(wd, `document.querySelector('#best-offer')`, 'product-live-2kg-winner-card.png')");
+  assert.ok(firstIdx !== -1, 'missing live 2 kg winner first-screen capture');
+  assert.ok(cardIdx !== -1, 'missing live 2 kg winner complete-card capture');
+  assert.ok(firstIdx < cardIdx, 'the live 2 kg first-screen capture must be saved before the complete-card capture');
+  for (const name of [
+    'product-mobile-390.png',
+    'home-mobile-390.png',
+    'product-2kg-mobile-failed-390.png',
+    'product-live-2kg-winner-first-screen.png'
+  ]) {
+    assert.ok(source.includes(`firstScreenScreenshot(wd, '${name}')`), `missing unscrolled first-screen capture ${name}`);
+  }
+  // The 3-91 mislabelled capture (a scrolled card view named "viewport") is gone.
+  assert.doesNotMatch(source, /product-live-2kg-winner-viewport\.png/);
+  assert.match(source, /product-live-failing-offer-scrolled-view\.png/);
+});
+
 test('browser QA captures the live 2 kg winner in the real failed state on mobile', () => {
-  assert.match(source, /live mobile: the real 2 kg winner shows vendor, packs\/grams, item, named method\/charge and total in the first viewport/);
+  assert.match(source, /live mobile: the real 2 kg winner shows vendor, packs\/grams, item, named method\/charge and total in the unscrolled first viewport/);
   assert.match(source, /live mobile: the real 2 kg winner with the failed last check keeps its full warning sentence inside the real content viewport/);
   assert.match(source, /api2000\.best\.lastAttemptFailed/);
-  assert.match(source, /product-live-2kg-winner-viewport\.png/);
+  assert.match(source, /product-live-2kg-winner-first-screen\.png/);
+  assert.match(source, /product-live-2kg-winner-card\.png/);
 });
