@@ -17,9 +17,12 @@
 // changes recalculate, every eligible listing (including Coffee4U's unstated
 // blend wording) is in one comparison with no blend control or variant warning,
 // vendors are named, unknowns stay honest and no
-// "[object HTMLSpanElement]" artifact appears. The script is dependency-free:
-// it speaks the W3C WebDriver protocol over HTTP and writes screenshots and a
-// JSON report to .shurik-local/qa/.
+// "[object HTMLSpanElement]" artifact appears. Every page state also gets a
+// rendered-contrast walk (4.5:1 normal / 3:1 large text) and the affected offer
+// cards are saved as element-level screenshots, so the decision values are
+// readable in a cropped view rather than only in a full-page capture. The
+// script is dependency-free: it speaks the W3C WebDriver protocol over HTTP and
+// writes screenshots and a JSON report to .shurik-local/qa/.
 
 import { spawn } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -39,6 +42,7 @@ const report = {
   base: LIVE_BASE,
   startedAt: new Date().toISOString(),
   checks: [],
+  contrast: {},
   consoleErrors: []
 };
 const check = (name, condition, detail = '') => {
@@ -175,6 +179,10 @@ try {
   check('home: the page does not scroll horizontally', home.pageOverflow === false, `overflow=${home.pageOverflow}`);
   check('home: the footer reports the last observation time from the status API', /last checked/i.test(home.footerStatus ?? ''), home.footerStatus);
   await screenshot(wd, 'home-desktop-1440.png');
+  // Rendered contrast on the home index: the concise card and the footer must
+  // meet WCAG AA in their actual composited colors, not only in the token table.
+  await contrastReport(wd, 'body', 'the home index (desktop)');
+  await elementScreenshot(wd, `document.querySelector('#catalog-list .product-card')`, 'home-card-desktop.png');
 
   // Real navigation from the index card to the product page.
   const cardLink = await wd('POST', '/element', { using: 'css selector', value: '#catalog-list .product-card__link' });
@@ -272,6 +280,8 @@ try {
   check('product: skip link and main landmark are present', productView.hasSkipLink && productView.hasMain, `skip=${productView.hasSkipLink} main=${productView.hasMain}`);
   check('product: page does not scroll horizontally', productView.pageOverflow === false, `overflow=${productView.pageOverflow}`);
   await screenshot(wd, 'product-desktop-1440.png');
+  await contrastReport(wd, 'body', 'the product page (desktop, 500 g)');
+  await elementScreenshot(wd, `document.querySelector('#best-offer')`, 'product-500g-best-card-desktop.png');
 
   // Live mode only: when the served board itself has a ranked offer whose most
   // recent vendor check failed (for example CoffeeMan blocked from the Worker's
@@ -561,6 +571,21 @@ try {
   check('keyboard: focused control shows a visible outline in the official Blau focus color',
     keyboard.outlineStyle !== 'none' && parseFloat(keyboard.outlineWidth) >= 2 && keyboard.outlineColor === 'rgb(0, 112, 180)',
     `${keyboard.outlineStyle} ${keyboard.outlineWidth} ${keyboard.outlineColor}`);
+  // The design direction requires essential UI/focus to reach 3:1. The outline
+  // color is fixed by the token, but the ratio must be measured against the
+  // control's own rendered background, not assumed from the token table.
+  const focusContrast = await evaluate(wd, `(() => {
+    const active = document.activeElement;
+    const style = getComputedStyle(active);
+    const parse = v => { const m = String(v).match(/rgba?\\(([^)]+)\\)/); if (!m) return null; const p = m[1].split(',').map(Number); return { r: p[0], g: p[1], b: p[2], a: p[3] ?? 1 }; };
+    const lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b); };
+    const ratio = (a, b) => { const la = lum(a), lb = lum(b); const hi = Math.max(la, lb), lo = Math.min(la, lb); return (hi + 0.05) / (lo + 0.05); };
+    const outline = parse(style.outlineColor);
+    const background = parse(style.backgroundColor) ?? { r: 255, g: 255, b: 255, a: 1 };
+    return { outlineRatio: outline ? Math.round(ratio(outline, background) * 100) / 100 : null, background: style.backgroundColor };
+  })()`);
+  check('keyboard: the focus outline reaches 3:1 against the control background',
+    (focusContrast.outlineRatio ?? 0) >= 3, JSON.stringify(focusContrast));
   await wd('POST', '/actions', { type: 'key', id: 'keyboard', actions: [] });
   await wd('DELETE', '/actions');
 
@@ -623,6 +648,8 @@ try {
     JSON.stringify(mobile.destination));
   check('mobile: the page is much shorter than the old comparison board', mobile.pageHeight <= 2600, `height=${mobile.pageHeight}`);
   await screenshot(wd, 'product-mobile-390.png');
+  await contrastReport(wd, 'body', 'the product page (mobile 390 px, 500 g)');
+  await elementScreenshot(wd, `document.querySelector('#best-offer')`, 'product-500g-best-card-mobile.png');
   await wd('POST', '/url', { url: `${base}/` });
   await waitForHome(wd);
   const homeMobile = await evaluate(wd, `(() => ({
@@ -780,6 +807,8 @@ try {
         && mobileWinner2kg.overflow === false,
       JSON.stringify(mobileWinner2kg));
     await screenshot(wd, 'product-2kg-mobile-failed-390.png');
+    await contrastReport(wd, 'body', 'the 2 kg CoffeeMan winner with the failed-check warning (mobile)');
+    await elementScreenshot(wd, `document.querySelector('#best-offer')`, 'product-2kg-mobile-winner-card.png');
 
     await wd('POST', '/url', { url: `${failedServer.url}${productPath}?grams=500&dest=tel-aviv` });
     await waitForProduct(wd);
@@ -827,6 +856,8 @@ try {
         && mobileCoffeeMan500.overflow === false,
       JSON.stringify(mobileCoffeeMan500));
     await screenshot(wd, 'product-500g-mobile-failed-390.png');
+    await contrastReport(wd, 'body', 'the 500 g CoffeeMan comparison card with the failed-check warning (mobile)');
+    await elementScreenshot(wd, `(() => [...document.querySelectorAll('#compare-other-offers .offer')].find(node => node.querySelector('.offer__vendor')?.innerText.includes('CoffeeMan')))()`, 'product-500g-mobile-coffeeman-card.png');
     await setDetailsOpen(wd, '#compare-other-offers', false);
     await wd('POST', '/window/rect', { width: 1440, height: 1000, x: 0, y: 0 });
   } finally {
@@ -880,6 +911,7 @@ try {
         && staleMobile.scrollWidth <= staleMobile.innerWidth + 1
         && staleMobile.right <= staleMobile.innerWidth + 1,
       JSON.stringify(staleMobile));
+    await contrastReport(wd, 'body', 'the stale-refresh warning state (mobile)');
     await wd('POST', '/window/rect', { width: 1440, height: 1000, x: 0, y: 0 });
 
     await wd('POST', '/url', { url: `${termsServer.url}${productPath}?grams=2000&dest=jerusalem` });
@@ -921,6 +953,7 @@ try {
     check('unknown: the no-rate offer stays out of the ranked cards',
       unknownUi.rankedVendors.every(text => !text.includes('no shipping rate')), unknownUi.rankedVendors.join(' | '));
     await screenshot(wd, 'product-desktop-unknown-shipping.png');
+    await contrastReport(wd, 'body', 'the unknown-shipping offer state (desktop)');
   } finally {
     await unknownServer.close();
   }
@@ -1065,4 +1098,90 @@ async function waitForProduct(wd) {
 async function screenshot(wd, name) {
   const shot = await wd('GET', '/screenshot');
   await writeFile(`${OUT}/${name}`, Buffer.from(shot.value, 'base64'));
+}
+
+/**
+ * Save a cropped screenshot of one rendered element (the affected offer card),
+ * so the decision values are readable without a full-page capture. The element
+ * is located by the given in-page expression, which must return a DOM node.
+ */
+async function elementScreenshot(wd, expression, name) {
+  const found = await evaluate(wd, expression);
+  const id = found?.['element-6066-11e4-a52e-4f735466cecf'] ?? found?.ELEMENT;
+  if (!id) return null;
+  const shot = await wd('GET', `/element/${id}/screenshot`);
+  await writeFile(`${OUT}/${name}`, Buffer.from(shot.value, 'base64'));
+  return name;
+}
+
+/**
+ * Rendered-contrast walk required by the owner's Canton Zürich design direction:
+ * compare every visible text element's computed color with the background
+ * actually composited behind it (translucent layers are blended down to the
+ * root, translucent text is blended with its background) and require 4.5:1 for
+ * normal text and 3:1 for large text. Records the checked count, the lowest
+ * ratio and any violations in the report; a violation fails the run.
+ */
+async function contrastReport(wd, scopeSelector, label) {
+  const result = await evaluate(wd, `(() => {
+    const parse = value => {
+      const m = String(value ?? '').match(/rgba?\\(([^)]+)\\)/);
+      if (!m) return null;
+      const parts = m[1].split(',').map(Number);
+      return { r: parts[0], g: parts[1], b: parts[2], a: parts[3] ?? 1 };
+    };
+    const toLinear = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    const luminance = c => 0.2126 * toLinear(c.r) + 0.7152 * toLinear(c.g) + 0.0722 * toLinear(c.b);
+    const blend = (fg, bg) => ({ r: fg.r * fg.a + bg.r * (1 - fg.a), g: fg.g * fg.a + bg.g * (1 - fg.a), b: fg.b * fg.a + bg.b * (1 - fg.a), a: 1 });
+    const contrast = (a, b) => { const la = luminance(a); const lb = luminance(b); const hi = Math.max(la, lb); const lo = Math.min(la, lb); return (hi + 0.05) / (lo + 0.05); };
+    const effectiveBackground = node => {
+      const layers = [];
+      for (let el = node; el; el = el.parentElement) {
+        const bg = parse(getComputedStyle(el).backgroundColor);
+        if (bg && bg.a > 0) layers.push(bg);
+      }
+      let out = { r: 255, g: 255, b: 255, a: 1 };
+      for (let i = layers.length - 1; i >= 0; i -= 1) out = blend(layers[i], out);
+      return out;
+    };
+    const root = document.querySelector(${JSON.stringify(scopeSelector)}) ?? document.body;
+    const violations = [];
+    let checked = 0;
+    let minimum = null;
+    let minimumText = null;
+    for (const node of root.querySelectorAll('*')) {
+      if (!node.offsetParent && node.tagName !== 'BODY') continue;
+      if (['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(node.tagName)) continue;
+      const text = [...node.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent.trim()).join(' ').trim();
+      if (!text) continue;
+      const style = getComputedStyle(node);
+      if (style.visibility === 'hidden' || style.display === 'none') continue;
+      const fg = parse(style.color);
+      if (!fg || fg.a === 0) continue;
+      const bg = effectiveBackground(node);
+      const composited = fg.a < 1 ? blend(fg, bg) : fg;
+      const value = contrast(composited, bg);
+      const size = parseFloat(style.fontSize);
+      const bold = Number(style.fontWeight) >= 700;
+      const large = size >= 24 || (size >= 18.66 && bold);
+      const required = large ? 3 : 4.5;
+      checked += 1;
+      if (minimum == null || value < minimum) { minimum = value; minimumText = text.slice(0, 50); }
+      if (value + 0.01 < required) {
+        violations.push({
+          text: text.slice(0, 50),
+          color: style.color,
+          background: 'rgb(' + Math.round(bg.r) + ', ' + Math.round(bg.g) + ', ' + Math.round(bg.b) + ')',
+          ratio: Math.round(value * 100) / 100,
+          required,
+          size
+        });
+      }
+    }
+    return { checked, minimum: minimum == null ? null : Math.round(minimum * 100) / 100, minimumText, violations: violations.slice(0, 8) };
+  })()`);
+  report.contrast[label] = result;
+  check(`contrast: ${label} meets WCAG AA (4.5:1 normal, 3:1 large)`, result.violations.length === 0,
+    `checked=${result.checked} elements, lowest ratio=${result.minimum} on "${result.minimumText}"${result.violations.length ? ` violations=${JSON.stringify(result.violations)}` : ''}`);
+  return result;
 }
