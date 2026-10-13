@@ -184,6 +184,41 @@ test('CoffeeMan totals parse without inventing a threshold', () => {
   assert.equal(totals.freeThresholdIls, null, 'no free-shipping rule is inferred from one cart');
 });
 
+test('CoffeeMan totals parse the current checkout layout with a bare summary shipping line', () => {
+  // Minimized excerpt of the real 2026-10-13 checkout.asp body text for a
+  // 2 x 250 g cart: the item subtotal sits on the tracked product line, the
+  // applied fee is a bare "משלוח" line followed by "₪25.00", and the total is
+  // labelled "סכום כולל מע"מ". The method-option labels above it print their own
+  // prices and must not be read as the applied charge.
+  const checkout = `דף רכישה
+עגלת הקניות שלי
+250 גרם קפה טחון lavazza Crema e Gusto Classico חוזק 7
+
+₪ 66.00
++-
+פרטי המזמין
+פרטי תשלום כולל משלוח
+שלח
+*בחר שיטת משלוח
+משלוח לבית הלקוח עם שליח - 25.00 ₪
+משלוח ממרכז חלוקה עד 5 ק"ג - 15.00 ₪
+(ברצוני לבצע איסוף עצמי להזמנה)
+לפרטים על שילוח באמצעות E-post לנק' חלוקה/לוקר אוטומטי לחץ כאן
+משלוח
+₪25.00
+סכום כולל מע"מ
+₪91.00
+תשלום באמצעות`;
+  const courier = parseCoffeemanTotals(checkout);
+  assert.equal(courier.itemSubtotalIls, 66, 'the tracked product line amount is the item subtotal');
+  assert.equal(courier.shippingIls, 25, 'the bare summary line is the applied fee, not a method-card option price');
+  assert.equal(courier.deliveredTotalIls, 91);
+  // The same layout after the ₪15 distribution-center option is applied.
+  const distribution = parseCoffeemanTotals(checkout.replace('₪25.00\nסכום כולל מע"מ\n₪91.00', '₪15.00\nסכום כולל מע"מ\n₪81.00'));
+  assert.equal(distribution.shippingIls, 15);
+  assert.equal(distribution.deliveredTotalIls, 81);
+});
+
 test('evidence sanitization strips query strings, fragments and token-like runs', () => {
   assert.equal(sanitizeUrl('https://pucks.co.il/payment/request?sess=abc123&cart_id=9#x'), 'https://pucks.co.il/payment/request');
   assert.equal(sanitizeUrl('not a url?with=query'), 'not a url');

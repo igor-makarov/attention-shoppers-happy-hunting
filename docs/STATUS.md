@@ -2619,3 +2619,55 @@ due-aware prediction above). Record whether the CoffeeMan Worker-egress 403 pers
 last-known-good observation and warning rather than bypassing the vendor control. Verify the Coffee4U v3
 provenance is served after the main-push deploy (read-only `/api/status`), and continue only with verified
 Crema e Gusto coverage/freshness/comparison work rather than repeated unchanged probes.
+
+## Iteration 3-100 — repair the interrupted 3-99 checkpoint, then resolve CoffeeMan's ₪15 coverage (2026-10-13)
+
+**The interrupted 3-99 timeout left `npm run verify` failing (1 of 182).** Its test for an unconfirmed
+delivery method still assumed CoffeeMan's method step was optional, but 3-99 had made the `#delivery`
+select a required step. The test now pins the intended semantics: a run that reaches the method step but
+cannot apply it blocks with `service: null` and `serviceConfirmed: false`, the schema still rejects a
+confirmed method without a name, and a quoted record that could not confirm the method must disclose it.
+`npm run verify` passes **182/182** tests plus the `wrangler deploy --dry-run` bundle (bindings `BOARD` +
+`ASSETS`).
+
+**The scheduling correction and the due-aware helper are verified, not restated.** `tests/cron-schedule.test.js`
+cross-checks `scripts/cron-schedule.mjs` against `isVendorDue`/`EARLY_DUE_TOLERANCE_MS` from `src/refresh.js`:
+the successful seconds-after-tick case (`12:17:42.285Z`, 0 failures → the **12:17 tick** attempts it), the
+strict failure deadline (same due, ≥1 failure → 18:17), the exact 15-minute boundary and CoffeeMan's
+`07:17:42.285Z` failure deadline (→ 12:17). The production probe integration that records both the
+due-aware `nextAttemptTick` and the deadline-only `strictTickAtOrAfterDue` is the one already exercised at
+07:56 UTC (`docs/evidence/production-probe-20261013T0757Z.json`: pucks/coffee4u due 12:17:42.285Z → attempt
+tick 12:17; coffeeman due 07:17:42.285Z → attempt tick 12:17). No deployed schedule, API or Worker code was
+changed; `wrangler.jsonc` still has exactly `17 */6 * * *`.
+
+**CoffeeMan's checked-in browser recipe and parser now work against the live checkout (the 3-99 tooling
+regression is closed).** The 3-99 checkpoint had recorded that the recipe could not rebuild the cart; the
+timeout save fixed the recipe but never verified it. A live run at 08:34:22Z now produces a **quoted,
+schema-valid record**: the product page's own “קנה עכשיו” control (with the element `click()` fallback for
+the overlay-intercepted native click) built the 2 × 250 g cart, the closed `#hfd_cities` locality select
+was set to Tel Aviv–Yafo and the `#delivery` home-courier option selected, and the runner read **₪66 item
+subtotal + ₪25 = ₪91** with `serviceConfirmed: true`, `destinationVerified: true` and `arithmeticOk: true`
+(`docs/evidence/browser-research/2026-10-13-coffeeman-recipe-quote-500g-telaviv.json`). The current
+checkout summary layout (tracked product line amount, bare “משלוח” line with “₪25.00” on the next line,
+total under “סכום כולל מע\"מ”) is now parsed; `parseCoffeemanTotals` reads both that layout and the older
+cart layout and never treats a method-option price as the applied charge (new unit test with the real
+captured text).
+
+**CoffeeMan's ₪15 distribution-center coverage is resolved for all five selectable destinations.** In the
+same live anonymous checkout, the `#delivery` option 214 (“משלוח ממרכז חלוקה עד 5 ק\"ג - 15.00 ₪”) was
+present, selectable and applied at **₪15.00** on the 2 × 250 g cart for Tel Aviv–Yafo, Jerusalem, Haifa,
+Be’er Sheva and Eilat (each ₪66 + ₪15 = ₪81); a pickup point and mobile number are required only before
+ordering, so the quote needed no personal details. The ranked rate stays the published ₪25 home courier and
+the ₪15 option stays a display-only alternative. Policy `coffeeman-single-4pack-il-home-delivery` is **v5**
+with identical money/scope: the alternative note, evidence note and `observedFor` destinations name the
+verified coverage and the fixed recipe quote, so the read-time evaluator refreshes the provenance on
+already-stamped rows. Evidence: `docs/evidence/browser-research/2026-10-13-coffeeman-distribution-center-coverage.json`
+and the screenshot `coffeeman-distribution-center-telaviv-20261013.png` (artifact for a human reviewer; the
+file-read tool rejects image input, so no native image claim is made). `docs/SOURCES.md` records the
+264-locality home-delivery list, the distribution-center coverage and the fixed recipe.
+
+**Next step:** the **12:17 UTC cron tick** remains the next actual vendor attempt (all three vendors, per
+the due-aware prediction). Record whether CoffeeMan's Worker-egress 403 persists; if it does, keep the
+last-known-good observation and warning rather than bypassing the vendor control. After the next main-push
+deploy, a read-only `/api/status` check can confirm the v5 provenance is served, and the next useful
+Crema e Gusto work stays within coverage/freshness/comparison rather than repeated unchanged probes.

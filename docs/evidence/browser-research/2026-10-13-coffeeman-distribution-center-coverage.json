@@ -1,0 +1,37 @@
+{
+  "kind": "browser-research-coverage",
+  "schemaVersion": 1,
+  "topic": "CoffeeMan/Amigo rendered anonymous checkout: ₪15 distribution-center option coverage across the five selectable destinations",
+  "date": "2026-10-13",
+  "windowUtc": "2026-10-13T08:28:00Z to 2026-10-13T08:36:00Z",
+  "method": "Interactive headless Google Chrome 154.0.8037.97 + ChromeDriver 154.0.8037.92 through scripts/browser-research.mjs, one live session kept across steps. The anonymous 2 × 250 g cart (₪66.00 item subtotal) was built from the real product page by the fixed CoffeeMan recipe (its quoted record is docs/evidence/browser-research/2026-10-13-coffeeman-recipe-quote-500g-telaviv.json: ₪66 + ₪25 = ₪91, destination and home-courier method verified on the page). In the same session each selectable locality was chosen from the vendor's closed home-delivery locality select (#hfd_cities) and the distribution-center option in #delivery (value 214, label 'משלוח ממרכז חלוקה עד 5 ק\"ג - 15.00 ₪') was selected; the rendered summary was read back after each step. No order, payment, login, account creation or street address was involved; a pickup point and mobile number are required only before ordering and neither was entered. Cart/session identifiers, cookies and tokens are deliberately not recorded.",
+  "toolingLimitation": "The coding agent's file-read tool rejects PNG input ('reading images is not supported'), so no image-based visual claim is made. Every value below is backed by rendered DOM values and body text captured in the same live session; coffeeman-distribution-center-telaviv-20261013.png is a screenshot artifact for a human reviewer.",
+  "productUrl": "https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
+  "entryUrl": "https://www.coffeeman.co.il/checkout.asp",
+  "cart": "2 × 250 g single packs, item subtotal ₪66.00 (the tracked product line and its amount are rendered on the checkout page)",
+  "deliverySelect": {
+    "element": "#delivery",
+    "options": [
+      { "value": "", "label": "*בחר שיטת משלוח" },
+      { "value": "204", "label": "משלוח לבית הלקוח עם שליח - 25.00 ₪" },
+      { "value": "214", "label": "משלוח ממרכז חלוקה עד 5 ק\"ג - 15.00 ₪" },
+      { "value": "selfDelivery", "label": "(ברצוני לבצע איסוף עצמי להזמנה)" }
+    ],
+    "note": "The option list did not change with the selected locality; the ₪15 distribution-center option (value 214) was present and selectable for every destination below."
+  },
+  "localityCoverage": [
+    { "locality": "תל אביב - יפו", "selected": "תל אביב - יפו", "distributionCenterSelected": "214", "shippingLine": "₪15.00", "deliveredTotalLine": "₪81.00" },
+    { "locality": "ירושלים", "selected": "ירושלים", "distributionCenterSelected": "214", "shippingLine": "₪15.00", "deliveredTotalLine": "₪81.00" },
+    { "locality": "חיפה", "selected": "חיפה", "distributionCenterSelected": "214", "shippingLine": "₪15.00", "deliveredTotalLine": "₪81.00" },
+    { "locality": "באר שבע", "selected": "באר שבע", "distributionCenterSelected": "214", "shippingLine": "₪15.00", "deliveredTotalLine": "₪81.00" },
+    { "locality": "אילת", "selected": "אילת", "distributionCenterSelected": "214", "shippingLine": "₪15.00", "deliveredTotalLine": "₪81.00" }
+  ],
+  "observations": {
+    "coverage": "The ₪15 distribution-center option was present in #delivery and selectable for all five selectable destinations; the applied summary showed the same ₪15.00 fee and ₪81.00 total for each (₪66 item subtotal + ₪15). No destination restriction or fee change was displayed.",
+    "pickupPointRequirement": "Selecting the option reveals a required 'בחר נקודת איסוף' control and a mobile-number field, but the fee and delivered total are displayed before a pickup point is chosen, so the public quote was obtainable without entering personal details or choosing a spot.",
+    "recipeVerification": "The same session first exercised the checked-in CoffeeMan recipe after its 3-99 fix: the add-to-cart control ('קנה עכשיו', with the element click() fallback for the intercepted native click), the closed #hfd_cities locality select, the #delivery method select and the current checkout summary layout all worked, and the runner recorded a quoted, schema-valid record with the confirmed home_delivery method and verified destination. The previous session's recipe regression is closed.",
+    "summaryLayout": "The current checkout summary prints the tracked product line with its amount, then a bare 'משלוח' line with '₪25.00'/'₪15.00' on the next line, and the total under 'סכום כולל מע\"מ'. parseCoffeemanTotals now reads this layout (plus the older cart layout) and only accepts a bare summary label as the applied shipping charge, never a method-option price."
+  },
+  "conclusion": "The ₪15 distribution-center alternative is quoted at the same fee for every selectable destination, so its destination coverage is no longer unknown. The money and scope are unchanged: the ranked rate remains the published ₪25 home courier, and the alternative stays display-only.",
+  "policyImpact": "Provenance-only update of coffeeman-single-4pack-il-home-delivery (v5): the distribution-center alternative note, the policy evidence note and observedFor destinations name the verified coverage and the fixed recipe quote. The read-time evaluator refreshes the destination caveat/evidence provenance on already-stamped persisted rows; the alternative note reaches rows whose alternative is filled from the policy."
+}

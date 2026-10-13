@@ -184,7 +184,7 @@ export const coffeemanEightPackPolicy = {
  */
 export const coffeemanSingleFourPackPolicy = {
   id: 'coffeeman-single-4pack-il-home-delivery',
-  version: 4,
+  version: 5,
   vendorId: 'coffeeman',
   productIds: [PRODUCT_ID],
   itemUrlPrefixes: [
@@ -276,7 +276,7 @@ export const coffeemanSingleFourPackPolicy = {
     label: 'Distribution-center delivery up to 5 kg (cart-observed for 0.5–1 kg carts)',
     amount: { amount: 15, currency: 'ILS' },
     maxTotalGrams: 5000,
-    note: 'Anonymous cart 2026-10-12 (https://www.coffeeman.co.il/checkout.asp): ₪25 home courier (matching the published rate) and ₪15 distribution-center delivery up to 5 kg for 0.5–1 kg carts; the distribution-center fee became free on the ₪198 cart. Free home courier was observed only on the exact 7 × 250 g, 8 × 250 g and 2 × 4-pack carts; other cart sizes keep the published ₪25 base rate.'
+    note: 'Anonymous cart 2026-10-12 (https://www.coffeeman.co.il/checkout.asp): ₪25 home courier (matching the published rate) and ₪15 distribution-center delivery up to 5 kg for 0.5–1 kg carts; the distribution-center fee became free on the ₪198 cart. Free home courier was observed only on the exact 7 × 250 g, 8 × 250 g and 2 × 4-pack carts; other cart sizes keep the published ₪25 base rate. Re-checked 2026-10-13 in the rendered anonymous checkout: the ₪15 option was present and selectable for all five selectable destinations (Tel Aviv–Yafo, Jerusalem, Haifa, Be’er Sheva, Eilat) and applied at ₪15.00 on the 2 × 250 g cart (₪66 + ₪15 = ₪81); a pickup point and mobile number are required only before ordering, and neither was entered.'
   }],
   destination: {
     scope: 'country',
@@ -287,13 +287,13 @@ export const coffeemanSingleFourPackPolicy = {
   },
   evidence: {
     url: 'https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico',
-    retrievedAt: '2026-10-13T08:18:00Z',
-    note: 'The ₪25 home-courier rate is published on the single 250 g and 4 × 250 g product pages. The ₪15 distribution-center alternative and the exact free-cart observations (charged at ₪198, free on the 7-singles, 8-singles and two-4-pack carts) were observed in anonymous checkout carts on 2026-10-12; see docs/evidence/browser-research/2026-10-12-coffeeman-cart-single-4pack.json. The checkout’s closed home-delivery locality list was read on 2026-10-13 (264 localities, all five selectable destinations present and the ₪25 option selectable for each; see docs/evidence/browser-research/2026-10-13-coffeeman-home-delivery-locality-coverage.json).'
+    retrievedAt: '2026-10-13T08:35:00Z',
+    note: 'The ₪25 home-courier rate is published on the single 250 g and 4 × 250 g product pages. The ₪15 distribution-center alternative and the exact free-cart observations (charged at ₪198, free on the 7-singles, 8-singles and two-4-pack carts) were observed in anonymous checkout carts on 2026-10-12; see docs/evidence/browser-research/2026-10-12-coffeeman-cart-single-4pack.json. The checkout’s closed home-delivery locality list was read on 2026-10-13 (264 localities, all five selectable destinations present and the ₪25 option selectable for each; see docs/evidence/browser-research/2026-10-13-coffeeman-home-delivery-locality-coverage.json). On 2026-10-13 the fixed recipe also produced a verified quote record (2 × 250 g, Tel Aviv–Yafo: ₪66 + ₪25 = ₪91) and the ₪15 distribution-center option was applied at ₪15.00 (₪66 + ₪15 = ₪81) for all five selectable destinations; see docs/evidence/browser-research/2026-10-13-coffeeman-recipe-quote-500g-telaviv.json and 2026-10-13-coffeeman-distribution-center-coverage.json.'
   },
   observedFor: {
     carts: ['2 × 250 g = 500 g', '4 × 250 g = 1 kg', '6 × 250 g = 1.5 kg (₪198, courier charged)', '7 × 250 g = 1.75 kg (₪231, free)', '8 × 250 g = 2 kg (₪264 → ₪237.60, free)', '2 × (4 × 250 g) = 2 kg (₪248, free)'],
-    destinations: ['the method picker showed the method prices without asking for a locality'],
-    note: 'No street address or personal detail was entered and no order was submitted.'
+    destinations: ['Tel Aviv–Yafo / 6100000', 'Jerusalem / 9100000', 'Haifa / 3100000', 'Be’er Sheva / 8400000', 'Eilat / 8800000'],
+    note: 'No street address or personal detail was entered and no order was submitted. The ₪25 home-courier option was selectable for all five destinations (2026-10-13); the ₪15 distribution-center option was also present, selectable and applied at ₪15.00 for each of them.'
   },
   reviewBy: '2026-11-11T00:00:00.000Z'
 };

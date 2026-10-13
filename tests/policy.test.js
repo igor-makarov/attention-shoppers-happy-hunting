@@ -213,7 +213,7 @@ test('the checked-in shipping policies are structurally valid', () => {
   assert.equal(singleFour.origin, 'published', 'the published ₪25 rate is not relabelled as a cart quote');
   assert.equal(singleFour.certainty, 'verified');
   assert.equal(singleFour.rule.amount.amount, 25);
-  assert.equal(singleFour.version, 4, 'the coverage provenance extension bumps the policy version');
+  assert.equal(singleFour.version, 5, 'the coverage provenance extension bumps the policy version');
   assert.equal(singleFour.rule.freeThreshold, null, 'the sampled carts do not establish a monotone threshold');
   assert.deepEqual(singleFour.rule.freeCartConditions.map(condition => condition.id), ['singles-7', 'singles-8', 'fourpack-2']);
   const sevenSingles = singleFour.rule.freeCartConditions.find(condition => condition.id === 'singles-7');
@@ -235,6 +235,7 @@ test('the checked-in shipping policies are structurally valid', () => {
   assert.equal(singleFour.supersedes.freeThreshold.amount, 231, 'the superseded v2 threshold is named exactly for the read-time migration');
   assert.equal(singleFour.supersedes.freeThreshold.policyVersion, 2);
   assert.equal(singleFour.alternatives[0].amount.amount, 15, 'the cart-observed ₪15 distribution-center rate lives in the policy');
+  assert.match(singleFour.alternatives[0].note, /all five selectable destinations/, 'the alternative records the destination coverage it was observed for');
   const coffee4u = SHIPPING_POLICIES.find(policy => policy.id === coffee4uHomeDeliveryPolicy.id);
   assert.ok(coffee4u, 'the Coffee4U published rule with its coverage shape is a checked-in policy');
   assert.equal(coffee4u.origin, 'published');
@@ -260,13 +261,13 @@ test('an old persisted CoffeeMan single-pack offer gains the published rule and 
   assert.equal(board.best.shipping.destination.observed.homeDeliveryLocalities, 264, 'the structured coverage provenance is refreshed at read time');
   assert.deepEqual(board.best.shipping.destination.observed.verifiedLocalities, ['תל אביב - יפו', 'ירושלים', 'חיפה', 'באר שבע', 'אילת']);
   assert.equal(board.best.shipping.policy.id, 'coffeeman-single-4pack-il-home-delivery');
-  assert.equal(board.best.shipping.policy.version, 4);
+  assert.equal(board.best.shipping.policy.version, 5);
   assert.equal(board.best.shipping.freeThreshold, null, 'the old row never gains a monotone threshold');
   assert.deepEqual(board.best.shipping.freeCartConditions.map(condition => condition.id), ['singles-7', 'singles-8', 'fourpack-2'], 'the old row gains the scoped observed carts at read time');
   assert.equal(board.best.shipping.freeCondition, null, 'a 500 g cart matches no observed free cart');
   assert.equal(board.best.totalIls, 91, '2 × ₪33 item + the published ₪25 courier rate (no observed cart matches)');
   assert.equal(board.best.ilsPerKg, 182);
-  assert.match(board.best.shipping.note, /validated policy coffeeman-single-4pack-il-home-delivery v4/);
+  assert.match(board.best.shipping.note, /validated policy coffeeman-single-4pack-il-home-delivery v5/);
   assert.deepEqual(stored, storedSnapshot, 'the stored observation is never mutated');
 });
 
@@ -460,8 +461,8 @@ test('a persisted CoffeeMan row stamped with the superseded v2 threshold migrate
   assert.equal(board.best.shipping.freeThreshold, null);
   assert.equal(board.best.shipping.freeThresholdOrigin, null);
   assert.deepEqual(board.best.shipping.freeCartConditions.map(condition => condition.id), ['singles-7', 'singles-8', 'fourpack-2']);
-  assert.equal(board.best.shipping.policy.version, 4);
-  assert.match(board.best.shipping.note, /superseded by policy coffeeman-single-4pack-il-home-delivery v4/);
+  assert.equal(board.best.shipping.policy.version, 5);
+  assert.match(board.best.shipping.note, /superseded by policy coffeeman-single-4pack-il-home-delivery v5/);
   assert.equal(board.best.observedAt, FRESH, 'the item observation time is untouched');
   assert.equal(board.best.itemPrice.amount, 33, 'the item price is untouched');
   assert.deepEqual(stored, storedSnapshot, 'the stored observation is never mutated');
