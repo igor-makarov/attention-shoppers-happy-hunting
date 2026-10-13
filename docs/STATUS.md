@@ -2482,3 +2482,27 @@ was genuinely complete (343×675); the first-screen claim was the broken part.
 CoffeeMan production-egress block (HTTP 403 from the Worker, HTTP 200 from the runner) persists and
 whether the refreshed rows parse, then continue within Crema e Gusto coverage, shipping evidence,
 freshness and comparison quality.
+
+## Iteration 3-94 — independent re-verification at the final 3-93 commit, then the 06:17 UTC cron check (2026-10-13)
+
+**Re-verified at `d3e1640` (the last 3-93 commit, including its test-only guard).** `npm ci` in a fresh
+checkout, then `npm run verify` — **173/173** `node:test` cases plus the `wrangler deploy --dry-run` bundle
+(141.83 KiB / gzip 34.27 KiB; bindings `BOARD` + `ASSETS`). A fresh offline fixture browser-QA run
+(started 05:56:47Z, finished 06:03Z) passed **114/114** checks with zero console errors and three exact
+first-screen captures (`product-mobile-390.png`, `home-mobile-390.png`, `product-2kg-mobile-failed-390.png`),
+each 390×844 with `scrollY: 0`, `innerWidth: 390`, `innerHeight: 844` and `exact: true`; the failed 2 kg
+fixture first screen still keeps the failure sentence (y=648-697) and the coverage qualifier (y=705-812)
+inside the same 844 px viewport. Evidence: `docs/evidence/browser-qa-offline-20261013T0603Z.json`.
+This confirms the 05:16 overseer capture brief is satisfied at the committed HEAD: the unscrolled first
+screen is saved before any card scrolling/enlargement, the PNG is required to be exactly 390×844 (not
+merely ≥844), the complete-card views remain additional evidence, and the saved production/local/fixture
+captures are labelled separately in
+`docs/evidence/visual-review/2026-10-13-unscrolled-first-screen-and-complete-cards.json`.
+PNG limitation retained: the pinned file-read tool rejects image input, so no native image inspection is
+claimed; the DOM geometry, PNG dimensions and scroll state are the evidence.
+
+**Production freshness before the tick (read-only GET, 06:13Z).** `/api/status` reported
+`lastRefreshAt 2026-10-13T00:18:15.896Z`, `lastObservationAt 2026-10-13T00:17:54.216Z`, `stale: false`;
+the 00:17 cron run saved Pucks and Coffee4U successfully and failed CoffeeMan with `HTTP 403` on all three
+offers (`lastSuccessAt 2026-10-12T15:51:52.931Z`, `consecutiveFailures 1`, backoff
+`nextAttemptAt 2026-10-13T00:47:54.216Z`). The 06:17 UTC cron tick is the next actual vendor attempt.
