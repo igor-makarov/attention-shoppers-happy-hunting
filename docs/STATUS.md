@@ -50,6 +50,13 @@ persists with `consecutiveFailures 2` and a backoff deadline of 07:17:42Z (a sto
 the next cron tick that can attempt it is 12:17 UTC), while its last-known-good 2 kg cart stays
 ranked at ₪237.60 with the failure warning and unobserved carts keep the published base rate), and
 confirmed production serves the committed public assets byte-for-byte.
+Iteration 3-99 corrects the per-vendor attempt prediction that the first version of the cron helper got
+wrong: Pucks/Coffee4U's stored success due time of 12:17:42Z is inside the runtime's 15-minute
+`EARLY_DUE_TOLERANCE_MS`, so the **12:17 UTC tick attempts all three vendors** (the strict-deadline-only
+helper predicted 18:17 for them). `scripts/cron-schedule.mjs` now imports `isVendorDue`/`EARLY_DUE_TOLERANCE_MS`
+from `src/refresh.js`, `firstAttemptAtOrAfter` is verified against that runtime rule at the exact boundary
+(due = tick + 15:00 exactly is attempted at the tick; +1 ms waits for the next), failed vendors keep the
+strict deadline, and the production probe records the due-aware attempt tick beside the deadline-only tick.
 Iteration 3-81 removes the last variant coupling from the data layer: a stored offer's identity key no
 longer contains the blend wording a listing prints, legacy blend-keyed rows are collapsed at read time
 with their stable-key replacement (newest observation wins), and failure markers plus previous-check
@@ -2535,7 +2542,9 @@ to the committed `main` HEAD — `product.js` sha256-16 `6d4375d9385d01db`, `ui.
 deployed Worker is actually serving (docs/test-only commits since then do not change the bundle).
 
 **Next step:** the next actual vendor attempt is the **12:17 UTC cron tick** (the Worker's only trigger,
-`17 */6 * * *`), when CoffeeMan is long due (its stored backoff deadline is 07:17:42Z — a due time, not a
-run) and Pucks/Coffee4U are due at 12:17:42Z. Record whether the Worker-egress 403 persists; if it does,
+`17 */6 * * *`), which attempts **all three vendors**: CoffeeMan is long past its stored failure deadline
+of 07:17:42Z (a due time, not a run; failed vendors keep the strict deadline), and Pucks/Coffee4U's stored
+success due time of 12:17:42Z is inside the runtime's 15-minute early-due tolerance, so the 12:17 tick
+attempts them rather than waiting for 18:17. Record whether the Worker-egress 403 persists; if it does,
 keep the last-known-good observation and warning rather than bypassing the vendor control, and spend the
 iteration on verified Crema e Gusto work rather than repeated unchanged probes.

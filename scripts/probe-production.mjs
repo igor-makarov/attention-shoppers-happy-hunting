@@ -17,7 +17,7 @@
 
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { CRON_EXPRESSION, nextCronTick, firstTickAtOrAfter } from './cron-schedule.mjs';
+import { CRON_EXPRESSION, EARLY_DUE_TOLERANCE_MS, nextCronTick, firstTickAtOrAfter, firstAttemptAtOrAfter } from './cron-schedule.mjs';
 
 const args = process.argv.slice(2);
 const valueOf = flag => {
@@ -182,18 +182,33 @@ check(
   `health=${endpoints.health.body?.lastRefreshAt ?? null} status=${statusBody.lastRefreshAt ?? null}`
 );
 
-// Distinguish the next actual execution from the stored backoff deadlines.
+// Distinguish the next actual execution from the stored backoff deadlines. The
+// Worker's `isVendorDue` rule (src/refresh.js) is the source of truth: a vendor
+// with no consecutive failures counts as due up to 15 minutes before its stored
+// deadline, so Pucks/Coffee4U's 12:17:42Z due is attempted by the 12:17 tick;
+// CoffeeMan's failure backoff keeps its strict 07:17:42Z deadline, which the
+// 12:17 tick (long past it) also attempts. The probe records both the
+// due-aware attempt tick and the strict deadline tick so neither can be read as
+// the other.
 const vendorAttempts = (statusBody.vendors ?? []).map(vendor => ({
   vendorId: vendor.vendorId,
+  consecutiveFailures: vendor.consecutiveFailures ?? 0,
   nextAttemptAt: vendor.nextAttemptAt ?? null,
-  firstTickAtOrAfterDue: firstTickAtOrAfter(vendor.nextAttemptAt),
-  dueAtOrBeforeNextTick: vendor.nextAttemptAt != null && Date.parse(vendor.nextAttemptAt) <= Date.parse(nextTickAt)
+  strictTickAtOrAfterDue: firstTickAtOrAfter(vendor.nextAttemptAt),
+  nextAttemptTick: firstAttemptAtOrAfter({
+    dueAt: vendor.nextAttemptAt,
+    consecutiveFailures: vendor.consecutiveFailures,
+    from: finishedAt
+  })
 }));
 const lastRefreshMs = Date.parse(statusBody.lastRefreshAt ?? finishedAt);
 check(
-  'the next actual vendor attempt is the next cron tick, not a stored backoff deadline',
-  Number.isFinite(Date.parse(nextTickAt)) && Date.parse(nextTickAt) > lastRefreshMs,
-  `cron ${CRON_EXPRESSION} -> ${nextTickAt}; deadlines ${vendorAttempts.map(vendor => `${vendor.vendorId}@${vendor.nextAttemptAt ?? 'none'}${vendor.dueAtOrBeforeNextTick ? ' (due at this tick)' : ''}`).join(' ') || 'none'}`
+  'the next actual vendor attempt is a cron tick, not a stored backoff deadline',
+  Number.isFinite(Date.parse(nextTickAt)) && Date.parse(nextTickAt) > lastRefreshMs
+    && vendorAttempts.every(vendor => vendor.nextAttemptTick != null
+      && Date.parse(vendor.nextAttemptTick) >= Date.parse(nextTickAt)
+      && (Date.parse(vendor.nextAttemptTick) - Date.parse(nextTickAt)) % (6 * 60 * 60 * 1000) === 0),
+  `cron ${CRON_EXPRESSION} -> ${nextTickAt}; attempts ${vendorAttempts.map(vendor => `${vendor.vendorId}@due ${vendor.nextAttemptAt ?? 'none'} -> tick ${vendor.nextAttemptTick ?? 'n/a'}${vendor.consecutiveFailures > 0 ? ` (strict backoff, deadline tick ${vendor.strictTickAtOrAfterDue ?? 'n/a'})` : ` (success tolerance ${EARLY_DUE_TOLERANCE_MS / 60000} min)`}`).join(' ') || 'none'}`
 );
 
 const boards = {
@@ -356,7 +371,7 @@ const snapshot = {
   schedule: {
     cron: CRON_EXPRESSION,
     nextActualTickAt: nextTickAt,
-    note: 'The Worker executes only on its cron ticks. A stored vendor nextAttemptAt is a backoff deadline and is not an attempt time; a due vendor is attempted at the first tick at or after the deadline. `firstTickAtOrAfterDue` is that tick, with no early-due tolerance applied.',
+    note: 'The Worker executes only on its cron ticks. A stored vendor nextAttemptAt is a backoff deadline and is not an attempt time. `nextAttemptTick` applies the Worker\'s actual due rule (src/refresh.js `isVendorDue`): a failed vendor is attempted at the first tick at or after the strict deadline, while a vendor with no consecutive failures counts as due up to EARLY_DUE_TOLERANCE_MS (15 min) early, so a deadline seconds after a tick is attempted at that tick. `strictTickAtOrAfterDue` is the deadline-only tick recorded for contrast.',
     vendors: vendorAttempts
   },
   endpoints: Object.fromEntries(Object.entries(endpoints).map(([name, response]) => [name, {
@@ -386,7 +401,7 @@ if (jsonOnly) {
   console.log(`Health: ${endpoints.health.status} lastRefreshAt=${endpoints.health.body?.lastRefreshAt ?? null} lastObservationAt=${endpoints.health.body?.lastObservationAt ?? null}`);
   console.log(`Status: observations=${status.observations ?? null} lastRefreshAt=${status.lastRefreshAt ?? null} stale=${status.freshness?.stale ?? null} ageHours=${status.freshness?.ageHours ?? null}`);
   console.log(`Catalog: products=[${catalogProducts.join(', ')}] vendors=[${(catalog.vendors ?? []).map(vendor => vendor.id).join(', ')}]`);
-  console.log(`Vendor backoff deadlines: ${vendorAttempts.map(vendor => `${vendor.vendorId}@${vendor.nextAttemptAt ?? 'none'} -> first tick at/after due ${vendor.firstTickAtOrAfterDue ?? 'n/a'}`).join(' ')}`);
+  console.log(`Vendor attempt predictions: ${vendorAttempts.map(vendor => `${vendor.vendorId}@due ${vendor.nextAttemptAt ?? 'none'} (failures ${vendor.consecutiveFailures}) -> attempt tick ${vendor.nextAttemptTick ?? 'n/a'}${vendor.consecutiveFailures > 0 ? `, strict deadline tick ${vendor.strictTickAtOrAfterDue ?? 'n/a'}` : `, success tolerance ${EARLY_DUE_TOLERANCE_MS / 60000} min`}`).join(' ')}`);
   console.log(`Next actual cron tick: ${nextTickAt} (cron ${CRON_EXPRESSION}); a deadline between ticks is not a retry`);
   console.log(`Shipping policies: ${shippingPolicies.map(policy => `${policy.id} v${policy.version} (${policy.origin}, reviewBy ${policy.reviewBy}${policy.expired ? ', EXPIRED' : ''})`).join(' | ')}`);
   if (promotions) {
