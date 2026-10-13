@@ -106,12 +106,24 @@ test('browser QA saves an unscrolled first screen before any card scrolling and 
   // The 3-91 mislabelled capture (a scrolled card view named "viewport") is gone.
   assert.doesNotMatch(source, /product-live-2kg-winner-viewport\.png/);
   assert.match(source, /product-live-failing-offer-scrolled-view\.png/);
+  // Fixture and live captures must not share a directory or overwrite each other;
+  // a local live run can override with QA_OUT.
+  assert.match(source, /const OUT = process\.env\.QA_OUT \?\? `\.shurik-local\/qa\/\$\{LIVE_BASE \? 'live' : 'fixtures'\}`/);
+  assert.match(source, /firstScreenCaptures/);
 });
 
 test('browser QA captures the live 2 kg winner in the real failed state on mobile', () => {
-  assert.match(source, /live mobile: the real 2 kg winner shows vendor, packs\/grams, item, named method\/charge and total in the unscrolled first viewport/);
+  assert.match(source, /live mobile: the unscrolled first screen keeps the heading, quantity\/locality controls and the real 2 kg winner decision values/);
   assert.match(source, /live mobile: the real 2 kg winner with the failed last check keeps its full warning sentence inside the real content viewport/);
   assert.match(source, /api2000\.best\.lastAttemptFailed/);
   assert.match(source, /product-live-2kg-winner-first-screen\.png/);
   assert.match(source, /product-live-2kg-winner-card\.png/);
+  // The first-screen evidence must prove the heading and the quantity/locality
+  // controls were in the same viewport as the decision values, not just that
+  // the card bottom fit.
+  assert.match(source, /titleRect: rect\(document\.getElementById\('product-title'\)\)/);
+  assert.match(source, /quantityRect: rect\(document\.getElementById\('quantity-group'\)\)/);
+  assert.match(source, /destinationRect: rect\(document\.getElementById\('destination'\)\)/);
+  assert.match(source, /the unscrolled first screen keeps the page heading, quantity and locality controls inside the real content viewport/);
+  assert.match(source, /fixtureBackedCaptures/);
 });

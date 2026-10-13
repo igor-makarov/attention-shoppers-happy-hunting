@@ -25,8 +25,8 @@
 // viewport enlargement, at scrollY 0 and an exact 390×844 content viewport, so
 // a scrolled card view can never be passed off as the loaded first screen. The
 // script is dependency-free: it speaks the W3C WebDriver protocol over HTTP and
-// writes screenshots and a JSON report under .shurik-local/qa/<mode>/, keeping
-// fixture and live captures in separate directories.
+// writes screenshots and a JSON report under .shurik-local/qa/<mode>/ (or the
+// QA_OUT directory), keeping fixture and live captures in separate directories.
 
 import { spawn } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -36,8 +36,10 @@ import { startQaServer } from './qa-server.mjs';
 const LIVE_BASE = process.argv.slice(2).find(arg => /^https?:\/\//i.test(arg)) ?? null;
 const FIXTURE_PORT = Number(process.env.QA_PORT) || 0;
 // Fixture and live captures get separate directories so a fixture render can
-// never be mistaken for a production/local-Worker view (or overwrite it).
-const OUT = `.shurik-local/qa/${LIVE_BASE ? 'live' : 'fixtures'}`;
+// never be mistaken for a production/local-Worker view (or overwrite it). A
+// local live Worker run can additionally set QA_OUT to keep its captures apart
+// from the production run.
+const OUT = process.env.QA_OUT ?? `.shurik-local/qa/${LIVE_BASE ? 'live' : 'fixtures'}`;
 const PORT = 9515;
 const EMOJI = /[\u{1F300}-\u{1FAFF}\u{1F000}-\u{1F2FF}\u{2600}-\u{27BF}\u{FE0F}]/u;
 const ILS = new Intl.NumberFormat('en-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 2 });
@@ -46,6 +48,7 @@ const ils = amount => (amount == null ? null : ILS.format(amount));
 const report = {
   mode: LIVE_BASE ? 'live' : 'fixtures',
   base: LIVE_BASE,
+  output: OUT,
   startedAt: new Date().toISOString(),
   checks: [],
   contrast: {},
@@ -766,6 +769,9 @@ try {
       innerWidth: window.innerWidth,
       innerHeight: window.innerHeight,
       scrollY: Math.round(window.scrollY),
+      titleRect: rect(document.getElementById('product-title')),
+      quantityRect: rect(document.getElementById('quantity-group')),
+      destinationRect: rect(document.getElementById('destination')),
       card: rect(card),
       cells,
       totalValue: rect(card.querySelector('.totals__cell--total .totals__value')),
@@ -794,6 +800,11 @@ try {
   check('mobile: the measured content viewport really is the requested 390×844 (not the 844 px outer window)',
     mobile.innerWidth === 390 && mobile.innerHeight === 844 && mobile.scrollY === 0,
     JSON.stringify({ innerWidth: mobile.innerWidth, innerHeight: mobile.innerHeight, scrollY: mobile.scrollY }));
+  check('mobile: the unscrolled first screen keeps the page heading, quantity and locality controls inside the real content viewport',
+    mobile.titleRect.bottom <= mobile.innerHeight
+      && mobile.quantityRect.bottom <= mobile.innerHeight
+      && mobile.destinationRect.bottom <= mobile.innerHeight,
+    JSON.stringify({ title: mobile.titleRect, quantity: mobile.quantityRect, destination: mobile.destinationRect, viewport: mobile.innerHeight }));
   check('mobile: the best card fits the viewport without horizontal scrolling', mobile.card.right <= mobile.innerWidth + 1 && mobile.bodyOverflow === false, JSON.stringify({ card: mobile.card, overflow: mobile.bodyOverflow }));
   check('mobile: item subtotal, shipping charge and method are visible in the initial viewport',
     mobile.cells[0].rect.bottom <= mobile.innerHeight && mobile.cells[1].rect.bottom <= mobile.innerHeight && mobile.methodValue.bottom <= mobile.innerHeight,
