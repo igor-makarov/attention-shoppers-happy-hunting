@@ -1799,6 +1799,13 @@ duplication the correction forbids. This iteration:
   stable-key rows), the obsolete `?variant=` request returns the identical unified board, no retired
   row appears, and all four shipping policies plus the promotion are current. CoffeeMan's next attempt
   is the 06:17 UTC tick. Evidence: `docs/evidence/production-probe-20261013T0056Z.json`.
+- Defensive hardening: an unparseable observation time never outranks a real one in the read-time
+  collapse, the failure-marker target or the previous-check fallback; the dedupe test asserts it.
+- Visual record: `docs/evidence/visual-review/2026-10-13-identity-change-review.json` with sanitized
+  fixture screenshots of the home index and product page at 1440 px and 390 px plus the failed-attempt
+  state. The rendered UI was not restyled by this data-layer change. The file-read tool still rejects
+  PNG input, so no image-based claim is made; labels and arithmetic are corroborated by the DOM/API
+  assertions of the same 89/89 QA session.
 - Docs: `docs/ARCHITECTURE.md` documents the offer identity and the read-time collapse;
   `docs/STATUS.md`'s current-state section now states precisely that only the board-level
   `variantId`/`excludedByVariant` fields are gone while per-offer `product.variantId`/`variantLabel`
