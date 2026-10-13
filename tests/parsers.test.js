@@ -37,6 +37,10 @@ test('coffeeman parser observes price, currency, availability and published deli
   assert.equal(observation.shipping.pickup.available, true);
   assert.match(observation.shipping.note, /distribution-center/);
   assert.match(observation.shipping.destination.caveat, /home-delivery list/, 'the terms-page locality-list restriction is structured, not hidden in a note');
+  assert.match(observation.shipping.destination.caveat, /closed 264-locality select/, 'the observed checkout locality-list shape is disclosed');
+  assert.equal(observation.shipping.destination.observed.homeDeliveryLocalities, 264);
+  assert.deepEqual(observation.shipping.destination.observed.verifiedLocalities, ['תל אביב - יפו', 'ירושלים', 'חיפה', 'באר שבע', 'אילת']);
+  assert.match(observation.shipping.destination.observed.evidence, /2026-10-13-coffeeman-home-delivery-locality-coverage\.json/);
   assert.match(observation.shipping.destination.caveatSource, /coffeeman\.co\.il/);
   assert.equal(observation.shipping.evidence.retrievedAt, observation.observedAt, 'shipping evidence carries its retrieval time');
   assert.equal(observation.availabilityEvidence.retrievedAt, observation.observedAt, 'availability evidence carries its retrieval time');
@@ -70,7 +74,7 @@ test('coffeeman 4-pack and 8-pack fixtures keep pack count, price and shipping s
   assert.equal(eight.shipping.amount.amount, 20);
   assert.equal(eight.shipping.maxTotalGrams, 2000, 'the observed rate is limited to the 2 kg cart it was quoted on');
   assert.match(eight.shipping.note, /checkout quote/i);
-  assert.equal(eight.shipping.evidence.retrievedAt, '2026-10-12T20:07:00Z', 'shipping evidence keeps the latest research retrieval time');
+  assert.equal(eight.shipping.evidence.retrievedAt, '2026-10-13T08:18:00Z', 'shipping evidence keeps the latest research retrieval time');
   assert.equal(eight.shipping.policy.id, coffeemanEightPackPolicy.id, 'the parsed row names the validated policy it came from');
   assert.equal(eight.shipping.policy.version, coffeemanEightPackPolicy.version);
   assert.equal(eight.shipping.policy.reviewBy, coffeemanEightPackPolicy.reviewBy);
@@ -115,7 +119,7 @@ test('coffeeman cart research adds the distribution-center alternative and the o
   assert.match(eight.shipping.alternatives[0].label, /the 2 kg cart/);
   assert.equal(eight.shipping.freeThreshold ?? null, null, 'the ₪240 8-pack SKU keeps its own ₪20 quote, never the single/4-pack free condition');
   assert.ok(eight.shipping.freeCartConditions == null, 'the 8-pack SKU never carries the single/4-pack free conditions');
-  assert.equal(eight.shipping.evidence.retrievedAt, '2026-10-12T20:07:00Z', 'the re-check time is kept as shipping evidence');
+  assert.equal(eight.shipping.evidence.retrievedAt, '2026-10-13T08:18:00Z', 'the re-check time is kept as shipping evidence');
 });
 
 test('pucks parser reads the product JSON-LD and keeps the researched checkout rate conditional', () => {

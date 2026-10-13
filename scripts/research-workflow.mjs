@@ -77,17 +77,23 @@ export const RECIPES = {
     steps: [
       { action: 'goto', url: '{productUrl}' },
       { action: 'waitText', text: 'crema', timeout: 20000 },
-      { action: 'clickText', text: 'הוסף לעגלה', optional: true },
-      { action: 'clickText', text: 'הוספה לסל', optional: true },
+      // The live add-to-cart control is an anchor labelled "קנה עכשיו" whose
+      // onclick calls the site's own addme_cart; the older labels stay listed
+      // for page variants, but only one control matches. A native WebDriver
+      // click on it is intercepted by a page overlay, so clickAnyText falls
+      // back to the element's own click() (recorded in the step detail).
+      { action: 'clickAnyText', texts: ['קנה עכשיו', 'הוסף לעגלה', 'הוספה לסל'], optional: false },
       { action: 'goto', url: '{cartUrl}', optional: true },
       { action: 'waitText', text: 'סה"כ', timeout: 20000, optional: true },
       { action: 'setQuantity', target: '{grams}', optional: true },
-      { action: 'selectLabel', selector: 'select', label: '{locality}', optional: true, verifies: 'destination' },
-      { action: 'fill', selector: 'input[name*="zip" i], input[name*="postal" i], input[id*="zip" i], input[id*="postal" i]', value: '{postcode}', optional: true, verifies: 'destination' },
-      // Select the published home-courier method when the picker offers it, so
-      // the summary reflects a chosen method rather than a pre-selection. The
-      // step confirms the method the displayed shipping line belongs to.
-      { action: 'clickAnyText', texts: ['משלוח לבית הלקוח עם שליח'], optional: true, confirmsService: 'home_delivery' },
+      // The checkout exposes the home-delivery locality list as a closed select
+      // (#hfd_cities, 264 localities observed 2026-10-13). Selecting the
+      // requested locality is required, so a run that cannot set the
+      // destination is blocked instead of attributed to it.
+      { action: 'selectLabel', selector: '#hfd_cities', label: '{locality}', optional: false, verifies: 'destination' },
+      // The published home-courier method is an option in #delivery (₪25.00);
+      // the successful step confirms the method the displayed rate belongs to.
+      { action: 'selectLabel', selector: '#delivery', label: 'משלוח לבית הלקוח', optional: false, confirmsService: 'home_delivery' },
       { action: 'sleep', ms: 1500 },
       { action: 'readTotals' }
     ]

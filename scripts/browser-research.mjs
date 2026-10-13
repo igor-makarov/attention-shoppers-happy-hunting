@@ -390,10 +390,22 @@ function createResearchDriver(session) {
     const matched = await evalIn(script, args);
     if (!matched) return null;
     const id = await findElement('[data-research-click="1"]');
-    await wdValue(session, 'POST', `/element/${id}/click`, {});
+    let detail = matched;
+    try {
+      await wdValue(session, 'POST', `/element/${id}/click`, {});
+    } catch (error) {
+      // Legacy storefront controls can sit behind a decorative overlay that
+      // intercepts the native WebDriver click even after scrolling into view.
+      // The element's own click() fires the same site handler, so use it as a
+      // fallback and record that fact in the step detail instead of pretending
+      // the native click worked.
+      const clicked = await evalIn(`return (() => { const el = document.querySelector('[data-research-click="1"]'); if (!el) return false; el.click(); return true; })()`);
+      if (!clicked) throw error;
+      detail = `${matched} [element click() fallback: ${String(error?.message ?? error).slice(0, 100)}]`;
+    }
     await evalIn(`document.querySelector('[data-research-click="1"]')?.removeAttribute('data-research-click');`);
     await delay(1200);
-    return matched;
+    return detail;
   };
   return {
     async goto(url) {

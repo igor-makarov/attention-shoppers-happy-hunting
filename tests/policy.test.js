@@ -256,6 +256,9 @@ test('an old persisted CoffeeMan single-pack offer gains the published rule and 
   assert.match(board.best.shipping.alternatives[0].label, /cart-observed for 0\.5–1 kg carts/);
   assert.match(board.best.shipping.alternatives[0].note, /Free home courier was observed only on the exact/);
   assert.match(board.best.shipping.coverageCaveat, /home-delivery list/);
+  assert.match(board.best.shipping.coverageCaveat, /closed 264-locality select/, 'the observed checkout locality-list shape reaches an old persisted row');
+  assert.equal(board.best.shipping.destination.observed.homeDeliveryLocalities, 264, 'the structured coverage provenance is refreshed at read time');
+  assert.deepEqual(board.best.shipping.destination.observed.verifiedLocalities, ['תל אביב - יפו', 'ירושלים', 'חיפה', 'באר שבע', 'אילת']);
   assert.equal(board.best.shipping.policy.id, 'coffeeman-single-4pack-il-home-delivery');
   assert.equal(board.best.shipping.policy.version, 4);
   assert.equal(board.best.shipping.freeThreshold, null, 'the old row never gains a monotone threshold');

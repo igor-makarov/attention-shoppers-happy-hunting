@@ -231,12 +231,23 @@ export function parseCoffeemanProduct(html, { now, url = PRODUCT_URL, productId 
       // The product page publishes the courier rate but not the locality list, and the
       // vendor terms state home delivery is subject to that list. The caveat is kept
       // structured so the board can disclose the geographic restriction instead of
-      // claiming unconditional country-wide coverage.
+      // claiming unconditional country-wide coverage; the rendered-checkout list
+      // observation travels with it as policy provenance.
       destination: {
         scope: coveragePolicy.destination.scope,
         country: coveragePolicy.destination.country,
         caveat: coveragePolicy.destination.caveat,
-        caveatSource: coveragePolicy.destination.caveatSource
+        caveatSource: coveragePolicy.destination.caveatSource,
+        ...(coveragePolicy.destination.observed != null
+          ? {
+              observed: {
+                ...coveragePolicy.destination.observed,
+                ...(Array.isArray(coveragePolicy.destination.observed.verifiedLocalities)
+                  ? { verifiedLocalities: [...coveragePolicy.destination.observed.verifiedLocalities] }
+                  : {})
+              }
+            }
+          : {})
       },
       minOrder: null,
       freeThreshold: null,
