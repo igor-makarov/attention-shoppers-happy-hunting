@@ -88,7 +88,14 @@ stored `nextAttemptAt`, so a cron tick that lands seconds before the six-hour ma
 instead of silently drifting to a twelve-hour cadence; vendors inside a failure backoff keep their
 strict due time. `src/store.js` defines the SQLite-backed `BoardStore` Durable Object plus
 in-memory and file-backed stores with the same interface. Public routes in `src/index.js` are read-only
-snapshots of that storage and never fetch visitor-supplied URLs.
+snapshots of that storage and never fetch visitor-supplied URLs. A source can also be blocked at the
+network edge instead of failing to parse: on 2026-10-13 the production Worker received HTTP 403 for all
+three CoffeeMan product pages while the same bounded request (same user agent, headers, crawl delay and
+host allowlist) succeeded from the coding runner. The pipeline treats that like any other failure — the
+previous good observation keeps its own `observedAt`, price and stock, the offer details and footer say
+the last attempt failed, the retry is scheduled by backoff, and the shopper sees a short card-face
+`Last check failed` warning rather than a falsely fresh price. Nothing attempts to evade the vendor's
+edge decision.
 
 Verification is layered: `tests/*.test.js` covers parsers, quote edge cases, the shipping-policy
 evaluator (including an old persisted Pucks row and an old persisted CoffeeMan 8-pack row each gaining
