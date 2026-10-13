@@ -444,6 +444,74 @@ test('a newer policy version applies immediately without waiting for the next it
   assert.equal(board.shippingPolicies[0].observedAt, '2026-10-12T13:30:00Z');
 });
 
+/**
+ * A persisted Pucks row whose shipping was already stamped by policy v1 (same
+ * rate, older coverage evidence). This is the provenance-refresh acceptance
+ * case: a policy update must reach the row without a vendor refresh.
+ */
+function stampedPucksObservation({ version = 1, amount = 30 } = {}) {
+  return oldPersistedPucksObservation({
+    shipping: {
+      mode: 'delivery',
+      service: 'home_delivery',
+      certainty: 'checkout_quote',
+      amount: { amount, currency: 'ILS' },
+      freeThreshold: { amount: 100, currency: 'ILS' },
+      freeThresholdSemantics: 'above',
+      destination: {
+        scope: 'country',
+        country: 'IL',
+        caveat: 'The ₪30 rate was observed in the anonymous checkout estimator for Tel Aviv and Eilat carts; the fee did not change with locality and no restriction was displayed, but coverage for every locality was not individually verified.',
+        caveatSource: 'https://pucks.co.il/payment/request'
+      },
+      note: 'Shipping is calculated at checkout. Old policy evidence note.',
+      policy: {
+        id: 'pucks-il-home-delivery',
+        version,
+        origin: 'observed_cart',
+        retrievedAt: '2026-10-12T18:10:10Z',
+        reviewBy: '2026-11-11T00:00:00.000Z',
+        thresholdSemantics: 'above',
+        freeThresholdOrigin: null
+      },
+      evidence: { url: 'https://pucks.co.il/payment/request', retrievedAt: '2026-10-12T18:10:10Z', note: 'Old policy evidence note.' }
+    }
+  });
+}
+
+test('a same-rule policy update refreshes a stamped row\'s coverage evidence without touching its rate', () => {
+  const stored = stampedPucksObservation();
+  const storedSnapshot = JSON.parse(JSON.stringify(stored));
+  const enriched = enrichObservationShipping(stored, { policies: [pucksHomeDeliveryPolicy], now: NOW });
+  assert.equal(enriched.status, 'applied', 'an older policy version on a known row is refreshed, not ignored');
+  assert.equal(enriched.observation.shipping.amount.amount, 30, 'the rate is unchanged because the rule is identical');
+  assert.equal(enriched.observation.shipping.policy.version, 2, 'the row carries the newer policy version');
+  assert.equal(enriched.observation.shipping.policy.retrievedAt, '2026-10-13T01:41:10Z');
+  assert.match(enriched.observation.shipping.destination.caveat, /Haifa \/ 3100000/, 'the newer coverage caveat replaces the older one');
+  assert.equal(enriched.observation.shipping.evidence.retrievedAt, '2026-10-13T01:41:10Z', 'evidence that came from this policy is refreshed');
+  assert.match(enriched.observation.shipping.note, /evidence refreshed from validated policy pucks-il-home-delivery v2/);
+  assert.equal(enriched.observation.observedAt, FRESH, 'the item price/stock observation time is never rewritten');
+  assert.deepEqual(stored, storedSnapshot, 'the stored observation is never mutated');
+
+  // The same refreshed row still ranks with the unchanged ₪30/₪100 rule.
+  const board = quote([stored]);
+  assert.equal(board.best.totalIls, 90);
+  assert.equal(board.best.shipping.policy.version, 2);
+});
+
+test('a policy version that changes the rule never overwrites a known parsed rate at read time', () => {
+  const stored = stampedPucksObservation();
+  const changed = {
+    ...pucksHomeDeliveryPolicy,
+    version: 3,
+    rule: { ...pucksHomeDeliveryPolicy.rule, amount: { amount: 35, currency: 'ILS' } }
+  };
+  const enriched = enrichObservationShipping(stored, { policies: [changed], now: NOW });
+  assert.equal(enriched.status, 'already-known', 'a differing amount is left for the next vendor refresh, not swapped at read time');
+  assert.equal(enriched.observation.shipping.amount.amount, 30);
+  assert.equal(enriched.observation.shipping.policy.version, 1, 'the old stamp stays until the row is re-parsed');
+});
+
 test('the vendor boundary wording decides the free-shipping comparison', () => {
   // 4 × ₪25 = exactly the ₪100 threshold at 1 kg. "above ₪100" does not include
   // the boundary itself, so the ₪30 fee stays; "at least ₪100" makes it free.

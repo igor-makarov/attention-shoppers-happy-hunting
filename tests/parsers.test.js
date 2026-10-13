@@ -126,7 +126,8 @@ test('pucks parser reads the product JSON-LD and keeps the researched checkout r
   assert.equal(observation.shipping.freeThreshold.amount, 100);
   assert.match(observation.shipping.note, /checkout/i);
   assert.match(observation.shipping.destination.caveat, /not individually verified/, 'the observed rate keeps its coverage caveat');
-  assert.equal(observation.shipping.evidence.retrievedAt, '2026-10-12T18:10:10Z', 'shipping evidence keeps the research retrieval time, not the fetch time');
+  assert.match(observation.shipping.destination.caveat, /Haifa \/ 3100000/, 'the 2026-10-13 destination checks are part of the caveat evidence');
+  assert.equal(observation.shipping.evidence.retrievedAt, '2026-10-13T01:41:10Z', 'shipping evidence keeps the research retrieval time, not the fetch time');
 });
 
 test('pucks derived fixtures map out-of-stock and unlisted availability honestly', () => {

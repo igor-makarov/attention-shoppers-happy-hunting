@@ -207,7 +207,7 @@ of the CoffeeMan 8-pack page and the Pucks cart again found no published shippin
 | CoffeeMan (IL) | Crema e Gusto Classico 250 g ground, SKU 930333 | ₪33 (regular ₪36) | in stock (schema.org microdata) | ₪25 courier; ₪15 distribution-center alternative (cart-observed for 0.5-1 kg carts); free self-pickup | verified |
 | CoffeeMan (IL) | Crema e Gusto Classico 4 × 250 g ground, SKU 930334 | ₪124.00 | in stock | ₪25 courier; ₪15 distribution-center alternative (cart-observed for the 1 kg cart); free self-pickup | verified |
 | CoffeeMan (IL) | Crema e Gusto Classico 8 × 250 g ground, SKU 930335 | ₪240.00 | in stock | ₪20 home courier / ₪20 distribution-center / free self-pickup on the observed 2 kg cart | checkout_quote (conditional, cart ≤ 2000 g) |
-| Pucks (IL) | Crema e Gusto Classico 250 g ground, SKU Lav69, GTIN 8000070038769 | ₪30.00 | in stock (JSON-LD) | ₪30 home delivery, free above ₪100 item subtotal (observed 1-4 packs) | checkout_quote (conditional) |
+| Pucks (IL) | Crema e Gusto Classico 250 g ground, SKU Lav69, GTIN 8000070038769 | ₪30.00 | in stock (JSON-LD) | ₪30 home delivery, free above ₪100 item subtotal (observed 1-4 packs at five selectable localities; policy v2) | checkout_quote (conditional) |
 | Coffee4U (IL) | Crema e gusto 250 g ground, SKU 2010561, variant not stated | ₪38.00 | in stock (schema.org microdata) | ₪30 door-to-door courier; ₪15 pickup-point alternative; free self-pickup | verified |
 
 The two product-page courier rates (CoffeeMan ₪25, Coffee4U ₪30) and the two browser-researched

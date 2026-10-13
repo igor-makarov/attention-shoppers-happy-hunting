@@ -384,6 +384,28 @@ function ruleKey(rule, alternatives = []) {
 }
 
 /**
+ * Does this policy describe exactly the money/scope the row already carries?
+ * Used before refreshing a stamped row's provenance: a newer policy version may
+ * update evidence (coverage, retrieval time) without changing the rule, but a
+ * version that changes any amount must not overwrite a parsed rate at read time.
+ */
+function policyRuleMatchesShipping(policy, shipping) {
+  const rule = policy?.rule ?? {};
+  const sameAmount = (a, b) => (a?.amount ?? null) === (b?.amount ?? null) && (a?.currency ?? null) === (b?.currency ?? null);
+  if (!sameAmount(rule.amount, shipping?.amount)) return false;
+  if (!sameAmount(rule.freeThreshold, shipping?.freeThreshold)) return false;
+  if ((rule.thresholdSemantics ?? null) !== (shipping?.freeThresholdSemantics ?? null)) return false;
+  if ((rule.freeThresholdOrigin ?? null) !== (shipping?.freeThresholdOrigin ?? null)) return false;
+  if ((rule.minOrder?.amount ?? null) !== (shipping?.minOrder?.amount ?? null)) return false;
+  if ((rule.maxTotalGrams ?? null) !== (shipping?.maxTotalGrams ?? null)) return false;
+  const policyAlternatives = (policy?.alternatives ?? [])
+    .map(alternative => `${alternative.id}:${alternative.amount?.amount ?? '-'}${alternative.amount?.currency ?? ''}`).join(',');
+  const rowAlternatives = (shipping?.alternatives ?? [])
+    .map(alternative => `${alternative.id}:${alternative.amount?.amount ?? '-'}${alternative.amount?.currency ?? ''}`).join(',');
+  return policyAlternatives === rowAlternatives;
+}
+
+/**
  * Resolve which policy (if any) may enrich this observation.
  * Statuses: applied | already-known | unmatched | expired | invalid | inconsistent.
  */
@@ -495,7 +517,33 @@ export function enrichObservationShipping(observation, options = {}) {
     }
   }
 
-  if (!changed) return { observation, status: 'already-known', policy };
+  // A row stamped by an older version of the same policy keeps its amounts (the
+  // rule is identical) but must not keep older provenance: newly validated
+  // shipping knowledge — a coverage caveat, a re-check time — should reach
+  // persisted offers promptly instead of waiting for the next item refresh.
+  const stamp = shipping.policy;
+  const provenanceRefresh = !changed
+    && stamp?.id === policy.id
+    && Number.isFinite(Number(stamp.version))
+    && Number(stamp.version) < policy.version
+    && policyRuleMatchesShipping(policy, shipping);
+  if (!changed && !provenanceRefresh) return { observation, status: 'already-known', policy };
+
+  if (provenanceRefresh) {
+    if (policy.destination?.caveat && shipping.destination != null) {
+      shipping.destination = {
+        ...shipping.destination,
+        caveat: policy.destination.caveat,
+        caveatSource: policy.destination.caveatSource ?? shipping.destination.caveatSource ?? null
+      };
+    }
+    // Only refresh evidence that already came from this policy (same URL); a
+    // row with its own page-parsed evidence keeps it.
+    if (shipping.evidence?.url && policy.evidence?.url && shipping.evidence.url === policy.evidence.url) {
+      shipping.evidence = { ...shipping.evidence, retrievedAt: policy.evidence.retrievedAt, note: policy.evidence.note };
+    }
+  }
+
   shipping.policy = {
     id: policy.id,
     version: policy.version,
@@ -507,9 +555,10 @@ export function enrichObservationShipping(observation, options = {}) {
   };
   if (shipping.evidence == null) shipping.evidence = { ...policy.evidence };
   const originText = policy.origin === 'observed_cart' ? 'observed anonymous cart quote' : 'published rule';
-  shipping.note = [shipping.note, `Shipping rule applied from validated policy ${policy.id} v${policy.version} (${originText}, observed ${policy.evidence.retrievedAt}); confirm at checkout.`]
-    .filter(Boolean)
-    .join(' ');
+  const appliedText = provenanceRefresh
+    ? `Shipping evidence refreshed from validated policy ${policy.id} v${policy.version} (observed ${policy.evidence.retrievedAt}); the rate and its quantity scope are unchanged.`
+    : `Shipping rule applied from validated policy ${policy.id} v${policy.version} (${originText}, observed ${policy.evidence.retrievedAt}); confirm at checkout.`;
+  shipping.note = [shipping.note, appliedText].filter(Boolean).join(' ');
   return { observation: { ...observation, shipping }, status: 'applied', policy };
 }
 

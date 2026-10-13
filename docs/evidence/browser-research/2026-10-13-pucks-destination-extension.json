@@ -1,0 +1,74 @@
+{
+  "kind": "browser-research",
+  "topic": "Pucks anonymous checkout estimator: destination coverage extension for the remaining selectable localities",
+  "date": "2026-10-13",
+  "windowUtc": "2026-10-13T01:40:30Z to 2026-10-13T01:41:10Z",
+  "method": "Interactive headless Google Chrome 154.0.8037.97 + ChromeDriver 154.0.8037.92 through the reusable recipe workflow (npm run research:browser -- recipe pucks). Each run built an anonymous temporary cart from the tracked Pucks product page, reached the public checkout estimator through the cart's checkout link, filled the estimator's locality/postcode text fields, selected the home-delivery method and read the displayed item subtotal, shipping line and final total after recalculation. No order, payment, login, account creation or street address was involved, and no bot challenge was bypassed. Cart/session identifiers, cookies and tokens are stripped from the records.",
+  "why": "The checked-in Pucks policy (v1) had sampled Tel Aviv / 6100000, Eilat / 8800000 and Jerusalem / 9100000 only. Haifa / 3100000 and Be'er Sheva / 8400000 are selectable destinations on the site but had no estimator evidence, so this batch verifies the below-threshold fee and the free-over-₪100 rule at the missing localities.",
+  "toolingLimitation": "The coding agent's file-read tool rejects PNG input ('reading images is not supported'), so no image-based visual claim is made. Every amount below is backed by the rendered visible text captured in the same live session (see the per-run recipe files, which include the destination-verified step records and DOM excerpts); screenshots remain artifacts for a human reviewer.",
+  "quotes": [
+    {
+      "vendor": "Pucks",
+      "vendorId": "pucks",
+      "runFile": "docs/evidence/browser-research/2026-10-13-pucks-haifa-500g.json",
+      "observedAt": "2026-10-13T01:40:30.165Z",
+      "pack": "2 × 250 g = 500 g",
+      "locality": "חיפה",
+      "postcode": "3100000",
+      "destinationVerified": true,
+      "itemSubtotalIls": 60,
+      "shippingIls": 30,
+      "deliveredTotalIls": 90,
+      "freeThresholdText": "Free shipping above ₪100",
+      "arithmeticOk": true,
+      "qualification": "Below the displayed threshold: the ₪30 home-delivery fee was charged for a Haifa cart, matching the Tel Aviv and Eilat observations."
+    },
+    {
+      "vendor": "Pucks",
+      "vendorId": "pucks",
+      "runFile": "docs/evidence/browser-research/2026-10-13-pucks-beersheva-500g.json",
+      "observedAt": "2026-10-13T01:40:47.383Z",
+      "pack": "2 × 250 g = 500 g",
+      "locality": "באר שבע",
+      "postcode": "8400000",
+      "destinationVerified": true,
+      "itemSubtotalIls": 60,
+      "shippingIls": 30,
+      "deliveredTotalIls": 90,
+      "freeThresholdText": "Free shipping above ₪100",
+      "arithmeticOk": true,
+      "qualification": "Below the displayed threshold: the ₪30 home-delivery fee was charged for a Be'er Sheva cart; the fee did not change with locality."
+    },
+    {
+      "vendor": "Pucks",
+      "vendorId": "pucks",
+      "runFile": "docs/evidence/browser-research/2026-10-13-pucks-haifa-1kg.json",
+      "observedAt": "2026-10-13T01:41:10.287Z",
+      "pack": "4 × 250 g = 1000 g",
+      "locality": "חיפה",
+      "postcode": "3100000",
+      "destinationVerified": true,
+      "itemSubtotalIls": 120,
+      "shippingIls": 0,
+      "deliveredTotalIls": 120,
+      "freeThresholdText": "Free shipping above ₪100",
+      "arithmeticOk": true,
+      "qualification": "Above the displayed threshold: the same Haifa estimator session showed ₪0 delivery for a ₪120 item subtotal, reproducing the free-over-₪100 rule at a third locality."
+    }
+  ],
+  "coverage": {
+    "sampledDestinations": [
+      "Tel Aviv–Yafo / 6100000 (2026-10-12)",
+      "Eilat / 8800000 (2026-10-12)",
+      "Jerusalem / 9100000 (2026-10-12, free over the threshold)",
+      "Haifa / 3100000 (2026-10-13, charged below and free above)",
+      "Be'er Sheva / 8400000 (2026-10-13, charged below)"
+    ],
+    "unquoted": "The site's 'Elsewhere in Israel' option has no locality/postcode, and the estimator requires a locality, so it remains unquoted and the country-scope coverage caveat stays in place. The exact ₪100 boundary is still untestable with coffee-only carts (multiples of ₪30) and keeps the vendor's strict 'above' wording.",
+    "promotion": "The three runs are the promoted evidence for the Pucks policy v2 coverage caveat and evidence note in src/lib/policies.js; the rule itself (₪30, free above ₪100, strict 'above' semantics) is unchanged."
+  },
+  "noOrderSubmitted": true,
+  "noLoginOrAccount": true,
+  "noStreetAddress": true,
+  "noBotChallengeBypass": true
+}

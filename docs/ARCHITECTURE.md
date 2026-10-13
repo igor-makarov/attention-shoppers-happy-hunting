@@ -51,14 +51,18 @@ product/SKU scope, service, destination scope, the amount or free-shipping thres
 vendor's `above`/`at_least` wording preserved), the evidence URL and retrieval time, and a `reviewBy`
 date. `quoteBoard()` applies the evaluator at read time: an observation whose own shipping is unknown
 is enriched with a matching validated policy, while an observation that already carries a fresher
-amount, threshold or destination is never overwritten. The evaluator is deterministic and refuses to
+amount, threshold or destination is never overwritten. A row already stamped by an **older version of
+the same policy** whose money/scope is identical gets its provenance refreshed at read time (newer
+version, retrieval time, coverage caveat and evidence note) so a validated coverage or re-check update
+reaches persisted offers promptly; a version that changes any amount is left for the next vendor
+refresh and never swapped in at read time. The evaluator is deterministic and refuses to
 guess: conflicting policies for the same scope stay `inconsistent`, a malformed policy is `invalid`,
 and a policy past its review date is `expired`, so the offer falls back to explicit unknown shipping
 instead of a stale unconditional rate. Enrichment never touches the observation's price, stock,
 `observedAt` or the refresh completion marker, so applying a newer shipping rule cannot claim a fresh
 vendor price/stock check; `policySummary()` exposes the rule version, observation time and review date
 through `/api/status`. Four validated policies are checked in: Pucks' ₪30/free-above-₪100 home-delivery
-rule, CoffeeMan's published ₪25 single/4-pack rule with its cart-observed ₪15 distribution-center
+rule v2 (its coverage caveat names the five selectable localities sampled in the estimator), CoffeeMan's published ₪25 single/4-pack rule with its cart-observed ₪15 distribution-center
 alternative and the cart-observed free condition (free home courier from the lowest observed free ₪231
 item subtotal; a ₪198 cart was charged ₪25, so the condition is stored at that observed scope with its
 own `observed_cart` origin and evidence and is never presented as a published threshold), CoffeeMan's
