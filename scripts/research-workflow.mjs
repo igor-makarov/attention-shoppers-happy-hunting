@@ -244,14 +244,18 @@ export function parseCoffeemanTotals(text) {
 export function parseCoffee4uTotals(text) {
   const value = String(text ?? '');
   // The item subtotal is the amount printed on the tracked product line
-  // ("Lavazza Crema e gusto 250 gr טחון ₪ 76"); the checkout has no separate
-  // "סכום ביניים" label.
-  const subtotal = /(?:Lavazza\s+)?Crema\s*e\s*gusto[^\n]*?₪\s*([\d.,]+)/i.exec(value)?.[1] ?? null;
-  // After a method is selected the summary shows "משלוח ₪30"; before that the
-  // method card shows option prices ("... - 15 ₪"), which must not be read as
-  // the applied charge. The shekel sign sits before the amount on this page.
-  const shippingMatch = /(?:משלוח|דמי משלוח|הובלה)[^\S\n]*₪\s*([\d.,]+)/i.exec(value)
-    ?? /(?:משלוח|דמי משלוח|הובלה)[^\S\n]*([\d.,]+|חינם|free)/i.exec(value);
+  // ("Lavazza Crema e gusto 250 gr טחון" then "₪ 76"); the checkout has no
+  // separate "סכום ביניים" label. The rendered label and amount can sit on two
+  // lines, so the product-line match may cross one line break (bounded).
+  const subtotal = /(?:Lavazza\s+)?Crema\s*e\s*gusto[\s\S]{0,80}?₪\s*([\d.,]+)/i.exec(value)?.[1] ?? null;
+  // After a method is selected the summary shows a bare "משלוח" label and then
+  // the amount ("₪30"), often on the next line; before that the method card
+  // shows option prices ("... - 15 ₪"), which must not be read as the applied
+  // charge. The shekel sign sits before the amount on this page. A bare
+  // "משלוח" summary line is required so the method-card sentences cannot match.
+  const shippingMatch = /(?:^|\n)[ \t]*(?:משלוח|דמי משלוח|הובלה)[ \t]*\n[ \t]*₪\s*([\d.,]+)/i.exec(value)
+    ?? /(?:^|\n)[ \t]*(?:משלוח|דמי משלוח|הובלה)[ \t]*₪\s*([\d.,]+)/i.exec(value)
+    ?? /(?:^|\n)[ \t]*(?:משלוח|דמי משלוח|הובלה)[ \t]*\n[ \t]*([\d.,]+|חינם|free)/i.exec(value);
   const total = /(?:סה"כ לתשלום|סך הכל|סכום כולל מע["״]?מ)[^\d]{0,12}([\d.,]+)/.exec(value)?.[1] ?? null;
   const shipping = shippingMatch?.[1] ?? null;
   return {

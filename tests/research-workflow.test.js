@@ -8,6 +8,7 @@ import {
   sanitizeExcerpt,
   parsePucksTotals,
   parseCoffeemanTotals,
+  parseCoffee4uTotals,
   buildEvidenceRecord,
   validateEvidence,
   listRecipes,
@@ -39,6 +40,31 @@ const COFFEEMAN = `סיכום הזמנה
 סכום ביניים 66 ₪
 משלוח 25 ₪
 סה"כ 91 ₪`;
+
+// The real Coffee4U checkout layout captured on 2026-10-13: the tracked
+// product line and its amount are on separate lines, the method cards print
+// their option prices before a method is applied, and the applied summary fee
+// is a bare "משלוח" label followed by "₪30" on the next line.
+const COFFEE4U_500G = `דף רכישה
+Lavazza Crema e gusto 250 gr טחון
+₪ 76
+משלוח ותשלום
+*בחר שיטת משלוח
+משלוח לנקודת איסוף צ\`יטה שופס (עד 7 ימי עסקים - עד 5 ק"ג 30*30*30) - 15 ₪
+שליחות מדלת לדלת עד 1-5 ימי עסקים - 30 ₪
+(ברצוני לבצע איסוף עצמי להזמנה)
+משלוח
+₪30
+סכום כולל מע"מ
+₪106`;
+
+test('the Coffee4U parser reads the real checkout layout with label and amount on separate lines', () => {
+  const totals = parseCoffee4uTotals(COFFEE4U_500G);
+  assert.equal(totals.itemSubtotalIls, 76, 'the product-line amount is the item subtotal');
+  assert.equal(totals.shippingIls, 30, 'the applied summary fee is read, not a method-card option price');
+  assert.equal(totals.deliveredTotalIls, 106);
+  assert.equal(totals.currency, 'ILS');
+});
 
 test('recipes cover the three tracked vendors with whole-pack cart steps', () => {
   const list = listRecipes();
