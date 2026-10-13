@@ -21,6 +21,36 @@
 
 export const EVIDENCE_SCHEMA_VERSION = 1;
 
+// The single, 4-pack and 8-pack CoffeeMan listings share one public checkout
+// flow; these steps are the shared navigation data so each listing's recipe
+// differs only by product URL and pack size.
+const COFFEEMAN_CHECKOUT_STEPS = [
+  { action: 'goto', url: '{productUrl}' },
+  { action: 'waitText', text: 'crema', timeout: 20000 },
+  // The live add-to-cart control is an anchor labelled "קנה עכשיו" whose
+  // onclick calls the site's own addme_cart; the older labels stay listed
+  // for page variants, but only one control matches. A native WebDriver
+  // click on it is intercepted by a page overlay, so clickAnyText falls
+  // back to the element's own click() (recorded in the step detail).
+  { action: 'clickAnyText', texts: ['קנה עכשיו', 'הוסף לעגלה', 'הוספה לסל'], optional: false },
+  { action: 'goto', url: '{cartUrl}', optional: true },
+  // The checkout summary label is "סכום כולל מע\"מ" (the cart page prints
+  // "סה\"כ"); wait for the checkout summary so the totals are read after the
+  // page has rendered them.
+  { action: 'waitText', text: 'סכום כולל', timeout: 20000, optional: true },
+  { action: 'setQuantity', target: '{grams}', optional: true },
+  // The checkout exposes the home-delivery locality list as a closed select
+  // (#hfd_cities, 264 localities observed 2026-10-13). Selecting the
+  // requested locality is required, so a run that cannot set the
+  // destination is blocked instead of attributed to it.
+  { action: 'selectLabel', selector: '#hfd_cities', label: '{locality}', optional: false, verifies: 'destination' },
+  // The published home-courier method is an option in #delivery (₪25.00);
+  // the successful step confirms the method the displayed rate belongs to.
+  { action: 'selectLabel', selector: '#delivery', label: 'משלוח לבית הלקוח', optional: false, confirmsService: 'home_delivery' },
+  { action: 'sleep', ms: 1500 },
+  { action: 'readTotals' }
+];
+
 /**
  * Vendor recipes. `optional: true` steps are attempted and reported but do not
  * block the run; a failed required step stops that run with a blocker record.
@@ -74,32 +104,22 @@ export const RECIPES = {
     allowedHosts: ['www.coffeeman.co.il', 'coffeeman.co.il'],
     packGrams: 250,
     parseTotals: parseCoffeemanTotals,
-    steps: [
-      { action: 'goto', url: '{productUrl}' },
-      { action: 'waitText', text: 'crema', timeout: 20000 },
-      // The live add-to-cart control is an anchor labelled "קנה עכשיו" whose
-      // onclick calls the site's own addme_cart; the older labels stay listed
-      // for page variants, but only one control matches. A native WebDriver
-      // click on it is intercepted by a page overlay, so clickAnyText falls
-      // back to the element's own click() (recorded in the step detail).
-      { action: 'clickAnyText', texts: ['קנה עכשיו', 'הוסף לעגלה', 'הוספה לסל'], optional: false },
-      { action: 'goto', url: '{cartUrl}', optional: true },
-      // The checkout summary label is "סכום כולל מע\"מ" (the cart page prints
-      // "סה\"כ"); wait for the checkout summary so the totals are read after the
-      // page has rendered them.
-      { action: 'waitText', text: 'סכום כולל', timeout: 20000, optional: true },
-      { action: 'setQuantity', target: '{grams}', optional: true },
-      // The checkout exposes the home-delivery locality list as a closed select
-      // (#hfd_cities, 264 localities observed 2026-10-13). Selecting the
-      // requested locality is required, so a run that cannot set the
-      // destination is blocked instead of attributed to it.
-      { action: 'selectLabel', selector: '#hfd_cities', label: '{locality}', optional: false, verifies: 'destination' },
-      // The published home-courier method is an option in #delivery (₪25.00);
-      // the successful step confirms the method the displayed rate belongs to.
-      { action: 'selectLabel', selector: '#delivery', label: 'משלוח לבית הלקוח', optional: false, confirmsService: 'home_delivery' },
-      { action: 'sleep', ms: 1500 },
-      { action: 'readTotals' }
-    ]
+    steps: COFFEEMAN_CHECKOUT_STEPS
+  },
+  // The same public checkout flow drives the tracked 4 × 250 g multipack
+  // listing (SKU 930334); only the product URL and pack size differ, so the
+  // free-cart conditions observed on a two-4-pack cart can be re-checked per
+  // destination through the reusable recipe instead of an ad-hoc session.
+  'coffeeman-4pack': {
+    id: 'coffeeman-4pack',
+    vendorId: 'coffeeman',
+    vendorName: 'CoffeeMan (Amigo)',
+    productUrl: 'https://www.coffeeman.co.il/product/4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico',
+    cartUrl: 'https://www.coffeeman.co.il/checkout.asp',
+    allowedHosts: ['www.coffeeman.co.il', 'coffeeman.co.il'],
+    packGrams: 1000,
+    parseTotals: parseCoffeemanTotals,
+    steps: COFFEEMAN_CHECKOUT_STEPS
   },
   coffee4u: {
     id: 'coffee4u',
