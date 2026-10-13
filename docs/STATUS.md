@@ -15,7 +15,9 @@ tests, 94/94 offline browser checks with zero console errors) and against the de
 build is live (production probe 25/25 at 01:53 UTC, live browser QA 85/85 at 00:28 UTC with zero console
 errors), the Pucks free-above-₪100 rule and its v2 five-locality coverage evidence are applied to the old
 persisted store at read time (verified in production at 01:53 UTC without a vendor refresh), and obsolete
-`variant=` URLs resolve to that one board.
+`variant=` URLs resolve to that one board. The 3-85 scoped-condition build is live as well (read-only
+probe passed at 02:42 UTC, including the 2 kg exact-free-condition and 3 kg base-rate checks, and
+headless-Chrome QA against production passed 90/90 at 02:48 UTC with zero console errors).
 Iteration 3-81 removes the last variant coupling from the data layer: a stored offer's identity key no
 longer contains the blend wording a listing prints, legacy blend-keyed rows are collapsed at read time
 with their stable-key replacement (newest observation wins), and failure markers plus previous-check
