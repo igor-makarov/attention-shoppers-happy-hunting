@@ -2525,3 +2525,8 @@ to the committed `main` HEAD — `product.js` sha256-16 `6d4375d9385d01db`, `ui.
 `style.css` `882a90708554a5ed` and the rendered `/product/lavazza-crema-e-gusto-vacuum-ground` HTML
 `e9fe6e03af757302` all match locally — so the 3-90/3-91 UI and matcher fixes verified here are the code the
 deployed Worker is actually serving (docs/test-only commits since then do not change the bundle).
+
+**Next step:** the next vendor attempt is CoffeeMan's backoff retry at **07:17:42Z** (Pucks/Coffee4U next
+at 12:17:42Z). Record whether the Worker-egress 403 persists; if it does, keep the last-known-good
+observation and warning rather than bypassing the vendor control, and spend the iteration on verified
+Crema e Gusto work rather than repeated unchanged probes.
