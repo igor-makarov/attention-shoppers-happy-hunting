@@ -7,9 +7,9 @@ whose blend wording is not stated — is compared in one board for the selected 
 delivery method. The Canton Zürich product index + dedicated product page, the browser-researched shipping
 policies and the progressive-disclosure layout are validated locally (157/157 tests, 90/90 offline and 86/86
 live-local browser checks) and against the deployed site: the four-policy build is live (production probe 25/25
-at 01:35 UTC, live browser QA 85/85 at 00:28 UTC with zero console errors), the Pucks free-above-₪100 rule
-and its v2 five-locality coverage evidence are applied to the old persisted store at read time, and obsolete
-`variant=` URLs resolve to that one board.
+at 01:53 UTC, live browser QA 85/85 at 00:28 UTC with zero console errors), the Pucks free-above-₪100 rule
+and its v2 five-locality coverage evidence are applied to the old persisted store at read time (verified in
+production at 01:53 UTC without a vendor refresh), and obsolete `variant=` URLs resolve to that one board.
 Iteration 3-81 removes the last variant coupling from the data layer: a stored offer's identity key no
 longer contains the blend wording a listing prints, legacy blend-keyed rows are collapsed at read time
 with their stable-key replacement (newest observation wins), and failure markers plus previous-check
@@ -1963,7 +1963,10 @@ version until the next 6-hour vendor refresh — a provenance version of the kno
   `docs/evidence/local-provenance-refresh-20261013T0149Z.json`.
 - `npm run qa:browser` (offline fixtures) — **90/90** checks, zero console errors.
   `npm run qa:browser -- http://127.0.0.1:8789` against the fresh live Worker — **86/86**, zero
-  console errors.
+  console errors; `npm run qa:browser -- https://attention-shoppers.igormaka.workers.dev` against the
+  deployed build — **87/87**, zero console errors (home→product flow, unified comparison, named
+  vendors and money values from the live store). Evidence:
+  `docs/evidence/browser-qa-production-20261013T0154Z.json`.
 - `npm run cron:offline` — 6 bounded requests, all three vendors saved (five observations), no
   failures; the scheduled path is unaffected.
 - `npm run check:sources` (live, 01:50 UTC) — all five listings pass with unchanged prices and stock
@@ -1978,12 +1981,16 @@ version until the next 6-hour vendor refresh — a provenance version of the kno
 - Docs: `docs/SOURCES.md` records the destination extension and the v2 promotion; `docs/ARCHITECTURE.md`
   documents the provenance-refresh rule.
 
-**Production note:** the change is backwards compatible. The deployed store's Pucks row (parsed
-00:17 UTC with the v1 stamp) gains the v2 coverage caveat, evidence time and policy stamp at read time
-as soon as this build is live, without a vendor refresh and without advancing `lastRefreshAt`; the
-₪30 rate and threshold are unchanged, so no ranked total moves. No Cloudflare administration was used.
+**Production verification (read-only, 01:53 UTC):** the main-push build deployed within about two
+minutes, and `https://attention-shoppers.igormaka.workers.dev` now serves the change end to end. The old
+persisted Pucks row (observed 2026-10-13T00:17:54.216Z, legacy key `pucks:Lav69:classico:ground:250g:x1`)
+returns policy **v2** with the five-locality coverage caveat and evidence time 2026-10-13T01:41:10Z
+while the ₪30 rate, the ₪90 total and the item observation time are unchanged; `/api/status` serves
+`pucks-il-home-delivery` v2. The read-only probe passed **25/25** checks. Evidence:
+`docs/evidence/production-probe-20261013T0153Z.json`,
+`docs/evidence/production-provenance-refresh-20261013T0153Z.json`. No vendor refresh, no
+`lastRefreshAt` advance and no Cloudflare administration were used.
 
-**Next step:** after the main-push build deploys, re-run `npm run probe:production` to confirm the
-deployed Pucks offer serves policy v2 / the five-locality caveat from the old persisted row at read
-time, and after the **06:17 UTC tick** record whether the CoffeeMan egress block persists; then
-continue within Crema e Gusto coverage, shipping evidence, freshness and comparison quality.
+**Next step:** after the **06:17 UTC tick** record whether the CoffeeMan egress block persists and
+whether the refreshed rows parse; then continue within Crema e Gusto coverage, shipping evidence,
+freshness and comparison quality.
