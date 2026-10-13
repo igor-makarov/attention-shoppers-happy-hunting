@@ -669,6 +669,7 @@ try {
       /Last check failed/.test(failedCardNotes.best ?? ''), failedCardNotes.best);
     check('failure: a ranked offer whose last check failed shows the same warning in the comparison list',
       failedCardNotes.compare.some(text => /Last check failed/.test(text)), failedCardNotes.compare.join(' | '));
+    await screenshot(wd, 'product-desktop-failed-attempt.png');
   } finally {
     await failedServer.close();
   }

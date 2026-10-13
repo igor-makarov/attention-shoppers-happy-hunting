@@ -1705,7 +1705,19 @@ live browser QA against the deployed site at 00:28 UTC passed **85/85** with zer
 new live-only check found three ranked CoffeeMan rows with `lastAttemptFailed: true` and asserted the
 card-face warning text in the comparison list, while the fresh Pucks best card correctly shows no failure
 line. Evidence: `docs/evidence/browser-qa-production-20261013T0031Z.json` (report finished
-00:28:46 UTC), offline **88/88** (`docs/evidence/browser-qa-fixtures-20261013T0027Z.json`).
+00:28:46 UTC), offline **88/88** (`docs/evidence/browser-qa-fixtures-20261013T0031Z.json`).
+
+**Local-live verification of the current build.** A fresh-store `wrangler dev` Worker (00:34-00:35 UTC,
+live vendor fetches, no browser opened for the refresh) completed its initial refresh at
+00:35:02.425Z; all three vendors succeeded from the runner's egress with no failures, five observations
+were stored, and the board ranked Pucks ₪90.00 at 500 g and ₪240.00 at 2 kg. Live browser QA against that
+Worker passed **84/84** with zero console errors. Evidence:
+`docs/evidence/worker-runtime-status-2026-10-13T0035Z.json`,
+`docs/evidence/browser-qa-live-20261013T0035Z.json`. Visual-review record for the failed-check warning:
+`docs/evidence/visual-review/2026-10-13-failed-check-warning.json` with the sanitized screenshot
+`failed-check-warning-desktop-1440-20261013.png`; the file-read tool still rejects PNG input, so labels
+and amounts are corroborated by rendered DOM text and the API in the same session and the pixel map is
+coarse layout/colour evidence only.
 
 **Next step:** re-run `npm run probe:production` after the **06:17 UTC tick** (the next scheduled attempt
 for all three vendors: Pucks/Coffee4U are due at 06:17:54 within the 15-minute phase-lock slack and

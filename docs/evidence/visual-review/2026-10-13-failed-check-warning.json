@@ -1,0 +1,41 @@
+{
+  "kind": "review",
+  "reviewedAt": "2026-10-13T00:31:30Z",
+  "iteration": "3-80",
+  "title": "A failed last check is warned visibly on ranked offer cards",
+  "where": "fixture QA harness (offline) and the deployed site (live production QA)",
+  "whatChanged": "public/ui.js failedCheckNote() renders one short amber line ('Last check failed — showing the last successful observation.') under the money values of the best-offer card and of each ranked comparison card when quote.lastAttemptFailed is true; the attempt time, error and last successful check stay in 'Offer details and check history' and the footer keeps the failing-source diagnostics.",
+  "trigger": "The production Worker received HTTP 403 for all three CoffeeMan product pages on the 00:17 UTC scheduled refresh while the same request succeeded from the runner, so the persisted CoffeeMan rows still rank their 15:51:52 UTC observations with lastAttemptFailed: true. Before this change a shopper saw the failure only inside the details/footer.",
+  "imageToolLimitation": "The file-read tool rejects PNG input ('reading images is not supported'), so no image-based claim is made. The coarse character/pixel maps below are layout/colour-region evidence only and cannot establish that text is correct; every label and amount is corroborated by rendered DOM text and the API in the same browser session.",
+  "evidence": {
+    "offlineFixtures": {
+      "command": "npm run qa:browser",
+      "result": "88/88 checks pass, zero console errors, report finished 2026-10-13T00:31:30Z",
+      "file": "docs/evidence/browser-qa-fixtures-20261013T0031Z.json",
+      "newChecks": [
+        "failure: the best-offer card face warns visibly that the last check failed — 'Last check failed — showing the last successful observation.'",
+        "failure: a ranked offer whose last check failed shows the same warning in the comparison list — 'Last check failed — showing the last successful observation.'"
+      ]
+    },
+    "production": {
+      "command": "npm run qa:browser -- https://attention-shoppers.igormaka.workers.dev",
+      "result": "85/85 checks pass, zero console errors, report finished 2026-10-13T00:28:46Z",
+      "file": "docs/evidence/browser-qa-production-20261013T0031Z.json",
+      "liveCheck": "live: a ranked production offer whose last check failed warns visibly on the card face — best: null (fresh Pucks best card), compare: three CoffeeMan cards with 'Last check failed — showing the last successful observation.'",
+      "servedAsset": "GET /ui.js at 00:27 UTC contained failedCheckNote and the 'Last check failed' text, so the 3-80 build is the deployed one"
+    },
+    "domCorroboration": {
+      "bestCard": "fresh Pucks best card shows no failure line; its coverage qualifier remains",
+      "compareCards": "three ranked CoffeeMan cards (single, 4-pack, 8-pack) each carry exactly one .qualifier--failure line",
+      "moneyValues": "offline mobile 390x844: item subtotal ₪60.00, shipping ₪30.00 and delivered total ₪90.00 remain inside the initial viewport; the failure line sits below the money and does not push it offscreen"
+    },
+    "pixelMap": {
+      "command": "node scripts/inspect-screenshot.mjs .shurik-local/qa/product-desktop-failed-attempt.png --cols 110 --rows 34 --map color --palette",
+      "result": "blue 12381 px (best-card rule), softblue 406807 px (best panel), amber 997 px bbox x117-873 y450-856 (failure/coverage notes), green 419 px (stock labels), red 0 px; coarse layout/colour evidence only"
+    }
+  },
+  "screenshots": [
+    "docs/evidence/visual-review/failed-check-warning-desktop-1440-20261013.png",
+    "docs/evidence/visual-review/product-mobile-390-20261013.png"
+  ]
+}
