@@ -1,0 +1,125 @@
+{
+ "capturedAt": "2026-10-13T03:42:01.297Z - 2026-10-13T03:42:10.342Z (read-only browser QA against https://attention-shoppers.igormaka.workers.dev, 102/102 checks, zero console errors)",
+ "iteration": "3-88",
+ "whatChanged": "scripts/browser-qa.mjs live mode now captures the deployed store's real 2 kg winner on 390x844 when its last check failed. The owner review asked for both the 500 g card and the 2 kg CoffeeMan winner in the real last-check-failed state with the vendor, accurate packs/grams, item subtotal, named method/charge and delivered total inside the first mobile viewport. The previous live capture only covered the 500 g CoffeeMan comparison card; the production 2 kg winner (8 x 250 g CoffeeMan singles, free via the observed singles-8 cart condition) was captured now. Two new checks derive every expectation from the live /api/board response, so a healthy board does not fail them.",
+ "liveChecks": {
+  "2 kg winner card, 390 px viewport (innerHeight 701)": {
+   "failure": "Last check failed — showing the last successful observation.",
+   "failureRect": {
+    "bottom": 724,
+    "left": 34,
+    "right": 344,
+    "top": 673
+   },
+   "innerHeight": 701,
+   "innerWidth": 390,
+   "item": "₪237.60",
+   "itemRect": {
+    "bottom": 440,
+    "left": 34,
+    "right": 177,
+    "top": 418
+   },
+   "method": "Home delivery",
+   "methodRect": {
+    "bottom": 504,
+    "left": 202,
+    "right": 332,
+    "top": 485
+   },
+   "overflow": false,
+   "pack": "250 g pack · 8 × 250 g packs = 2000 g",
+   "shipping": "Free (observed for this cart)",
+   "total": "₪237.60",
+   "totalRect": {
+    "bottom": 636,
+    "left": 34,
+    "right": 332,
+    "top": 614
+   },
+   "vendor": "CoffeeMan (אמיגו) IN STOCK (OBSERVED)"
+  },
+  "2 kg winner failed-check warning visible in the first viewport": {
+   "failure": "Last check failed — showing the last successful observation.",
+   "failureRect": {
+    "bottom": 724,
+    "left": 34,
+    "right": 344,
+    "top": 673
+   },
+   "viewport": 701
+  },
+  "500 g failing CoffeeMan card (comparison disclosure)": {
+   "failure": "Last check failed — showing the last successful observation.",
+   "method": "Home delivery",
+   "pack": "250 g pack · 2 × 250 g packs = 500 g",
+   "totals": [
+    "₪66.00",
+    "₪25.00",
+    "₪91.00"
+   ],
+   "vendor": "CoffeeMan (אמיגו) IN STOCK (OBSERVED)"
+  }
+ },
+ "screenshots": [
+  "product-live-2kg-winner-card-20261013T0342Z.png (343x416, cropped best-offer card: CoffeeMan (אמיגו) IN STOCK (OBSERVED), 250 g pack · 8 × 250 g packs = 2000 g, ₪237.60 item, Free (observed for this cart), Home delivery, ₪237.60 total, amber last-check-failed note)",
+  "product-live-2kg-winner-viewport-20261013T0342Z.png (390x701 headless viewport capture of the same state)",
+  "product-live-failing-offer-card-20261013T0342Z.png (1190x400, the deployed 500 g CoffeeMan card with the same real failed state: ₪66.00 + ₪25.00 = ₪91.00, Home delivery)"
+ ],
+ "renderedContrast": {
+  "the live 2 kg winner with the failed-check warning (mobile)": {
+   "checked": 211,
+   "minimum": 4.61,
+   "minimumText": "In stock (observed)",
+   "violations": []
+  }
+ },
+ "productionState": {
+  "lastRefreshAt": "2026-10-13T00:18:15.896Z",
+  "lastObservationAt": "2026-10-13T00:17:54.216Z",
+  "coffeeman": {
+   "vendorId": "coffeeman",
+   "lastAttemptAt": "2026-10-13T00:17:54.216Z",
+   "lastSuccessAt": "2026-10-12T15:51:52.931Z",
+   "consecutiveFailures": 1,
+   "nextAttemptAt": "2026-10-13T00:47:54.216Z",
+   "lastErrors": [
+    "HTTP 403",
+    "HTTP 403",
+    "HTTP 403"
+   ]
+  },
+  "policies": [
+   {
+    "id": "pucks-il-home-delivery",
+    "version": 2,
+    "expired": false,
+    "freeCartConditions": []
+   },
+   {
+    "id": "coffeeman-single-4pack-il-home-delivery",
+    "version": 3,
+    "expired": false,
+    "freeCartConditions": [
+     "singles-7",
+     "singles-8",
+     "fourpack-2"
+    ]
+   },
+   {
+    "id": "coffeeman-8pack-il-cart-quote",
+    "version": 1,
+    "expired": false,
+    "freeCartConditions": []
+   },
+   {
+    "id": "coffee4u-il-home-delivery",
+    "version": 2,
+    "expired": false,
+    "freeCartConditions": []
+   }
+  ],
+  "note": "CoffeeMan Worker-egress HTTP 403 (three product URLs) at the 00:17:54 UTC tick; last-known-good observations still ranked with the visible failure warning. The next scheduled cron tick is 06:17 UTC."
+ },
+ "imageInspection": "The pinned file-read tool rejects image input, so the saved PNGs were not machine-inspected as images. The coarse density/colour map (scripts/inspect-screenshot.mjs) shows the card layout and the amber failure band, and the DOM text/geometry from the same QA session corroborates the vendor, pack/gram arithmetic and money values. A character map is not native image reading and cannot prove text correctness."
+}

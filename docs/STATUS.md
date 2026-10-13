@@ -2166,3 +2166,60 @@ the next actual CoffeeMan vendor attempt.
 **Next step:** after the **06:17 UTC tick** record whether the CoffeeMan egress block persists and whether
 the refreshed rows parse; then continue within Crema e Gusto coverage, shipping evidence, freshness and
 comparison quality. Reuse the restored contrast walk when any color/layout change is made.
+
+## Iteration 3-88 — the live 2 kg winner with the real failed check captured on mobile (2026-10-13)
+
+**The gap.** The owner review asked for readable views of "both 500 g and the 2 kg CoffeeMan winner on
+mobile (including the real last-check-failed state)". Iteration 3-87 saved the deployed 500 g CoffeeMan
+card in the real failed state, but the production 2 kg winner — the CoffeeMan 8 × 250 g singles cart that
+is free via the observed `singles-8` condition and is still ranked from its last-known-good observation
+after the 00:17 UTC Worker-egress HTTP 403 — existed only as a fixture-backed capture. Live-mode
+`scripts/browser-qa.mjs` had no 2 kg winner view at all.
+
+**What changed (QA tooling only; no application, policy or runtime code touched).**
+
+- Live mode reuses the `/api/board?grams=2000&dest=tel-aviv` response it already fetches and, when the
+  live best offer exists, navigates the 390×844 viewport to the 2 kg product URL and measures the best
+  card. Two checks derive every expectation from the API — vendor name, pack/gram line, item subtotal,
+  named method, shipping value (including the free-condition label) and delivered total — and require the
+  item, method and total rects to end inside `window.innerHeight` with no horizontal overflow. When the
+  live winner's `lastAttemptFailed` is true, a third check requires the amber "Last check failed" note to
+  start inside the first viewport. The run saves `product-live-2kg-winner-card.png` (cropped best-offer
+  card) and `product-live-2kg-winner-viewport.png` (390×701 headless viewport), walks the rendered
+  contrast of the live winner state and then restores the 500 g product state the following checks use.
+  `tests/browser-qa-tooling.test.js` gains a source guard so the live 2 kg capture cannot silently
+  disappear again.
+
+**Verified locally (2026-10-13 UTC).**
+
+- `npm run verify` — **167/167** `node:test` cases (166 plus the new live-capture guard) and the
+  `wrangler deploy --dry-run` bundle (141.17 KiB / gzip 34.12 KiB; bindings `BOARD` + `ASSETS`).
+- `npm run qa:browser` (offline fixtures) — **102/102** checks, zero console errors. The live block is
+  skipped in fixture mode, so the fixture suite and its saved views are unchanged.
+- `npm run qa:browser -- https://attention-shoppers.igormaka.workers.dev` — **102/102** checks against the
+  deployed site, zero console errors (read-only public GETs; no deploy and no Cloudflare action). The new
+  live checks rendered the production winner exactly: CoffeeMan (אמיגו) IN STOCK (OBSERVED),
+  `250 g pack · 8 × 250 g packs = 2000 g`, item ₪237.60, shipping `Free (observed for this cart)`,
+  Home delivery, delivered total ₪237.60 and the amber "Last check failed — showing the last successful
+  observation." note. The item rect bottom 440, method 504 and total 636 all sit inside the 701 px first
+  viewport with no horizontal overflow, and the live winner contrast walk passed (211 elements, lowest
+  4.61:1). The 500 g live failing card was recaptured in the same run (₪66.00 + ₪25.00 = ₪91.00).
+- Production snapshot at 03:42 UTC (read-only `/api/status`): `lastRefreshAt` is still
+  `2026-10-13T00:18:15.896Z`; Pucks and Coffee4U last succeeded at 00:17:54Z; CoffeeMan keeps
+  `consecutiveFailures: 1`, last errors `HTTP 403 × 3` and `nextAttemptAt` 00:47:54Z (already in the
+  past because the Worker only attempts on the six-hour cron ticks). Policies pucks v2, CoffeeMan
+  single/4-pack v3 (conditions `singles-7`/`singles-8`/`fourpack-2`), CoffeeMan 8-pack v1 and Coffee4U
+  v2 are all unexpired. The 06:17 UTC tick remains the next actual CoffeeMan vendor attempt.
+- PNG limitation (unchanged): the pinned file-read tool rejects image input, so the new cropped card was
+  not machine-inspected as an image. The coarse density/colour map and the DOM text/geometry from the
+  same session are recorded in the evidence file; labels and arithmetic are corroborated by DOM/API
+  assertions, not by image reading.
+
+**Evidence:** `docs/evidence/browser-qa-production-20261013T0342Z.json`,
+`docs/evidence/production-status-20261013T0342Z.json`,
+`docs/evidence/visual-review/2026-10-13-live-2kg-winner-failed-state.json` and the timestamped cropped
+views under `docs/evidence/visual-review/`.
+
+**Next step:** after the **06:17 UTC tick** record whether the CoffeeMan egress block persists and
+whether the refreshed rows parse, then continue within Crema e Gusto coverage, shipping evidence,
+freshness and comparison quality.

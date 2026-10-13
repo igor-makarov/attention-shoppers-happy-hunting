@@ -56,3 +56,10 @@ test('browser QA saves cropped element views of the affected offer cards', () =>
   }
   assert.match(source, /\/element\/\$\{id\}\/screenshot/);
 });
+
+test('browser QA captures the live 2 kg winner in the real failed state on mobile', () => {
+  assert.match(source, /live mobile: the real 2 kg winner shows vendor, packs\/grams, item, named method\/charge and total in the first viewport/);
+  assert.match(source, /live mobile: the real 2 kg winner with the failed last check keeps its warning visible in the first viewport/);
+  assert.match(source, /api2000\.best\.lastAttemptFailed/);
+  assert.match(source, /product-live-2kg-winner-viewport\.png/);
+});
