@@ -2506,3 +2506,16 @@ claimed; the DOM geometry, PNG dimensions and scroll state are the evidence.
 the 00:17 cron run saved Pucks and Coffee4U successfully and failed CoffeeMan with `HTTP 403` on all three
 offers (`lastSuccessAt 2026-10-12T15:51:52.931Z`, `consecutiveFailures 1`, backoff
 `nextAttemptAt 2026-10-13T00:47:54.216Z`). The 06:17 UTC cron tick is the next actual vendor attempt.
+
+**06:17 UTC cron outcome (read-only probe at 06:18:48Z, 34/34 checks).** The scheduled tick actually ran:
+`cron` run `2026-10-13T06:17:42.285Z → 06:17:59.310Z`, 6 vendor requests. Pucks and Coffee4U saved fresh
+observations at 06:17:42Z; **CoffeeMan failed again with `HTTP 403` on all three offers** from the Worker
+egress, so `consecutiveFailures` is now 2, `lastSuccessAt` remains `2026-10-12T15:51:52.931Z`, and the
+next attempt backs off to 07:17:42Z. Retention is honest: `/api/board?grams=2000&dest=tel-aviv` still ranks
+CoffeeMan's last-known-good 2 kg cart at ₪237.60 (`lastAttemptFailed: true`, `observedAt
+2026-10-12T15:51:52.931Z`, `serviceLabel "Home delivery"`, free condition `singles-8`, the 10% promotion
+and the coverage caveat in its labels), 3 kg of singles keeps the published ₪25 base rate (₪381.40) instead
+of inheriting free delivery, the over-2000 g eight-pack stays unrankable with the written cart-scope reason,
+and the board is not stale (`lastRefreshAt 06:17:59.310Z`, `stale: false`). No access control was bypassed
+and no Cloudflare administration was attempted; the runner-side HTTP 200 vs Worker-side 403 difference is
+recorded for the maintainer. Evidence: `docs/evidence/production-probe-20261013T0619Z.json`.
