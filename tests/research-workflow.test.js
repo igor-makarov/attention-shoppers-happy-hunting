@@ -631,6 +631,39 @@ test('the checked-in 8-single free-cart records keep the discount and method evi
   assert.equal(historical.renderedSummary?.totalLine, '₪237.60');
 });
 
+test('the checked-in 8-pack recipe records reproduce the ₪20 quote at two destinations', () => {
+  // The 8 × 250 g multipack recipe (SKU 930335, one cart unit = 2000 g) makes
+  // the distinct ₪20 cart quote re-checkable per destination through the same
+  // reusable workflow, instead of an ad-hoc session.
+  const dir = new URL('../docs/evidence/browser-research/', import.meta.url);
+  const names = [
+    '2026-10-13-coffeeman-8pack-recipe-telaviv.json',
+    '2026-10-13-coffeeman-8pack-recipe-eilat.json'
+  ];
+  const localities = new Set();
+  for (const name of names) {
+    const record = JSON.parse(readFileSync(new URL(name, dir), 'utf8'));
+    const validation = validateEvidence(record);
+    assert.equal(validation.ok, true, `${name}: ${JSON.stringify(validation.errors)}`);
+    assert.equal(record.status, 'quoted', name);
+    assert.equal(record.sku, '930335', name);
+    assert.equal(record.pack, '1 × 2000 g = 2000 g', name);
+    assert.equal(record.observedPacks, 1, name);
+    assert.equal(record.destinationVerified, true, name);
+    assert.equal(record.service, 'home_delivery', name);
+    assert.equal(record.serviceConfirmed, true, name);
+    assert.equal(record.itemSubtotalBeforeDiscountIls, 240, name);
+    assert.equal(record.shippingIls, 20, name);
+    assert.equal(record.shippingEvidenceSource, 'applied-line', name);
+    assert.equal(record.deliveredTotalIls, 260, name);
+    assert.equal(record.arithmeticOk, true, name);
+    assert.match(record.serviceLabel, /20\.00 ₪/, name);
+    assert.ok(record.steps.some(step => step.ok && /1 pack\(s\) in cart/.test(step.detail ?? '')), `${name}: whole-pack quantity step`);
+    localities.add(record.locality);
+  }
+  assert.equal(localities.size, 2, 'the 8-pack recipe re-check covers two named destinations');
+});
+
 test('an omitted shipping row without the independent evidence stays blocked, never free', async () => {
   // The selected option is displayed at ₪25 while the applied summary row is
   // missing: the omitted row must not become free from a different option price.
