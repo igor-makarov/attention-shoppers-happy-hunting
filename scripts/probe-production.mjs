@@ -102,6 +102,13 @@ const summarizeBoard = board => ({
     shippingCertainty: quote.shipping?.certainty ?? null,
     freeCondition: quote.shipping?.freeCondition?.id ?? null,
     freeCartConditions: (quote.shipping?.freeCartConditions ?? []).map(condition => condition.id),
+    // The item/stock observation time and the policy stamp are part of the
+    // read-only verification: a read-time policy update must never advance the
+    // item observation, so both are kept in the snapshot for review.
+    observedAt: quote.observedAt ?? null,
+    policy: quote.shipping?.policy
+      ? { id: quote.shipping.policy.id ?? null, version: quote.shipping.policy.version ?? null, retrievedAt: quote.shipping.policy.retrievedAt ?? null }
+      : null,
     totalIls: quote.totalIls,
     ilsPerKg: quote.ilsPerKg
   })),
@@ -284,35 +291,69 @@ check(
 // it applies still matches the policy's scope. A same-rule version update is
 // applied at read time (provenance refresh), so an older stamp on an identical
 // rule means the deployed build is not applying it; a rule that changed since
-// the row was parsed legitimately waits for the next vendor refresh.
+// the row was parsed legitimately waits for the next vendor refresh. Every
+// quantity board is checked so a later policy (for example the CoffeeMan
+// 8-pack v3 coverage update) is verified on the board that actually ranks the
+// offer, not only on the 500 g board.
 const policyVersionMismatches = [];
 const policyVersionAwaiting = [];
-for (const quote of boards.board500?.ranked ?? []) {
-  const stamp = quote.shipping?.policy;
-  if (!stamp?.id) continue;
-  const current = shippingPolicies.find(policy => policy?.id === stamp.id);
-  if (!current) {
-    policyVersionMismatches.push(`${stamp.id}@v${stamp.version} missing from status`);
-    continue;
-  }
-  const sameRule = (current.service ?? null) === (quote.shipping?.service ?? null)
-    && (current.freeThreshold ?? null) === (quote.shipping?.freeThreshold ?? null)
-    && (current.thresholdSemantics ?? null) === (quote.shipping?.freeThresholdSemantics ?? null)
-    && (current.freeCartConditions ?? []).map(condition => condition.id).join(',') === (quote.shipping?.freeCartConditions ?? []).map(condition => condition.id).join(',');
-  if (!sameRule) {
-    policyVersionAwaiting.push(`${stamp.id}: board v${stamp.version}, current v${current.version}`);
-    continue;
-  }
-  if (stamp.version !== current.version) {
-    policyVersionMismatches.push(`${stamp.id}: board v${stamp.version} vs status v${current.version}`);
+const policyVersionCurrent = [];
+for (const boardName of ['board500', 'board1000', 'board2000', 'board3000']) {
+  for (const quote of boards[boardName]?.ranked ?? []) {
+    const stamp = quote.shipping?.policy;
+    if (!stamp?.id) continue;
+    const current = shippingPolicies.find(policy => policy?.id === stamp.id);
+    const label = `${boardName} ${quote.key} ${stamp.id}@v${stamp.version}`;
+    if (!current) {
+      policyVersionMismatches.push(`${label} missing from status`);
+      continue;
+    }
+    const sameRule = (current.service ?? null) === (quote.shipping?.service ?? null)
+      && (current.freeThreshold ?? null) === (quote.shipping?.freeThreshold ?? null)
+      && (current.thresholdSemantics ?? null) === (quote.shipping?.freeThresholdSemantics ?? null)
+      && (current.freeCartConditions ?? []).map(condition => condition.id).join(',') === (quote.shipping?.freeCartConditions ?? []).map(condition => condition.id).join(',');
+    if (!sameRule) {
+      policyVersionAwaiting.push(`${label} vs status v${current.version}`);
+      continue;
+    }
+    if (stamp.version !== current.version) {
+      policyVersionMismatches.push(`${label} vs status v${current.version}`);
+    } else {
+      policyVersionCurrent.push(label);
+    }
   }
 }
+const uniqueVersionNotes = list => [...new Set(list)];
 check(
   'every ranked offer applies the current validated policy version for its rule',
   policyVersionMismatches.length === 0,
   policyVersionMismatches.length
-    ? policyVersionMismatches.join(', ')
-    : policyVersionAwaiting.length ? `awaiting vendor refresh: ${policyVersionAwaiting.join(', ')}` : 'all current'
+    ? uniqueVersionNotes(policyVersionMismatches).join(', ')
+    : policyVersionAwaiting.length ? `awaiting vendor refresh: ${uniqueVersionNotes(policyVersionAwaiting).join(', ')}` : `all current (${uniqueVersionNotes(policyVersionCurrent).length} stamps)`
+);
+
+// The later CoffeeMan 8-pack v3 is a provenance-only coverage update. Its
+// verification must be read-only and must not wait for the next cron: the board
+// that ranks the 8-pack offer has to serve the current version and the ₪20
+// cart quote while the item/stock observation stays at the vendor's last
+// successful check (the read-time policy refresh never advances it).
+const coffeemanVendor = (statusBody.vendors ?? []).find(vendor => vendor?.vendorId === 'coffeeman') ?? null;
+const eightPackQuote = (boards.board2000?.ranked ?? []).find(quote => quote.vendor?.id === 'coffeeman' && (quote.product?.packCount ?? 1) === 8) ?? null;
+const eightPackPolicy = shippingPolicies.find(policy => policy?.id === 'coffeeman-8pack-il-cart-quote') ?? null;
+check(
+  'the CoffeeMan 8-pack offer serves the current cart-quote policy without advancing its item observation',
+  Boolean(eightPackQuote)
+    && eightPackPolicy != null
+    && eightPackQuote.shipping?.policy?.id === 'coffeeman-8pack-il-cart-quote'
+    && eightPackQuote.shipping?.policy?.version === eightPackPolicy.version
+    && eightPackQuote.shipping?.amountIls === 20
+    && (coffeemanVendor?.lastSuccessAt == null || eightPackQuote.observedAt === coffeemanVendor.lastSuccessAt),
+  JSON.stringify({
+    policy: eightPackQuote?.shipping?.policy ?? null,
+    shippingIls: eightPackQuote?.shipping?.amountIls ?? null,
+    itemObservedAt: eightPackQuote?.observedAt ?? null,
+    vendorLastSuccessAt: coffeemanVendor?.lastSuccessAt ?? null
+  })
 );
 
 // Scoped cart-observed free conditions: once the deployed build exposes them,
