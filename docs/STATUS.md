@@ -2139,6 +2139,8 @@ so the affected offer could not be inspected in a cropped, readable view.
   **97/97** checks, zero console errors, and the live board still ranks five offers at 500 g to Tel Aviv
   (Pucks ₪90.00, CoffeeMan singles ₪91.00, Coffee4U ₪106.00, CoffeeMan 4-pack ₪149.00, CoffeeMan 8-pack
   ₪260.00).
+- `npm run cron:offline` — the fixture refresh pipeline is unaffected: **6 bounded requests**, all three
+  vendors saved (five offers), `pruned: 0`.
 - `npm run qa:browser -- https://attention-shoppers.igormaka.workers.dev` — **99/99** checks against the
   deployed site with zero console errors (read-only public GETs, no deploy, no Cloudflare action). The
   live-only block found the real production failed state (three ranked CoffeeMan rows with
