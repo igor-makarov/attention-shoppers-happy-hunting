@@ -417,7 +417,7 @@ try {
         && singleCard?.total === ils(single2000.totalIls),
       JSON.stringify(singleCard));
     check('promotion: the offer details name the published promotion and keep the vendor wording',
-      /Published promotion: 10% off from ₪250\.00 item subtotal \(multipacks excluded\)/.test(singleCard?.detailsText ?? '')
+      /Published promotion: 10% off from ₪250\.00 item subtotal \(multipacks excluded(?:, applied from the validated published-rule fallback)?\)/.test(singleCard?.detailsText ?? '')
         && /10% הנחה/.test(singleCard?.detailsText ?? ''),
       (singleCard?.detailsText ?? '').match(/Published promotion[^.]*/)?.[0] ?? 'no promotion line');
     check('promotion: no multipack card is discounted and no free shipping is inferred from the item promotion',
@@ -675,6 +675,29 @@ try {
       `${terms.total} :: ${terms.conditions.join(' | ')}`);
     check('freshness: a stopped scheduled refresh is labelled in the footer',
       /No completed scheduled refresh for 30 h/.test(terms.footer ?? ''), terms.footer);
+
+    // The stale-refresh sentence shares the amber status classes with the short
+    // badges, so it needs its own wrapping modifier: without it, nowrap made the
+    // 390 px page 486 px wide (found in production on 2026-10-12 when the store
+    // crossed the 8 h stale threshold).
+    await wd('POST', '/window/rect', { width: 390, height: 844, x: 0, y: 0 });
+    const staleMobile = await evaluate(wd, `(() => {
+      const note = [...document.querySelectorAll('#board .status--stale')].find(node => /overdue by/.test(node.textContent ?? '')) ?? null;
+      const rect = note ? note.getBoundingClientRect() : null;
+      return {
+        found: Boolean(note),
+        right: rect ? Math.round(rect.right) : null,
+        whiteSpace: note ? getComputedStyle(note).whiteSpace : null,
+        scrollWidth: document.documentElement.scrollWidth,
+        innerWidth: window.innerWidth
+      };
+    })()`);
+    check('mobile: the stale-refresh sentence wraps inside the viewport instead of stretching the page',
+      staleMobile.found && staleMobile.whiteSpace === 'normal'
+        && staleMobile.scrollWidth <= staleMobile.innerWidth + 1
+        && staleMobile.right <= staleMobile.innerWidth + 1,
+      JSON.stringify(staleMobile));
+    await wd('POST', '/window/rect', { width: 1440, height: 1000, x: 0, y: 0 });
 
     await wd('POST', '/url', { url: `${termsServer.url}${productPath}?grams=2000&dest=jerusalem` });
     await waitForProduct(wd);

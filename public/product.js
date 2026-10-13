@@ -374,13 +374,13 @@ function renderFooterStatus(board) {
   wrap.append(el('div', { text: `Board data as of: ${timeLabel(dataAsOf)} · Offers observed: ${board.counts.observed} · Ranked: ${board.counts.ranked}` }));
   if (freshness.stale) {
     const age = freshness.ageHours;
-    wrap.append(el('div', { class: 'status status--stale', text: freshness.lastRefreshAt
+    wrap.append(el('div', { class: 'status status--stale status--note', text: freshness.lastRefreshAt
       ? `Scheduled refresh overdue by ${age} h — prices may be out of date.`
       : freshness.lastObservationAt
         ? `No completed scheduled refresh; the newest offer observation is ${age} h old — prices may be out of date.`
         : 'No scheduled refresh has completed yet — prices may be missing or out of date.' }));
   }
-  if (failing.length) wrap.append(el('div', { class: 'status status--stale', text: `${failing.length} source(s) failing` }));
+  if (failing.length) wrap.append(el('div', { class: 'status status--stale status--note', text: `${failing.length} source(s) failing` }));
   const body = el('div', { class: 'disclosure__body' });
   if (freshness.fx) {
     body.append(el('div', { text: `Exchange rates: ${freshness.fx.source ?? 'Bank of Israel'} published ${freshness.fx.asOf ?? 'unknown'} · fetched ${timeLabel(freshness.fx.fetchedAt)}` }));
