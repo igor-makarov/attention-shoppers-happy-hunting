@@ -189,11 +189,14 @@ test('coffee4u fixture decodes windows-1255 and parses price, stock, SKU and del
   assert.match(observation.shipping.destination.caveatSource, /coffee4u\.co\.il/);
   assert.equal(observation.shipping.destination.observed.courierLocalities, 1269);
   assert.equal(observation.shipping.destination.observed.pickupPointLocalities, 420);
-  assert.deepEqual(observation.shipping.destination.observed.verifiedLocalities, ['תל אביב - יפו', 'אילת']);
-  assert.match(observation.shipping.destination.observed.evidence, /2026-10-12-coffee4u-coverage\.json/);
+  assert.deepEqual(observation.shipping.destination.observed.verifiedLocalities, ['תל אביב - יפו', 'אילת', 'ירושלים', 'חיפה', 'באר שבע']);
+  assert.match(observation.shipping.destination.observed.evidence, /2026-10-13-coffee4u-destination-extension\.json/);
   assert.match(observation.shipping.alternatives[0].note, /420 localities with pickup spots/);
   assert.match(observation.shipping.note, /closed list of 1,269/, 'the shipping terms keep the observed coverage detail');
-  assert.match(observation.shipping.evidence.note, /2026-10-12-coffee4u-coverage\.json/, 'the coverage evidence path stays reachable');
+  for (const locality of ['תל אביב - יפו', 'אילת', 'ירושלים', 'חיפה', 'באר שבע']) {
+    assert.ok(observation.shipping.note.includes(locality), `the parsed note names every verified locality (${locality})`);
+  }
+  assert.match(observation.shipping.evidence.note, /2026-10-13-coffee4u-destination-extension\.json/, 'the coverage evidence path stays reachable');
   assert.equal(observation.shipping.evidence.retrievedAt, observation.observedAt, 'shipping evidence carries its retrieval time');
   assert.equal(observation.observedAt, new Date(now).toISOString());
   assert.equal(observation.evidence[0].url, observation.itemUrl);

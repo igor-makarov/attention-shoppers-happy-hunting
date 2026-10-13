@@ -300,11 +300,11 @@ test('an old persisted Coffee4U offer gains the published rate, coverage and pic
   assert.match(board.best.shipping.coverageCaveat, /closed list of 1,269/, 'the enriched rate keeps the observed closed-locality-list caveat');
   assert.equal(board.best.shipping.destination.observed.courierLocalities, 1269);
   assert.equal(board.best.shipping.destination.observed.pickupPointLocalities, 420);
-  assert.deepEqual(board.best.shipping.destination.observed.verifiedLocalities, ['תל אביב - יפו', 'אילת']);
+  assert.deepEqual(board.best.shipping.destination.observed.verifiedLocalities, ['תל אביב - יפו', 'אילת', 'ירושלים', 'חיפה', 'באר שבע']);
   assert.equal(board.best.shipping.policy.id, 'coffee4u-il-home-delivery');
   assert.equal(board.best.totalIls, 106, '2 × ₪38 item + ₪30 published courier rate');
   assert.equal(board.best.ilsPerKg, 212);
-  assert.match(board.best.shipping.note, /validated policy coffee4u-il-home-delivery v1/);
+  assert.match(board.best.shipping.note, /validated policy coffee4u-il-home-delivery v2/);
   assert.deepEqual(stored, storedSnapshot, 'the stored observation is never mutated');
 });
 
@@ -510,6 +510,86 @@ test('a policy version that changes the rule never overwrites a known parsed rat
   assert.equal(enriched.status, 'already-known', 'a differing amount is left for the next vendor refresh, not swapped at read time');
   assert.equal(enriched.observation.shipping.amount.amount, 30);
   assert.equal(enriched.observation.shipping.policy.version, 1, 'the old stamp stays until the row is re-parsed');
+});
+
+/**
+ * A persisted Coffee4U row whose shipping was already stamped by policy v1:
+ * the same ₪30 published rule and pickup-point alternative, but only the
+ * 2026-10-12 coverage evidence (Tel Aviv - Yafo and Eilat). This is the
+ * provenance-refresh acceptance case for the 2026-10-13 destination extension:
+ * the newer coverage caveat and verified-localities provenance must reach the
+ * row without a vendor refresh, and the rate must stay untouched.
+ */
+function stampedCoffee4uObservation() {
+  const base = oldPersistedCoffee4uObservation();
+  return {
+    ...base,
+    shipping: {
+      mode: 'delivery',
+      service: 'home_delivery',
+      certainty: 'verified',
+      amount: { amount: 30, currency: 'ILS' },
+      destination: {
+        scope: 'country',
+        country: 'IL',
+        caveat: 'Door-to-door delivery is limited to the localities on Coffee4U’s home-delivery list, which the product page does not publish. The rendered anonymous checkout requires the destination from a closed list of 1,269 Israeli localities (Tel Aviv - Yafo and Eilat verified 2026-10-12); the ₪15 pickup-point service lists 420 localities with pickup spots. Confirm the destination at checkout.',
+        caveatSource: 'https://www.coffee4u.co.il/page/%D7%AA%D7%A7%D7%A0%D7%95%D7%9F-0',
+        observed: {
+          courierLocalities: 1269,
+          pickupPointLocalities: 420,
+          verifiedLocalities: ['תל אביב - יפו', 'אילת'],
+          observedAt: '2026-10-12T20:25:00Z',
+          entryUrl: 'https://www.coffee4u.co.il/cart.asp',
+          evidence: 'docs/evidence/browser-research/2026-10-12-coffee4u-coverage.json'
+        }
+      },
+      alternatives: [{
+        id: 'pickup-point',
+        label: "Delivery to a צ'יטה שופס pickup point",
+        amount: { amount: 15, currency: 'ILS' },
+        maxTotalGrams: 5000,
+        note: 'Old policy alternative note.'
+      }],
+      note: 'Shipping is calculated at checkout. Old policy evidence note.',
+      policy: {
+        id: 'coffee4u-il-home-delivery',
+        version: 1,
+        origin: 'published',
+        retrievedAt: '2026-10-12T20:25:00Z',
+        reviewBy: '2026-11-11T00:00:00.000Z',
+        thresholdSemantics: null
+      },
+      evidence: { url: COFFEE4U_URL, retrievedAt: '2026-10-12T20:25:00Z', note: 'Old policy evidence note.' }
+    }
+  };
+}
+
+test('a same-rule Coffee4U policy update refreshes the persisted row\'s coverage provenance at read time', () => {
+  const stored = stampedCoffee4uObservation();
+  const storedSnapshot = JSON.parse(JSON.stringify(stored));
+  const enriched = enrichObservationShipping(stored, { policies: [coffee4uHomeDeliveryPolicy], now: NOW });
+  assert.equal(enriched.status, 'applied', 'an older policy version on a known row is refreshed, not ignored');
+  assert.equal(enriched.observation.shipping.amount.amount, 30, 'the ₪30 rate is unchanged because the rule is identical');
+  assert.equal(enriched.observation.shipping.policy.version, 2, 'the row carries the newer policy version');
+  assert.equal(enriched.observation.shipping.policy.retrievedAt, '2026-10-13T02:02:12Z');
+  assert.match(enriched.observation.shipping.destination.caveat, /Jerusalem, Haifa and Be’er Sheva verified 2026-10-13/, 'the newer coverage caveat replaces the older one');
+  assert.deepEqual(
+    enriched.observation.shipping.destination.observed.verifiedLocalities,
+    ['תל אביב - יפו', 'אילת', 'ירושלים', 'חיפה', 'באר שבע'],
+    'the observed coverage provenance is refreshed too'
+  );
+  assert.equal(enriched.observation.shipping.destination.observed.courierLocalities, 1269, 'the closed-list shape is unchanged');
+  assert.equal(enriched.observation.shipping.evidence.retrievedAt, '2026-10-13T02:02:12Z', 'evidence that came from this policy is refreshed');
+  assert.match(enriched.observation.shipping.note, /evidence refreshed from validated policy coffee4u-il-home-delivery v2/);
+  assert.equal(enriched.observation.observedAt, FRESH, 'the item price/stock observation time is never rewritten');
+  assert.deepEqual(stored, storedSnapshot, 'the stored observation is never mutated');
+
+  // The refreshed row still ranks at the published ₪30 rate with the ₪15
+  // pickup-point alternative separate from the delivered total.
+  const board = quote([stored]);
+  assert.equal(board.best.totalIls, 106);
+  assert.equal(board.best.shipping.policy.version, 2);
+  assert.equal(board.best.shipping.alternatives[0].amountIls, 15);
 });
 
 test('the vendor boundary wording decides the free-shipping comparison', () => {

@@ -220,12 +220,19 @@ export const coffeemanSingleFourPackPolicy = {
 /**
  * Coffee4U published door-to-door rate and pickup-point alternative, with the
  * coverage shape observed in the rendered anonymous checkout on 2026-10-12
- * (20:24-20:25 UTC). The courier rate and the pickup-point rate are published
- * next to the product; the checkout confirmed the closed destination lists.
+ * (20:24-20:25 UTC) and extended to the remaining selectable localities on
+ * 2026-10-13 (02:01-02:02 UTC). The courier rate and the pickup-point rate are
+ * published next to the product; the checkout confirmed the closed destination
+ * lists. The 2026-10-13 runs selected Jerusalem, Haifa and Be'er Sheva in the
+ * same anonymous estimator: each 2 × 250 g cart quoted ₪76 + ₪30 = ₪106,
+ * reproducing the published ₪30 rate at three more destinations with the fee
+ * unchanged. The rule itself is unchanged, so the version bump carries only
+ * newer coverage provenance (and the read-time evaluator refreshes that
+ * provenance on already-stamped rows).
  */
 export const coffee4uHomeDeliveryPolicy = {
   id: 'coffee4u-il-home-delivery',
-  version: 1,
+  version: 2,
   vendorId: 'coffee4u',
   productIds: [PRODUCT_ID],
   itemUrlPrefixes: ['https://www.coffee4u.co.il/product/'],
@@ -249,25 +256,25 @@ export const coffee4uHomeDeliveryPolicy = {
   destination: {
     scope: 'country',
     country: 'IL',
-    caveat: 'Door-to-door delivery is limited to the localities on Coffee4U’s home-delivery list, which the product page does not publish. The rendered anonymous checkout requires the destination from a closed list of 1,269 Israeli localities (Tel Aviv - Yafo and Eilat verified 2026-10-12); the ₪15 pickup-point service lists 420 localities with pickup spots. Confirm the destination at checkout.',
+    caveat: 'Door-to-door delivery is limited to the localities on Coffee4U’s home-delivery list, which the product page does not publish. The rendered anonymous checkout requires the destination from a closed list of 1,269 Israeli localities (Tel Aviv - Yafo and Eilat verified 2026-10-12; Jerusalem, Haifa and Be’er Sheva verified 2026-10-13, each ₪30 for a 500 g cart); the ₪15 pickup-point service lists 420 localities with pickup spots. Confirm the destination at checkout.',
     caveatSource: 'https://www.coffee4u.co.il/page/%D7%AA%D7%A7%D7%A0%D7%95%D7%9F-0',
     observed: {
       courierLocalities: 1269,
       pickupPointLocalities: 420,
-      verifiedLocalities: ['תל אביב - יפו', 'אילת'],
-      observedAt: '2026-10-12T20:25:00Z',
+      verifiedLocalities: ['תל אביב - יפו', 'אילת', 'ירושלים', 'חיפה', 'באר שבע'],
+      observedAt: '2026-10-13T02:02:12Z',
       entryUrl: 'https://www.coffee4u.co.il/cart.asp',
-      evidence: 'docs/evidence/browser-research/2026-10-12-coffee4u-coverage.json'
+      evidence: 'docs/evidence/browser-research/2026-10-13-coffee4u-destination-extension.json'
     }
   },
   evidence: {
     url: 'https://www.coffee4u.co.il/product/lavazza-crema-e-gusto-250-gr-%D7%98%D7%97%D7%95%D7%9F',
-    retrievedAt: '2026-10-12T20:25:00Z',
-    note: 'Door-to-door courier ₪30 and pickup-point ₪15 are published next to the product. Rendered anonymous checkout coverage observed 2026-10-12: the door-to-door method requires an exact match from a closed list of 1,269 Israeli localities (Tel Aviv - Yafo and Eilat verified) and the pickup-point method lists 420 localities with pickup spots; see docs/evidence/browser-research/2026-10-12-coffee4u-coverage.json.'
+    retrievedAt: '2026-10-13T02:02:12Z',
+    note: 'Door-to-door courier ₪30 and pickup-point ₪15 are published next to the product. Rendered anonymous checkout coverage observed 2026-10-12: the door-to-door method requires an exact match from a closed list of 1,269 Israeli localities (Tel Aviv - Yafo and Eilat verified) and the pickup-point method lists 420 localities with pickup spots. Re-checked 2026-10-13 for the remaining selectable localities: Jerusalem, Haifa and Be’er Sheva each quoted ₪76 + ₪30 = ₪106 for a 2 × 250 g cart, so the ₪30 rate and the closed-list shape are unchanged; see docs/evidence/browser-research/2026-10-12-coffee4u-coverage.json and docs/evidence/browser-research/2026-10-13-coffee4u-destination-extension.json.'
   },
   observedFor: {
-    carts: ['1 × 250 g'],
-    destinations: ['Tel Aviv - Yafo', 'Eilat'],
+    carts: ['1 × 250 g', '2 × 250 g (500 g carts to Jerusalem, Haifa and Be’er Sheva, 2026-10-13)'],
+    destinations: ['Tel Aviv - Yafo', 'Eilat', 'ירושלים', 'חיפה', 'באר שבע'],
     note: 'No street address or personal detail was entered and no order was submitted.'
   },
   reviewBy: '2026-11-11T00:00:00.000Z'
@@ -534,7 +541,14 @@ export function enrichObservationShipping(observation, options = {}) {
       shipping.destination = {
         ...shipping.destination,
         caveat: policy.destination.caveat,
-        caveatSource: policy.destination.caveatSource ?? shipping.destination.caveatSource ?? null
+        caveatSource: policy.destination.caveatSource ?? shipping.destination.caveatSource ?? null,
+        // The observed coverage shape is policy-derived provenance too (the
+        // Coffee4U adapter copies it from the policy). Refreshing it here lets a
+        // coverage extension reach already-stamped rows; the caveat text above
+        // is what the shopper reads, and the counts/verified localities back it.
+        ...(policy.destination.observed != null
+          ? { observed: { ...policy.destination.observed, ...(Array.isArray(policy.destination.observed.verifiedLocalities) ? { verifiedLocalities: [...policy.destination.observed.verifiedLocalities] } : {}) } }
+          : {})
       };
     }
     // Only refresh evidence that already came from this policy (same URL); a
