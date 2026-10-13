@@ -208,6 +208,7 @@ test('the checked-in shipping policies are structurally valid', () => {
   assert.equal(coffeeman.rule.freeThreshold, null, 'no free threshold is invented from unobserved larger carts');
   assert.equal(coffeeman.service, 'home_delivery');
   assert.equal(coffeeman.alternatives[0].amount.amount, 20, 'the observed distribution-center alternative is part of the policy');
+  assert.deepEqual(coffeeman.observedFor.destinations, ['Tel Aviv–Yafo / 6100000', 'Jerusalem / 9100000', 'Haifa / 3100000', 'Be’er Sheva / 8400000', 'Eilat / 8800000'], 'the ₪20 quote records the destinations it was re-applied for');
   const singleFour = SHIPPING_POLICIES.find(policy => policy.id === coffeemanSingleFourPackPolicy.id);
   assert.ok(singleFour, 'the published single/4-pack rule is a checked-in policy');
   assert.equal(singleFour.origin, 'published', 'the published ₪25 rate is not relabelled as a cart quote');
@@ -532,12 +533,12 @@ test('an old persisted CoffeeMan 8-pack offer gains the researched cart quote at
   assert.equal(board.best.shipping.serviceLabel, 'Home delivery');
   assert.equal(board.best.shipping.maxTotalGrams, 2000, 'the quote stays limited to the 2 kg cart it was observed on');
   assert.equal(board.best.shipping.policy.id, 'coffeeman-8pack-il-cart-quote');
-  assert.equal(board.best.shipping.policy.version, 2);
+  assert.equal(board.best.shipping.policy.version, 3);
   assert.match(board.best.shipping.coverageCaveat, /home-delivery list/, 'the enriched rate keeps the locality-list caveat');
   assert.equal(board.best.labels.some(label => /Delivery coverage caveat/.test(label)), true);
   assert.equal(board.best.totalIls, 260, '₪240 item + ₪20 observed courier quote for the one-8-pack cart');
   assert.equal(board.best.ilsPerKg, 130);
-  assert.match(board.best.shipping.note, /validated policy coffeeman-8pack-il-cart-quote v2/);
+  assert.match(board.best.shipping.note, /validated policy coffeeman-8pack-il-cart-quote v3/);
   assert.deepEqual(stored, storedSnapshot, 'the stored observation is never mutated');
 
   // Two 8-packs (4 kg) is a cart the estimator never quoted: the offer stays

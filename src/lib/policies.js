@@ -113,7 +113,7 @@ export const pucksHomeDeliveryPolicy = {
  */
 export const coffeemanEightPackPolicy = {
   id: 'coffeeman-8pack-il-cart-quote',
-  version: 2,
+  version: 3,
   vendorId: 'coffeeman',
   productIds: [PRODUCT_ID],
   itemUrlPrefixes: ['https://www.coffeeman.co.il/product/8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico'],
@@ -143,13 +143,13 @@ export const coffeemanEightPackPolicy = {
   },
   evidence: {
     url: 'https://www.coffeeman.co.il/checkout.asp',
-    retrievedAt: '2026-10-13T08:18:00Z',
-    note: 'Anonymous checkout quote for one 8 × 250 g multipack (2 kg) on 2026-10-12, re-checked in a fresh cart at 20:07 UTC: ₪20 home courier and ₪20 distribution-center delivery up to 5 kg; self-pickup free. The product page publishes no courier price, and carts above 2 kg are not verified. The checkout’s closed home-delivery locality list was read on 2026-10-13 (264 localities, all five selectable destinations present, ₪25 home-courier option selectable for each; see docs/evidence/browser-research/2026-10-13-coffeeman-home-delivery-locality-coverage.json).'
+    retrievedAt: '2026-10-13T08:52:00Z',
+    note: 'Anonymous checkout quote for one 8 × 250 g multipack (2 kg) on 2026-10-12, re-checked in a fresh cart at 20:07 UTC: ₪20 home courier and ₪20 distribution-center delivery up to 5 kg; self-pickup free. The product page publishes no courier price, and carts above 2 kg are not verified. The checkout’s closed home-delivery locality list was read on 2026-10-13 (264 localities, all five selectable destinations present, ₪25 home-courier option selectable for each; see docs/evidence/browser-research/2026-10-13-coffeeman-home-delivery-locality-coverage.json). On 2026-10-13 the ₪20 home-courier quote was re-applied on the one-8-pack cart (₪240 + ₪20 = ₪260) with the destination set to each of the five selectable localities; see docs/evidence/browser-research/2026-10-13-coffeeman-8pack-destination-coverage.json.'
   },
   observedFor: {
     carts: ['1 × (8 × 250 g) = 2 kg'],
-    destinations: ['the anonymous checkout showed the method prices without asking for a locality'],
-    note: 'No street address or personal detail was entered and no order was submitted; the locality restriction in the terms page could not be tested without personal delivery details.'
+    destinations: ['Tel Aviv–Yafo / 6100000', 'Jerusalem / 9100000', 'Haifa / 3100000', 'Be’er Sheva / 8400000', 'Eilat / 8800000'],
+    note: 'No street address or personal detail was entered and no order was submitted. The ₪20 home-courier option was selectable and applied for each of the five destinations on 2026-10-13 (₪240 + ₪20 = ₪260).'
   },
   reviewBy: '2026-11-11T00:00:00.000Z'
 };

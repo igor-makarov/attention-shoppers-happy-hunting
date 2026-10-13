@@ -2620,15 +2620,15 @@ last-known-good observation and warning rather than bypassing the vendor control
 provenance is served after the main-push deploy (read-only `/api/status`), and continue only with verified
 Crema e Gusto coverage/freshness/comparison work rather than repeated unchanged probes.
 
-## Iteration 3-100 — repair the interrupted 3-99 checkpoint, then resolve CoffeeMan's ₪15 coverage (2026-10-13)
+## Iteration 3-100 — repair the interrupted 3-99 checkpoint, fix the CoffeeMan recipe/parser, and extend CoffeeMan coverage (2026-10-13)
 
 **The interrupted 3-99 timeout left `npm run verify` failing (1 of 182).** Its test for an unconfirmed
 delivery method still assumed CoffeeMan's method step was optional, but 3-99 had made the `#delivery`
 select a required step. The test now pins the intended semantics: a run that reaches the method step but
 cannot apply it blocks with `service: null` and `serviceConfirmed: false`, the schema still rejects a
 confirmed method without a name, and a quoted record that could not confirm the method must disclose it.
-`npm run verify` passes **182/182** tests plus the `wrangler deploy --dry-run` bundle (bindings `BOARD` +
-`ASSETS`).
+`npm run verify` passes **183/183** tests (the repaired suite plus this iteration's new checkout-layout
+parser test) plus the `wrangler deploy --dry-run` bundle (bindings `BOARD` + `ASSETS`).
 
 **The scheduling correction and the due-aware helper are verified, not restated.** `tests/cron-schedule.test.js`
 cross-checks `scripts/cron-schedule.mjs` against `isVendorDue`/`EARLY_DUE_TOLERANCE_MS` from `src/refresh.js`:
@@ -2675,6 +2675,15 @@ record; the free amount is evidenced by the rendered method option and the item/
 No amount, scope or threshold changes: the condition stays cart-scoped with its coverage caveat. Evidence:
 `docs/evidence/browser-research/2026-10-13-coffeeman-free-cart-destination-recheck.json`.
 
+**CoffeeMan's ₪20 one-8-pack quote also holds with the destination selected.** A fresh live session built the
+one-8-pack cart from the 8 × 250 g product page (the page's own “קנה עכשיו” control, SKU 930335) and, for
+each of the five selectable localities, selected the closed home-delivery locality and the ₪20 home-courier
+option; the summary applied **₪20.00** unchanged (₪240 + ₪20 = **₪260.00**) for every destination. The
+quote stays scoped to carts up to 2000 g and the cart did not receive free delivery, so no threshold is
+inferred. Policy `coffeeman-8pack-il-cart-quote` is **v3** with identical money/scope (provenance-only
+coverage update). Evidence:
+`docs/evidence/browser-research/2026-10-13-coffeeman-8pack-destination-coverage.json`.
+
 **Next step:** the **12:17 UTC cron tick** remains the next actual vendor attempt (all three vendors, per
 the due-aware prediction). Record whether CoffeeMan's Worker-egress 403 persists; if it does, keep the
 last-known-good observation and warning rather than bypassing the vendor control. The main-push deploy of
@@ -2685,7 +2694,9 @@ within coverage/freshness/comparison rather than repeated unchanged probes.
 checkpoint build is live: `/api/status` serves `coffeeman-single-4pack-il-home-delivery` **v5** with
 `observedAt 2026-10-13T08:35:00Z` (the provenance-only coverage update from this iteration) and
 `coffee4u-il-home-delivery` **v3** with the pickup-point coverage (`2026-10-13T08:06:00Z`), closing the
-3-99 next step without a vendor refresh. The probe also re-confirmed the due-aware schedule: next actual
+3-99 next step without a vendor refresh. The later 8-pack v3 coverage update deploys with this checkpoint;
+the same probe already served the 8-pack **v2** locality-list provenance. The probe also re-confirmed the
+due-aware schedule: next actual
 tick `12:17:00Z`; Pucks/Coffee4U due `12:17:42.285Z` with 0 failures → attempted at 12:17; CoffeeMan
 `07:17:42.285Z` with 2 failures → strict deadline, attempted at 12:17. Its board checks (2 kg exact free
 condition, 3 kg base rate, no retired rows, no variant selection, policies current) all passed. Evidence:

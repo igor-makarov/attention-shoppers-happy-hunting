@@ -1,0 +1,36 @@
+{
+  "kind": "browser-research-coverage",
+  "schemaVersion": 1,
+  "topic": "CoffeeMan/Amigo rendered anonymous checkout: ₪20 one-8-pack cart quote with the destination selected",
+  "date": "2026-10-13",
+  "windowUtc": "2026-10-13T08:50:00Z to 2026-10-13T08:54:00Z",
+  "method": "Fresh interactive headless Google Chrome 154.0.8037.97 + ChromeDriver 154.0.8037.92 session through scripts/browser-research.mjs. The anonymous one-8-pack cart was built from the real 8 × 250 g product page by invoking the page's own add-to-cart anchor (a.add-to-cart, label 'קנה עכשיו', onclick addme_cart('930335',…)) and then opening the public checkout (https://www.coffeeman.co.il/checkout.asp). For each selectable locality the closed home-delivery locality select (#hfd_cities) was set and the home-courier option in #delivery (value 200, label 'משלוח לבית הלקוח עם שליח  - 20.00 ₪') was selected; the rendered summary was read back. No order, payment, login, account creation or street address was involved. Cart/session identifiers, cookies and tokens are deliberately not recorded.",
+  "toolingLimitation": "The coding agent's file-read tool rejects PNG input ('reading images is not supported'), so no image-based visual claim is made. Every value below is backed by rendered DOM values and body text captured in the same live session.",
+  "productUrl": "https://www.coffeeman.co.il/product/8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
+  "entryUrl": "https://www.coffeeman.co.il/checkout.asp",
+  "cart": "1 × (8 × 250 g) = 2 kg, item subtotal ₪240.00 (no quantity promotion on this multipack)",
+  "deliverySelect": {
+    "element": "#delivery",
+    "options": [
+      { "value": "", "label": "*בחר שיטת משלוח" },
+      { "value": "200", "label": "משלוח לבית הלקוח עם שליח  - 20.00 ₪" },
+      { "value": "203", "label": "משלוח ממרכז חלוקה  עד 5 ק\"ג - 20.00 ₪" },
+      { "value": "selfDelivery", "label": "(ברצוני לבצע איסוף עצמי להזמנה)" }
+    ],
+    "note": "The option list did not change with the selected locality; the ₪20 home-courier option was selectable for every destination below."
+  },
+  "localityCoverage": [
+    { "locality": "תל אביב - יפו", "selected": "תל אביב - יפו", "homeCourierSelected": "200", "shippingLine": "₪20.00", "deliveredTotalLine": "₪260.00" },
+    { "locality": "ירושלים", "selected": "ירושלים", "homeCourierSelected": "200", "shippingLine": "₪20.00", "deliveredTotalLine": "₪260.00" },
+    { "locality": "חיפה", "selected": "חיפה", "homeCourierSelected": "200", "shippingLine": "₪20.00", "deliveredTotalLine": "₪260.00" },
+    { "locality": "באר שבע", "selected": "באר שבע", "homeCourierSelected": "200", "shippingLine": "₪20.00", "deliveredTotalLine": "₪260.00" },
+    { "locality": "אילת", "selected": "אילת", "homeCourierSelected": "200", "shippingLine": "₪20.00", "deliveredTotalLine": "₪260.00" }
+  ],
+  "observations": {
+    "coverage": "The observed ₪20 one-8-pack home-courier quote was re-applied unchanged (₪240 + ₪20 = ₪260) with the destination set to each of the five selectable localities. The quote is still scoped to carts up to 2000 g: a two-8-pack (4 kg) cart was never observed and stays unrankable.",
+    "distributionCenter": "The checkout also offered the ₪20 distribution-center option (value 203) for the same cart; it stays a display-only alternative and is not the ranked rate.",
+    "threshold": "The cart did not receive free delivery (the observed free carts remain the exact 7-singles, 8-singles and two-4-pack carts), so no free threshold is recorded or inferred."
+  },
+  "conclusion": "The ₪20 home-courier quote is destination-independent across the five selectable destinations for the one-8-pack cart. Money, quantity scope (max 2000 g) and the no-threshold rule are unchanged.",
+  "policyImpact": "Provenance-only update of coffeeman-8pack-il-cart-quote (v3): the evidence note and observedFor destinations name the verified coverage; the read-time evaluator refreshes the evidence provenance on already-stamped rows."
+}
