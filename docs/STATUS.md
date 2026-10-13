@@ -2073,12 +2073,21 @@ clipped the selected locality inside a half-width column.
   were not inspected as images; the coarse pixel/colour maps and the rendered DOM geometry are recorded
   in the review file, and labels/arithmetic are corroborated by DOM/API assertions, not by image reading.
 
-**Production note:** the read-time `supersedes` migration means the deployed store's v2-stamped CoffeeMan
-rows stop applying the ₪231 threshold and gain the exact conditions as soon as this build is live, without
-a vendor refresh and without advancing `lastRefreshAt`. The 06:17 UTC cron tick remains the next actual
-CoffeeMan vendor attempt; the 00:17 UTC tick's Worker-egress HTTP 403 is still recorded and not bypassed.
+**Production verification (read-only, 02:42-02:49 UTC):** the main-push build deployed and the scoped
+migration is live on the old persisted store **without a vendor refresh** — `/api/status` serves
+`coffeeman-single-4pack-il-home-delivery` **v3** with `singles-7`/`singles-8`/`fourpack-2`, the 2 kg board
+returns the CoffeeMan single-pack cart free via `singles-8` with `freeThreshold: null`, the 3 kg board
+returns 12 singles at the published ₪25 (total ₪381.40; Pucks' 3 kg published-threshold total ₪360 ranks
+best), and `lastRefreshAt` is still the 00:18:15.896Z cron completion — so the item price, stock and
+observation time were not touched by the policy correction. `npm run probe:production` passed all checks
+including the two new scope checks (evidence `docs/evidence/production-probe-20261013T0246Z.json`), and
+headless-Chrome QA against the deployed URL passed **90/90** with zero console errors, including the
+live-only failed-check warning on the production CoffeeMan rows and the exact-free-condition card
+(evidence `docs/evidence/browser-qa-production-20261013T0248Z.json`). The 06:17 UTC cron tick remains the
+next actual CoffeeMan vendor attempt; the 00:17 UTC tick's Worker-egress HTTP 403 is still recorded and
+not bypassed.
 
-**Next step:** run `npm run probe:production` after the main-push build deploys and record whether the old
-persisted rows migrated to v3 with the scoped conditions (2 kg free via `singles-8`, 3 kg at ₪25); then
-after the 06:17 UTC tick record whether the CoffeeMan egress block persists. Continue within Crema e Gusto
-coverage, shipping evidence, freshness and comparison quality.
+**Next step:** after the **06:17 UTC tick** record whether the CoffeeMan egress block persists and whether
+the refreshed rows parse (the scoped conditions are already applied to the old store at read time, so this
+is a vendor-egress question, not a policy-delivery question). Continue within Crema e Gusto coverage,
+shipping evidence, freshness and comparison quality.
