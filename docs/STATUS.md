@@ -30,9 +30,10 @@ inside it, and saving complete card captures whose PNG height equals the card's 
 3-89 shared-URL normalization is completed with a malformed-URL check (clamped grams, unknown locality,
 obsolete `variant` dropped). Offline fixture QA passes **111/111** and production live QA **113/113**
 with zero console errors; `npm run verify` passes **171/171** tests plus the dry-run bundle. The mobile
-vertical stack is tightened slightly (text sizes and 44 px tap targets unchanged) so the 2 kg
-failed-state warning ends at y≈697 and its qualifier at y≈812 of the 844 px viewport instead of touching
-the edge.
+vertical stack is tightened slightly (text sizes and 44 px tap targets unchanged) so the offline fixture
+2 kg failed-state warning ends at y≈697 and its qualifier at y≈812 of the 844 px viewport instead of
+touching the edge; the pre-deploy production live run measured the same warning ending at y=724 and the
+qualifier at y=843 before that tightening.
 Iteration 3-81 removes the last variant coupling from the data layer: a stored offer's identity key no
 longer contains the blend wording a listing prints, legacy blend-keyed rows are collapsed at read time
 with their stable-key replacement (newest observation wins), and failure markers plus previous-check
