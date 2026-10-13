@@ -74,10 +74,11 @@ from the coding runner at 00:19:37 UTC and parsed the unchanged prices (`npm run
 `docs/evidence/source-check-20261013T0019Z.json`). The block is therefore specific to the Worker's
 Cloudflare egress (or the vendor's WAF treatment of it), not the user agent, headers or parser. Per the
 no-bypass rule the loop did not attempt to evade it: the adapter keeps the last-known-good 15:51:52 UTC
-observations, marks them `lastAttemptFailed`/`lastError: HTTP 403`, schedules the documented 30-minute
-backoff retry and surfaces the failing source in the footer and offer details. CoffeeMan coverage will be
-re-checked after the retry; the runner-side source check remains the independent freshness check for
-research purposes.
+observations, marks them `lastAttemptFailed`/`lastError: HTTP 403`, sets the documented 30-minute backoff
+due time and surfaces the failing source in the footer and offer details (with a visible card-face
+warning). The next actual attempt is the 06:17 UTC cron tick, because public routes never trigger a
+refresh once a run has completed. CoffeeMan coverage will be re-checked then; the runner-side source
+check remains the independent freshness check for research purposes.
 
 ### Historical CoffeeMan listings (retired 2026-10-12 — evidence only, do not re-track)
 

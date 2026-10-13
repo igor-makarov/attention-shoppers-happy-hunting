@@ -24,7 +24,8 @@ phase-lock fix is confirmed — the tick refreshed instead of skipping. CoffeeMa
 answered **HTTP 403 from the Worker's Cloudflare egress** while the identical bounded request with the same
 bot user agent fetched them HTTP 200 from the runner, so that source is marked blocked from production; the
 last-known-good 15:51:52 observations stay ranked with `lastAttemptFailed`/`HTTP 403`, a 30-minute backoff
-retry and no bypass attempt. Iteration 3-80 also makes a failed last check visible on the offer card face
+due time and no bypass attempt. The Worker refreshes only on its cron ticks, so the next actual CoffeeMan
+attempt is the **06:17 UTC tick**, when the vendor is due. Iteration 3-80 also makes a failed last check visible on the offer card face
 (not only in the details and footer): `failedCheckNote()` renders one short amber line, covered by a unit
 test and two browser-QA checks (`npm run verify` **150/150** tests plus the dry-run bundle; offline browser
 QA **88/88**). The 3-80 build deployed through the main-push Workers Builds path within a minute and the
@@ -470,8 +471,9 @@ landing seconds before the stored due time would have skipped every vendor. The 
 for all three CoffeeMan product pages from the Worker's Cloudflare egress, while the identical bounded
 request with the same bot user agent fetched all three pages HTTP 200 from the runner at 00:19:37 UTC with
 unchanged prices, so the block is specific to the production egress and is not bypassed; the last-known-good
-15:51:52 observations stay ranked with `lastAttemptFailed`/`lastError: HTTP 403`, a 30-minute backoff retry
-at 00:47:54 and the source marked failing in the footer. Evidence:
+15:51:52 observations stay ranked with `lastAttemptFailed`/`lastError: HTTP 403`, a 30-minute backoff due
+time at 00:47:54 and the source marked failing in the footer (the next actual attempt is the 06:17 UTC cron
+tick, since public routes never trigger a refresh once a run has completed). Evidence:
 `docs/evidence/production-probe-20261013T0019Z.json`,
 `docs/evidence/source-check-20261013T0019Z.json`. The other checks below were independently verified from
 the runner on 2026-10-12: `/health` reports a non-null `lastRefreshAt` and `lastObservationAt`,
@@ -1670,8 +1672,9 @@ instead of skipping every vendor. Evidence: `docs/evidence/production-probe-2026
 **CoffeeMan is blocked from the Worker's Cloudflare egress — marked, not bypassed.** The same run got
 **HTTP 403** for all three tracked CoffeeMan product pages, so the adapter kept its last-known-good
 2026-10-12T15:51:52.931Z observations: the board still ranks them with `lastAttemptFailed: true` and
-`lastError: HTTP 403`, schedules the documented 30-minute backoff retry at 00:47:54.216Z and shows the
-failing source in the footer. The identical bounded request (same `AttentionShoppersBot/0.1` user agent,
+`lastError: HTTP 403`, sets the documented 30-minute backoff due time (00:47:54.216Z) and shows the
+failing source in the footer. The next actual attempt is the **06:17 UTC cron tick** — public routes do
+not trigger refreshes once a run has completed, so there is no separate 00:47 retry to observe. The identical bounded request (same `AttentionShoppersBot/0.1` user agent,
 accept header, redirect policy and host allowlist) fetched all three pages HTTP 200 from the runner at
 00:19:37 UTC with unchanged prices and stock (`npm run check:sources`;
 `docs/evidence/source-check-20261013T0019Z.json`), so the block is specific to the Worker's egress (or
@@ -1704,7 +1707,8 @@ card-face warning text in the comparison list, while the fresh Pucks best card c
 line. Evidence: `docs/evidence/browser-qa-production-20261013T0031Z.json` (report finished
 00:28:46 UTC), offline **88/88** (`docs/evidence/browser-qa-fixtures-20261013T0027Z.json`).
 
-**Next step:** re-run `npm run probe:production` after the 00:47:54 CoffeeMan backoff retry to record
-whether the vendor's block is persistent from the Worker egress (the 06:17:54 tick is the next full
-refresh for Pucks/Coffee4U), then continue within Crema e Gusto coverage, shipping evidence, freshness
-and comparison quality.
+**Next step:** re-run `npm run probe:production` after the **06:17 UTC tick** (the next scheduled attempt
+for all three vendors: Pucks/Coffee4U are due at 06:17:54 within the 15-minute phase-lock slack and
+CoffeeMan is long past its backoff due time) to record whether the CoffeeMan block persists from the
+Worker egress and whether the refreshed rows parse; then continue within Crema e Gusto coverage, shipping
+evidence, freshness and comparison quality.
