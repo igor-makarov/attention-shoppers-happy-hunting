@@ -25,7 +25,7 @@
 // writes screenshots and a JSON report to .shurik-local/qa/.
 
 import { spawn } from 'node:child_process';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 import { startQaServer } from './qa-server.mjs';
 
@@ -43,7 +43,8 @@ const report = {
   startedAt: new Date().toISOString(),
   checks: [],
   contrast: {},
-  consoleErrors: []
+  consoleErrors: [],
+  viewports: []
 };
 const check = (name, condition, detail = '') => {
   report.checks.push({ name, ok: Boolean(condition), detail });

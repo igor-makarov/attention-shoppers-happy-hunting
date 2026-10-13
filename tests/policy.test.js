@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { quoteBoard, findDestination } from '../src/lib/quote.js';
+import { quoteBoard, findDestination, freeCartConditionMatches } from '../src/lib/quote.js';
 import {
   SHIPPING_POLICIES,
   pucksHomeDeliveryPolicy,
@@ -16,6 +16,7 @@ import {
 } from '../src/lib/policies.js';
 import { parsePucksProduct } from '../src/vendors/pucks.js';
 import { parseCoffeemanProduct } from '../src/vendors/coffeeman.js';
+import { coffeemanGroundCoffeePercentPromotion } from '../src/lib/promotions.js';
 import { decodeHtml } from '../src/lib/text.js';
 
 const NOW = Date.parse('2026-10-12T12:00:00.000Z');
@@ -335,6 +336,71 @@ test('CoffeeMan free delivery applies only to the exact observed carts; an unobs
   assert.equal(eightPack.best.shipping.freeThreshold, null);
   assert.deepEqual(eightPack.best.shipping.freeCartConditions, [], 'the 8-pack policy carries no free conditions');
   assert.equal(eightPack.best.totalIls, 260);
+});
+
+test('a changed or ended CoffeeMan promotion keeps the published base rate instead of the observed free cart', () => {
+  // The recorded free cart was 8 singles with the automatic 10% promotion:
+  // ₪264 item subtotal and ₪237.60 paid. A freshly parsed row carries
+  // `promotions`, so the checked-in fallback cannot re-apply an ended banner.
+  const ended = quote([oldPersistedCoffeemanSingleObservation({ promotions: [] })], { targetGrams: 2000 });
+  assert.equal(ended.best.units, 8);
+  assert.equal(ended.best.itemDiscount, null, 'the ended promotion leaves no discount');
+  assert.equal(ended.best.itemTotalIls, 264, 'the ended promotion leaves the full ₪264 item subtotal');
+  assert.equal(ended.best.shipping.amountIls, 25, 'the ended promotion keeps the published ₪25 base rate');
+  assert.equal(ended.best.shipping.freeCondition, null, 'the ₪264 paid cart is not the recorded ₪237.60 cart');
+  assert.equal(ended.best.totalIls, 289);
+  assert.equal(ended.best.shipping.freeConditionUnmatchedAboveMin, true, 'the changed cart stays visibly conditional');
+  assert.match(ended.best.shipping.freeConditionNote, /keeps the published ₪25\.00 base rate/);
+
+  // A banner change to 5% pays ₪250.80, not the recorded ₪237.60: same
+  // pre-discount subtotal, different discount state, no free delivery.
+  const changed = quote([oldPersistedCoffeemanSingleObservation({
+    promotions: [{ ...coffeemanGroundCoffeePercentPromotion, percent: 5 }]
+  })], { targetGrams: 2000 });
+  assert.equal(changed.best.itemSubtotalBeforeDiscountIls, 264);
+  assert.equal(changed.best.itemDiscount.percent, 5);
+  assert.equal(changed.best.itemTotalIls, 250.8, 'the 5% cart pays ₪250.80, not the recorded ₪237.60');
+  assert.equal(changed.best.shipping.amountIls, 25, 'a changed discount percent keeps the published base rate');
+  assert.equal(changed.best.shipping.freeCondition, null);
+  assert.equal(changed.best.totalIls, 275.8);
+
+  // The recorded 10% cart still matches its exact observed condition.
+  const recorded = quote([oldPersistedCoffeemanSingleObservation()], { targetGrams: 2000 });
+  assert.equal(recorded.best.itemTotalIls, 237.6);
+  assert.equal(recorded.best.shipping.freeCondition.id, 'singles-8');
+  assert.equal(recorded.best.totalIls, 237.6);
+});
+
+test('a cart missing the observed SKU or delivery method never matches an observed-free cart', () => {
+  const condition = {
+    service: 'home_delivery',
+    sku: '930333',
+    packCount: 1,
+    units: 7,
+    orderedGrams: 1750,
+    itemSubtotalIls: 231,
+    discountPercent: null,
+    paidItemTotalIls: 231
+  };
+  const observation = { itemUrl: COFFEEMAN_SINGLE_URL };
+  const complete = {
+    product: { sku: '930333', packCount: 1 },
+    shipping: { service: 'home_delivery' },
+    units: 7,
+    orderedGrams: 1750,
+    itemSubtotalBeforeDiscountIls: null,
+    itemTotalIls: 231,
+    itemDiscount: null
+  };
+  assert.equal(freeCartConditionMatches(condition, observation, complete), true, 'the exact recorded cart matches');
+  assert.equal(freeCartConditionMatches(condition, observation, { ...complete, product: { ...complete.product, sku: null } }), false,
+    'a cart with a missing SKU is not the observed SKU cart');
+  assert.equal(freeCartConditionMatches(condition, observation, { ...complete, shipping: { service: null } }), false,
+    'a cart with a missing delivery method is not the observed method cart');
+  assert.equal(freeCartConditionMatches(condition, observation, { ...complete, itemDiscount: { percent: 10 }, itemTotalIls: 207.9 }), false,
+    'a discount the observation did not record is a different cart');
+  assert.equal(freeCartConditionMatches(condition, observation, { ...complete, itemTotalIls: 235 }), false,
+    'a different paid item total is not the observed cart');
 });
 
 test('a persisted CoffeeMan row stamped with the superseded v2 threshold migrates at read time', () => {

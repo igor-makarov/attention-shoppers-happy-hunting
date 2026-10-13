@@ -622,22 +622,44 @@ function toPickupEntry(quote) {
 
 /**
  * Does the current cart match one observed-free cart configuration exactly?
- * The listing scope, whole-pack count, ordered grams and item subtotal (before
- * any applied discount, falling back to the paid total when no discount
- * applies) must all agree, so an unobserved larger cart can never inherit free
- * delivery from its subtotal alone.
+ * The listing scope, whole-pack count, ordered grams, item subtotal (before any
+ * applied discount, falling back to the paid total when no discount applies),
+ * automatic discount state and paid item total must all agree, so an
+ * unobserved larger cart — or the same cart after the promotion ended or
+ * changed — can never inherit free delivery from the observation alone.
+ *
+ * A field the vendor observation recorded as required must also be present on
+ * the current cart: a cart whose SKU or delivery method is missing is not the
+ * cart the vendor showed free, so a missing value never counts as a match.
  */
 export function freeCartConditionMatches(condition, observation, quote) {
   if (!condition) return false;
   if (condition.itemUrlPrefix && !String(observation?.itemUrl ?? '').startsWith(condition.itemUrlPrefix)) return false;
-  if (condition.service && quote?.shipping?.service && condition.service !== quote.shipping.service) return false;
-  if (condition.sku && quote?.product?.sku && condition.sku !== quote.product.sku) return false;
+  if (condition.service != null) {
+    if (!quote?.shipping?.service || condition.service !== quote.shipping.service) return false;
+  }
+  if (condition.sku != null) {
+    if (!quote?.product?.sku || condition.sku !== quote.product.sku) return false;
+  }
   if (condition.packCount != null && (quote?.product?.packCount ?? 1) !== condition.packCount) return false;
   if (condition.units != null && quote?.units !== condition.units) return false;
   if (condition.orderedGrams != null && quote?.orderedGrams !== condition.orderedGrams) return false;
   if (condition.itemSubtotalIls != null) {
     const observedSubtotal = quote?.itemSubtotalBeforeDiscountIls ?? quote?.itemTotalIls;
     if (!Number.isFinite(observedSubtotal) || Math.abs(observedSubtotal - condition.itemSubtotalIls) > 0.005) return false;
+  }
+  // Discount state: the recorded cart's automatic discount percent must equal
+  // the current cart's, including "no discount" when the observation recorded
+  // none. A promotion that ended or changed percent is a different cart, even
+  // when the pre-discount subtotal is unchanged.
+  const observedDiscountPercent = Number.isFinite(condition.discountPercent) ? condition.discountPercent : null;
+  const currentDiscountPercent = Number.isFinite(quote?.itemDiscount?.percent) ? quote.itemDiscount.percent : null;
+  if (observedDiscountPercent !== currentDiscountPercent) return false;
+  // Paid item total: the amount actually paid for the items after any automatic
+  // discount must equal the recorded cart's paid total. The pre-discount
+  // subtotal alone cannot prove the promotion state is the one observed.
+  if (condition.paidItemTotalIls != null) {
+    if (!Number.isFinite(quote?.itemTotalIls) || Math.abs(quote.itemTotalIls - condition.paidItemTotalIls) > 0.005) return false;
   }
   return true;
 }
