@@ -2731,8 +2731,12 @@ and the pre-discount subtotal + discount = paid item total = final total. A miss
 unselected option price, an unknown method, an unverified destination, an ambiguous promotion or an
 incomplete total keeps the record blocked/unknown; the matcher never invents a threshold and the runtime
 cart-condition scope is unchanged. `tests/research-workflow.test.js` pins each rejection case, the
-schema-2 validation of a selected-method-option record, and version-1 compatibility; `npm run verify`
-passes **190/190** tests plus the `wrangler deploy --dry-run` bundle.
+schema-2 validation of a selected-method-option record, and version-1 compatibility; a checked-in-record
+test keeps the fresh 8-single quotes schema-valid with their discount/method evidence and the historical
+blocked record present. The worker suite's `seededStore()` also carried a fixed seed time
+(`2026-10-12T10:00:00Z`) that made six board tests fail once the wall clock crossed the 24-hour
+quote-staleness window; it now seeds relative to `Date.now()`, so the suite is deterministic. `npm run
+verify` passes **191/191** tests plus the `wrangler deploy --dry-run` bundle.
 
 **Fresh schema-valid quotes for the exact 8-single cart through the checked-in recipe.** The reusable
 CoffeeMan recipe (`RECIPES.coffeeman`, SKU 930333, the product page's own “קנה עכשיו” control, the closed

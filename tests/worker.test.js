@@ -56,7 +56,11 @@ function envWith(store, extra = {}) {
 async function seededStore() {
   const store = createMemoryStore();
   const { runRefresh } = await import('../src/refresh.js');
-  await runRefresh({ store, fetchImpl: fixtureFetch, now: Date.parse('2026-10-12T10:00:00.000Z'), trigger: 'test' });
+  // Seed relative to the real clock: the quote engine compares observation
+  // times with DEFAULT_STALE_AFTER_MS (24 h), so a hard-coded fixture time
+  // makes every board test fail once the wall clock passes it. The fixture
+  // values themselves are time-independent.
+  await runRefresh({ store, fetchImpl: fixtureFetch, now: Date.now() - 60_000, trigger: 'test' });
   return store;
 }
 
