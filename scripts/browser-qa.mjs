@@ -434,7 +434,8 @@ try {
         shipping: cells[1]?.querySelector('.totals__value')?.textContent.trim() ?? null,
         shippingMeta: cells[1]?.querySelector('.totals__meta--certainty')?.textContent.trim() ?? null,
         total: cells[2]?.querySelector('.totals__value')?.textContent.trim() ?? null,
-        qualifier: card.querySelector('.qualifier')?.textContent.trim() ?? null,
+        qualifier: [...card.querySelectorAll('.qualifier:not(.qualifier--failure)')].map(node => node.textContent.trim()).join(' '),
+        failureNote: card.querySelector('.qualifier--failure')?.textContent.trim() ?? null,
         conditions: card.querySelector('.conditions')?.textContent.trim() ?? null,
         detailsText: [...card.querySelectorAll('details')].map(node => node.textContent).join(' ')
       };
