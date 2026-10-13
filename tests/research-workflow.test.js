@@ -859,6 +859,23 @@ test('the other checked-in free conditions now carry identity-verified v3 record
   }
 });
 
+test('the checked-in mixed-cart run stays blocked without a shipping amount', () => {
+  // Live negative evidence: a cart holding the tracked single listing plus a
+  // 4-pack listing was observed, and the run stayed blocked with both rendered
+  // lines recorded instead of quoting either listing's amounts.
+  const dir = new URL('../docs/evidence/browser-research/', import.meta.url);
+  const record = JSON.parse(readFileSync(new URL('2026-10-13-coffeeman-mixed-cart-identity-blocked.json', dir), 'utf8'));
+  assert.equal(validateEvidence(record).ok, true);
+  assert.equal(record.schemaVersion, 3);
+  assert.equal(record.status, 'blocked');
+  assert.equal(record.cartIdentityVerified, false);
+  assert.equal(record.observedCartIdentity, null);
+  assert.equal(record.shippingIls, null, 'a mixed cart must not take the omitted-row zero');
+  assert.equal(record.shippingEvidenceSource, null);
+  assert.match(record.cartIdentityNote, /2 distinct rendered lines/);
+  assert.deepEqual((record.cartIdentityLines ?? []).map(line => line.sku).sort(), ['930333', '930334']);
+});
+
 test('the checked-in 8-pack recipe records reproduce the ₪20 quote at two destinations', () => {
   // The 8 × 250 g multipack recipe (SKU 930335, one cart unit = 2000 g) makes
   // the distinct ₪20 cart quote re-checkable per destination through the same

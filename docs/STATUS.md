@@ -2835,7 +2835,12 @@ re-checked the same way at 10:42-10:43 UTC: the `singles-7` cart (SKU `930333`, 
 and the `fourpack-2` cart (SKU `930334`, “4 אריזות 250 גרם” × 2, ₪248 free) each produced a quoted v3
 record with the rendered cart line observed and matched
 (`...-7singles-telaviv-identity-recipe.json`, `...-4pack-telaviv-identity-recipe.json`), so every free
-condition now has an identity-observed record without any money or scope change.
+condition now has an identity-observed record without any money or scope change. A live negative check at
+10:46 UTC ran the single-listing recipe against a cart holding both the 8-single line and a 2 × 4-pack
+line: the record stayed **blocked** with both rendered lines preserved, `cartIdentityVerified false`,
+`shippingIls null` and the exact “2 distinct rendered lines” reason
+(`docs/evidence/browser-research/2026-10-13-coffeeman-mixed-cart-identity-blocked.json`), so a mixed cart
+cannot inherit the single-listing free zero.
 
 **Tests:** `tests/research-workflow.test.js` now covers the matcher's verified, wrong-SKU, wrong
 multipack, mixed-cart, duplicate-render, missing-SKU and missing-pack-wording cases; a run whose rendered
