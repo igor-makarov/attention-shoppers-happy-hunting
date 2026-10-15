@@ -547,7 +547,8 @@ test('an old persisted CoffeeMan 8-pack offer gains the researched cart quote at
   assert.equal(twoPacks.best, null);
   assert.equal(twoPacks.unrankable.length, 1);
   assert.match(twoPacks.unrankable[0].reasons.join(' '), /quoted only for carts up to 2000 g/);
-  assert.equal(twoPacks.unrankable[0].shipping.amountIls, null, 'an out-of-scope cart never becomes a ranked total');
+  assert.equal(twoPacks.unrankable[0].shipping.amountIls, 20, 'the known ₪20 quote stays visible on the blocked offer');
+  assert.equal(twoPacks.unrankable[0].totalIls, null, 'an out-of-scope cart never becomes a ranked total');
 
   // The 8-pack policy is scoped to the 8-pack offer URL: the single-pack listing
   // keeps its own evidence and is never given the multipack cart rate.

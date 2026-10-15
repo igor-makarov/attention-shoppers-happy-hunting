@@ -130,6 +130,8 @@ test('the recorded Tiv Taam listing is observed and quoted but stays unranked be
   assert.equal(result.best, null, 'no exact batch is purchasable below the ₪300 minimum');
   assert.match(result.unrankable[0].reasons.join(' '), /below the vendor minimum order of ₪300/);
   assert.equal(result.unrankable[0].shipping.amount, 29.9, 'the researched ₪29.90 home-delivery rate is still carried on the visible offer');
+  assert.equal(result.unrankable[0].shipping.amountIls, 29.9, 'the known rate stays converted and visible even though the batch is blocked');
+  assert.equal(result.unrankable[0].totalIls, null, 'a below-minimum batch never gets a delivered total');
   assert.equal(result.unrankable[0].shipping.serviceLabel, 'Home delivery');
   assert.deepEqual(result.batchComparisons.map(batch => batch.best), [null, null, null, null]);
 });

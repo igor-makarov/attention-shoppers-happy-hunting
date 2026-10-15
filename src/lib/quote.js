@@ -249,6 +249,15 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
   const reasons = [];
   const labels = [];
 
+  // Convert the published shipping amount once, before any cart-condition check
+  // can return early. A quote blocked for a minimum order, an unverified
+  // destination or an out-of-stock row must still report the known rate instead
+  // of rendering as "shipping not published"; the block itself stays in
+  // `reasons` and the offer is still unrankable.
+  const shippingAmount = shipping.amount?.amount ?? shipping.amount ?? null;
+  const shippingCurrency = shipping.amount?.currency ?? price.currency ?? null;
+  const publishedShipping = toIls(shippingAmount, shippingCurrency, fx);
+
   const ageMs = observation.observedAt ? now - Date.parse(observation.observedAt) : null;
   const stale = ageMs == null || ageMs > staleAfterMs || ageMs < -CLOCK_SKEW_MS;
   const freshness = ageMs == null ? 'unknown' : stale ? 'stale' : 'fresh';
@@ -296,7 +305,7 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
       certaintyLabel: shippingCertaintyLabel(shipping.certainty ?? 'unknown'),
       amount: shipping.amount?.amount ?? null,
       currency: shipping.amount?.currency ?? null,
-      amountIls: null,
+      amountIls: (shipping.certainty ?? 'unknown') !== 'unknown' && publishedShipping.known ? round2(publishedShipping.amount) : null,
       freeThreshold: shipping.freeThreshold?.amount ?? null,
       freeThresholdCurrency: shipping.freeThreshold?.currency ?? null,
       // The vendor's own wording decides the boundary: "above ₪100" is strictly

@@ -7,8 +7,8 @@ import { startQaServer, fixtureObservations } from '../scripts/qa-server.mjs';
 
 test('fixture observations parse through the production adapters', async () => {
   const observations = await fixtureObservations(Date.parse('2026-10-12T11:00:00.000Z'));
-  assert.equal(observations.length, 6, 'five tracked offers plus the QA-only legacy blend-keyed row');
-  assert.ok(observations.every(item => item.product.productId === 'lavazza-crema-e-gusto-vacuum-ground'), 'only the tracked line is parsed');
+  assert.equal(observations.length, 7, 'five coffee offers plus the Tiv Taam cottage-cheese listing plus the QA-only legacy blend-keyed row');
+  assert.ok(observations.every(item => ['lavazza-crema-e-gusto-vacuum-ground', 'tnuva-cottage-cheese-5-percent'].includes(item.product.productId)), 'only tracked lines are parsed');
   const coffeeman = observations.find(item => item.vendor.id === 'coffeeman');
   assert.equal(coffeeman.product.form, 'ground');
   assert.equal(coffeeman.product.variantId, 'classico');
@@ -38,6 +38,14 @@ test('fixture observations parse through the production adapters', async () => {
   assert.equal(coffee4u.shipping.alternatives[0].amount.amount, 15);
   // The QA-only legacy row exists so the harness exercises the old-store case:
   // one listing URL under the pre-correction blend key next to its stable-key row.
+  const tivtaam = observations.find(item => item.vendor.id === 'tivtaam');
+  assert.equal(tivtaam.product.productId, 'tnuva-cottage-cheese-5-percent');
+  assert.equal(tivtaam.product.form, 'cottage_cheese');
+  assert.equal(tivtaam.product.packGrams, 250);
+  assert.equal(tivtaam.price.amount, 6.1);
+  assert.equal(tivtaam.availability, 'in_stock');
+  assert.equal(tivtaam.shipping.amount.amount, 29.9);
+  assert.equal(tivtaam.shipping.minOrder.amount, 300, 'the published ₪300 minimum travels with the parsed row');
   const legacy = observations.find(item => item.key === 'pucks:Lav69:classico:ground:250g:x1');
   assert.ok(legacy, 'the QA store seeds the pre-correction blend-keyed row');
   assert.ok(legacy.observedAt < pucks.observedAt, 'the legacy row is the older observation');

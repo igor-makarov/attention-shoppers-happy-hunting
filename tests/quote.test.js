@@ -255,7 +255,8 @@ test('a checkout rate observed on a smaller cart never stretches to a larger one
   const big = quote([quoted], { targetGrams: 3000 });
   assert.equal(big.ranked.length, 0, 'two multipacks exceed the quoted 2 kg cart');
   assert.match(big.unrankable[0].reasons.join(' '), /quoted only for carts up to 2000 g/);
-  assert.equal(big.unrankable[0].shipping.amountIls, null, 'the rate is never stretched or zeroed');
+  assert.equal(big.unrankable[0].shipping.amountIls, 20, 'the known rate stays visible on the blocked offer');
+  assert.equal(big.unrankable[0].totalIls, null, 'the rate is never stretched or zeroed into a delivered total');
 });
 
 test('missing FX never becomes zero and cannot be ranked', () => {

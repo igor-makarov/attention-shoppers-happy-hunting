@@ -1275,10 +1275,11 @@ try {
     await unknownServer.close();
   }
 
-  // The dairy page has exact tub quantities and honest pending delivery totals:
-  // the fixture board carries no cottage-cheese observation, so the sourcing
-  // note must name the real blocker (Tiv Taam's ₪300 minimum order) instead of
-  // inventing a total, and no coffee vendor may leak into the dairy page.
+  // The dairy page has exact tub quantities and honest unranked delivery
+  // totals: the fixture board carries the real Tiv Taam listing, whose known
+  // ₪29.90 home-delivery rate must stay visible while every exact batch is
+  // blocked below the published ₪300 minimum order. No total may be invented
+  // and no coffee vendor may leak into the dairy page.
   const cheese = catalog.products.find(item => item.id === 'tnuva-cottage-cheese-5-percent');
   if (cheese) {
     const cheesePath = `/product/${cheese.id}`;
@@ -1303,10 +1304,15 @@ try {
         && cheeseView.selected === '6 tubs' && cheeseView.dest === 'haifa'
         && cheeseView.batches === 4 && cheeseView.unknown === 4
         && !cheeseView.overflow && !cheeseView.pickup && !/coffee/i.test(cheeseView.subtitle), JSON.stringify(cheeseView));
-    check('cottage cheese: the sourcing note names the minimum-order blocker and no total or coffee winner is claimed',
-      /₪300 minimum order/.test(cheeseView.text)
-        && /Tiv Taam/.test(cheeseView.text)
-        && !/Best known delivered total|CoffeeMan|Pucks|Coffee4U|₪0/.test(cheeseView.text), cheeseView.text.slice(0, 1000));
+    await setDetailsOpen(wd, '#unknown-offers', true);
+    await waitFor(() => evaluate(wd, `document.getElementById('unknown-offers')?.open === true`), 10_000, 'unknown-offers disclosure');
+    const cheeseUnknown = await evaluate(wd, `document.getElementById('unknown-offers')?.innerText ?? ''`);
+    check('cottage cheese: the observed Tiv Taam offer keeps its known ₪29.90 rate and the ₪300 minimum-order block, with no total or coffee winner claimed',
+      /Tiv Taam/.test(cheeseUnknown)
+        && /Shipping: ₪29.90/.test(cheeseUnknown)
+        && /below the vendor minimum order of ₪300/.test(cheeseUnknown)
+        && /₪300 minimum order/.test(cheeseView.text)
+        && !/Best known delivered total|CoffeeMan|Pucks|Coffee4U|₪0/.test(cheeseView.text), cheeseUnknown.slice(0, 1200));
     await firstScreenScreenshot(wd, 'cottage-cheese-mobile-390.png');
     await contrastReport(wd, 'body', 'the cottage-cheese pending comparison (mobile)');
     const ten = await wd('POST', '/element', { using: 'css selector', value: '#quantity-group [data-quantity="10"]' });
