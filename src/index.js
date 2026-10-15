@@ -102,14 +102,15 @@ async function handleBoard(request, env, ctx, url) {
   // parameter is ignored so the URL resolves to the one unified comparison and
   // quantity/locality are preserved. It never creates a second view or filters
   // any listing out.
-  const grams = url.searchParams.get('grams') ?? '500';
+  const grams = url.searchParams.get('grams') ?? undefined;
   const destination = findDestination(url.searchParams.get('dest'));
   const snapshot = await store.snapshot();
-  const lastObservationAt = newestObservationAt(snapshot.observations, TRACKED_PRODUCT_IDS);
+  const lastObservationAt = newestObservationAt(snapshot.observations, [productId]);
   const board = quoteBoard({
     observations: snapshot.observations,
     productId,
     targetGrams: grams,
+    targetQuantity: url.searchParams.get('quantity'),
     destination,
     fx: snapshot.meta?.fx ?? null,
     now: Date.now()
@@ -120,9 +121,11 @@ async function handleBoard(request, env, ctx, url) {
     product: publicProduct(product),
     requestedRetiredProduct: retired ? { id: retired.id, line: retired.line } : null,
     freshness: {
-      ...refreshFreshness(snapshot.meta?.lastRefreshAt?.value ?? null, Date.now(), lastObservationAt),
+      ...refreshFreshness(lastObservationAt ? snapshot.meta?.lastRefreshAt?.value ?? null : null, Date.now(), lastObservationAt),
       fx: snapshot.meta?.fx ? { asOf: snapshot.meta.fx.asOf, fetchedAt: snapshot.meta.fx.fetchedAt, source: snapshot.meta.fx.source?.name ?? null } : null,
-      vendors: Object.values(vendors).map(state => ({
+      vendors: Object.values(vendors).filter(state => registeredVendors().some(vendor =>
+        vendor.id === state.vendorId && vendor.offers.some(offer => offer.productId === productId)
+      )).map(state => ({
         vendorId: state.vendorId,
         lastAttemptAt: state.lastAttemptAt,
         lastSuccessAt: state.lastSuccessAt,
@@ -195,7 +198,12 @@ export function publicProduct(product) {
     form: product.form,
     packaging: product.packaging,
     targetMarket: product.targetMarket,
-    notes: product.notes
+    notes: product.notes,
+    description: product.description,
+    detailDescription: product.detailDescription ?? product.description,
+    quantity: product.quantity,
+    deliveryOnly: Boolean(product.deliveryOnly),
+    sourcing: product.sourcing ?? null
   };
 }
 

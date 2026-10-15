@@ -1,7 +1,7 @@
 // Tracked product and strict listing classification.
 //
-// Scope (owner correction, 2026-10-12): exactly one product is tracked —
-// Lavazza Crema e Gusto ground coffee in a vacuum brick. Qualità Oro,
+// Scope (owner instruction, 2026-10-15): Crema e Gusto coffee and plain
+// Tnuva 5% cottage cheese in 250 g tubs. Qualità Oro,
 // Qualità Rossa, Suerte and every other Lavazza line are retired: their names
 // survive only as tombstones below, so a listing, a parser page or an old
 // ?product= URL can never silently re-enter the board. Re-adding a product
@@ -74,8 +74,37 @@ export const PRODUCTS = [
     form: 'ground',
     packaging: 'vacuum brick',
     targetMarket: 'IL',
+    description: 'Ground coffee · vacuum brick · 250 g packs and multipacks',
+    detailDescription: 'Ground coffee · vacuum brick · delivery in Israel',
+    quantity: { mode: 'weight', options: [250, 500, 750, 1000, 2000], default: 500 },
     linePatterns: LINE_PATTERNS['lavazza-crema-e-gusto'],
-    notes: 'The only tracked product line (owner correction, 2026-10-12). Ground coffee in a vacuum brick. All eligible Crema e Gusto vacuum-packed ground listings share one comparison; pack sizes and multipacks stay distinct offers. Any blend wording a listing prints is raw listing identity metadata only — never a shopper-selectable variant. Beans, capsules, pods and every other Lavazza product line are rejected.'
+    notes: 'Ground coffee in a vacuum brick. All eligible Crema e Gusto vacuum-packed ground listings share one comparison; pack sizes and multipacks stay distinct offers. Any blend wording a listing prints is raw listing identity metadata only — never a shopper-selectable variant. Beans, capsules, pods and every other Lavazza product line are rejected.'
+  },
+  {
+    id: 'tnuva-cottage-cheese-5-percent',
+    brand: 'Tnuva',
+    line: '5% cottage cheese',
+    form: 'cottage_cheese',
+    packaging: '250 g tub',
+    targetMarket: 'IL',
+    description: 'Plain 5% cottage cheese · 250 g tubs · delivery only',
+    quantity: { mode: 'units', unitLabel: 'tubs', unitGrams: 250, options: [4, 6, 8, 10], default: 4 },
+    deliveryOnly: true,
+    notes: 'Compare the lowest total including delivery and mandatory fees for exact batches of 4, 6, 8 or 10 standard 250 g tubs. Other brands, fat percentages, flavoured cottage cheese and other tub sizes are excluded.',
+    sourcing: {
+      status: 'pending',
+      note: 'No delivery quote has been verified for these batches yet. Item price, stock, quantity limits, minimum order and all delivery fees need confirmation for the selected locality.',
+      sources: [
+        {
+          label: 'Bastale product listing',
+          url: 'https://www.bastale.co.il/product-details/75069/קוטג_5%25_תנובה_250_גרם'
+        },
+        {
+          label: 'Wolt Market Ben Yehuda cottage-cheese listings',
+          url: 'https://wolt.com/he/isr/tel-aviv/venue/wolt-market-ben-yehuda/items/menucategory-109'
+        }
+      ]
+    }
   }
 ];
 
@@ -166,7 +195,11 @@ export function classifyListing(text, { productId = null } = {}) {
   const reasons = [];
   const requestedProduct = productId ? productById(productId) : null;
   const requestedRetired = productId ? retiredProductById(productId) : null;
-  const candidates = requestedProduct ? [requestedProduct] : (productId ? [] : PRODUCTS);
+  const cheese = PRODUCTS.find(product => product.form === 'cottage_cheese');
+  if (requestedProduct === cheese || (!productId && /tnuva|תנובה|cottage|קוטג/i.test(value))) {
+    return classifyCottageCheese(value, cheese);
+  }
+  const candidates = requestedProduct ? [requestedProduct] : (productId ? [] : PRODUCTS.filter(product => product.form === 'ground'));
 
   if (productId && !requestedProduct && !requestedRetired) reasons.push(`unknown tracked product: ${productId}`);
   if (requestedRetired) reasons.push(`product line ${requestedRetired.line} was retired; only Lavazza Crema e Gusto is tracked`);
@@ -205,6 +238,40 @@ export function classifyListing(text, { productId = null } = {}) {
       ? (pack.grams == null ? ['pack weight not stated; offer can be shown but not normalized'] : [])
       : reasons
   };
+}
+
+function classifyCottageCheese(value, product) {
+  const reasons = [];
+  if (!/tnuva|תנובה/i.test(value)) reasons.push('brand is not Tnuva');
+  if (!/cottage(?:\s+cheese)?|קוטג[׳'`]?/i.test(value)) reasons.push('listing does not state cottage cheese');
+  const fat = [...value.matchAll(/(\d+(?:[.,]\d+)?)\s*%|%\s*(\d+(?:[.,]\d+)?)/g)]
+    .map(match => Number((match[1] ?? match[2]).replace(',', '.')));
+  if (fat.length !== 1 || fat[0] !== 5) reasons.push('listing must state exactly 5% fat');
+  if (/olives?|garlic|dill|chives?|flavou?red|זיתים|שום|שמיר|בצל|מופחת\s*נתרן/i.test(value)) {
+    reasons.push('listing is not plain cottage cheese');
+  }
+  const pack = parsePackSize(value);
+  if (pack.grams !== 250) reasons.push('listing must state a 250 g tub');
+  return {
+    matched: reasons.length === 0,
+    productId: reasons.length ? null : product.id,
+    productLine: reasons.length ? null : product.line,
+    form: reasons.length ? 'unknown' : product.form,
+    packGrams: pack.grams,
+    packCount: pack.count,
+    totalGrams: pack.grams == null ? null : pack.grams * pack.count,
+    retiredLine: null,
+    reasons
+  };
+}
+
+/** Resolve exact tub batches; preserve weight-based coffee links. */
+export function productQuantity(product, { quantity = null, grams = null } = {}) {
+  const config = product?.quantity;
+  if (config?.mode !== 'units') return { targetQuantity: null, targetGrams: grams ?? config?.default ?? 500 };
+  const requested = quantity == null && grams != null ? Number(grams) / config.unitGrams : Number(quantity);
+  const count = config.options.includes(requested) ? requested : config.default;
+  return { targetQuantity: count, targetGrams: count * config.unitGrams };
 }
 
 const OZ_TO_GRAMS = 28.349523125;

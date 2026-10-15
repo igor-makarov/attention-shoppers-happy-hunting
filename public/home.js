@@ -12,7 +12,7 @@
 import { el, timeLabel, bidi } from './ui.js';
 
 const params = new URLSearchParams(location.search);
-const LEGACY_KEYS = ['product', 'grams', 'dest', 'variant', 'unknown'];
+const LEGACY_KEYS = ['product', 'grams', 'quantity', 'dest', 'variant', 'unknown'];
 const isLegacyBoardLink = LEGACY_KEYS.some(key => params.has(key));
 
 const list = document.getElementById('catalog-list');
@@ -39,7 +39,8 @@ async function main() {
     const forwarded = new URLSearchParams(params);
     forwarded.delete('variant');
     const query = forwarded.toString();
-    const target = `/product/${encodeURIComponent(products[0].id)}${query ? `?${query}` : ''}`;
+    const product = products.find(item => item.id === params.get('product')) ?? products[0];
+    const target = `/product/${encodeURIComponent(product.id)}${query ? `?${query}` : ''}`;
     location.replace(target);
     return;
   }
@@ -55,16 +56,19 @@ function renderCatalog(products, vendors) {
 }
 
 function productCard(product, vendors) {
+  vendors = vendors.filter(vendor => vendor.offers?.some(offer => offer.productId === product.id));
   const vendorCount = vendors.length;
-  const listingCount = vendors.reduce((sum, vendor) => sum + (vendor.offers?.length ?? 0), 0);
+  const listingCount = vendors.reduce((sum, vendor) => sum + vendor.offers.filter(offer => offer.productId === product.id).length, 0);
   const vendorNames = vendors.map(vendor => vendor.name).filter(Boolean);
   // Concise index card: identity, packaging and where the offers come from.
   // The comparison workflow and its caveats live on the product page, not here.
   const card = el('article', { class: 'product-card' },
     el('p', { class: 'product-card__brand', text: product.brand }),
     el('h2', { class: 'product-card__name' }, bidi(`${product.brand} ${product.line}`)),
-    el('p', { class: 'product-card__meta', text: `${product.form} coffee · ${product.packaging} · 250 g packs and multipacks` }),
-    el('p', { class: 'product-card__summary', text: `${vendorCount} vendor${vendorCount === 1 ? '' : 's'} · ${listingCount} listing${listingCount === 1 ? '' : 's'}${vendorNames.length ? `: ${vendorNames.join(', ')}` : ''}` }),
+    el('p', { class: 'product-card__meta', text: product.description }),
+    el('p', { class: 'product-card__summary', text: vendorCount
+      ? `${vendorCount} vendor${vendorCount === 1 ? '' : 's'} · ${listingCount} listing${listingCount === 1 ? '' : 's'}${vendorNames.length ? `: ${vendorNames.join(', ')}` : ''}`
+      : 'Batches of 4, 6, 8 or 10 · delivery quotes pending' }),
     el('p', { class: 'product-card__action' },
       el('a', { class: 'product-card__link', href: `/product/${encodeURIComponent(product.id)}`, text: 'Compare delivered offers' })));
   return card;

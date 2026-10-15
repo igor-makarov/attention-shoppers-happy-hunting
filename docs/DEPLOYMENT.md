@@ -1,5 +1,7 @@
 # Deployment notes and owner handoffs
 
+Local addition (2026-10-15): the authorized catalog now contains Crema e Gusto and Tnuva 5% cottage cheese. Cheese has exact 4/6/8/10-tub delivery-only comparisons but **no registered grocery adapter or verified delivery totals yet**. This change is locally verified only; it has not been deployed or production-verified. The older one-product production evidence below remains historical. Runtime/runner grocery access and verified source/parser evidence are needed before a grocery adapter can refresh the cheese. No Cloudflare configuration was changed.
+
 Current state (2026-10-12): handoff 1 (OpenCode key plus loop control) is complete, and the owner
 reports the Cloudflare side connected and serving **https://attention-shoppers.igormaka.workers.dev**
 with the production Worker name `attention-shoppers`. On 2026-10-12 15:51-15:54 UTC the coding loop
@@ -112,7 +114,7 @@ the report lists which captures came from the deterministic fixture scenario ser
 
 ## Adding a vendor (and the product-line rule)
 
-The active scope is Lavazza Crema e Gusto vacuum-packed ground coffee only. Another product line may
+The active scope is Lavazza Crema e Gusto vacuum-packed ground coffee plus the owner's 2026-10-15 addition of Tnuva 5% cottage cheese. Another product line may
 only be added after an explicit new owner instruction; retired lines (Qualità Oro, Qualità Rossa,
 Suerte) must not be re-added, and their historical page excerpts under
 `tests/fixtures/historical-retired/` are negative test inputs only.

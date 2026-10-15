@@ -79,7 +79,7 @@ test('catalog route lists the product, destinations and vendor allowlist without
   const response = await worker.fetch(new Request('https://example.test/api/catalog'), envWith(createMemoryStore()), {});
   const body = await response.json();
   assert.equal(body.products[0].id, 'lavazza-crema-e-gusto-vacuum-ground');
-  assert.equal(body.products.length, 1, 'only the one tracked product line is selectable');
+  assert.equal(body.products.length, 2, 'coffee and the newly requested cottage cheese are selectable');
   assert.ok(body.destinations.length >= 5);
   const vendorIds = body.vendors.map(vendor => vendor.id).sort();
   assert.deepEqual(vendorIds, ['coffee4u', 'coffeeman', 'pucks']);
@@ -264,9 +264,9 @@ test('scheduled handler refreshes and persists through the BOARD binding', async
   assert.equal(run.requests, 6);
 });
 
-test('the catalog lists only the tracked Crema e Gusto product with no variant selection', async () => {
+test('the catalog lists the two authorized products with no coffee variant selection', async () => {
   const catalog = await (await worker.fetch(new Request('https://example.test/api/catalog'), envWith(createMemoryStore()), {})).json();
-  assert.equal(catalog.products.length, 1, 'no retired product line is selectable');
+  assert.equal(catalog.products.length, 2, 'no retired Lavazza product line is selectable');
   const crema = catalog.products[0];
   assert.equal(crema.id, 'lavazza-crema-e-gusto-vacuum-ground');
   assert.equal(crema.line, 'Crema e Gusto');
@@ -276,6 +276,32 @@ test('the catalog lists only the tracked Crema e Gusto product with no variant s
   assert.equal(crema.variants, undefined, 'the catalog exposes no variant menu');
   assert.match(crema.notes, /one comparison/i, 'the catalog documents the unified comparison');
   assert.ok(!/oro|rossa|suerte/i.test(JSON.stringify(catalog.products)), 'no retired line appears in the catalog');
+});
+
+test('cottage cheese API resolves exact batches and never borrows coffee offers or freshness', async () => {
+  const store = await seededStore();
+  const productId = 'tnuva-cottage-cheese-5-percent';
+  for (const quantity of [4, 6, 8, 10]) {
+    const response = await worker.fetch(new Request(`https://example.test/api/board?product=${productId}&quantity=${quantity}&dest=haifa`), envWith(store), {});
+    const board = await response.json();
+    assert.equal(board.product.id, productId);
+    assert.equal(board.targetQuantity, quantity);
+    assert.equal(board.targetGrams, quantity * 250);
+    assert.equal(board.destination.id, 'haifa');
+    assert.equal(board.deliveryOnly, true);
+    assert.equal(board.best, null);
+    assert.equal(board.counts.observed, 0);
+    assert.deepEqual(board.pickup, []);
+    assert.deepEqual(board.batchComparisons.map(batch => [batch.quantity, batch.best]), [[4, null], [6, null], [8, null], [10, null]]);
+    assert.deepEqual(board.freshness.vendors, []);
+    assert.equal(board.freshness.lastObservationAt, null);
+    assert.equal(board.freshness.lastRefreshAt, null, 'a successful coffee refresh is not a cheese refresh');
+    assert.equal(board.product.sourcing.status, 'pending');
+  }
+  const get = async query => (await worker.fetch(new Request(`https://example.test/api/board?product=${productId}&${query}`), envWith(store), {})).json();
+  assert.equal((await get('grams=2000')).targetQuantity, 8);
+  assert.equal((await get('quantity=5')).targetQuantity, 4);
+  assert.equal((await get('quantity=10&grams=1000')).targetQuantity, 10);
 });
 
 test('an old product URL for a retired line falls back to Crema e Gusto and says so', async () => {

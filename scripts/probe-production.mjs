@@ -12,8 +12,8 @@
 // a later iteration can diff production state without re-inventing the probe.
 //
 // Exit code 1 when the site is unreachable, when a response is not HTTP 200, or
-// when the single-product scope is violated (a retired product line appearing in
-// a board payload or more than one catalog product).
+// when the authorized two-product scope is violated (including a retired
+// Lavazza product line appearing in a board payload).
 
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -165,7 +165,8 @@ for (const [name, response] of Object.entries(endpoints)) {
 }
 
 const catalogProducts = (endpoints.catalog.body?.products ?? []).map(product => product.id);
-check('catalog exposes exactly the tracked product', catalogProducts.length === 1 && catalogProducts[0] === TRACKED_PRODUCT, catalogProducts.join(', '));
+check('catalog exposes exactly the authorized products',
+  catalogProducts.length === 2 && catalogProducts.includes(TRACKED_PRODUCT) && catalogProducts.includes('tnuva-cottage-cheese-5-percent'), catalogProducts.join(', '));
 check(
   'health reports ok with storage available',
   endpoints.health.body?.status === 'ok' && !endpoints.health.body?.storageError,

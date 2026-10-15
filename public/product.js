@@ -16,8 +16,6 @@ import {
   coverageQualifier, failedCheckNote, diagnosticsDisclosure
 } from './ui.js';
 
-const GRAMS_OPTIONS = [250, 500, 750, 1000, 2000];
-
 const params = new URLSearchParams(location.search);
 const pathProduct = decodeURIComponent(location.pathname.replace(/^\/product\/?/, '')) || null;
 
@@ -33,6 +31,7 @@ if (params.has('variant')) {
 
 const state = {
   grams: Number(params.get('grams')) || 500,
+  quantity: params.has('quantity') ? Number(params.get('quantity')) : null,
   destination: params.get('dest') || 'tel-aviv',
   product: pathProduct,
   requestedProduct: params.get('product') || pathProduct,
@@ -65,10 +64,12 @@ async function load() {
     // The requested id (which may name a retired line) is sent as requested so
     // the API can report the fallback instead of hiding it.
     const requestedProduct = state.requestedProduct ?? state.product;
-    const query = new URLSearchParams({ product: requestedProduct, grams: String(state.grams), dest: state.destination });
+    const query = new URLSearchParams({ product: requestedProduct, dest: state.destination });
+    query.set(currentProduct()?.quantity?.mode === 'units' ? 'quantity' : 'grams', String(state.quantity ?? state.grams));
     const board = await fetch(`/api/board?${query}`).then(response => response.json());
     if (token !== loadToken) return;
     state.board = board;
+    if (board.product?.id) state.product = board.product.id;
     // A malformed shared URL (for example `grams=abc` or an unknown `dest`) is
     // clamped or resolved by the API. Adopt exactly what was quoted so the
     // controls, the address bar and the board never disagree.
@@ -87,7 +88,17 @@ async function load() {
 function applyProductDefaults() {
   const catalogProducts = state.catalog?.products ?? [];
   if (!catalogProducts.length) return;
+  const requested = catalogProducts.find(item => item.id === state.requestedProduct);
+  if (requested) state.product = requested.id;
   if (!catalogProducts.some(item => item.id === state.product)) state.product = catalogProducts[0].id;
+  const config = currentProduct()?.quantity;
+  if (config?.mode === 'units') {
+    const requestedQuantity = state.quantity ?? (params.has('grams') ? state.grams / config.unitGrams : config.default);
+    state.quantity = config.options.includes(requestedQuantity) ? requestedQuantity : config.default;
+    state.grams = state.quantity * config.unitGrams;
+  } else {
+    state.quantity = null;
+  }
 }
 
 function currentProduct() {
@@ -118,9 +129,12 @@ function renderIdentity() {
   const product = state.board?.product ?? currentProduct();
   const title = document.getElementById('product-title');
   const subtitle = document.getElementById('product-subtitle');
-  if (title && product) title.textContent = `${product.brand} ${product.line}`;
+  if (title && product) {
+    title.textContent = `${product.brand} ${product.line}`;
+    document.title = `${title.textContent} — delivered prices`;
+  }
   if (subtitle && product) {
-    subtitle.textContent = `${product.form} coffee · ${product.packaging} · delivery in Israel`;
+    subtitle.textContent = product.detailDescription ?? product.description;
   }
 }
 
@@ -131,7 +145,7 @@ function renderFallbackNotice(board) {
       el('p', {},
         'This link asked for Lavazza ',
         bidi(board.requestedRetiredProduct.line),
-        '. Only Lavazza Crema e Gusto vacuum-packed ground coffee is tracked now, so the comparison below covers Crema e Gusto offers only. Re-tracking another product line needs an explicit new owner instruction.'));
+        '. That Lavazza line is retired. The comparison below covers Crema e Gusto offers only.'));
   }
   const requested = state.requestedProduct;
   if (requested && board.product && requested !== board.product.id) {
@@ -145,17 +159,24 @@ function renderFallbackNotice(board) {
 /** Default view: best eligible offer plus progressively disclosed comparison. */
 function renderDecision(board) {
   const section = el('section', { class: 'decision', attrs: { id: 'decision' } });
+  if (board.batchComparisons) section.append(renderBatches(board));
   if (!board.best) {
     section.append(el('div', { class: 'empty' },
       el('strong', { text: 'No offer can be ranked for this selection right now.' }),
-      el('p', { text: 'Ranking needs a fresh confirmed stock observation and a published or observed shipping rate. The offers with missing information below explain exactly what is missing.' })));
+      el('p', { text: board.product?.sourcing?.note ?? 'Ranking needs a fresh confirmed stock observation and a published or observed shipping rate. The offers with missing information below explain exactly what is missing.' })));
+    const sources = board.product?.sourcing?.sources ?? [];
+    if (sources.length) section.append(el('details', { class: 'disclosure' },
+      el('summary', { text: 'Product listings to check' }),
+      el('div', { class: 'disclosure__body' },
+        el('p', { text: 'These listings have no verified delivered total for the selected batch and locality.' }),
+        ...sources.map(source => el('p', {}, el('a', { href: source.url, text: source.label, attrs: { target: '_blank', rel: 'noopener noreferrer' } }))))));
   } else {
     section.append(renderBestOffer(board.best, board));
     const others = board.ranked.slice(1);
     if (others.length) section.append(renderCompareDisclosure(others, board));
   }
   const pickup = board.pickup ?? [];
-  if (pickup.length) section.append(renderPickupDisclosure(pickup));
+  if (pickup.length && !board.deliveryOnly) section.append(renderPickupDisclosure(pickup));
   const unknownEntries = [...(board.unrankable ?? []), ...(board.staleOrUnavailable ?? [])];
   if (unknownEntries.length) section.append(renderUnknownDisclosure(unknownEntries));
   const perKgWinner = board.bestPerKg && board.best && board.bestPerKg.key !== board.best.key ? board.bestPerKg : null;
@@ -171,6 +192,27 @@ function renderDecision(board) {
   section.append(el('p', { class: 'meta-line', text: 'Comparison total = item subtotal + shipping + mandatory fees, converted to ILS where a stored Bank of Israel reference rate is needed. This is not a personalized checkout quote.' }));
   section.append(renderFooterStatus(board));
   return section;
+}
+
+function renderBatches(board) {
+  const table = el('table', { class: 'batch-comparison', attrs: { id: 'batch-comparison' } },
+    el('caption', { text: 'Lowest total including delivery · 250 g tubs' }),
+    el('thead', {}, el('tr', {},
+      el('th', { text: 'Batch', attrs: { scope: 'col' } }),
+      el('th', { text: 'Items + delivery', attrs: { scope: 'col' } }),
+      el('th', { text: 'Lowest total', attrs: { scope: 'col' } }))));
+  const body = el('tbody');
+  for (const batch of board.batchComparisons) {
+    const best = batch.best;
+    body.append(el('tr', { class: batch.quantity === board.targetQuantity ? 'batch-comparison__selected' : '' },
+      el('th', { attrs: { scope: 'row' } }, el('button', { type: 'button', text: `${batch.quantity} tubs`,
+        attrs: { 'aria-pressed': String(batch.quantity === board.targetQuantity) }, onClick: () => update({ quantity: batch.quantity }) })),
+      el('td', { class: 'num', text: best ? `${money(best.itemTotalIls)} + ${money(best.shippingIls)}` : 'Unverified' }),
+      el('td', {}, el('strong', { class: 'num', text: best ? money(best.totalIls) : 'Not available' }),
+        best ? el('div', { class: 'meta-line' }, bidi(best.vendor.name)) : null)));
+  }
+  table.append(body);
+  return table;
 }
 
 /** Best eligible offer: vendor, pack/grams, the three money values and a short warning. */
@@ -304,21 +346,26 @@ function renderUnknownDisclosure(entries) {
 }
 
 function renderControls() {
+  const config = currentProduct()?.quantity;
+  const isUnits = config?.mode === 'units';
+  const options = config?.options ?? [250, 500, 750, 1000, 2000];
   const quantityGroup = document.getElementById('quantity-group');
-  if (!quantityGroup.dataset.ready) {
-    for (const grams of GRAMS_OPTIONS) {
+  const signature = JSON.stringify(config);
+  quantityGroup.setAttribute('aria-label', isUnits ? 'Batch size in tubs' : 'Target quantity in grams');
+  if (quantityGroup.dataset.ready !== signature) {
+    quantityGroup.replaceChildren();
+    for (const value of options) {
       quantityGroup.append(el('button', {
         type: 'button',
-        text: grams >= 1000 ? `${grams / 1000} kg` : `${grams} g`,
-        dataset: { grams: String(grams) },
-        attrs: { 'aria-pressed': String(state.grams === grams) },
-        onClick: () => update({ grams })
+        text: isUnits ? `${value} tubs` : value >= 1000 ? `${value / 1000} kg` : `${value} g`,
+        dataset: isUnits ? { quantity: String(value) } : { grams: String(value) },
+        onClick: () => update(isUnits ? { quantity: value } : { grams: value })
       }));
     }
-    quantityGroup.dataset.ready = 'true';
+    quantityGroup.dataset.ready = signature;
   }
   for (const button of quantityGroup.querySelectorAll('button')) {
-    button.setAttribute('aria-pressed', String(Number(button.dataset.grams) === state.grams));
+    button.setAttribute('aria-pressed', String(isUnits ? Number(button.dataset.quantity) === state.quantity : Number(button.dataset.grams) === state.grams));
   }
 
   const destination = document.getElementById('destination');
@@ -352,7 +399,9 @@ function update(patch) {
 function syncUrl({ keepRequestedProduct = false } = {}) {
   const query = keepRequestedProduct ? new URLSearchParams(location.search) : new URLSearchParams();
   query.delete('variant');
-  query.set('grams', String(state.grams));
+  const isUnits = currentProduct()?.quantity?.mode === 'units';
+  query.delete(isUnits ? 'grams' : 'quantity');
+  query.set(isUnits ? 'quantity' : 'grams', String(isUnits ? state.quantity : state.grams));
   query.set('dest', state.destination);
   history.replaceState(null, '', `/product/${encodeURIComponent(state.product)}?${query.toString()}`);
 }
@@ -365,6 +414,10 @@ function syncUrl({ keepRequestedProduct = false } = {}) {
  */
 function normalizeQuotedSelection() {
   let changed = false;
+  if (state.board?.targetQuantity != null && state.quantity !== state.board.targetQuantity) {
+    state.quantity = state.board.targetQuantity;
+    changed = true;
+  }
   const targetGrams = state.board?.targetGrams;
   if (Number.isFinite(targetGrams) && targetGrams !== state.grams) {
     state.grams = targetGrams;
@@ -380,7 +433,9 @@ function normalizeQuotedSelection() {
   // can be shared again with the quantity and locality actually shown.
   const current = new URLSearchParams(location.search);
   current.delete('variant');
-  if (current.get('grams') !== String(state.grams) || current.get('dest') !== state.destination) {
+  const isUnits = currentProduct()?.quantity?.mode === 'units';
+  if (current.get(isUnits ? 'quantity' : 'grams') !== String(isUnits ? state.quantity : state.grams)
+    || current.has(isUnits ? 'grams' : 'quantity') || current.get('dest') !== state.destination) {
     changed = true;
   }
   if (changed) syncUrl({ keepRequestedProduct: true });
@@ -394,6 +449,10 @@ function updateFooterStatus() {
     return;
   }
   const f = state.board?.freshness;
+  if (state.board?.counts?.observed === 0 && state.board?.product?.sourcing?.status === 'pending') {
+    node.textContent = 'Delivery quotes for this product have not been verified yet.';
+    return;
+  }
   const last = f?.lastRefreshAt;
   const observed = f?.lastObservationAt;
   const stale = f?.stale;
@@ -411,6 +470,9 @@ function updateFooterStatus() {
 
 /** Board-level freshness and per-vendor diagnostics behind one disclosure. */
 function renderFooterStatus(board) {
+  if (board.counts?.observed === 0 && board.product?.sourcing?.status === 'pending') {
+    return el('p', { class: 'meta-line', text: 'No verified offer observations for this product yet.' });
+  }
   const vendors = board.freshness?.vendors ?? [];
   const failing = vendors.filter(vendor => (vendor.consecutiveFailures ?? 0) > 0);
   const freshness = board.freshness ?? {};

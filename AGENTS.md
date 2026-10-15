@@ -4,7 +4,8 @@ Read PROMPT.md, docs/DESIGN.md, docs/ARCHITECTURE.md and docs/STATUS.md before w
 
 ## Active scope (owner correction, 2026-10-12)
 
-- Track **Lavazza Crema e Gusto vacuum-packed ground coffee only**. Qualità Oro, Qualità Rossa, Suerte
+- **New owner instruction, 2026-10-15:** also track **plain Tnuva 5% cottage cheese in standard 250 g tubs**, with exact batches of **4, 6, 8 and 10**, minimizing the total including shipping and mandatory fees. Show **delivery options only** for this product. This explicitly authorizes this addition and supersedes older single-product instructions. Grocery prices, stock, quantity limits, minimum orders and delivery charges still require evidence; the cheese catalog/page currently has pending quotes and no live vendor adapter. Do not manufacture prices or suggest that a coffee refresh checked the cheese.
+- Keep tracking **Lavazza Crema e Gusto vacuum-packed ground coffee**. Qualità Oro, Qualità Rossa, Suerte
   and every other Lavazza product line are retired: they must not be vendored, fetched, culled or shown
   in the shopping UI. Adding another product line requires an explicit new owner instruction.
 - Keep Crema e Gusto pack sizes/multipacks as distinct offers, but there is **no blend/variant feature**
@@ -23,7 +24,7 @@ Read PROMPT.md, docs/DESIGN.md, docs/ARCHITECTURE.md and docs/STATUS.md before w
   Re-check production read-only with `npm run probe:production` (fixed public GETs, no credentials, no
   deploy). Keep owner reports and verified evidence distinct in docs/STATUS.md, and never administer or
   deploy Cloudflare.
-- Improve only Crema e Gusto vendor coverage, shipping evidence, freshness and comparison quality.
+- Improve coverage, shipping evidence, freshness and comparison quality for these two authorized products only.
 
 - Work directly on main, as authorized by the owner. Keep each checkpoint useful and testable. Do not change Shurik's control branch or engine.
 - No direct Cloudflare administration: no CF API calls, deploy commands, login, token discovery, or remote resource creation. Local Wrangler dev and deploy --dry-run are allowed. The owner alone connects Cloudflare Workers Builds.

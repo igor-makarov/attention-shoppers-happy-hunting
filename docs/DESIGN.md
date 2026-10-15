@@ -50,6 +50,8 @@ conditional)` label so its quantity/destination condition stays visible.
 
 ## Pages
 
+- **Owner addition, 2026-10-15:** the index now has two product cards, adding plain Tnuva 5% cottage cheese. Dairy identity and tub quantities never use coffee labels or coffee vendor counts. The cheese page offers 4/6/8/10-tub controls, a compact table of the four lowest delivered totals, a locality selector and delivery offers only. Missing evidence says `Unverified` / `Not available`, with the exact quote requirements and candidate listing links; it does not show zero shipping or a fabricated best vendor. Coffee retains its existing layout and controls. The older one-card descriptions below record the coffee design before this authorized addition.
+
 - **Home `/` — product index.** Renders one card per tracked catalog product (today exactly one:
   Lavazza Crema e Gusto vacuum-packed ground coffee). A card carries identity, packaging and one
   compact line naming the tracked vendors/listings, plus a link to `/product/<id>`. The comparison

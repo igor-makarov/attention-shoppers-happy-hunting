@@ -13,7 +13,9 @@ GitHub normally does not trigger another push workflow for a push using GITHUB_T
 
 ## Implemented runtime
 
-The tracked scope is one product line: `src/catalog.js` holds Lavazza Crema e Gusto (a ground vacuum
+The tracked scope is two products (owner instruction, 2026-10-15): `src/catalog.js` holds Tnuva 5% plain cottage cheese in 250 g tubs alongside Lavazza Crema e Gusto. Each product declares its quantity controls; the cheese uses exact unit batches `[4, 6, 8, 10]`, while coffee keeps weight controls. `/api/board?product=tnuva-cottage-cheese-5-percent&quantity=6&dest=tel-aviv` returns the selected batch and `batchComparisons` for all four sizes from the same snapshot/time. Equivalent legacy gram links normalize to tubs; unsupported counts use the four-tub default. The dairy comparison excludes self-pickup, respects purchase caps and minimum orders, and refuses multipacks that would overbuy an exact batch. Home-card vendor counts and board freshness are scoped to their product. The cheese currently has no observed offers or grocery adapter, so all batch totals remain null with an explicit pending-evidence note; the coffee refresh does not claim to check cheese. Public listing leads are separate from observations.
+
+The implemented live adapters cover Lavazza Crema e Gusto (a ground vacuum
 brick) with strict classification rules. The 2026-10-12 owner correction retired
 Qualità Oro, Qualità Rossa and Suerte; their ids remain as tombstones so `classifyListing` and
 `resolveProductRequest` reject or explain them instead of reviving them, and each refresh prunes any

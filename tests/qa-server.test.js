@@ -135,7 +135,7 @@ test('QA fixture server serves the board API and static assets offline', async (
 
     const catalog = await (await fetch(`${server.url}/api/catalog`)).json();
     assert.deepEqual(catalog.vendors.map(vendor => vendor.id).sort(), ["coffee4u", "coffeeman", "pucks"]);
-    assert.deepEqual(catalog.products.map(item => item.id), ["lavazza-crema-e-gusto-vacuum-ground"], "only the tracked Crema e Gusto product drives the UI");
+    assert.deepEqual(catalog.products.map(item => item.id), ["lavazza-crema-e-gusto-vacuum-ground", "tnuva-cottage-cheese-5-percent"], "only the two authorized products drive the UI");
 
     // An old shared URL that still names a retired line must fall back to the
     // tracked product and say so instead of reviving the retired board.

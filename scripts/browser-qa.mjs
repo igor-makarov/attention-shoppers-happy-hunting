@@ -171,7 +171,7 @@ try {
       alwaysMatch: {
         browserName: 'chrome',
         'goog:chromeOptions': {
-          binary: '/usr/bin/google-chrome',
+          binary: process.env.CHROME_BIN ?? '/usr/bin/google-chrome',
           args: ['--headless=new', '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--log-level=SEVERE']
         }
       }
@@ -206,7 +206,7 @@ try {
   })()`);
   report.home = { heading: home.heading, cardCount: home.cardCount, cardHref: home.cardHref };
   check('home: title is "Attention shoppers" without a trailing period', home.heading === 'Attention shoppers', home.heading);
-  check('home: the catalog renders exactly the tracked product as a card', home.cardCount === 1 && home.cardName === `${product.brand} ${product.line}`, `${home.cardCount} × ${home.cardName}`);
+  check('home: the catalog renders one card per tracked product', home.cardCount === catalog.products.length && home.cardName === `${product.brand} ${product.line}`, `${home.cardCount} cards; first ${home.cardName}`);
   check('home: the card summarizes identity, packaging and where the offers come from concisely',
     /vacuum brick/.test(home.cardMeta ?? '') && /packs and multipacks/.test(home.cardMeta ?? '')
       && /vendor/i.test(home.cardSummary ?? '')
@@ -783,7 +783,7 @@ try {
   // First screen at scrollY 0, before any card scrolling or enlargement.
   const mobileFirstScreen = await firstScreenScreenshot(wd, 'product-mobile-390.png');
   const mobile = await evaluate(wd, `(() => {
-    const rect = node => { const r = node.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right) }; };
+    const rect = node => { const r = node.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right), height: Math.round(r.height) }; };
     const card = document.querySelector('#best-offer');
     const cells = [...card.querySelectorAll('.totals__cell')].map(cell => ({
       label: cell.querySelector('.totals__label')?.textContent ?? null,
@@ -862,7 +862,7 @@ try {
   await contrastReport(wd, 'body', 'the product page (mobile 390 px, 500 g)');
   const mobileCardShot = await elementScreenshot(wd, `document.querySelector('#best-offer')`, 'product-500g-best-card-mobile.png');
   check('mobile: the saved 500 g best-card view is complete, not the visible intersection',
-    mobileCardShot?.height === mobile.card.bottom - mobile.card.top,
+    mobileCardShot?.height === mobile.card.height,
     JSON.stringify({ shot: mobileCardShot, card: mobile.card }));
   const mobileFirstSeq = captureSeqOf('product-mobile-390.png');
   const mobileCardSeq = captureSeqOf('product-500g-best-card-mobile.png');
@@ -1273,6 +1273,49 @@ try {
     await contrastReport(wd, 'body', 'the unknown-shipping offer state (desktop)');
   } finally {
     await unknownServer.close();
+  }
+
+  // The dairy page has exact tub quantities and honest pending delivery totals.
+  const cheese = catalog.products.find(item => item.id === 'tnuva-cottage-cheese-5-percent');
+  if (cheese) {
+    const cheesePath = `/product/${cheese.id}`;
+    await setContentViewport(wd, 390, 844);
+    await wd('POST', '/url', { url: `${base}${cheesePath}?quantity=6&dest=haifa` });
+    await waitForProduct(wd);
+    const cheeseView = await evaluate(wd, `({
+      heading: document.getElementById('product-title')?.textContent,
+      subtitle: document.getElementById('product-subtitle')?.textContent,
+      buttons: [...document.querySelectorAll('#quantity-group button')].map(n => n.textContent),
+      selected: document.querySelector('#quantity-group [aria-pressed="true"]')?.textContent,
+      batches: document.querySelectorAll('#batch-comparison tbody tr').length,
+      unknown: document.querySelectorAll('#batch-comparison td strong').length,
+      text: document.body.innerText,
+      pickup: !!document.querySelector('#pickup-options'),
+      overflow: document.documentElement.scrollWidth > innerWidth + 1,
+      dest: document.getElementById('destination')?.value
+    })`);
+    check('cottage cheese: exact tub controls and all four batch totals render on mobile',
+      cheeseView.heading === 'Tnuva 5% cottage cheese'
+        && cheeseView.buttons.join(',') === '4 tubs,6 tubs,8 tubs,10 tubs'
+        && cheeseView.selected === '6 tubs' && cheeseView.dest === 'haifa'
+        && cheeseView.batches === 4 && cheeseView.unknown === 4
+        && !cheeseView.overflow && !cheeseView.pickup && !/coffee/i.test(cheeseView.subtitle), JSON.stringify(cheeseView));
+    check('cottage cheese: missing delivery evidence does not become free shipping or a coffee winner',
+      /No delivery quote has been verified/.test(cheeseView.text)
+        && !/Best known delivered total|CoffeeMan|Pucks|Coffee4U|₪0/.test(cheeseView.text), cheeseView.text.slice(0, 1000));
+    await firstScreenScreenshot(wd, 'cottage-cheese-mobile-390.png');
+    await contrastReport(wd, 'body', 'the cottage-cheese pending comparison (mobile)');
+    const ten = await wd('POST', '/element', { using: 'css selector', value: '#quantity-group [data-quantity="10"]' });
+    await wd('POST', `/element/${elementId(ten)}/click`, {});
+    await waitFor(() => evaluate(wd, `document.querySelector('#quantity-group [aria-pressed="true"]')?.textContent === '10 tubs' && new URLSearchParams(location.search).get('quantity') === '10'`), 10_000, 'ten-tub selection');
+    check('cottage cheese: a quantity change preserves the delivery locality in its shareable URL',
+      await evaluate(wd, `new URLSearchParams(location.search).get('dest') === 'haifa' && !new URLSearchParams(location.search).has('grams')`), '10 tubs / Haifa');
+    await setContentViewport(wd, 1440, 1000);
+    await screenshot(wd, 'cottage-cheese-desktop-1440.png');
+    await wd('POST', '/url', { url: `${base}${cheesePath}?grams=2000&dest=jerusalem` });
+    await waitForProduct(wd);
+    check('cottage cheese: legacy weight links normalize to the equivalent exact tub batch',
+      await evaluate(wd, `document.querySelector('#quantity-group [aria-pressed="true"]')?.textContent === '8 tubs' && new URLSearchParams(location.search).get('quantity') === '8' && !new URLSearchParams(location.search).has('grams')`), '2000 g → 8 tubs');
   }
 
   // Console errors are collected through the log endpoint; a clean run has none.

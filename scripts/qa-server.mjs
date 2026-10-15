@@ -246,17 +246,18 @@ async function handle(request, response, { observations, now, withTermsDemo, wit
     const { product, retired } = resolveProductRequest(url.searchParams.get('product'));
     // The obsolete `variant` query parameter is ignored, exactly like the Worker:
     // old shared URLs resolve to the one unified comparison.
-    const grams = url.searchParams.get('grams') ?? '500';
+    const grams = url.searchParams.get('grams') ?? undefined;
     const destination = findDestination(url.searchParams.get('dest'));
-    const board = quoteBoard({ observations, productId: product.id, targetGrams: grams, destination, fx: null, now });
+    const board = quoteBoard({ observations, productId: product.id, targetGrams: grams,
+      targetQuantity: url.searchParams.get('quantity'), destination, fx: null, now });
     return json(response, {
       ...board,
       product: publicProducts().find(item => item.id === product.id) ?? null,
       requestedRetiredProduct: retired ? { id: retired.id, line: retired.line } : null,
       freshness: {
-        ...refreshFreshness(lastRefreshAt, now, newestObservationAt(observations, TRACKED_PRODUCT_IDS)),
+        ...refreshFreshness(board.counts.observed ? lastRefreshAt : null, now, newestObservationAt(observations, [product.id])),
         fx: null,
-        vendors: registeredVendors().map(vendor => {
+        vendors: registeredVendors().filter(vendor => vendor.offers.some(offer => offer.productId === product.id)).map(vendor => {
           const failed = failedAttempt && (vendor.id === 'coffeeman' || vendor.id === 'pucks');
           const lastSuccessAt = observations.find(row => row.vendor.id === vendor.id && row.observedAt)?.observedAt
             ?? new Date(now).toISOString();

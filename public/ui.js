@@ -87,7 +87,7 @@ export function packDescription(quote) {
   if ((product.packCount ?? 1) > 1) {
     return `${product.packCount} × ${per} multipack${product.totalGrams != null ? ` (${product.totalGrams} g)` : ''}`;
   }
-  return `${per} pack`;
+  return `${per} ${product.form === 'cottage_cheese' ? 'tub' : 'pack'}`;
 }
 
 /** What the shopper actually buys for the selected target quantity. */
@@ -97,7 +97,8 @@ export function quantityDescription(quote) {
   if ((product.packCount ?? 1) > 1) {
     return `${units} multipack${units === 1 ? '' : 's'} (${product.packCount} × ${product.packGrams} g) = ${quote.orderedGrams} g`;
   }
-  return `${units} × ${product.packGrams ?? '?'} g pack${units === 1 ? '' : 's'} = ${quote.orderedGrams} g`;
+  const unit = product.form === 'cottage_cheese' ? 'tub' : 'pack';
+  return `${units} × ${product.packGrams ?? '?'} g ${unit}${units === 1 ? '' : 's'} = ${quote.orderedGrams} g`;
 }
 
 export function itemSubtotalText(quote) {

@@ -6,6 +6,7 @@
 // Pickup options are kept separate from delivered offers.
 
 import { toIls } from './fx.js';
+import { productById, productQuantity } from '../catalog.js';
 import { enrichObservationShipping, policySummary, SHIPPING_POLICIES } from './policies.js';
 import { resolvePromotion, promotionSummary, PROMOTIONS } from './promotions.js';
 
@@ -125,6 +126,7 @@ export function quoteBoard({
   observations = [],
   productId,
   targetGrams = 500,
+  targetQuantity = null,
   destination = DESTINATIONS[0],
   fx = null,
   now = Date.now(),
@@ -135,9 +137,12 @@ export function quoteBoard({
   // Published quantity promotions (item-price discounts). A parsed row's own
   // `promotions` array wins; the checked-in fallback only covers rows stored
   // before banner parsing. Pass null to disable.
-  promotions = PROMOTIONS
+  promotions = PROMOTIONS,
+  includeBatches = true
 } = {}) {
-  const grams = clampGrams(targetGrams);
+  const catalogProduct = productById(productId);
+  const selection = productQuantity(catalogProduct, { quantity: targetQuantity, grams: targetGrams });
+  const grams = clampGrams(selection.targetGrams);
   const quotes = [];
   // Owner correction, 2026-10-12: one listing is one offer. Candidate rows are
   // collapsed by vendor + listing URL, keeping the most recent observation, so a
@@ -146,7 +151,9 @@ export function quoteBoard({
   // multipacks have different URLs/SKUs and stay separate.
   const candidates = observations.filter(observation =>
     (!productId || observation?.product?.productId === productId)
-    && observation?.product?.form === 'ground'
+    && observation?.product?.form === (catalogProduct?.form ?? 'ground')
+    && (!catalogProduct?.deliveryOnly || (observation?.shipping?.mode === 'delivery' && observation.shipping.service !== 'self_pickup'))
+    && (catalogProduct?.quantity?.mode !== 'units' || observation?.product?.packGrams === catalogProduct.quantity.unitGrams)
   );
   for (const observation of dedupeObservations(candidates)) {
     // Read-time policy enrichment: an old stored row whose shipping was unknown
@@ -155,7 +162,12 @@ export function quoteBoard({
     const enriched = policies === null
       ? observation
       : enrichObservationShipping(observation, { policies, now }).observation;
-    quotes.push(quoteOffer(enriched, { grams, destination, fx, now, staleAfterMs, promotions }));
+    // A delivery-only product exposes no self-pickup rows or pickup terms.
+    const delivery = catalogProduct?.deliveryOnly
+      ? { ...enriched, shipping: { ...enriched.shipping, pickup: null } }
+      : enriched;
+    quotes.push(quoteOffer(delivery, { grams, destination, fx, now, staleAfterMs, promotions,
+      exactQuantity: selection.targetQuantity }));
   }
   const ranked = quotes.filter(quote => quote.rankable).sort(compareQuotes);
   // The cheapest delivered total is not always the cheapest bulk value. Keep the
@@ -173,9 +185,11 @@ export function quoteBoard({
   const unrankable = quotes.filter(quote => quote.group === 'unrankable');
   const staleOrUnavailable = quotes.filter(quote => quote.group === 'stale_unavailable');
   const unknown = [...unrankable, ...staleOrUnavailable];
-  return {
+  const board = {
     productId,
     targetGrams: grams,
+    targetQuantity: selection.targetQuantity,
+    deliveryOnly: Boolean(catalogProduct?.deliveryOnly),
     destination,
     generatedAt: new Date(now).toISOString(),
     fx: fx ? { asOf: fx.asOf ?? null, source: fx.source?.name ?? null } : null,
@@ -206,9 +220,29 @@ export function quoteBoard({
       unknown: unknown.length
     }
   };
+  if (includeBatches && catalogProduct?.quantity?.mode === 'units') {
+    board.batchComparisons = catalogProduct.quantity.options.map(quantity => {
+      const batch = quantity === selection.targetQuantity ? board : quoteBoard({
+        observations, productId, targetQuantity: quantity, destination, fx, now,
+        staleAfterMs, policies, promotions, includeBatches: false
+      });
+      return {
+        quantity,
+        targetGrams: batch.targetGrams,
+        best: batch.best ? {
+          vendor: batch.best.vendor,
+          itemTotalIls: batch.best.itemTotalIls,
+          shippingIls: batch.best.shipping.amountIls,
+          totalIls: batch.best.totalIls,
+          itemUrl: batch.best.itemUrl
+        } : null
+      };
+    });
+  }
+  return board;
 }
 
-export function quoteOffer(observation, { grams, destination, fx, now, staleAfterMs, promotions = PROMOTIONS }) {
+export function quoteOffer(observation, { grams, destination, fx, now, staleAfterMs, promotions = PROMOTIONS, exactQuantity = null }) {
   const product = observation.product ?? {};
   const price = observation.price ?? {};
   const shipping = observation.shipping ?? {};
@@ -339,6 +373,15 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
   const units = Math.max(1, Math.ceil(grams / product.totalGrams));
   base.units = units;
   base.orderedGrams = units * product.totalGrams;
+
+  if (exactQuantity != null && base.orderedGrams !== grams) {
+    reasons.push(`This listing cannot supply an exact batch of ${exactQuantity} tubs in whole packs`);
+    return base;
+  }
+  if (Number.isFinite(observation.maxUnits) && units > observation.maxUnits) {
+    reasons.push(`The vendor limits this listing to ${observation.maxUnits} per order`);
+    return base;
+  }
 
   const itemTotal = toIls(price.amount == null ? null : price.amount * units, price.currency, fx);
   if (!itemTotal.known) {
