@@ -96,12 +96,12 @@ export const PRODUCTS = [
       // Concise visible line for the empty state; the full research detail stays
       // in `note` behind the "Why no total is shown" disclosure so the page does
       // not open with a wall of provenance text.
-      summary: 'Observed stores publish a minimum order above every exact 4–10 tub batch (Tiv Taam ₪300, Super Yuda ₪150), so no purchasable delivered total to Tel Aviv–Yafo is verified yet.',
+      summary: 'Observed stores publish a minimum order above every exact 4–10 tub batch (Tiv Taam ₪300, Super Yuda ₪150), and no other permitted Tel Aviv–Yafo store publishes a lower one (23 checked, lowest ₪150), so no purchasable delivered total to Tel Aviv–Yafo is verified yet.',
       // Localities where the sourcing record has verified purchasable exact-batch
       // totals. The UI offers a one-click switch; a test keeps each id real and
       // each listed locality backed by a ranking policy.
       availableLocalities: [],
-      note: 'Only delivery to Tel Aviv–Yafo is compared. Tiv Taam (₪6.10 per tub, ₪29.90 delivery, ₪300 minimum order) and Super Yuda (₪6.70, ₪35 delivery, ₪150 minimum) publish minimums above every exact 4/6/8/10-tub batch. No eligible delivered total has been verified. Research continues for a Tel Aviv vendor with a minimum these exact batches can meet; out-of-area quotes do not qualify. Prices, stock, quantity limits and all charges must be verified before ranking. Historical research: docs/evidence/tnuva-cottage-cheese-runner-research-20261015.json.',
+      note: 'Only delivery to Tel Aviv–Yafo is compared. Tiv Taam (₪6.10 per tub, ₪29.90 delivery, ₪300 minimum order) and Super Yuda (₪6.70, ₪35 delivery, ₪150 minimum) publish minimums above every exact 4/6/8/10-tub batch. No eligible delivered total has been verified. A Tel Aviv–Yafo coverage sweep of 183 Israeli grocery storefronts found 23 that publish a Tel Aviv home-delivery area; their lowest published minimum is ₪150, and the only one publishing no minimum (הפינה הירוקה, North Tel Aviv area 9936) answers automated reads with a challenge, so it cannot be verified from here either. That sweep is coverage and published-minimum evidence only — no price, stock or cart total — and no source below the exact batches has been used or invented. Out-of-area quotes do not qualify. Prices, stock, quantity limits and all charges must be verified before ranking. Coverage sweep: docs/evidence/telaviv-platform-sweep-index.json. Historical research: docs/evidence/tnuva-cottage-cheese-runner-research-20261015.json.',
       sources: [
         {
           label: 'Tiv Taam public store API (branch 924, Ramat HaHayal)',
@@ -118,6 +118,10 @@ export const PRODUCTS = [
         {
           label: 'Super Yuda delivery area (₪35, ₪150 minimum)',
           url: 'https://www.yuda.co.il/v2/retailers/1492/branches/2481/areas?appId=4&deliveryTypeId=1&languageId=1'
+        },
+        {
+          label: 'Tel Aviv–Yafo grocery coverage sweep (183 storefronts, published minimums)',
+          url: 'docs/evidence/telaviv-platform-sweep-index.json'
         },
         {
           label: 'Runner research record (prices, minimum orders, blocked sources)',
