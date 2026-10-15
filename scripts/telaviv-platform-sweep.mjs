@@ -30,6 +30,15 @@ const CONFIG_PATH = id => `/html-production-env/r-${id}/desktop/multi-true/data.
 
 export const HOME_DELIVERY_TYPE_ID = 1; // platform deliveryTypeId 1 = home delivery
 export const TEL_AVIV_PATTERNS = [/תל\s*אביב/, /ת"א/, /ת״א/];
+// A branch city written without Hebrew letters is not an Israeli branch. The
+// platform hosts non-Israeli demonstration retailers (one of them publishes a
+// "תל אביב" area from a New York branch), so coverage from those is not Tel
+// Aviv–Yafo delivery.
+const HEBREW = /[\u0590-\u05FF]/;
+// Test/demo/education retailers publish the same structures as real stores.
+// They are recorded but never used to conclude that a real Tel Aviv store could
+// rank a batch.
+const TEST_RETAILER = /(test|טסט|demo|school|spqa)/i;
 
 const BATCH_ITEM_TOTALS_ILS = [24.4, 36.6, 48.8, 61]; // 4/6/8/10 tubs at the observed ₪6.10–₪6.70 range
 
@@ -50,6 +59,11 @@ export function areaCoversTelAviv(areaName = '') {
   return areaLocalities(areaName).some(locality => TEL_AVIV_PATTERNS.some(pattern => pattern.test(locality)));
 }
 
+/** True for platform test/demo retailers, which are never shopping evidence. */
+export function isTestRetailer(config) {
+  return TEST_RETAILER.test(`${config?.name ?? ''} ${config?.title ?? ''} ${config?.domain ?? ''}`);
+}
+
 /**
  * Home-delivery areas a retailer publishes that cover Tel Aviv–Yafo.
  * Each entry keeps the branch, the published area minimum, the published price
@@ -60,6 +74,7 @@ export function telAvivDeliveryAreas(config) {
   const siteMinimum = numericOrNull(config?.minimumOrderPrice);
   const areas = [];
   for (const branch of config?.branches ?? []) {
+    if (!HEBREW.test(branch?.city ?? '')) continue; // not an Israeli branch
     for (const area of branch?.areas ?? []) {
       if (area?.deliveryTypeId !== HOME_DELIVERY_TYPE_ID) continue;
       if (!areaCoversTelAviv(area?.name ?? '')) continue;
@@ -95,6 +110,7 @@ export function summarizeSweep(configs = []) {
   const israeli = configs.filter(isIsraeliRetailer);
   const stores = [];
   for (const config of israeli) {
+    const test = isTestRetailer(config);
     const areas = telAvivDeliveryAreas(config);
     stores.push({
       retailerId: config.retailerId ?? null,
@@ -106,19 +122,25 @@ export function summarizeSweep(configs = []) {
       telAvivAreas: areas,
       lowestTelAvivBindingMinimum: areas.length ? Math.min(...areas.map(area => area.bindingMinimum ?? Number.POSITIVE_INFINITY)) : null,
       admitsExactBatch: areas.some(area => area.bindingMinimum !== null && area.bindingMinimum <= BATCH_ITEM_TOTALS_ILS[0]),
-      publishesNoTelAvivMinimum: areas.some(area => area.bindingMinimum === null)
+      publishesNoTelAvivMinimum: areas.some(area => area.bindingMinimum === null),
+      testRetailer: test
     });
   }
-  const withTelAviv = stores.filter(store => store.telAvivAreas.length);
+  // Conclusions come from real stores only; test retailers stay in the record as
+  // excluded.
+  const live = stores.filter(store => !store.testRetailer);
+  const withTelAviv = live.filter(store => store.telAvivAreas.length);
   const minimums = withTelAviv.map(store => store.lowestTelAvivBindingMinimum).filter(value => value !== null && Number.isFinite(value));
   return {
     retailersRead: configs.length,
     israeliRetailers: israeli.length,
+    excludedTestRetailers: stores.filter(store => store.testRetailer).map(store => store.name),
+    liveIsraeliRetailers: live.length,
     storesPublishingTelAvivDelivery: withTelAviv.length,
     lowestPublishedTelAvivMinimum: minimums.length ? Math.min(...minimums) : null,
-    storesWithNoPublishedTelAvivMinimum: stores.filter(store => store.publishesNoTelAvivMinimum).map(store => store.name),
-    storesThatCouldRankABatch: stores.filter(store => store.admitsExactBatch).map(store => store.name),
-    stores
+    storesWithNoPublishedTelAvivMinimum: withTelAviv.filter(store => store.publishesNoTelAvivMinimum).map(store => store.name),
+    storesThatCouldRankABatch: withTelAviv.filter(store => store.admitsExactBatch).map(store => store.name),
+    stores: live.map(store => ({ ...store, testRetailer: undefined }))
   };
 }
 
@@ -150,7 +172,7 @@ export function parseRetailerConfig(text, { retailerId } = {}) {
           title: retailer.title ?? null,
           domain: retailer.domain ?? null,
           countryIso: retailer.countryIso ?? null,
-          minimumOrderPrice: retailer.settings?.minimumOrderPrice ?? null,
+          minimumOrderPrice: numericOrNull(retailer.settings?.minimumOrderPrice),
           branches: (retailer.branches ?? []).map(branch => ({
             id: branch.id ?? null,
             name: branch.name ?? null,
@@ -262,6 +284,10 @@ async function main() {
       storefronts.push(...await Promise.all(urls.slice(index, index + 4).map(url => probeStorefront(url, { timeoutMs }))));
     }
   }
+  const reachabilityByDomain = new Map((storefronts ?? []).map(row => {
+    const domain = row.url.replace(/^https:\/\//, '').replace(/\/$/, '');
+    return [domain, { status: row.status, challenge: row.challenge, error: row.error ?? null }];
+  }));
 
   const evidence = {
     kind: 'tel-aviv-selfpoint-platform-sweep',
@@ -271,10 +297,14 @@ async function main() {
     storesThatPublishATelAvivHomeDeliveryArea: summary.storesPublishingTelAvivDelivery,
     lowestPublishedTelAvivMinimum: summary.lowestPublishedTelAvivMinimum,
     storesWithNoPublishedTelAvivMinimum: summary.storesWithNoPublishedTelAvivMinimum,
+    storesThatCouldRankAnExactBatch: summary.storesThatCouldRankABatch,
+    liveIsraeliRetailers: summary.liveIsraeliRetailers,
+    excludedTestRetailers: summary.excludedTestRetailers,
     batchItemTotalsIls: BATCH_ITEM_TOTALS_ILS,
     batchNote: 'Exact 4/6/8/10 × 250 g tub item subtotals at the observed ₪6.10–₪6.70 tub prices: ₪24.40 / ₪36.60 / ₪48.80 / ₪61.00. A published minimum must be at or below the batch item total for that batch to be purchasable; the mandatory delivery fee is added on top.',
     result: null,
-    storefrontReachability: storefronts,
+    storefrontReachability: storefronts ?? [],
+    storefrontReachabilityNote: 'One bounded read-only GET per storefront host with the project user agent, only for stores that publish a Tel Aviv–Yafo home-delivery area. A challenge page is recorded as the blocker it is; none was solved, retried around or bypassed.',
     stores: summary.stores.map(store => ({
       retailerId: store.retailerId,
       name: store.name,
@@ -282,6 +312,7 @@ async function main() {
       domain: store.domain,
       siteMinimum: store.siteMinimum,
       onlineBranches: store.onlineBranches,
+      storefrontReachability: reachabilityByDomain.get(store.domain) ?? null,
       telAvivHomeDeliveryAreas: store.telAvivAreas.map(area => ({
         branchId: area.branchId,
         branchCity: area.branchCity,
@@ -300,11 +331,12 @@ async function main() {
 
   const rankingStores = summary.stores.filter(store => store.admitsExactBatch);
   evidence.result = rankingStores.length
-    ? `${rankingStores.length} store(s) publish a Tel Aviv–Yafo home-delivery area with a minimum an exact batch can meet; each still needs a reachable public product/cart interface before a listing can be ranked.`
-    : `No store on the platform publishes a Tel Aviv–Yafo home-delivery area with a minimum an exact 4/6/8/10-tub batch can meet. The lowest published Tel Aviv–Yafo minimum is ₪${summary.lowestPublishedTelAvivMinimum}; stores with no published minimum are ${summary.storesWithNoPublishedTelAvivMinimum.join(', ') || 'none'}.`;
+    ? `${rankingStores.length} real store(s) publish a Tel Aviv–Yafo home-delivery area with a minimum an exact batch can meet (${rankingStores.map(store => store.name).join(', ')}); each still needs a reachable public product/cart interface before a listing can be ranked.`
+    : `No real store on the platform publishes a Tel Aviv–Yafo home-delivery area with a minimum an exact 4/6/8/10-tub batch can meet. The lowest published Tel Aviv–Yafo minimum is ₪${summary.lowestPublishedTelAvivMinimum}.`;
 
   await mkdir(dirname(out), { recursive: true });
   await writeFile(out, `${JSON.stringify(evidence, null, 1)}\n`);
+  await writeFile('docs/evidence/telaviv-platform-sweep-index.json', `${out.replace(/^docs\/evidence\//, '')}\n`);
   console.log(`sweep: ${evidence.retailersRead ?? configs.length} retailers read, ${evidence.storesThatPublishATelAvivHomeDeliveryArea} publish a Tel Aviv–Yafo home-delivery area`);
   console.log(`result: ${evidence.result}`);
   console.log(`evidence: ${out}`);
