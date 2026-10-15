@@ -1,0 +1,2048 @@
+{
+  "capturedAt": "2026-10-15T18:44:12.440Z to 2026-10-15T18:44:14.624Z",
+  "mode": "read-only public GETs from the coding runner; no Cloudflare credentials, admin API, deploy or remote resource change",
+  "url": "https://attention-shoppers.igormaka.workers.dev",
+  "schedule": {
+    "cron": "17 */6 * * *",
+    "nextActualTickAt": "2026-10-16T00:17:00.000Z",
+    "note": "The Worker executes only on its cron ticks. A stored vendor nextAttemptAt is a backoff deadline and is not an attempt time. `nextAttemptTick` applies the Worker's actual due rule (src/refresh.js `isVendorDue`): a failed vendor is attempted at the first tick at or after the strict deadline, while a vendor with no consecutive failures counts as due up to EARLY_DUE_TOLERANCE_MS (15 min) early, so a deadline seconds after a tick is attempted at that tick. `strictTickAtOrAfterDue` is the deadline-only tick recorded for contrast.",
+    "vendors": [
+      {
+        "vendorId": "pucks",
+        "consecutiveFailures": 0,
+        "nextAttemptAt": "2026-10-16T00:17:23.933Z",
+        "strictTickAtOrAfterDue": "2026-10-16T06:17:00.000Z",
+        "nextAttemptTick": "2026-10-16T00:17:00.000Z"
+      },
+      {
+        "vendorId": "coffee4u",
+        "consecutiveFailures": 0,
+        "nextAttemptAt": "2026-10-16T00:17:23.933Z",
+        "strictTickAtOrAfterDue": "2026-10-16T06:17:00.000Z",
+        "nextAttemptTick": "2026-10-16T00:17:00.000Z"
+      },
+      {
+        "vendorId": "coffeeman",
+        "consecutiveFailures": 6,
+        "nextAttemptAt": "2026-10-16T00:17:20.249Z",
+        "strictTickAtOrAfterDue": "2026-10-16T06:17:00.000Z",
+        "nextAttemptTick": "2026-10-16T06:17:00.000Z"
+      },
+      {
+        "vendorId": "tivtaam",
+        "consecutiveFailures": 1,
+        "nextAttemptAt": "2026-10-15T18:47:23.933Z",
+        "strictTickAtOrAfterDue": "2026-10-16T00:17:00.000Z",
+        "nextAttemptTick": "2026-10-16T00:17:00.000Z"
+      },
+      {
+        "vendorId": "yuda",
+        "consecutiveFailures": 1,
+        "nextAttemptAt": "2026-10-15T18:47:23.933Z",
+        "strictTickAtOrAfterDue": "2026-10-16T00:17:00.000Z",
+        "nextAttemptTick": "2026-10-16T00:17:00.000Z"
+      }
+    ]
+  },
+  "endpoints": {
+    "health": {
+      "status": 200,
+      "error": null,
+      "headers": {
+        "contentType": "application/json",
+        "cacheControl": "public, max-age=300, stale-while-revalidate=3600",
+        "cfCacheStatus": null
+      },
+      "body": {
+        "status": "ok",
+        "stage": "live",
+        "lastRefreshAt": "2026-10-15T18:17:44.874Z",
+        "lastObservationAt": "2026-10-15T18:17:23.933Z",
+        "storageError": null
+      }
+    },
+    "status": {
+      "status": 200,
+      "error": null,
+      "headers": {
+        "contentType": "application/json",
+        "cacheControl": "public, max-age=300, stale-while-revalidate=3600",
+        "cfCacheStatus": null
+      },
+      "body": {
+        "lastRefreshAt": "2026-10-15T18:17:44.874Z",
+        "lastObservationAt": "2026-10-15T18:17:23.933Z",
+        "freshness": {
+          "lastRefreshAt": "2026-10-15T18:17:44.874Z",
+          "lastObservationAt": "2026-10-15T18:17:23.933Z",
+          "dataAsOf": "2026-10-15T18:17:44.874Z",
+          "ageHours": 0.4,
+          "stale": false
+        },
+        "fx": {
+          "asOf": "2026-10-15T12:23:04.1851164Z",
+          "fetchedAt": "2026-10-15T18:17:23.933Z"
+        },
+        "shippingPolicies": [
+          {
+            "id": "pucks-il-home-delivery",
+            "version": 2,
+            "vendorId": "pucks",
+            "origin": "observed_cart",
+            "certainty": "checkout_quote",
+            "service": "home_delivery",
+            "alternatives": [],
+            "freeThreshold": 100,
+            "thresholdSemantics": "above",
+            "freeThresholdOrigin": null,
+            "freeCartConditions": [],
+            "observedAt": "2026-10-13T01:41:10Z",
+            "reviewBy": "2026-11-11T00:00:00.000Z",
+            "expired": false
+          },
+          {
+            "id": "coffeeman-single-4pack-il-home-delivery",
+            "version": 5,
+            "vendorId": "coffeeman",
+            "origin": "published",
+            "certainty": "verified",
+            "service": "home_delivery",
+            "alternatives": [
+              "distribution-center"
+            ],
+            "freeThreshold": null,
+            "thresholdSemantics": null,
+            "freeThresholdOrigin": null,
+            "freeCartConditions": [
+              {
+                "id": "singles-7",
+                "sku": "930333",
+                "units": 7,
+                "packCount": 1,
+                "orderedGrams": 1750,
+                "itemSubtotalIls": 231,
+                "discountPercent": null,
+                "paidItemTotalIls": 231,
+                "service": "home_delivery",
+                "observedAt": "2026-10-12T20:09:00Z"
+              },
+              {
+                "id": "singles-8",
+                "sku": "930333",
+                "units": 8,
+                "packCount": 1,
+                "orderedGrams": 2000,
+                "itemSubtotalIls": 264,
+                "discountPercent": 10,
+                "paidItemTotalIls": 237.6,
+                "service": "home_delivery",
+                "observedAt": "2026-10-12T20:09:00Z"
+              },
+              {
+                "id": "fourpack-2",
+                "sku": "930334",
+                "units": 2,
+                "packCount": 4,
+                "orderedGrams": 2000,
+                "itemSubtotalIls": 248,
+                "discountPercent": null,
+                "paidItemTotalIls": 248,
+                "service": "home_delivery",
+                "observedAt": "2026-10-12T20:09:00Z"
+              }
+            ],
+            "observedAt": "2026-10-13T08:35:00Z",
+            "reviewBy": "2026-11-11T00:00:00.000Z",
+            "expired": false
+          },
+          {
+            "id": "coffeeman-8pack-il-cart-quote",
+            "version": 3,
+            "vendorId": "coffeeman",
+            "origin": "observed_cart",
+            "certainty": "checkout_quote",
+            "service": "home_delivery",
+            "alternatives": [
+              "distribution-center"
+            ],
+            "freeThreshold": null,
+            "thresholdSemantics": null,
+            "freeThresholdOrigin": null,
+            "freeCartConditions": [],
+            "observedAt": "2026-10-13T08:52:00Z",
+            "reviewBy": "2026-11-11T00:00:00.000Z",
+            "expired": false
+          },
+          {
+            "id": "coffee4u-il-home-delivery",
+            "version": 3,
+            "vendorId": "coffee4u",
+            "origin": "published",
+            "certainty": "verified",
+            "service": "home_delivery",
+            "alternatives": [
+              "pickup-point"
+            ],
+            "freeThreshold": null,
+            "thresholdSemantics": null,
+            "freeThresholdOrigin": null,
+            "freeCartConditions": [],
+            "observedAt": "2026-10-13T08:06:00Z",
+            "reviewBy": "2026-11-11T00:00:00.000Z",
+            "expired": false
+          },
+          {
+            "id": "tivtaam-cottage-tel-aviv-north-delivery",
+            "version": 1,
+            "vendorId": "tivtaam",
+            "origin": "published",
+            "certainty": "verified",
+            "service": "home_delivery",
+            "alternatives": [],
+            "freeThreshold": null,
+            "thresholdSemantics": null,
+            "freeThresholdOrigin": null,
+            "freeCartConditions": [],
+            "observedAt": "2026-10-15T17:05:00Z",
+            "reviewBy": "2026-11-14T00:00:00.000Z",
+            "expired": false
+          },
+          {
+            "id": "yuda-cottage-tel-aviv-home-delivery",
+            "version": 1,
+            "vendorId": "yuda",
+            "origin": "published",
+            "certainty": "verified",
+            "service": "home_delivery",
+            "alternatives": [],
+            "freeThreshold": null,
+            "thresholdSemantics": null,
+            "freeThresholdOrigin": null,
+            "freeCartConditions": [],
+            "observedAt": "2026-10-15T17:45:00Z",
+            "reviewBy": "2026-11-14T00:00:00.000Z",
+            "expired": false
+          },
+          {
+            "id": "duchan-cottage-ganei-shmuel-home-delivery",
+            "version": 1,
+            "vendorId": "duchan",
+            "origin": "published",
+            "certainty": "verified",
+            "service": "home_delivery",
+            "alternatives": [],
+            "freeThreshold": 599,
+            "thresholdSemantics": "above",
+            "freeThresholdOrigin": null,
+            "freeCartConditions": [],
+            "observedAt": "2026-10-15T18:35:00Z",
+            "reviewBy": "2026-11-14T00:00:00.000Z",
+            "expired": false
+          }
+        ],
+        "promotions": [
+          {
+            "id": "coffeeman-ground-coffee-percent-off",
+            "version": 1,
+            "vendorId": "coffeeman",
+            "origin": "published",
+            "percent": 10,
+            "minItemSubtotal": 250,
+            "semantics": "at_least",
+            "excludesMultipacks": true,
+            "observedAt": "2026-10-12T23:38:00Z",
+            "reviewBy": "2026-11-11T00:00:00.000Z",
+            "expired": false
+          }
+        ],
+        "vendors": [
+          {
+            "vendorId": "pucks",
+            "lastAttemptAt": "2026-10-15T18:17:23.933Z",
+            "lastSuccessAt": "2026-10-15T18:17:23.933Z",
+            "consecutiveFailures": 0,
+            "nextAttemptAt": "2026-10-16T00:17:23.933Z",
+            "lastErrors": []
+          },
+          {
+            "vendorId": "coffee4u",
+            "lastAttemptAt": "2026-10-15T18:17:23.933Z",
+            "lastSuccessAt": "2026-10-15T18:17:23.933Z",
+            "consecutiveFailures": 0,
+            "nextAttemptAt": "2026-10-16T00:17:23.933Z",
+            "lastErrors": []
+          },
+          {
+            "vendorId": "coffeeman",
+            "lastAttemptAt": "2026-10-15T12:17:20.249Z",
+            "lastSuccessAt": "2026-10-13T18:17:40.573Z",
+            "consecutiveFailures": 6,
+            "nextAttemptAt": "2026-10-16T00:17:20.249Z",
+            "lastErrors": [
+              "HTTP 403",
+              "HTTP 403",
+              "HTTP 403"
+            ]
+          },
+          {
+            "vendorId": "tivtaam",
+            "lastAttemptAt": "2026-10-15T18:17:23.933Z",
+            "lastSuccessAt": null,
+            "consecutiveFailures": 1,
+            "nextAttemptAt": "2026-10-15T18:47:23.933Z",
+            "lastErrors": [
+              "HTTP 403"
+            ]
+          },
+          {
+            "vendorId": "yuda",
+            "lastAttemptAt": "2026-10-15T18:17:23.933Z",
+            "lastSuccessAt": null,
+            "consecutiveFailures": 1,
+            "nextAttemptAt": "2026-10-15T18:47:23.933Z",
+            "lastErrors": [
+              "HTTP 403"
+            ]
+          }
+        ],
+        "runs": [
+          {
+            "trigger": "cron",
+            "startedAt": "2026-10-15T18:17:23.933Z",
+            "finishedAt": "2026-10-15T18:17:44.874Z",
+            "requests": 5,
+            "vendors": [
+              {
+                "vendorId": "coffeeman",
+                "skipped": true,
+                "reason": "backoff",
+                "nextAttemptAt": "2026-10-16T00:17:20.249Z"
+              },
+              {
+                "vendorId": "pucks",
+                "ok": true,
+                "saved": 1,
+                "failures": [],
+                "nextAttemptAt": "2026-10-16T00:17:23.933Z"
+              },
+              {
+                "vendorId": "coffee4u",
+                "ok": true,
+                "saved": 1,
+                "failures": [],
+                "nextAttemptAt": "2026-10-16T00:17:23.933Z"
+              },
+              {
+                "vendorId": "tivtaam",
+                "ok": false,
+                "saved": 0,
+                "failures": [
+                  {
+                    "offerId": "tnuva-cottage-5-250g",
+                    "url": "https://www.tivtaam.co.il/v2/retailers/1062/branches/924/products?catalogProductId=12053&ignoreBranchVisibility=true&appId=4&languageId=2",
+                    "error": "HTTP 403"
+                  }
+                ],
+                "nextAttemptAt": "2026-10-15T18:47:23.933Z"
+              },
+              {
+                "vendorId": "yuda",
+                "ok": false,
+                "saved": 0,
+                "failures": [
+                  {
+                    "offerId": "tnuva-cottage-5-250g",
+                    "url": "https://www.yuda.co.il/v2/retailers/1492/branches/2481/products?catalogProductId=12053&ignoreBranchVisibility=true&appId=4&languageId=2",
+                    "error": "HTTP 403"
+                  }
+                ],
+                "nextAttemptAt": "2026-10-15T18:47:23.933Z"
+              }
+            ]
+          },
+          {
+            "trigger": "cron",
+            "startedAt": "2026-10-15T12:17:20.249Z",
+            "finishedAt": "2026-10-15T12:17:44.372Z",
+            "requests": 6,
+            "vendors": [
+              {
+                "vendorId": "coffeeman",
+                "ok": false,
+                "saved": 0,
+                "failures": [
+                  {
+                    "offerId": "classico-250g",
+                    "url": "https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
+                    "error": "HTTP 403"
+                  },
+                  {
+                    "offerId": "classico-1000g-4pack",
+                    "url": "https://www.coffeeman.co.il/product/4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
+                    "error": "HTTP 403"
+                  },
+                  {
+                    "offerId": "classico-2000g-8pack",
+                    "url": "https://www.coffeeman.co.il/product/8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
+                    "error": "HTTP 403"
+                  }
+                ],
+                "nextAttemptAt": "2026-10-16T00:17:20.249Z"
+              },
+              {
+                "vendorId": "pucks",
+                "ok": true,
+                "saved": 1,
+                "failures": [],
+                "nextAttemptAt": "2026-10-15T18:17:20.249Z"
+              },
+              {
+                "vendorId": "coffee4u",
+                "ok": true,
+                "saved": 1,
+                "failures": [],
+                "nextAttemptAt": "2026-10-15T18:17:20.249Z"
+              }
+            ]
+          },
+          {
+            "trigger": "cron",
+            "startedAt": "2026-10-15T06:17:20.203Z",
+            "finishedAt": "2026-10-15T06:17:37.995Z",
+            "requests": 3,
+            "vendors": [
+              {
+                "vendorId": "coffeeman",
+                "skipped": true,
+                "reason": "backoff",
+                "nextAttemptAt": "2026-10-15T08:17:20.142Z"
+              },
+              {
+                "vendorId": "pucks",
+                "ok": false,
+                "saved": 0,
+                "failures": [
+                  {
+                    "offerId": "classico-250g",
+                    "url": "https://pucks.co.il/product/lavazza-crema-e-gusto-ground-coffee-250g",
+                    "error": "timeout after 12000ms"
+                  }
+                ],
+                "nextAttemptAt": "2026-10-15T06:47:20.203Z"
+              },
+              {
+                "vendorId": "coffee4u",
+                "ok": true,
+                "saved": 1,
+                "failures": [],
+                "nextAttemptAt": "2026-10-15T12:17:20.203Z"
+              }
+            ]
+          },
+          {
+            "trigger": "cron",
+            "startedAt": "2026-10-15T00:17:20.142Z",
+            "finishedAt": "2026-10-15T00:17:44.344Z",
+            "requests": 6,
+            "vendors": [
+              {
+                "vendorId": "coffeeman",
+                "ok": false,
+                "saved": 0,
+                "failures": [
+                  {
+                    "offerId": "classico-250g",
+                    "url": "https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
+                    "error": "HTTP 403"
+                  },
+                  {
+                    "offerId": "classico-1000g-4pack",
+                    "url": "https://www.coffeeman.co.il/product/4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
+                    "error": "HTTP 403"
+                  },
+                  {
+                    "offerId": "classico-2000g-8pack",
+                    "url": "https://www.coffeeman.co.il/product/8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
+                    "error": "HTTP 403"
+                  }
+                ],
+                "nextAttemptAt": "2026-10-15T08:17:20.142Z"
+              },
+              {
+                "vendorId": "pucks",
+                "ok": true,
+                "saved": 1,
+                "failures": [],
+                "nextAttemptAt": "2026-10-15T06:17:20.142Z"
+              },
+              {
+                "vendorId": "coffee4u",
+                "ok": true,
+                "saved": 1,
+                "failures": [],
+                "nextAttemptAt": "2026-10-15T06:17:20.142Z"
+              }
+            ]
+          },
+          {
+            "trigger": "cron",
+            "startedAt": "2026-10-14T18:17:20.275Z",
+            "finishedAt": "2026-10-14T18:17:45.013Z",
+            "requests": 6,
+            "vendors": [
+              {
+                "vendorId": "coffeeman",
+                "ok": false,
+                "saved": 0,
+                "failures": [
+                  {
+                    "offerId": "classico-250g",
+                    "url": "https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
+                    "error": "HTTP 403"
+                  },
+                  {
+                    "offerId": "classico-1000g-4pack",
+                    "url": "https://www.coffeeman.co.il/product/4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
+                    "error": "HTTP 403"
+                  },
+                  {
+                    "offerId": "classico-2000g-8pack",
+                    "url": "https://www.coffeeman.co.il/product/8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
+                    "error": "HTTP 403"
+                  }
+                ],
+                "nextAttemptAt": "2026-10-14T22:17:20.275Z"
+              },
+              {
+                "vendorId": "pucks",
+                "ok": true,
+                "saved": 1,
+                "failures": [],
+                "nextAttemptAt": "2026-10-15T00:17:20.275Z"
+              },
+              {
+                "vendorId": "coffee4u",
+                "ok": true,
+                "saved": 1,
+                "failures": [],
+                "nextAttemptAt": "2026-10-15T00:17:20.275Z"
+              }
+            ]
+          }
+        ],
+        "observations": 12
+      }
+    },
+    "catalog": {
+      "status": 200,
+      "error": null,
+      "headers": {
+        "contentType": "application/json",
+        "cacheControl": "public, max-age=300, stale-while-revalidate=3600",
+        "cfCacheStatus": null
+      },
+      "body": {
+        "products": [
+          {
+            "id": "lavazza-crema-e-gusto-vacuum-ground",
+            "brand": "Lavazza",
+            "line": "Crema e Gusto",
+            "form": "ground",
+            "packaging": "vacuum brick",
+            "targetMarket": "IL",
+            "notes": "Ground coffee in a vacuum brick. All eligible Crema e Gusto vacuum-packed ground listings share one comparison; pack sizes and multipacks stay distinct offers. Any blend wording a listing prints is raw listing identity metadata only — never a shopper-selectable variant. Beans, capsules, pods and every other Lavazza product line are rejected.",
+            "description": "Ground coffee · vacuum brick · 250 g packs and multipacks",
+            "detailDescription": "Ground coffee · vacuum brick · delivery in Israel",
+            "quantity": {
+              "mode": "weight",
+              "options": [
+                250,
+                500,
+                750,
+                1000,
+                2000
+              ],
+              "default": 500
+            },
+            "deliveryOnly": false,
+            "sourcing": null
+          },
+          {
+            "id": "tnuva-cottage-cheese-5-percent",
+            "brand": "Tnuva",
+            "line": "5% cottage cheese",
+            "form": "cottage_cheese",
+            "packaging": "250 g tub",
+            "targetMarket": "IL",
+            "notes": "Compare the lowest total including delivery and mandatory fees for exact batches of 4, 6, 8 or 10 standard 250 g tubs. Other brands, fat percentages, flavoured cottage cheese and other tub sizes are excluded.",
+            "description": "Plain 5% cottage cheese · 250 g tubs · delivery only",
+            "detailDescription": "Plain 5% cottage cheese · 250 g tubs · delivery only",
+            "quantity": {
+              "mode": "units",
+              "unitLabel": "tubs",
+              "unitGrams": 250,
+              "options": [
+                4,
+                6,
+                8,
+                10
+              ],
+              "default": 4
+            },
+            "deliveryOnly": true,
+            "sourcing": {
+              "status": "partial",
+              "note": "Real delivered totals are ranked for the Ganei Shmuel (גן שמואל) delivery area: Duchan Ganei Shmuel’s online branch sells the exact 4/6/8/10-tub batches at ₪6.30 per 250 g tub plus a ₪28 home-delivery line (anonymous public cart quotes: ₪53.20/₪65.80/₪78.40/₪91.00) with no minimum order and free delivery only above ₪599. For the default Tel Aviv–Yafo locality no reachable permitted vendor can sell a standalone batch: Tiv Taam (₪6.10, ₪29.90 delivery, ₪300 minimum order) and Super Yuda (₪6.70, ₪35 delivery, ₪150 minimum) both publish minimums above every exact batch, and the remaining reachable groceries either do not cover Tel Aviv–Yafo or are blocked by their own bot protection or terms. Totals for Tel Aviv–Yafo stay unknown until a vendor can deliver a batch at or above its minimum; see docs/evidence/tnuva-cottage-cheese-runner-research-20261015.json and docs/evidence/tnuva-cottage-cheese-duchan-cart-20261015.json.",
+              "sources": [
+                {
+                  "label": "Duchan Ganei Shmuel public store API (branch 2175) — ₪6.30 per tub, in stock",
+                  "url": "https://www.duchan.co.il/?catalogProduct=12053"
+                },
+                {
+                  "label": "Duchan delivery area (גן שמואל: ₪28, no minimum order)",
+                  "url": "https://www.duchan.co.il/v2/retailers/1420/branches/2175/areas?appId=4&deliveryTypeId=1&languageId=1"
+                },
+                {
+                  "label": "Duchan anonymous cart quotes for the four batches",
+                  "url": "docs/evidence/tnuva-cottage-cheese-duchan-cart-20261015.json"
+                },
+                {
+                  "label": "Tiv Taam public store API (branch 924, Ramat HaHayal)",
+                  "url": "https://www.tivtaam.co.il/?catalogProduct=12053"
+                },
+                {
+                  "label": "Tiv Taam delivery areas (₪29.90, seven areas)",
+                  "url": "https://www.tivtaam.co.il/v2/retailers/1062/branches/924/areas/2446?appId=4&deliveryTypeId=1&languageId=2"
+                },
+                {
+                  "label": "Super Yuda public store API (branch 2481, ישעיהו Tel Aviv)",
+                  "url": "https://www.yuda.co.il/?catalogProduct=12053"
+                },
+                {
+                  "label": "Super Yuda delivery area (₪35, ₪150 minimum)",
+                  "url": "https://www.yuda.co.il/v2/retailers/1492/branches/2481/areas?appId=4&deliveryTypeId=1&languageId=1"
+                },
+                {
+                  "label": "Runner research record (prices, minimum orders, blocked sources)",
+                  "url": "docs/evidence/tnuva-cottage-cheese-runner-research-20261015.json"
+                },
+                {
+                  "label": "Bastale product listing (observed out of stock 2026-10-15)",
+                  "url": "https://www.bastale.co.il/product-details/75069/קוטג_5%25_תנובה_250_גרם"
+                }
+              ]
+            }
+          }
+        ],
+        "destinations": [
+          {
+            "id": "tel-aviv",
+            "label": "Tel Aviv–Yafo",
+            "postcode": "6100000",
+            "country": "IL"
+          },
+          {
+            "id": "jerusalem",
+            "label": "Jerusalem",
+            "postcode": "9100000",
+            "country": "IL"
+          },
+          {
+            "id": "haifa",
+            "label": "Haifa",
+            "postcode": "3100000",
+            "country": "IL"
+          },
+          {
+            "id": "beer-sheva",
+            "label": "Be'er Sheva",
+            "postcode": "8400000",
+            "country": "IL"
+          },
+          {
+            "id": "eilat",
+            "label": "Eilat",
+            "postcode": "8800000",
+            "country": "IL"
+          },
+          {
+            "id": "ganei-shmuel",
+            "label": "Ganei Shmuel (גן שמואל)",
+            "postcode": null,
+            "country": "IL"
+          },
+          {
+            "id": "other",
+            "label": "Elsewhere in Israel",
+            "postcode": null,
+            "country": "IL"
+          }
+        ],
+        "vendors": [
+          {
+            "id": "coffeeman",
+            "name": "CoffeeMan (אמיגו)",
+            "homepage": "https://www.coffeeman.co.il",
+            "offers": [
+              {
+                "id": "classico-250g",
+                "url": "https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
+                "kind": "delivery",
+                "productId": "lavazza-crema-e-gusto-vacuum-ground"
+              },
+              {
+                "id": "classico-1000g-4pack",
+                "url": "https://www.coffeeman.co.il/product/4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
+                "kind": "delivery",
+                "productId": "lavazza-crema-e-gusto-vacuum-ground"
+              },
+              {
+                "id": "classico-2000g-8pack",
+                "url": "https://www.coffeeman.co.il/product/8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
+                "kind": "delivery",
+                "productId": "lavazza-crema-e-gusto-vacuum-ground"
+              }
+            ]
+          },
+          {
+            "id": "pucks",
+            "name": "Pucks (פאקס)",
+            "homepage": "https://pucks.co.il",
+            "offers": [
+              {
+                "id": "classico-250g",
+                "url": "https://pucks.co.il/product/lavazza-crema-e-gusto-ground-coffee-250g",
+                "kind": "delivery",
+                "productId": "lavazza-crema-e-gusto-vacuum-ground"
+              }
+            ]
+          },
+          {
+            "id": "coffee4u",
+            "name": "Coffee4U (קופי פור יו)",
+            "homepage": "https://www.coffee4u.co.il",
+            "offers": [
+              {
+                "id": "crema-e-gusto-250g-ground",
+                "url": "https://www.coffee4u.co.il/product/lavazza-crema-e-gusto-250-gr-%D7%98%D7%97%D7%95%D7%9F",
+                "kind": "delivery",
+                "productId": "lavazza-crema-e-gusto-vacuum-ground"
+              }
+            ]
+          },
+          {
+            "id": "tivtaam",
+            "name": "Tiv Taam (טיב טעם)",
+            "homepage": "https://www.tivtaam.co.il",
+            "offers": [
+              {
+                "id": "tnuva-cottage-5-250g",
+                "url": "https://www.tivtaam.co.il/v2/retailers/1062/branches/924/products?catalogProductId=12053&ignoreBranchVisibility=true&appId=4&languageId=2",
+                "kind": "delivery",
+                "productId": "tnuva-cottage-cheese-5-percent"
+              }
+            ]
+          },
+          {
+            "id": "yuda",
+            "name": "Super Yuda (סופר יודה)",
+            "homepage": "https://www.yuda.co.il",
+            "offers": [
+              {
+                "id": "tnuva-cottage-5-250g",
+                "url": "https://www.yuda.co.il/v2/retailers/1492/branches/2481/products?catalogProductId=12053&ignoreBranchVisibility=true&appId=4&languageId=2",
+                "kind": "delivery",
+                "productId": "tnuva-cottage-cheese-5-percent"
+              }
+            ]
+          },
+          {
+            "id": "duchan",
+            "name": "Duchan Ganei Shmuel (דוכן גן שמואל)",
+            "homepage": "https://www.duchan.co.il",
+            "offers": [
+              {
+                "id": "tnuva-cottage-5-250g",
+                "url": "https://www.duchan.co.il/v2/retailers/1420/branches/2175/products?catalogProductId=12053&ignoreBranchVisibility=true&appId=4&languageId=2",
+                "kind": "delivery",
+                "productId": "tnuva-cottage-cheese-5-percent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "board500": {
+      "status": 200,
+      "error": null,
+      "headers": {
+        "contentType": "application/json",
+        "cacheControl": "public, max-age=300, stale-while-revalidate=3600",
+        "cfCacheStatus": null
+      },
+      "summary": {
+        "generatedAt": "2026-10-15T18:44:13.430Z",
+        "productId": "lavazza-crema-e-gusto-vacuum-ground",
+        "variantId": null,
+        "targetGrams": 500,
+        "destination": "tel-aviv",
+        "best": {
+          "key": "pucks:Lav69:ground:250g:x1",
+          "totalIls": 90,
+          "vendor": "pucks"
+        },
+        "ranked": [
+          {
+            "key": "pucks:Lav69:ground:250g:x1",
+            "vendor": "pucks",
+            "productId": "lavazza-crema-e-gusto-vacuum-ground",
+            "variantId": "classico",
+            "packGrams": 250,
+            "packCount": 1,
+            "units": 2,
+            "itemTotalIls": 60,
+            "shippingIls": 30,
+            "shippingCertainty": "checkout_quote",
+            "freeCondition": null,
+            "freeCartConditions": [],
+            "observedAt": "2026-10-15T18:17:23.933Z",
+            "policy": {
+              "id": "pucks-il-home-delivery",
+              "version": 2,
+              "retrievedAt": "2026-10-13T01:41:10Z"
+            },
+            "totalIls": 90,
+            "ilsPerKg": 180
+          },
+          {
+            "key": "coffee4u:2010561:ground:250g:x1",
+            "vendor": "coffee4u",
+            "productId": "lavazza-crema-e-gusto-vacuum-ground",
+            "variantId": "unspecified",
+            "packGrams": 250,
+            "packCount": 1,
+            "units": 2,
+            "itemTotalIls": 76,
+            "shippingIls": 30,
+            "shippingCertainty": "verified",
+            "freeCondition": null,
+            "freeCartConditions": [],
+            "observedAt": "2026-10-15T18:17:23.933Z",
+            "policy": {
+              "id": "coffee4u-il-home-delivery",
+              "version": 3,
+              "retrievedAt": "2026-10-13T08:06:00Z"
+            },
+            "totalIls": 106,
+            "ilsPerKg": 212
+          }
+        ],
+        "unrankable": [],
+        "staleOrUnavailable": [
+          {
+            "key": "coffeeman:930333:ground:250g:x1",
+            "vendor": "coffeeman",
+            "availability": "in_stock",
+            "labels": [
+              "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list. The rendered anonymous checkout exposes that list as a closed 264-locality select (observed 2026-10-13), and every selectable destination on this site is on it (Tel Aviv–Yafo, Jerusalem, Haifa, Be’er Sheva, Eilat), each with the published ₪25 home-courier option selectable; a destination outside the list cannot use home delivery. Confirm the destination at checkout.",
+              "Stale observation — the last successful check is too old to rank"
+            ]
+          },
+          {
+            "key": "coffeeman:930334:ground:1000g:x4",
+            "vendor": "coffeeman",
+            "availability": "in_stock",
+            "labels": [
+              "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list. The rendered anonymous checkout exposes that list as a closed 264-locality select (observed 2026-10-13), and every selectable destination on this site is on it (Tel Aviv–Yafo, Jerusalem, Haifa, Be’er Sheva, Eilat), each with the published ₪25 home-courier option selectable; a destination outside the list cannot use home delivery. Confirm the destination at checkout.",
+              "Stale observation — the last successful check is too old to rank"
+            ]
+          },
+          {
+            "key": "coffeeman:930335:ground:2000g:x8",
+            "vendor": "coffeeman",
+            "availability": "in_stock",
+            "labels": [
+              "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list. The rendered anonymous checkout exposes that list as a closed 264-locality select (observed 2026-10-13), and every selectable destination on this site is on it (Tel Aviv–Yafo, Jerusalem, Haifa, Be’er Sheva, Eilat), each with the published ₪25 home-courier option selectable; a destination outside the list cannot use home delivery. Confirm the destination at checkout.",
+              "Stale observation — the last successful check is too old to rank"
+            ]
+          }
+        ],
+        "pickup": [
+          {
+            "key": "coffee4u:2010561:ground:250g:x1:pickup",
+            "vendor": "coffee4u",
+            "itemTotalIls": 76,
+            "note": "Free self-pickup at the shop, listed on the product page."
+          },
+          {
+            "key": "coffeeman:930333:ground:250g:x1:pickup",
+            "vendor": "coffeeman",
+            "itemTotalIls": 66,
+            "note": "Free self-pickup, listed on the product page."
+          },
+          {
+            "key": "coffeeman:930334:ground:1000g:x4:pickup",
+            "vendor": "coffeeman",
+            "itemTotalIls": 124,
+            "note": "Free self-pickup, listed on the product page."
+          },
+          {
+            "key": "coffeeman:930335:ground:2000g:x8:pickup",
+            "vendor": "coffeeman",
+            "itemTotalIls": 240,
+            "note": "Free self-pickup, listed on the product page."
+          }
+        ],
+        "freshness": {
+          "lastRefreshAt": "2026-10-15T18:17:44.874Z",
+          "lastObservationAt": "2026-10-15T18:17:23.933Z",
+          "dataAsOf": "2026-10-15T18:17:44.874Z",
+          "ageHours": 0.4,
+          "stale": false,
+          "fx": {
+            "asOf": "2026-10-15T12:23:04.1851164Z",
+            "fetchedAt": "2026-10-15T18:17:23.933Z",
+            "source": "Bank of Israel exchange rates"
+          },
+          "vendors": [
+            {
+              "vendorId": "pucks",
+              "lastAttemptAt": "2026-10-15T18:17:23.933Z",
+              "lastSuccessAt": "2026-10-15T18:17:23.933Z",
+              "consecutiveFailures": 0,
+              "nextAttemptAt": "2026-10-16T00:17:23.933Z",
+              "lastErrors": []
+            },
+            {
+              "vendorId": "coffee4u",
+              "lastAttemptAt": "2026-10-15T18:17:23.933Z",
+              "lastSuccessAt": "2026-10-15T18:17:23.933Z",
+              "consecutiveFailures": 0,
+              "nextAttemptAt": "2026-10-16T00:17:23.933Z",
+              "lastErrors": []
+            },
+            {
+              "vendorId": "coffeeman",
+              "lastAttemptAt": "2026-10-15T12:17:20.249Z",
+              "lastSuccessAt": "2026-10-13T18:17:40.573Z",
+              "consecutiveFailures": 6,
+              "nextAttemptAt": "2026-10-16T00:17:20.249Z",
+              "lastErrors": [
+                "HTTP 403",
+                "HTTP 403",
+                "HTTP 403"
+              ]
+            }
+          ]
+        },
+        "requestedRetiredProduct": null
+      }
+    },
+    "board1000": {
+      "status": 200,
+      "error": null,
+      "headers": {
+        "contentType": "application/json",
+        "cacheControl": "public, max-age=300, stale-while-revalidate=3600",
+        "cfCacheStatus": null
+      },
+      "summary": {
+        "generatedAt": "2026-10-15T18:44:13.674Z",
+        "productId": "lavazza-crema-e-gusto-vacuum-ground",
+        "variantId": null,
+        "targetGrams": 1000,
+        "destination": "tel-aviv",
+        "best": {
+          "key": "pucks:Lav69:ground:250g:x1",
+          "totalIls": 120,
+          "vendor": "pucks"
+        },
+        "ranked": [
+          {
+            "key": "pucks:Lav69:ground:250g:x1",
+            "vendor": "pucks",
+            "productId": "lavazza-crema-e-gusto-vacuum-ground",
+            "variantId": "classico",
+            "packGrams": 250,
+            "packCount": 1,
+            "units": 4,
+            "itemTotalIls": 120,
+            "shippingIls": 0,
+            "shippingCertainty": "checkout_quote",
+            "freeCondition": null,
+            "freeCartConditions": [],
+            "observedAt": "2026-10-15T18:17:23.933Z",
+            "policy": {
+              "id": "pucks-il-home-delivery",
+              "version": 2,
+              "retrievedAt": "2026-10-13T01:41:10Z"
+            },
+            "totalIls": 120,
+            "ilsPerKg": 120
+          },
+          {
+            "key": "coffee4u:2010561:ground:250g:x1",
+            "vendor": "coffee4u",
+            "productId": "lavazza-crema-e-gusto-vacuum-ground",
+            "variantId": "unspecified",
+            "packGrams": 250,
+            "packCount": 1,
+            "units": 4,
+            "itemTotalIls": 152,
+            "shippingIls": 30,
+            "shippingCertainty": "verified",
+            "freeCondition": null,
+            "freeCartConditions": [],
+            "observedAt": "2026-10-15T18:17:23.933Z",
+            "policy": {
+              "id": "coffee4u-il-home-delivery",
+              "version": 3,
+              "retrievedAt": "2026-10-13T08:06:00Z"
+            },
+            "totalIls": 182,
+            "ilsPerKg": 182
+          }
+        ],
+        "unrankable": [],
+        "staleOrUnavailable": [
+          {
+            "key": "coffeeman:930333:ground:250g:x1",
+            "vendor": "coffeeman",
+            "availability": "in_stock",
+            "labels": [
+              "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list. The rendered anonymous checkout exposes that list as a closed 264-locality select (observed 2026-10-13), and every selectable destination on this site is on it (Tel Aviv–Yafo, Jerusalem, Haifa, Be’er Sheva, Eilat), each with the published ₪25 home-courier option selectable; a destination outside the list cannot use home delivery. Confirm the destination at checkout.",
+              "Stale observation — the last successful check is too old to rank"
+            ]
+          },
+          {
+            "key": "coffeeman:930334:ground:1000g:x4",
+            "vendor": "coffeeman",
+            "availability": "in_stock",
+            "labels": [
+              "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list. The rendered anonymous checkout exposes that list as a closed 264-locality select (observed 2026-10-13), and every selectable destination on this site is on it (Tel Aviv–Yafo, Jerusalem, Haifa, Be’er Sheva, Eilat), each with the published ₪25 home-courier option selectable; a destination outside the list cannot use home delivery. Confirm the destination at checkout.",
+              "Stale observation — the last successful check is too old to rank"
+            ]
+          },
+          {
+            "key": "coffeeman:930335:ground:2000g:x8",
+            "vendor": "coffeeman",
+            "availability": "in_stock",
+            "labels": [
+              "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list. The rendered anonymous checkout exposes that list as a closed 264-locality select (observed 2026-10-13), and every selectable destination on this site is on it (Tel Aviv–Yafo, Jerusalem, Haifa, Be’er Sheva, Eilat), each with the published ₪25 home-courier option selectable; a destination outside the list cannot use home delivery. Confirm the destination at checkout.",
+              "Stale observation — the last successful check is too old to rank"
+            ]
+          }
+        ],
+        "pickup": [
+          {
+            "key": "coffee4u:2010561:ground:250g:x1:pickup",
+            "vendor": "coffee4u",
+            "itemTotalIls": 152,
+            "note": "Free self-pickup at the shop, listed on the product page."
+          },
+          {
+            "key": "coffeeman:930333:ground:250g:x1:pickup",
+            "vendor": "coffeeman",
+            "itemTotalIls": 132,
+            "note": "Free self-pickup, listed on the product page."
+          },
+          {
+            "key": "coffeeman:930334:ground:1000g:x4:pickup",
+            "vendor": "coffeeman",
+            "itemTotalIls": 124,
+            "note": "Free self-pickup, listed on the product page."
+          },
+          {
+            "key": "coffeeman:930335:ground:2000g:x8:pickup",
+            "vendor": "coffeeman",
+            "itemTotalIls": 240,
+            "note": "Free self-pickup, listed on the product page."
+          }
+        ],
+        "freshness": {
+          "lastRefreshAt": "2026-10-15T18:17:44.874Z",
+          "lastObservationAt": "2026-10-15T18:17:23.933Z",
+          "dataAsOf": "2026-10-15T18:17:44.874Z",
+          "ageHours": 0.4,
+          "stale": false,
+          "fx": {
+            "asOf": "2026-10-15T12:23:04.1851164Z",
+            "fetchedAt": "2026-10-15T18:17:23.933Z",
+            "source": "Bank of Israel exchange rates"
+          },
+          "vendors": [
+            {
+              "vendorId": "pucks",
+              "lastAttemptAt": "2026-10-15T18:17:23.933Z",
+              "lastSuccessAt": "2026-10-15T18:17:23.933Z",
+              "consecutiveFailures": 0,
+              "nextAttemptAt": "2026-10-16T00:17:23.933Z",
+              "lastErrors": []
+            },
+            {
+              "vendorId": "coffee4u",
+              "lastAttemptAt": "2026-10-15T18:17:23.933Z",
+              "lastSuccessAt": "2026-10-15T18:17:23.933Z",
+              "consecutiveFailures": 0,
+              "nextAttemptAt": "2026-10-16T00:17:23.933Z",
+              "lastErrors": []
+            },
+            {
+              "vendorId": "coffeeman",
+              "lastAttemptAt": "2026-10-15T12:17:20.249Z",
+              "lastSuccessAt": "2026-10-13T18:17:40.573Z",
+              "consecutiveFailures": 6,
+              "nextAttemptAt": "2026-10-16T00:17:20.249Z",
+              "lastErrors": [
+                "HTTP 403",
+                "HTTP 403",
+                "HTTP 403"
+              ]
+            }
+          ]
+        },
+        "requestedRetiredProduct": null
+      }
+    },
+    "board2000": {
+      "status": 200,
+      "error": null,
+      "headers": {
+        "contentType": "application/json",
+        "cacheControl": "public, max-age=300, stale-while-revalidate=3600",
+        "cfCacheStatus": null
+      },
+      "summary": {
+        "generatedAt": "2026-10-15T18:44:13.892Z",
+        "productId": "lavazza-crema-e-gusto-vacuum-ground",
+        "variantId": null,
+        "targetGrams": 2000,
+        "destination": "tel-aviv",
+        "best": {
+          "key": "pucks:Lav69:ground:250g:x1",
+          "totalIls": 240,
+          "vendor": "pucks"
+        },
+        "ranked": [
+          {
+            "key": "pucks:Lav69:ground:250g:x1",
+            "vendor": "pucks",
+            "productId": "lavazza-crema-e-gusto-vacuum-ground",
+            "variantId": "classico",
+            "packGrams": 250,
+            "packCount": 1,
+            "units": 8,
+            "itemTotalIls": 240,
+            "shippingIls": 0,
+            "shippingCertainty": "checkout_quote",
+            "freeCondition": null,
+            "freeCartConditions": [],
+            "observedAt": "2026-10-15T18:17:23.933Z",
+            "policy": {
+              "id": "pucks-il-home-delivery",
+              "version": 2,
+              "retrievedAt": "2026-10-13T01:41:10Z"
+            },
+            "totalIls": 240,
+            "ilsPerKg": 120
+          },
+          {
+            "key": "coffee4u:2010561:ground:250g:x1",
+            "vendor": "coffee4u",
+            "productId": "lavazza-crema-e-gusto-vacuum-ground",
+            "variantId": "unspecified",
+            "packGrams": 250,
+            "packCount": 1,
+            "units": 8,
+            "itemTotalIls": 304,
+            "shippingIls": 30,
+            "shippingCertainty": "verified",
+            "freeCondition": null,
+            "freeCartConditions": [],
+            "observedAt": "2026-10-15T18:17:23.933Z",
+            "policy": {
+              "id": "coffee4u-il-home-delivery",
+              "version": 3,
+              "retrievedAt": "2026-10-13T08:06:00Z"
+            },
+            "totalIls": 334,
+            "ilsPerKg": 167
+          }
+        ],
+        "unrankable": [],
+        "staleOrUnavailable": [
+          {
+            "key": "coffeeman:930333:ground:250g:x1",
+            "vendor": "coffeeman",
+            "availability": "in_stock",
+            "labels": [
+              "Published promotion applied: 10% off the item subtotal (was ₪264.00)",
+              "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list. The rendered anonymous checkout exposes that list as a closed 264-locality select (observed 2026-10-13), and every selectable destination on this site is on it (Tel Aviv–Yafo, Jerusalem, Haifa, Be’er Sheva, Eilat), each with the published ₪25 home-courier option selectable; a destination outside the list cannot use home delivery. Confirm the destination at checkout.",
+              "Free home courier observed for this exact cart (8 × 250 g = 2000 g, ₪264.00 item subtotal) in the vendor's anonymous cart",
+              "Stale observation — the last successful check is too old to rank"
+            ]
+          },
+          {
+            "key": "coffeeman:930334:ground:1000g:x4",
+            "vendor": "coffeeman",
+            "availability": "in_stock",
+            "labels": [
+              "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list. The rendered anonymous checkout exposes that list as a closed 264-locality select (observed 2026-10-13), and every selectable destination on this site is on it (Tel Aviv–Yafo, Jerusalem, Haifa, Be’er Sheva, Eilat), each with the published ₪25 home-courier option selectable; a destination outside the list cannot use home delivery. Confirm the destination at checkout.",
+              "Free home courier observed for this exact cart (2 × 4 × 250 g multipacks = 2000 g, ₪248.00 item subtotal) in the vendor's anonymous cart",
+              "Stale observation — the last successful check is too old to rank"
+            ]
+          },
+          {
+            "key": "coffeeman:930335:ground:2000g:x8",
+            "vendor": "coffeeman",
+            "availability": "in_stock",
+            "labels": [
+              "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list. The rendered anonymous checkout exposes that list as a closed 264-locality select (observed 2026-10-13), and every selectable destination on this site is on it (Tel Aviv–Yafo, Jerusalem, Haifa, Be’er Sheva, Eilat), each with the published ₪25 home-courier option selectable; a destination outside the list cannot use home delivery. Confirm the destination at checkout.",
+              "Stale observation — the last successful check is too old to rank"
+            ]
+          }
+        ],
+        "pickup": [
+          {
+            "key": "coffee4u:2010561:ground:250g:x1:pickup",
+            "vendor": "coffee4u",
+            "itemTotalIls": 304,
+            "note": "Free self-pickup at the shop, listed on the product page."
+          },
+          {
+            "key": "coffeeman:930333:ground:250g:x1:pickup",
+            "vendor": "coffeeman",
+            "itemTotalIls": 237.6,
+            "note": "Free self-pickup, listed on the product page."
+          },
+          {
+            "key": "coffeeman:930334:ground:1000g:x4:pickup",
+            "vendor": "coffeeman",
+            "itemTotalIls": 248,
+            "note": "Free self-pickup, listed on the product page."
+          },
+          {
+            "key": "coffeeman:930335:ground:2000g:x8:pickup",
+            "vendor": "coffeeman",
+            "itemTotalIls": 240,
+            "note": "Free self-pickup, listed on the product page."
+          }
+        ],
+        "freshness": {
+          "lastRefreshAt": "2026-10-15T18:17:44.874Z",
+          "lastObservationAt": "2026-10-15T18:17:23.933Z",
+          "dataAsOf": "2026-10-15T18:17:44.874Z",
+          "ageHours": 0.4,
+          "stale": false,
+          "fx": {
+            "asOf": "2026-10-15T12:23:04.1851164Z",
+            "fetchedAt": "2026-10-15T18:17:23.933Z",
+            "source": "Bank of Israel exchange rates"
+          },
+          "vendors": [
+            {
+              "vendorId": "pucks",
+              "lastAttemptAt": "2026-10-15T18:17:23.933Z",
+              "lastSuccessAt": "2026-10-15T18:17:23.933Z",
+              "consecutiveFailures": 0,
+              "nextAttemptAt": "2026-10-16T00:17:23.933Z",
+              "lastErrors": []
+            },
+            {
+              "vendorId": "coffee4u",
+              "lastAttemptAt": "2026-10-15T18:17:23.933Z",
+              "lastSuccessAt": "2026-10-15T18:17:23.933Z",
+              "consecutiveFailures": 0,
+              "nextAttemptAt": "2026-10-16T00:17:23.933Z",
+              "lastErrors": []
+            },
+            {
+              "vendorId": "coffeeman",
+              "lastAttemptAt": "2026-10-15T12:17:20.249Z",
+              "lastSuccessAt": "2026-10-13T18:17:40.573Z",
+              "consecutiveFailures": 6,
+              "nextAttemptAt": "2026-10-16T00:17:20.249Z",
+              "lastErrors": [
+                "HTTP 403",
+                "HTTP 403",
+                "HTTP 403"
+              ]
+            }
+          ]
+        },
+        "requestedRetiredProduct": null
+      }
+    },
+    "board3000": {
+      "status": 200,
+      "error": null,
+      "headers": {
+        "contentType": "application/json",
+        "cacheControl": "public, max-age=300, stale-while-revalidate=3600",
+        "cfCacheStatus": null
+      },
+      "summary": {
+        "generatedAt": "2026-10-15T18:44:14.093Z",
+        "productId": "lavazza-crema-e-gusto-vacuum-ground",
+        "variantId": null,
+        "targetGrams": 3000,
+        "destination": "tel-aviv",
+        "best": {
+          "key": "pucks:Lav69:ground:250g:x1",
+          "totalIls": 360,
+          "vendor": "pucks"
+        },
+        "ranked": [
+          {
+            "key": "pucks:Lav69:ground:250g:x1",
+            "vendor": "pucks",
+            "productId": "lavazza-crema-e-gusto-vacuum-ground",
+            "variantId": "classico",
+            "packGrams": 250,
+            "packCount": 1,
+            "units": 12,
+            "itemTotalIls": 360,
+            "shippingIls": 0,
+            "shippingCertainty": "checkout_quote",
+            "freeCondition": null,
+            "freeCartConditions": [],
+            "observedAt": "2026-10-15T18:17:23.933Z",
+            "policy": {
+              "id": "pucks-il-home-delivery",
+              "version": 2,
+              "retrievedAt": "2026-10-13T01:41:10Z"
+            },
+            "totalIls": 360,
+            "ilsPerKg": 120
+          },
+          {
+            "key": "coffee4u:2010561:ground:250g:x1",
+            "vendor": "coffee4u",
+            "productId": "lavazza-crema-e-gusto-vacuum-ground",
+            "variantId": "unspecified",
+            "packGrams": 250,
+            "packCount": 1,
+            "units": 12,
+            "itemTotalIls": 456,
+            "shippingIls": 30,
+            "shippingCertainty": "verified",
+            "freeCondition": null,
+            "freeCartConditions": [],
+            "observedAt": "2026-10-15T18:17:23.933Z",
+            "policy": {
+              "id": "coffee4u-il-home-delivery",
+              "version": 3,
+              "retrievedAt": "2026-10-13T08:06:00Z"
+            },
+            "totalIls": 486,
+            "ilsPerKg": 162
+          }
+        ],
+        "unrankable": [
+          {
+            "key": "coffeeman:930335:ground:2000g:x8",
+            "vendor": "coffeeman",
+            "productId": "lavazza-crema-e-gusto-vacuum-ground",
+            "itemPrice": {
+              "amount": 240,
+              "currency": "ILS"
+            },
+            "reasons": [
+              "Shipping was quoted only for carts up to 2000 g, but this quantity is 4000 g"
+            ]
+          }
+        ],
+        "staleOrUnavailable": [
+          {
+            "key": "coffeeman:930333:ground:250g:x1",
+            "vendor": "coffeeman",
+            "availability": "in_stock",
+            "labels": [
+              "Published promotion applied: 10% off the item subtotal (was ₪396.00)",
+              "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list. The rendered anonymous checkout exposes that list as a closed 264-locality select (observed 2026-10-13), and every selectable destination on this site is on it (Tel Aviv–Yafo, Jerusalem, Haifa, Be’er Sheva, Eilat), each with the published ₪25 home-courier option selectable; a destination outside the list cannot use home delivery. Confirm the destination at checkout.",
+              "Free delivery was observed only on specific carts; this unobserved cart keeps the published base rate",
+              "Stale observation — the last successful check is too old to rank"
+            ]
+          },
+          {
+            "key": "coffeeman:930334:ground:1000g:x4",
+            "vendor": "coffeeman",
+            "availability": "in_stock",
+            "labels": [
+              "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list. The rendered anonymous checkout exposes that list as a closed 264-locality select (observed 2026-10-13), and every selectable destination on this site is on it (Tel Aviv–Yafo, Jerusalem, Haifa, Be’er Sheva, Eilat), each with the published ₪25 home-courier option selectable; a destination outside the list cannot use home delivery. Confirm the destination at checkout.",
+              "Free delivery was observed only on specific carts; this unobserved cart keeps the published base rate",
+              "Stale observation — the last successful check is too old to rank"
+            ]
+          }
+        ],
+        "pickup": [
+          {
+            "key": "coffee4u:2010561:ground:250g:x1:pickup",
+            "vendor": "coffee4u",
+            "itemTotalIls": 456,
+            "note": "Free self-pickup at the shop, listed on the product page."
+          },
+          {
+            "key": "coffeeman:930333:ground:250g:x1:pickup",
+            "vendor": "coffeeman",
+            "itemTotalIls": 356.4,
+            "note": "Free self-pickup, listed on the product page."
+          },
+          {
+            "key": "coffeeman:930334:ground:1000g:x4:pickup",
+            "vendor": "coffeeman",
+            "itemTotalIls": 372,
+            "note": "Free self-pickup, listed on the product page."
+          },
+          {
+            "key": "coffeeman:930335:ground:2000g:x8:pickup",
+            "vendor": "coffeeman",
+            "itemTotalIls": 480,
+            "note": "Free self-pickup, listed on the product page."
+          }
+        ],
+        "freshness": {
+          "lastRefreshAt": "2026-10-15T18:17:44.874Z",
+          "lastObservationAt": "2026-10-15T18:17:23.933Z",
+          "dataAsOf": "2026-10-15T18:17:44.874Z",
+          "ageHours": 0.4,
+          "stale": false,
+          "fx": {
+            "asOf": "2026-10-15T12:23:04.1851164Z",
+            "fetchedAt": "2026-10-15T18:17:23.933Z",
+            "source": "Bank of Israel exchange rates"
+          },
+          "vendors": [
+            {
+              "vendorId": "pucks",
+              "lastAttemptAt": "2026-10-15T18:17:23.933Z",
+              "lastSuccessAt": "2026-10-15T18:17:23.933Z",
+              "consecutiveFailures": 0,
+              "nextAttemptAt": "2026-10-16T00:17:23.933Z",
+              "lastErrors": []
+            },
+            {
+              "vendorId": "coffee4u",
+              "lastAttemptAt": "2026-10-15T18:17:23.933Z",
+              "lastSuccessAt": "2026-10-15T18:17:23.933Z",
+              "consecutiveFailures": 0,
+              "nextAttemptAt": "2026-10-16T00:17:23.933Z",
+              "lastErrors": []
+            },
+            {
+              "vendorId": "coffeeman",
+              "lastAttemptAt": "2026-10-15T12:17:20.249Z",
+              "lastSuccessAt": "2026-10-13T18:17:40.573Z",
+              "consecutiveFailures": 6,
+              "nextAttemptAt": "2026-10-16T00:17:20.249Z",
+              "lastErrors": [
+                "HTTP 403",
+                "HTTP 403",
+                "HTTP 403"
+              ]
+            }
+          ]
+        },
+        "requestedRetiredProduct": null
+      }
+    },
+    "boardDairy8": {
+      "status": 200,
+      "error": null,
+      "headers": {
+        "contentType": "application/json",
+        "cacheControl": "public, max-age=300, stale-while-revalidate=3600",
+        "cfCacheStatus": null
+      },
+      "summary": {
+        "generatedAt": "2026-10-15T18:44:14.288Z",
+        "productId": "tnuva-cottage-cheese-5-percent",
+        "variantId": null,
+        "targetGrams": 2000,
+        "destination": "tel-aviv",
+        "best": null,
+        "ranked": [],
+        "unrankable": [],
+        "staleOrUnavailable": [],
+        "pickup": [],
+        "freshness": {
+          "lastRefreshAt": null,
+          "lastObservationAt": null,
+          "dataAsOf": null,
+          "ageHours": null,
+          "stale": true,
+          "fx": {
+            "asOf": "2026-10-15T12:23:04.1851164Z",
+            "fetchedAt": "2026-10-15T18:17:23.933Z",
+            "source": "Bank of Israel exchange rates"
+          },
+          "vendors": [
+            {
+              "vendorId": "tivtaam",
+              "lastAttemptAt": "2026-10-15T18:17:23.933Z",
+              "lastSuccessAt": null,
+              "consecutiveFailures": 1,
+              "nextAttemptAt": "2026-10-15T18:47:23.933Z",
+              "lastErrors": [
+                "HTTP 403"
+              ]
+            },
+            {
+              "vendorId": "yuda",
+              "lastAttemptAt": "2026-10-15T18:17:23.933Z",
+              "lastSuccessAt": null,
+              "consecutiveFailures": 1,
+              "nextAttemptAt": "2026-10-15T18:47:23.933Z",
+              "lastErrors": [
+                "HTTP 403"
+              ]
+            }
+          ]
+        },
+        "requestedRetiredProduct": null
+      }
+    },
+    "boardUnstated": {
+      "status": 200,
+      "error": null,
+      "headers": {
+        "contentType": "application/json",
+        "cacheControl": "public, max-age=300, stale-while-revalidate=3600",
+        "cfCacheStatus": null
+      },
+      "summary": {
+        "generatedAt": "2026-10-15T18:44:14.440Z",
+        "productId": "lavazza-crema-e-gusto-vacuum-ground",
+        "variantId": null,
+        "targetGrams": 500,
+        "destination": "tel-aviv",
+        "best": {
+          "key": "pucks:Lav69:ground:250g:x1",
+          "totalIls": 90,
+          "vendor": "pucks"
+        },
+        "ranked": [
+          {
+            "key": "pucks:Lav69:ground:250g:x1",
+            "vendor": "pucks",
+            "productId": "lavazza-crema-e-gusto-vacuum-ground",
+            "variantId": "classico",
+            "packGrams": 250,
+            "packCount": 1,
+            "units": 2,
+            "itemTotalIls": 60,
+            "shippingIls": 30,
+            "shippingCertainty": "checkout_quote",
+            "freeCondition": null,
+            "freeCartConditions": [],
+            "observedAt": "2026-10-15T18:17:23.933Z",
+            "policy": {
+              "id": "pucks-il-home-delivery",
+              "version": 2,
+              "retrievedAt": "2026-10-13T01:41:10Z"
+            },
+            "totalIls": 90,
+            "ilsPerKg": 180
+          },
+          {
+            "key": "coffee4u:2010561:ground:250g:x1",
+            "vendor": "coffee4u",
+            "productId": "lavazza-crema-e-gusto-vacuum-ground",
+            "variantId": "unspecified",
+            "packGrams": 250,
+            "packCount": 1,
+            "units": 2,
+            "itemTotalIls": 76,
+            "shippingIls": 30,
+            "shippingCertainty": "verified",
+            "freeCondition": null,
+            "freeCartConditions": [],
+            "observedAt": "2026-10-15T18:17:23.933Z",
+            "policy": {
+              "id": "coffee4u-il-home-delivery",
+              "version": 3,
+              "retrievedAt": "2026-10-13T08:06:00Z"
+            },
+            "totalIls": 106,
+            "ilsPerKg": 212
+          }
+        ],
+        "unrankable": [],
+        "staleOrUnavailable": [
+          {
+            "key": "coffeeman:930333:ground:250g:x1",
+            "vendor": "coffeeman",
+            "availability": "in_stock",
+            "labels": [
+              "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list. The rendered anonymous checkout exposes that list as a closed 264-locality select (observed 2026-10-13), and every selectable destination on this site is on it (Tel Aviv–Yafo, Jerusalem, Haifa, Be’er Sheva, Eilat), each with the published ₪25 home-courier option selectable; a destination outside the list cannot use home delivery. Confirm the destination at checkout.",
+              "Stale observation — the last successful check is too old to rank"
+            ]
+          },
+          {
+            "key": "coffeeman:930334:ground:1000g:x4",
+            "vendor": "coffeeman",
+            "availability": "in_stock",
+            "labels": [
+              "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list. The rendered anonymous checkout exposes that list as a closed 264-locality select (observed 2026-10-13), and every selectable destination on this site is on it (Tel Aviv–Yafo, Jerusalem, Haifa, Be’er Sheva, Eilat), each with the published ₪25 home-courier option selectable; a destination outside the list cannot use home delivery. Confirm the destination at checkout.",
+              "Stale observation — the last successful check is too old to rank"
+            ]
+          },
+          {
+            "key": "coffeeman:930335:ground:2000g:x8",
+            "vendor": "coffeeman",
+            "availability": "in_stock",
+            "labels": [
+              "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list. The rendered anonymous checkout exposes that list as a closed 264-locality select (observed 2026-10-13), and every selectable destination on this site is on it (Tel Aviv–Yafo, Jerusalem, Haifa, Be’er Sheva, Eilat), each with the published ₪25 home-courier option selectable; a destination outside the list cannot use home delivery. Confirm the destination at checkout.",
+              "Stale observation — the last successful check is too old to rank"
+            ]
+          }
+        ],
+        "pickup": [
+          {
+            "key": "coffee4u:2010561:ground:250g:x1:pickup",
+            "vendor": "coffee4u",
+            "itemTotalIls": 76,
+            "note": "Free self-pickup at the shop, listed on the product page."
+          },
+          {
+            "key": "coffeeman:930333:ground:250g:x1:pickup",
+            "vendor": "coffeeman",
+            "itemTotalIls": 66,
+            "note": "Free self-pickup, listed on the product page."
+          },
+          {
+            "key": "coffeeman:930334:ground:1000g:x4:pickup",
+            "vendor": "coffeeman",
+            "itemTotalIls": 124,
+            "note": "Free self-pickup, listed on the product page."
+          },
+          {
+            "key": "coffeeman:930335:ground:2000g:x8:pickup",
+            "vendor": "coffeeman",
+            "itemTotalIls": 240,
+            "note": "Free self-pickup, listed on the product page."
+          }
+        ],
+        "freshness": {
+          "lastRefreshAt": "2026-10-15T18:17:44.874Z",
+          "lastObservationAt": "2026-10-15T18:17:23.933Z",
+          "dataAsOf": "2026-10-15T18:17:44.874Z",
+          "ageHours": 0.4,
+          "stale": false,
+          "fx": {
+            "asOf": "2026-10-15T12:23:04.1851164Z",
+            "fetchedAt": "2026-10-15T18:17:23.933Z",
+            "source": "Bank of Israel exchange rates"
+          },
+          "vendors": [
+            {
+              "vendorId": "pucks",
+              "lastAttemptAt": "2026-10-15T18:17:23.933Z",
+              "lastSuccessAt": "2026-10-15T18:17:23.933Z",
+              "consecutiveFailures": 0,
+              "nextAttemptAt": "2026-10-16T00:17:23.933Z",
+              "lastErrors": []
+            },
+            {
+              "vendorId": "coffee4u",
+              "lastAttemptAt": "2026-10-15T18:17:23.933Z",
+              "lastSuccessAt": "2026-10-15T18:17:23.933Z",
+              "consecutiveFailures": 0,
+              "nextAttemptAt": "2026-10-16T00:17:23.933Z",
+              "lastErrors": []
+            },
+            {
+              "vendorId": "coffeeman",
+              "lastAttemptAt": "2026-10-15T12:17:20.249Z",
+              "lastSuccessAt": "2026-10-13T18:17:40.573Z",
+              "consecutiveFailures": 6,
+              "nextAttemptAt": "2026-10-16T00:17:20.249Z",
+              "lastErrors": [
+                "HTTP 403",
+                "HTTP 403",
+                "HTTP 403"
+              ]
+            }
+          ]
+        },
+        "requestedRetiredProduct": null
+      }
+    },
+    "retiredUrl": {
+      "status": 200,
+      "error": null,
+      "headers": {
+        "contentType": "application/json",
+        "cacheControl": "public, max-age=300, stale-while-revalidate=3600",
+        "cfCacheStatus": null
+      },
+      "summary": {
+        "generatedAt": "2026-10-15T18:44:14.606Z",
+        "productId": "lavazza-crema-e-gusto-vacuum-ground",
+        "variantId": null,
+        "targetGrams": 500,
+        "destination": "tel-aviv",
+        "best": {
+          "key": "pucks:Lav69:ground:250g:x1",
+          "totalIls": 90,
+          "vendor": "pucks"
+        },
+        "ranked": [
+          {
+            "key": "pucks:Lav69:ground:250g:x1",
+            "vendor": "pucks",
+            "productId": "lavazza-crema-e-gusto-vacuum-ground",
+            "variantId": "classico",
+            "packGrams": 250,
+            "packCount": 1,
+            "units": 2,
+            "itemTotalIls": 60,
+            "shippingIls": 30,
+            "shippingCertainty": "checkout_quote",
+            "freeCondition": null,
+            "freeCartConditions": [],
+            "observedAt": "2026-10-15T18:17:23.933Z",
+            "policy": {
+              "id": "pucks-il-home-delivery",
+              "version": 2,
+              "retrievedAt": "2026-10-13T01:41:10Z"
+            },
+            "totalIls": 90,
+            "ilsPerKg": 180
+          },
+          {
+            "key": "coffee4u:2010561:ground:250g:x1",
+            "vendor": "coffee4u",
+            "productId": "lavazza-crema-e-gusto-vacuum-ground",
+            "variantId": "unspecified",
+            "packGrams": 250,
+            "packCount": 1,
+            "units": 2,
+            "itemTotalIls": 76,
+            "shippingIls": 30,
+            "shippingCertainty": "verified",
+            "freeCondition": null,
+            "freeCartConditions": [],
+            "observedAt": "2026-10-15T18:17:23.933Z",
+            "policy": {
+              "id": "coffee4u-il-home-delivery",
+              "version": 3,
+              "retrievedAt": "2026-10-13T08:06:00Z"
+            },
+            "totalIls": 106,
+            "ilsPerKg": 212
+          }
+        ],
+        "unrankable": [],
+        "staleOrUnavailable": [
+          {
+            "key": "coffeeman:930333:ground:250g:x1",
+            "vendor": "coffeeman",
+            "availability": "in_stock",
+            "labels": [
+              "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list. The rendered anonymous checkout exposes that list as a closed 264-locality select (observed 2026-10-13), and every selectable destination on this site is on it (Tel Aviv–Yafo, Jerusalem, Haifa, Be’er Sheva, Eilat), each with the published ₪25 home-courier option selectable; a destination outside the list cannot use home delivery. Confirm the destination at checkout.",
+              "Stale observation — the last successful check is too old to rank"
+            ]
+          },
+          {
+            "key": "coffeeman:930334:ground:1000g:x4",
+            "vendor": "coffeeman",
+            "availability": "in_stock",
+            "labels": [
+              "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list. The rendered anonymous checkout exposes that list as a closed 264-locality select (observed 2026-10-13), and every selectable destination on this site is on it (Tel Aviv–Yafo, Jerusalem, Haifa, Be’er Sheva, Eilat), each with the published ₪25 home-courier option selectable; a destination outside the list cannot use home delivery. Confirm the destination at checkout.",
+              "Stale observation — the last successful check is too old to rank"
+            ]
+          },
+          {
+            "key": "coffeeman:930335:ground:2000g:x8",
+            "vendor": "coffeeman",
+            "availability": "in_stock",
+            "labels": [
+              "Delivery coverage caveat: Home delivery is limited to the localities on Amigo’s home-delivery list. The rendered anonymous checkout exposes that list as a closed 264-locality select (observed 2026-10-13), and every selectable destination on this site is on it (Tel Aviv–Yafo, Jerusalem, Haifa, Be’er Sheva, Eilat), each with the published ₪25 home-courier option selectable; a destination outside the list cannot use home delivery. Confirm the destination at checkout.",
+              "Stale observation — the last successful check is too old to rank"
+            ]
+          }
+        ],
+        "pickup": [
+          {
+            "key": "coffee4u:2010561:ground:250g:x1:pickup",
+            "vendor": "coffee4u",
+            "itemTotalIls": 76,
+            "note": "Free self-pickup at the shop, listed on the product page."
+          },
+          {
+            "key": "coffeeman:930333:ground:250g:x1:pickup",
+            "vendor": "coffeeman",
+            "itemTotalIls": 66,
+            "note": "Free self-pickup, listed on the product page."
+          },
+          {
+            "key": "coffeeman:930334:ground:1000g:x4:pickup",
+            "vendor": "coffeeman",
+            "itemTotalIls": 124,
+            "note": "Free self-pickup, listed on the product page."
+          },
+          {
+            "key": "coffeeman:930335:ground:2000g:x8:pickup",
+            "vendor": "coffeeman",
+            "itemTotalIls": 240,
+            "note": "Free self-pickup, listed on the product page."
+          }
+        ],
+        "freshness": {
+          "lastRefreshAt": "2026-10-15T18:17:44.874Z",
+          "lastObservationAt": "2026-10-15T18:17:23.933Z",
+          "dataAsOf": "2026-10-15T18:17:44.874Z",
+          "ageHours": 0.4,
+          "stale": false,
+          "fx": {
+            "asOf": "2026-10-15T12:23:04.1851164Z",
+            "fetchedAt": "2026-10-15T18:17:23.933Z",
+            "source": "Bank of Israel exchange rates"
+          },
+          "vendors": [
+            {
+              "vendorId": "pucks",
+              "lastAttemptAt": "2026-10-15T18:17:23.933Z",
+              "lastSuccessAt": "2026-10-15T18:17:23.933Z",
+              "consecutiveFailures": 0,
+              "nextAttemptAt": "2026-10-16T00:17:23.933Z",
+              "lastErrors": []
+            },
+            {
+              "vendorId": "coffee4u",
+              "lastAttemptAt": "2026-10-15T18:17:23.933Z",
+              "lastSuccessAt": "2026-10-15T18:17:23.933Z",
+              "consecutiveFailures": 0,
+              "nextAttemptAt": "2026-10-16T00:17:23.933Z",
+              "lastErrors": []
+            },
+            {
+              "vendorId": "coffeeman",
+              "lastAttemptAt": "2026-10-15T12:17:20.249Z",
+              "lastSuccessAt": "2026-10-13T18:17:40.573Z",
+              "consecutiveFailures": 6,
+              "nextAttemptAt": "2026-10-16T00:17:20.249Z",
+              "lastErrors": [
+                "HTTP 403",
+                "HTTP 403",
+                "HTTP 403"
+              ]
+            }
+          ]
+        },
+        "requestedRetiredProduct": {
+          "id": "lavazza-qualita-oro-vacuum-ground",
+          "line": "Qualità Oro"
+        }
+      }
+    }
+  },
+  "checks": [
+    {
+      "name": "health responds HTTP 200",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "status responds HTTP 200",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "catalog responds HTTP 200",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "board500 responds HTTP 200",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "board1000 responds HTTP 200",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "board2000 responds HTTP 200",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "board3000 responds HTTP 200",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "boardDairy8 responds HTTP 200",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "boardUnstated responds HTTP 200",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "retiredUrl responds HTTP 200",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "catalog exposes exactly the authorized products",
+      "ok": true,
+      "detail": "lavazza-crema-e-gusto-vacuum-ground, tnuva-cottage-cheese-5-percent"
+    },
+    {
+      "name": "health reports ok with storage available",
+      "ok": true,
+      "detail": "ok / no storage error"
+    },
+    {
+      "name": "status run history is present and time-ordered",
+      "ok": true,
+      "detail": "5 run(s)"
+    },
+    {
+      "name": "health and status agree on the last completed refresh",
+      "ok": true,
+      "detail": "health=2026-10-15T18:17:44.874Z status=2026-10-15T18:17:44.874Z"
+    },
+    {
+      "name": "the next actual vendor attempt is a cron tick, not a stored backoff deadline",
+      "ok": true,
+      "detail": "cron 17 */6 * * * -> 2026-10-16T00:17:00.000Z; attempts pucks@due 2026-10-16T00:17:23.933Z -> tick 2026-10-16T00:17:00.000Z (success tolerance 15 min) coffee4u@due 2026-10-16T00:17:23.933Z -> tick 2026-10-16T00:17:00.000Z (success tolerance 15 min) coffeeman@due 2026-10-16T00:17:20.249Z -> tick 2026-10-16T06:17:00.000Z (strict backoff, deadline tick 2026-10-16T06:17:00.000Z) tivtaam@due 2026-10-15T18:47:23.933Z -> tick 2026-10-16T00:17:00.000Z (strict backoff, deadline tick 2026-10-16T00:17:00.000Z) yuda@due 2026-10-15T18:47:23.933Z -> tick 2026-10-16T00:17:00.000Z (strict backoff, deadline tick 2026-10-16T00:17:00.000Z)"
+    },
+    {
+      "name": "board500 has no retired product row",
+      "ok": true,
+      "detail": "lavazza-crema-e-gusto-vacuum-ground"
+    },
+    {
+      "name": "board500 names the tracked product",
+      "ok": true,
+      "detail": "lavazza-crema-e-gusto-vacuum-ground"
+    },
+    {
+      "name": "board1000 has no retired product row",
+      "ok": true,
+      "detail": "lavazza-crema-e-gusto-vacuum-ground"
+    },
+    {
+      "name": "board1000 names the tracked product",
+      "ok": true,
+      "detail": "lavazza-crema-e-gusto-vacuum-ground"
+    },
+    {
+      "name": "board2000 has no retired product row",
+      "ok": true,
+      "detail": "lavazza-crema-e-gusto-vacuum-ground"
+    },
+    {
+      "name": "board2000 names the tracked product",
+      "ok": true,
+      "detail": "lavazza-crema-e-gusto-vacuum-ground"
+    },
+    {
+      "name": "board3000 has no retired product row",
+      "ok": true,
+      "detail": "lavazza-crema-e-gusto-vacuum-ground"
+    },
+    {
+      "name": "board3000 names the tracked product",
+      "ok": true,
+      "detail": "lavazza-crema-e-gusto-vacuum-ground"
+    },
+    {
+      "name": "boardUnstated has no retired product row",
+      "ok": true,
+      "detail": "lavazza-crema-e-gusto-vacuum-ground"
+    },
+    {
+      "name": "boardUnstated names the tracked product",
+      "ok": true,
+      "detail": "lavazza-crema-e-gusto-vacuum-ground"
+    },
+    {
+      "name": "retiredUrl has no retired product row",
+      "ok": true,
+      "detail": "lavazza-crema-e-gusto-vacuum-ground"
+    },
+    {
+      "name": "retiredUrl names the tracked product",
+      "ok": true,
+      "detail": "lavazza-crema-e-gusto-vacuum-ground"
+    },
+    {
+      "name": "the retired URL falls back with a written retired-line notice",
+      "ok": true,
+      "detail": "{\"id\":\"lavazza-qualita-oro-vacuum-ground\",\"line\":\"Qualità Oro\"}"
+    },
+    {
+      "name": "the obsolete variant parameter returns the same unified board",
+      "ok": true,
+      "detail": "variantId500=null variantIdUnstated=null excluded=absent"
+    },
+    {
+      "name": "the catalog exposes no variant selection",
+      "ok": true,
+      "detail": "variants=absent defaultVariant=absent"
+    },
+    {
+      "name": "status exposes every validated shipping policy with a review date",
+      "ok": true,
+      "detail": "ids=[pucks-il-home-delivery, coffeeman-single-4pack-il-home-delivery, coffeeman-8pack-il-cart-quote, coffee4u-il-home-delivery, tivtaam-cottage-tel-aviv-north-delivery, yuda-cottage-tel-aviv-home-delivery, duchan-cottage-ganei-shmuel-home-delivery]"
+    },
+    {
+      "name": "no shipping policy is past its review date",
+      "ok": true,
+      "detail": "none expired"
+    },
+    {
+      "name": "the dairy board serves the tracked product with the four exact tub batches and delivery-only scope",
+      "ok": true,
+      "detail": "{\"productId\":\"tnuva-cottage-cheese-5-percent\",\"deliveryOnly\":true,\"batches\":\"4,6,8,10\",\"pickup\":0}"
+    },
+    {
+      "name": "no grocery batch is ranked below its vendor published minimum order",
+      "ok": true,
+      "detail": "0 observed grocery row(s)"
+    },
+    {
+      "name": "observed grocery rows keep their item total, named delivery service and rate evidence",
+      "ok": true,
+      "detail": "0 row(s) complete"
+    },
+    {
+      "name": "the dairy board does not invent a winner while every batch is unrankable",
+      "ok": true,
+      "detail": "ranked=0 best=null"
+    },
+    {
+      "name": "every ranked offer applies the current validated policy version for its rule",
+      "ok": true,
+      "detail": "all current (8 stamps)"
+    },
+    {
+      "name": "the CoffeeMan 8-pack offer serves the current cart-quote policy without advancing its item observation",
+      "ok": true,
+      "detail": "{\"policy\":{\"id\":\"coffeeman-8pack-il-cart-quote\",\"version\":3,\"origin\":\"observed_cart\",\"retrievedAt\":\"2026-10-13T08:52:00Z\",\"reviewBy\":\"2026-11-11T00:00:00.000Z\",\"thresholdSemantics\":null,\"freeThresholdOrigin\":null,\"freeCartConditionIds\":[]},\"shippingIls\":20,\"itemObservedAt\":\"2026-10-13T18:17:40.573Z\",\"vendorLastSuccessAt\":\"2026-10-13T18:17:40.573Z\",\"stale\":true}"
+    },
+    {
+      "name": "the 2 kg single-pack cart applies the exact observed free condition, not a threshold",
+      "ok": true,
+      "detail": "{\"freeCondition\":\"singles-8\",\"freeThreshold\":null,\"shipping\":0,\"stale\":true}"
+    },
+    {
+      "name": "3 kg of singles keeps the published base rate instead of inheriting free delivery",
+      "ok": true,
+      "detail": "{\"units\":12,\"shipping\":25,\"freeCondition\":null,\"stale\":true}"
+    },
+    {
+      "name": "status exposes the published quantity promotion with a review date",
+      "ok": true,
+      "detail": "coffeeman-ground-coffee-percent-off v1 10% from ₪250"
+    }
+  ]
+}
