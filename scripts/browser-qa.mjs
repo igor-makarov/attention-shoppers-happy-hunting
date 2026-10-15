@@ -1305,6 +1305,35 @@ try {
         && cheeseView.selected === '6 tubs' && cheeseView.dest === 'haifa'
         && cheeseView.batches === 4 && cheeseView.unknown === 4
         && !cheeseView.overflow && !cheeseView.pickup && !/coffee/i.test(cheeseView.subtitle), JSON.stringify(cheeseView));
+    const cheesePending = await evaluate(wd, `({
+      summary: document.querySelector('.empty p')?.textContent ?? '',
+      hint: document.getElementById('verified-locality-hint')?.innerText ?? '',
+      hintButton: (() => { const b = document.querySelector('#verified-locality-hint button'); return b ? { tag: b.tagName, type: b.type, text: b.textContent } : null; })(),
+      noteHidden: !document.body.innerText.includes('Real delivered totals are ranked for the Ganei Shmuel')
+    })`);
+    check('cottage cheese: the pending state explains the exact-batch shortfall in plain language and points to the verified locality',
+      /No offer can be ranked for this selection right now/.test(cheeseView.text)
+        && /minimum order above every exact 4–10 tub batch/.test(cheesePending.summary)
+        && /Tiv Taam ₪300/.test(cheesePending.summary)
+        && /Super Yuda ₪150/.test(cheesePending.summary)
+        && /Verified delivered totals are ranked for/.test(cheesePending.hint)
+        && /Ganei Shmuel/.test(cheesePending.hint)
+        && cheesePending.hintButton?.tag === 'BUTTON' && cheesePending.hintButton?.type === 'button'
+        && cheesePending.noteHidden, JSON.stringify(cheesePending));
+    const whyDetails = await evaluate(wd, `(() => {
+      const d = [...document.querySelectorAll('details.disclosure')].find(node => /Why no total is shown/.test(node.querySelector('summary')?.textContent ?? ''));
+      if (!d) return null;
+      d.open = true;
+      return { open: d.open, text: d.innerText };
+    })()`);
+    check('cottage cheese: the full sourcing note and listing sources stay behind the "Why no total is shown" disclosure',
+      whyDetails?.open === true
+        && /Real delivered totals are ranked for the Ganei Shmuel/.test(whyDetails.text)
+        && /₪53\.20\/₪65\.80\/₪78\.40\/₪91\.00/.test(whyDetails.text)
+        && /₪300 minimum order/.test(whyDetails.text)
+        && /Super Haviv/.test(whyDetails.text)
+        && /Tiv Taam public store API/.test(whyDetails.text)
+        && /Duchan anonymous cart quotes/.test(whyDetails.text), JSON.stringify(whyDetails).slice(0, 900));
     await setDetailsOpen(wd, '#unknown-offers', true);
     await waitFor(() => evaluate(wd, `document.getElementById('unknown-offers')?.open === true`), 10_000, 'unknown-offers disclosure');
     const cheeseUnknown = await evaluate(wd, `document.getElementById('unknown-offers')?.innerText ?? ''`);
@@ -1315,8 +1344,6 @@ try {
         && /Super Yuda/.test(cheeseUnknown)
         && /Shipping: ₪35/.test(cheeseUnknown)
         && /below the vendor minimum order of ₪150(?:\.00)?/.test(cheeseUnknown)
-        && /₪300 minimum order/.test(cheeseView.text)
-        && /₪150 minimum/.test(cheeseView.text)
         && !/Best known delivered total|CoffeeMan|Pucks|Coffee4U|₪0/.test(cheeseView.text), cheeseUnknown.slice(0, 1200));
     await firstScreenScreenshot(wd, 'cottage-cheese-mobile-390.png');
     await contrastReport(wd, 'body', 'the cottage-cheese pending comparison (mobile)');
@@ -1327,6 +1354,13 @@ try {
       await evaluate(wd, `new URLSearchParams(location.search).get('dest') === 'haifa' && !new URLSearchParams(location.search).has('grams')`), '10 tubs / Haifa');
     await setContentViewport(wd, 1440, 1000);
     await screenshot(wd, 'cottage-cheese-desktop-1440.png');
+    // The pending-state hint is a real button: one activation switches the
+    // delivery locality and keeps the shareable URL in sync. The detailed
+    // Ganei Shmuel ranking check below still verifies the API/UI values.
+    await evaluate(wd, `document.querySelector('#verified-locality-hint button')?.click()`);
+    await waitFor(() => evaluate(wd, `document.getElementById('destination')?.value === 'ganei-shmuel' && new URLSearchParams(location.search).get('dest') === 'ganei-shmuel'`), 15_000, 'locality hint switch');
+    check('cottage cheese: the pending-state locality button switches to Ganei Shmuel and keeps the shareable URL in sync',
+      await evaluate(wd, `document.getElementById('destination')?.value === 'ganei-shmuel' && new URLSearchParams(location.search).get('dest') === 'ganei-shmuel' && !new URLSearchParams(location.search).has('variant')`), 'Ganei Shmuel via hint');
     await wd('POST', '/url', { url: `${base}${cheesePath}?grams=2000&dest=jerusalem` });
     await waitForProduct(wd);
     check('cottage cheese: legacy weight links normalize to the equivalent exact tub batch',

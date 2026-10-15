@@ -275,7 +275,7 @@
     {
       "id": "superhaviv",
       "name": "Super Haviv (סופר חביב), Petah Tikva",
-      "status": "accessible_product_verified_no_tel_aviv_coverage",
+      "status": "accessible_published_terms_conflict_cart_total_blocked_not_rankable",
       "observed": {
         "branches": "Two published online branches: 3507 פתח תקווה (areas פתח תקווה and קרית אונו,גבעת שמואל) and 3480 גבעת שמואל (area גבעת שמואל). No Tel Aviv–Yafo area.",
         "product": {
@@ -323,11 +323,24 @@
             "deliveredTotalIls": 99
           }
         ],
-        "computedBatchNote": "Item total = observed branch price × tubs; delivery = the branch area published rate. These are computable from the observed listing plus the published area fee, not read from an anonymous cart, and they are NOT ranked because Petah Tikva is not one of the site selectable destinations (Tel Aviv–Yafo default).",
+        "computedBatchNote": "Item total = observed branch price × tubs; delivery = the branch area published rate. These are computable from the observed listing plus the published area fee, not read from an anonymous cart. They are NOT ranked: the store's own terms publish a ₪200 minimum order above every exact batch, and the applied-delivery cart read is WAF-blocked. The ₪10 area field conflict is documented, not resolved.",
         "observedAt": "2026-10-15T18:02:00Z",
-        "correction": "The 4-109 note \"the tracked listing was not found\" came from the autocomplete search; a direct catalogProductId 12053 lookup returns the listing on branch 3507. The listing is real, but the coverage is Petah Tikva / Kiryat Ono / Givat Shmuel only."
+        "correction": "The 4-109 note \"the tracked listing was not found\" came from the autocomplete search; a direct catalogProductId 12053 lookup returns the listing on branch 3507. The listing is real, but the coverage is Petah Tikva / Kiryat Ono / Givat Shmuel only.",
+        "publishedTerms": {
+          "source": "https://htmlcache.blob.core.windows.net/html-production-env/r-1579/desktop/multi-true/data.js (retailer config agreementText; the file is gzip-compressed and was decompressed for reading, 2026-10-15 18:53 UTC)",
+          "quoted": "אתר סופר חביב / תנאי שימוש — \"סכום מינימום לרכישה באתר הינו 200 ₪. בקנייה ב-499 ש\"ח ומעלה המשלוח חינם. בתוקף עד - 31.12.2025. בגין קנייה בפחות מ-499 ש\"ח דמי המשלוח הינם 34 ש\"ח.\"",
+          "clause56": "5.6. \"סכום מינימלי לביצוע הזמנה באתר: 200 ₪. לא ניתן לבצע הזמנות שסכומן הכולל, בעת השלמת ההזמנה, אינו עולה על סכום מינימאלי של 200 ₪.\"",
+          "note": "The store's own terms set a ₪200 site minimum and a ₪34 per-order delivery fee, and the ₪499 free-delivery promotion expired 31.12.2025. The branch area field still publishes deliveryMinimumCost ₪10 for Petah Tikva, contradicting the terms. Every exact 4-10 tub batch totals ₪60.00-₪99.00 including delivery, below the ₪200 terms minimum, so under the store's own published terms no standalone exact batch is purchasable."
+        },
+        "appliedDeliveryCartRead": {
+          "attemptedAt": "2026-10-15T18:53:00Z to 2026-10-15T18:56:00Z",
+          "cartCreate": "POST /v2/retailers/1579/branches/3507/carts with {\"lines\":[{\"retailerProductId\":20230801,\"quantity\":4,\"type\":1}]} returned HTTP 201; the cart's single line carried quantity 4 and totalPrice ₪26.00.",
+          "deliveryLine": "POST /carts/<id>/delivery-line {\"areaId\":9997,\"deliveryTypeIds\":[1]} returned HTTP 200 {\"error\":null}.",
+          "appliedDelivery": "PATCH /carts/<id> {\"deliveryProduct\":true,\"deliveryProduct_Id\":20722246,\"deliveryType\":1} returned HTTP 200 with the store's Radware 'Unauthorized Request Blocked' HTML page (3,563 bytes) instead of the computed cart — the third such block across 4-111 and 4-112. GET /carts/<id> returned the storefront app shell, not JSON.",
+          "blocker": "The applied-delivery cart total cannot be read from the runner for this store, and even a computed cart would not settle the ₪200-vs-₪10 minimum conflict: the minimum is enforced at checkout, which requires login and was not entered. No challenge was bypassed and no cart total is claimed."
+        }
       },
-      "limitation": "No Tel Aviv–Yafo coverage, so the listing cannot serve the default locality and is not registered as an offer. It is the only reachable permitted grocery source found whose published minimum order (₪10) a standalone 4-10 tub batch can meet; using it requires the owner to add/choose a Petah Tikva locality, which this iteration did not do.",
+      "limitation": "No Tel Aviv–Yafo coverage (Petah Tikva / Kiryat Ono / Givat Shmuel only), and the store's own published terms set a ₪200 minimum order above every exact 4-10 tub batch (₪60.00-₪99.00 delivered). The area field's ₪10 minimum contradicts the terms, and the applied-delivery cart read needed to settle it is blocked by the store's Radware WAF. The listing is therefore recorded but not registered or ranked; ranking it needs an owner decision or a permitted checkout-basis read.",
       "previousStatus": "accessible_product_not_found_no_tel_aviv_coverage"
     },
     {
@@ -392,7 +405,7 @@
       "note": "Challenges were not bypassed and no alternate host was used to retrieve a blocked store's data. The configs themselves are public platform metadata and were used only for research (names, domains, published minimums, online branches)."
     }
   ],
-  "nextStep": "For the default Tel Aviv–Yafo locality no reachable permitted vendor can sell an exact 4-10 tub batch (Tiv Taam ₪300, Super Yuda ₪150, Duchan no TLV area). The verified purchasable option is the local Ganei Shmuel area (Duchan, ₪53.20-₪91.00), now selectable. Remaining leads: settle Super Haviv Petah Tikva (₪6.50, ₪34 area delivery, area minimum ₪10 vs published terms ₪200, applied-delivery cart read WAF-blocked) with a permitted read or an owner-accepted published-rate basis; re-check Bastale for restock; or an owner decision to allow filling an order to a vendor minimum. See docs/evidence/tnuva-cottage-cheese-duchan-cart-20261015.json.",
+  "nextStep": "The default Tel Aviv–Yafo locality still has no purchasable exact batch: Tiv Taam (₪300 minimum), Super Yuda (₪150 minimum) and Super Haviv (₪200 published terms minimum; Petah Tikva / Kiryat Ono / Givat Shmuel only) all publish minimums above every exact batch, Duchan publishes no Tel Aviv area, and Shufersal remains behind its maintenance/error page (re-checked 2026-10-15 19:05 UTC). The only purchasable exact-batch totals remain Duchan's Ganei Shmuel cart quotes (₪53.20-₪91.00). Remaining options are owner decisions: (a) allow filling an order to a vendor minimum (outside the exact-batch scope), (b) select a covered locality (Ganei Shmuel is already selectable), or (c) vendor/maintainer action to permit the Worker's grocery egress (Tiv Taam and Super Yuda answered the deployed Worker with HTTP 403 from Cloudflare IP space at the 18:17 UTC tick; the same requests succeed from the runner).",
   "liveAdapterVerification": {
     "tool": "npm run check:sources (live, bounded fetcher through the registered adapters)",
     "startedAt": "2026-10-15T17:44:22.906Z",
@@ -496,6 +509,11 @@
       "revisedAt": "2026-10-15T18:45:00Z",
       "by": "iteration 4-111 (GitHub Actions runner)",
       "summary": "Duchan Ganei Shmuel verified as the first purchasable exact-batch source: branch 2175 carries the tracked listing at ₪6.30, its local גן שמואל area publishes ₪28 delivery with no minimum order, and anonymous public cart quotes for exact 4/6/8/10-tub batches added the ₪28 delivery line (₪53.20/₪65.80/₪78.40/₪91.00). Adapter src/vendors/duchan.js (duchan/1), fixture tests/fixtures/duchan-product.json and policy duchan-cottage-ganei-shmuel-home-delivery v1 registered; the selectable ganei-shmuel destination exposes the totals while the default Tel Aviv–Yafo locality stays unranked. Super Haviv Petah Tikva re-checked: the listing is real and a cart line activates by row id 20230801, but the delivery-applying PATCH is Radware-blocked and the published minimum statements conflict (area ₪10 vs terms ₪200), so it stays unranked. Cart-line identity learning: stor.ai carts accept a listing by the row id, not the branchProductId."
+    },
+    {
+      "revisedAt": "2026-10-15T19:10:00Z",
+      "by": "iteration 4-112 (GitHub Actions runner)",
+      "summary": "Settled the Super Haviv Petah Tikva lead without ranking it: the store's own published terms (quoted in the source record) set a ₪200 site minimum and a ₪34 delivery fee, contradicting the branch area field's ₪10; every exact 4-10 tub batch (₪60.00-₪99.00 delivered) is below the terms minimum. A fresh bounded anonymous cart attempt reproduced the Radware block on the delivery-applying PATCH (third block; the delivery-line POST is accepted and the cart line activates at ₪26.00 for 4 tubs), so no cart total can be read and no ranking is claimed. Re-checked Bastale (still out of stock at ₪7.90) and Shufersal (still the 444-byte maintenance/error page from the runner, even with a browser user agent). No new reachable Tel Aviv–Yafo grocery source was found."
     }
   ]
 }

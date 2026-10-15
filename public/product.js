@@ -161,14 +161,30 @@ function renderDecision(board) {
   const section = el('section', { class: 'decision', attrs: { id: 'decision' } });
   if (board.batchComparisons) section.append(renderBatches(board));
   if (!board.best) {
-    section.append(el('div', { class: 'empty' },
+    const sourcing = board.product?.sourcing ?? {};
+    const empty = el('div', { class: 'empty' },
       el('strong', { text: 'No offer can be ranked for this selection right now.' }),
-      el('p', { text: board.product?.sourcing?.note ?? 'Ranking needs a fresh confirmed stock observation and a published or observed shipping rate. The offers with missing information below explain exactly what is missing.' })));
-    const sources = board.product?.sourcing?.sources ?? [];
-    if (sources.length) section.append(el('details', { class: 'disclosure' },
-      el('summary', { text: 'Product listings to check' }),
+      el('p', { text: sourcing.summary ?? sourcing.note ?? 'Ranking needs a fresh confirmed stock observation and a published or observed shipping rate. The offers with missing information below explain exactly what is missing.' }));
+    // When the sourcing record has a locality with verified purchasable totals,
+    // make it one click away instead of hiding it in the research note.
+    const available = (sourcing.availableLocalities ?? []).filter(id => id !== state.destination);
+    if (available.length) {
+      const hint = el('p', { class: 'meta-line', attrs: { id: 'verified-locality-hint' } });
+      hint.append('Verified delivered totals are ranked for ');
+      available.forEach((id, index) => {
+        if (index) hint.append(', ');
+        hint.append(el('button', { type: 'button', class: 'link-button', text: destinationLabel(id), onClick: () => selectDestination(id) }));
+      });
+      hint.append(' — change the delivery locality to see them.');
+      empty.append(hint);
+    }
+    section.append(empty);
+    const sources = sourcing.sources ?? [];
+    if (sourcing.note || sources.length) section.append(el('details', { class: 'disclosure' },
+      el('summary', { text: 'Why no total is shown' }),
       el('div', { class: 'disclosure__body' },
-        el('p', { text: 'These listings have no verified delivered total for the selected batch and locality.' }),
+        sourcing.note ? el('p', { text: sourcing.note }) : null,
+        sources.length ? el('p', { text: 'These listings have no verified delivered total for the selected batch and locality.' }) : null,
         ...sources.map(source => el('p', {}, el('a', { href: source.url, text: source.label, attrs: { target: '_blank', rel: 'noopener noreferrer' } }))))));
   } else {
     section.append(renderBestOffer(board.best, board));
@@ -377,6 +393,13 @@ function renderControls() {
     destination.addEventListener('change', () => update({ destination: destination.value }));
   }
   destination.value = state.destination;
+}
+
+function selectDestination(id) {
+  const destination = document.getElementById('destination');
+  if (!destination) return;
+  destination.value = id;
+  update({ destination: id });
 }
 
 function update(patch) {
