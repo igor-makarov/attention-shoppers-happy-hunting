@@ -456,6 +456,55 @@ export const yudaCottageCheesePolicy = {
   reviewBy: '2026-11-14T00:00:00.000Z'
 };
 
+/**
+ * Duchan Ganei Shmuel cottage-cheese home delivery, read from the store's own
+ * public branch API on 2026-10-15. Branch 2175 (the store's only online branch)
+ * carries the tracked listing at ₪6.30 per 250 g tub in stock. Its local
+ * גן שמואל area publishes deliveryAreaPrice ₪28 with no deliveryMinimumCost,
+ * while the region's other areas publish a ₪250 minimum order; the store
+ * banner and FAQ state there is no minimum order and delivery is free above
+ * ₪599 (valid until 31.12.2026). Anonymous public cart quotes for exact 4/6/8/
+ * 10 tub batches each added the ₪28 delivery line and produced
+ * ₪53.20/₪65.80/₪78.40/₪91.00 delivered totals, so this is the one verified
+ * purchasable exact-batch source found for the tracked product. No street
+ * address, login, payment or order was involved. Evidence:
+ * docs/evidence/tnuva-cottage-cheese-duchan-cart-20261015.json.
+ */
+export const duchanCottageCheesePolicy = {
+  id: 'duchan-cottage-ganei-shmuel-home-delivery',
+  version: 1,
+  vendorId: 'duchan',
+  productIds: ['tnuva-cottage-cheese-5-percent'],
+  itemUrlPrefixes: ['https://www.duchan.co.il/?catalogProduct=12053'],
+  service: 'home_delivery',
+  origin: 'published',
+  certainty: 'verified',
+  rule: {
+    amount: { amount: 28, currency: 'ILS' },
+    freeThreshold: { amount: 599, currency: 'ILS' },
+    thresholdSemantics: 'above',
+    minOrder: null,
+    maxTotalGrams: null
+  },
+  destination: {
+    scope: 'localities',
+    localities: ['ganei-shmuel'],
+    caveat: 'Duchan Ganei Shmuel’s online branch publishes home delivery to the local גן שמואל area (₪28, no minimum order) and lists Pardes Hanna-Karkur, Or Akiva, Zikhron Ya’akov, Harish, Caesarea and other Hadera-region localities; every other published area carries a ₪250 minimum order, so only the גן שמואל area is part of the selectable delivered comparison. Confirm the address at checkout.',
+    caveatSource: 'https://www.duchan.co.il/v2/retailers/1420/branches/2175/areas?appId=4&deliveryTypeId=1&languageId=1'
+  },
+  evidence: {
+    url: 'https://www.duchan.co.il/v2/retailers/1420/branches/2175/areas?appId=4&deliveryTypeId=1&languageId=1',
+    retrievedAt: '2026-10-15T18:35:00Z',
+    note: 'Public branch API read from the GitHub Actions runner on 2026-10-15: branch 2175 (דוכן גן שמואל) returned the tracked listing at ₪6.30 per 250 g tub with isActive/isVisible true, isOutOfStock false and quantityLimit 999; its גן שמואל area publishes deliveryAreaPrice ₪28 and no deliveryMinimumCost. The store banner and FAQ publish free delivery above ₪599 (valid until 31.12.2026) and state there is no minimum order; the region’s other areas publish a ₪250 minimum. Anonymous public cart API quotes for exact 4/6/8/10 tub batches added the ₪28 delivery line: ₪25.20/₪37.80/₪50.40/₪63.00 item + ₪28 = ₪53.20/₪65.80/₪78.40/₪91.00. No street address, login, payment or order was involved. See docs/evidence/tnuva-cottage-cheese-duchan-cart-20261015.json.'
+  },
+  observedFor: {
+    carts: ['4 tubs = 1 kg (₪25.20 + ₪28 = ₪53.20)', '6 tubs = 1.5 kg (₪37.80 + ₪28 = ₪65.80)', '8 tubs = 2 kg (₪50.40 + ₪28 = ₪78.40)', '10 tubs = 2.5 kg (₪63.00 + ₪28 = ₪91.00)'],
+    destinations: ['Ganei Shmuel area (גן שמואל)'],
+    note: 'Anonymous public cart API quotes; no street address, login, payment or order submission. Every batch stays below the published free-delivery threshold of ₪599, so the ₪28 delivery line applies.'
+  },
+  reviewBy: '2026-11-14T00:00:00.000Z'
+};
+
 /** Every validated policy the shared evaluator may apply. */
 export const SHIPPING_POLICIES = [
   pucksHomeDeliveryPolicy,
@@ -463,7 +512,8 @@ export const SHIPPING_POLICIES = [
   coffeemanEightPackPolicy,
   coffee4uHomeDeliveryPolicy,
   tivtaamCottageCheesePolicy,
-  yudaCottageCheesePolicy
+  yudaCottageCheesePolicy,
+  duchanCottageCheesePolicy
 ];
 
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;

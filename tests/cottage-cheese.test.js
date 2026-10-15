@@ -135,3 +135,34 @@ test('the recorded Tiv Taam listing is observed and quoted but stays unranked be
   assert.equal(result.unrankable[0].shipping.serviceLabel, 'Home delivery');
   assert.deepEqual(result.batchComparisons.map(batch => batch.best), [null, null, null, null]);
 });
+
+test('the recorded Duchan listing ranks all four exact batches with its anonymous cart quotes', async () => {
+  const { parseDuchanProduct } = await import('../src/vendors/duchan.js');
+  const { readFixtureForUrl } = await import('./fixtures/vendor-fixtures.mjs');
+  const apiUrl = 'https://www.duchan.co.il/v2/retailers/1420/branches/2175/products?catalogProductId=12053&ignoreBranchVisibility=true&appId=4&languageId=2';
+  const hit = await readFixtureForUrl(apiUrl);
+  assert.ok(hit, 'the recorded Duchan API response routes to the tracked offer');
+  const observation = parseDuchanProduct(hit.text, { now });
+  const ganeiShmuel = DESTINATIONS.find(destination => destination.id === 'ganei-shmuel');
+  assert.ok(ganeiShmuel, 'the Ganei Shmuel locality is selectable');
+  const result = quoteBoard({ observations: [observation], productId, now, destination: ganeiShmuel, targetQuantity: 10 });
+  assert.equal(result.best.vendor.id, 'duchan');
+  assert.equal(result.best.itemTotalIls, 63);
+  assert.equal(result.best.shipping.amountIls, 28);
+  assert.equal(result.best.shipping.minOrder, null, 'the no-minimum area leaves every exact batch purchasable');
+  assert.equal(result.best.totalIls, 91);
+  assert.equal(result.best.shipping.serviceLabel, 'Home delivery');
+  assert.equal(result.best.shipping.certaintyLabel, 'Published rate (verified)');
+  assert.equal(result.best.units, 10);
+  assert.equal(result.best.orderedGrams, 2500);
+  assert.deepEqual(result.batchComparisons.map(batch => [batch.quantity, batch.best?.totalIls ?? null]), [
+    [4, 53.2], [6, 65.8], [8, 78.4], [10, 91]
+  ]);
+  assert.deepEqual(result.batchComparisons.map(batch => batch.best?.shippingIls ?? null), [28, 28, 28, 28]);
+  // The same listing is visible but unrankable for the default locality: the
+  // store publishes no Tel Aviv–Yafo delivery area, and that is not a free rate.
+  const telAviv = board([observation], { targetQuantity: 10 });
+  assert.equal(telAviv.best, null);
+  assert.match(telAviv.unrankable[0].reasons.join(' '), /does not include Tel Aviv–Yafo/);
+  assert.equal(telAviv.unrankable[0].shipping.amount, 28, 'the known rate stays visible even where coverage is unproven');
+});

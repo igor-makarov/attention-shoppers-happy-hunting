@@ -7,6 +7,7 @@ import { parsePucksProduct } from '../src/vendors/pucks.js';
 import { parseCoffee4uProduct, parseCoffee4uShipping } from '../src/vendors/coffee4u.js';
 import { parseTivtaamProduct, selectTivtaamProduct } from '../src/vendors/tivtaam.js';
 import { parseYudaProduct, selectYudaProduct, classifyYudaNames } from '../src/vendors/yuda.js';
+import { parseDuchanProduct, selectDuchanProduct, classifyDuchanNames } from '../src/vendors/duchan.js';
 import { readFixtureForUrl } from './fixtures/vendor-fixtures.mjs';
 import { classifyListing, isRetiredProductId, resolveProductRequest } from '../src/catalog.js';
 import { coffeemanEightPackPolicy, coffeemanSingleFourPackPolicy, coffee4uHomeDeliveryPolicy } from '../src/lib/policies.js';
@@ -497,4 +498,84 @@ test('tivtaam adapter routes its single offer through the recorded fixture', asy
   assert.equal(outcome.failures.length, 0);
   assert.equal(outcome.observations.length, 1);
   assert.equal(outcome.observations[0].price.amount, 6.1);
+});
+
+// Duchan Ganei Shmuel cottage cheese (2026-10-15). The fixture is the real
+// public store API response for catalogProductId 12053 (branch 2175, the
+// store's only online branch) recorded from the GitHub Actions runner on
+// 2026-10-15; the delivery terms and the anonymous-cart batch quotes are the
+// checked-in policy, not the product response.
+test('duchan fixture selects the sellable branch row and keeps the cottage-cheese identity', () => {
+  const json = read('duchan-product.json').toString('utf8');
+  const observation = parseDuchanProduct(json, { now });
+  assert.equal(observation.vendor.id, 'duchan');
+  assert.equal(observation.product.productId, 'tnuva-cottage-cheese-5-percent');
+  assert.equal(observation.product.form, 'cottage_cheese');
+  assert.equal(observation.product.sku, '12053');
+  assert.equal(observation.product.packGrams, 250);
+  assert.equal(observation.product.packCount, 1);
+  assert.equal(observation.product.totalGrams, 250);
+  assert.equal(observation.price.amount, 6.3);
+  assert.equal(observation.price.currency, 'ILS');
+  assert.equal(observation.availability, 'in_stock');
+  assert.match(observation.availabilityEvidence.value, /isActive=true/);
+  assert.match(observation.availabilityEvidence.value, /quantityLimit=999/);
+  assert.equal(observation.maxUnits, 999, 'the published per-line cap travels with the row');
+  assert.equal(observation.shipping.service, 'home_delivery');
+  assert.equal(observation.shipping.amount.amount, 28);
+  assert.equal(observation.shipping.minOrder, null, 'the Ganei Shmuel area publishes no minimum order');
+  assert.equal(observation.shipping.freeThreshold.amount, 599);
+  assert.equal(observation.shipping.freeThresholdSemantics, 'above', 'the vendor wording "above ₪599" is preserved');
+  assert.equal(observation.shipping.certainty, 'verified');
+  assert.deepEqual(observation.shipping.destination.localities, ['ganei-shmuel']);
+  assert.match(observation.shipping.destination.caveat, /minimum order/);
+  assert.equal(observation.itemUrl, 'https://www.duchan.co.il/?catalogProduct=12053');
+});
+
+test('duchan parser classifies through the English name and refuses other tub sizes or fat percentages', () => {
+  const base = {
+    productId: 12053,
+    weight: 250,
+    quantityLimit: 999,
+    names: {
+      '1': { long: "קוטג' 5%" },
+      '2': { long: 'Cottage Tnuva (5%) 250 g' }
+    },
+    branch: { id: 2175, regularPrice: 6.3, isActive: true, isVisible: true, isOutOfStock: false }
+  };
+  const hidden = { ...base, branch: { ...base.branch, regularPrice: 5.9, isVisible: false } };
+  assert.equal(selectDuchanProduct([hidden, base]).branch.regularPrice, 6.3, 'the visible row is selected, not a cheaper hidden one');
+  assert.equal(selectDuchanProduct([hidden]).branch.regularPrice, 5.9, 'a hidden row is still the only evidence when nothing is sellable');
+  assert.equal(selectDuchanProduct([]), null);
+  assert.equal(classifyDuchanNames(base).matched.classification.productId, 'tnuva-cottage-cheese-5-percent', 'the English name states Tnuva, 5% and 250 g');
+
+  const oos = parseDuchanProduct(JSON.stringify({ total: 1, products: [{ ...base, branch: { ...base.branch, isOutOfStock: true } }] }), { now });
+  assert.equal(oos.availability, 'out_of_stock', 'the branch out-of-stock flag is not a price-only scrape');
+
+  assert.throws(() => parseDuchanProduct('not json', { now }), /did not return JSON/);
+  assert.throws(() => parseDuchanProduct(JSON.stringify({ total: 0, products: [] }), { now }), /No sellable branch product/);
+  assert.throws(
+    () => parseDuchanProduct(JSON.stringify({ products: [{ ...base, names: { '1': { long: 'קוטג 9%' }, '2': { long: 'Cottage Tnuva (9%) 250 g' } } }] }), { now }),
+    /does not match the tracked product/,
+    'a 9% listing is refused instead of being merged into the 5% comparison'
+  );
+  assert.throws(
+    () => parseDuchanProduct(JSON.stringify({ products: [{ ...base, names: { '1': { long: 'קוטג 5% 500 גרם' }, '2': { long: 'Cottage Tnuva (5%) 500 g' } } }] }), { now }),
+    /does not match the tracked product/,
+    'a 500 g tub is refused instead of being merged into the 250 g comparison'
+  );
+});
+
+test('duchan adapter routes its single offer through the recorded fixture', async () => {
+  const { duchan } = await import('../src/vendors/duchan.js');
+  const fetchText = async url => {
+    const hit = await readFixtureForUrl(url);
+    assert.ok(hit, `fixture for ${url}`);
+    return { ok: true, status: 200, text: hit.text, contentType: hit.contentType };
+  };
+  const outcome = await duchan.observe({ fetchText, now });
+  assert.equal(outcome.failures.length, 0);
+  assert.equal(outcome.observations.length, 1);
+  assert.equal(outcome.observations[0].price.amount, 6.3);
+  assert.equal(outcome.observations[0].maxUnits, 999);
 });

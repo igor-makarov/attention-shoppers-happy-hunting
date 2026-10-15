@@ -19,6 +19,11 @@ export const DESTINATIONS = [
   { id: 'haifa', label: 'Haifa', postcode: '3100000', country: 'IL' },
   { id: 'beer-sheva', label: "Be'er Sheva", postcode: '8400000', country: 'IL' },
   { id: 'eilat', label: 'Eilat', postcode: '8800000', country: 'IL' },
+  // Added 2026-10-15 with the Duchan adapter: the store's only online branch
+  // publishes its no-minimum home-delivery area for the Ganei Shmuel locality
+  // (the kibbutz itself; the region's other areas carry a ₪250 minimum). The
+  // default stays Tel Aviv–Yafo until the owner chooses another city.
+  { id: 'ganei-shmuel', label: 'Ganei Shmuel (גן שמואל)', postcode: null, country: 'IL' },
   { id: 'other', label: 'Elsewhere in Israel', postcode: null, country: 'IL' }
 ];
 

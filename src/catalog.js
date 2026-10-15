@@ -92,9 +92,21 @@ export const PRODUCTS = [
     deliveryOnly: true,
     notes: 'Compare the lowest total including delivery and mandatory fees for exact batches of 4, 6, 8 or 10 standard 250 g tubs. Other brands, fat percentages, flavoured cottage cheese and other tub sizes are excluded.',
     sourcing: {
-      status: 'pending',
-      note: 'Delivery quotes are pending. Two independent public store APIs are observed: Tiv Taam (₪6.10 per 250 g tub plus ₪29.90 home delivery, ₪300 minimum order) and Super Yuda (₪6.70 plus ₪35, ₪150 minimum). Every exact 4-10-tub batch (₪26.80-₪90.90 item plus delivery) is below both vendors’ published minimum orders, so no standalone batch is purchasable and no delivered total is ranked. The low-minimum delivery services found in research (Wolt Market, Yango Deli) are excluded by their terms, and the reachable small groceries are bot-protected or do not cover Tel Aviv–Yafo; see docs/evidence/tnuva-cottage-cheese-runner-research-20261015.json. Totals stay unknown until a vendor can deliver a batch at or above its minimum.',
+      status: 'partial',
+      note: 'Real delivered totals are ranked for the Ganei Shmuel (גן שמואל) delivery area: Duchan Ganei Shmuel’s online branch sells the exact 4/6/8/10-tub batches at ₪6.30 per 250 g tub plus a ₪28 home-delivery line (anonymous public cart quotes: ₪53.20/₪65.80/₪78.40/₪91.00) with no minimum order and free delivery only above ₪599. For the default Tel Aviv–Yafo locality no reachable permitted vendor can sell a standalone batch: Tiv Taam (₪6.10, ₪29.90 delivery, ₪300 minimum) and Super Yuda (₪6.70, ₪35 delivery, ₪150 minimum) both publish minimums above every exact batch, and the remaining reachable groceries either do not cover Tel Aviv–Yafo or are blocked by their own bot protection or terms. Totals for Tel Aviv–Yafo stay unknown until a vendor can deliver a batch at or above its minimum; see docs/evidence/tnuva-cottage-cheese-runner-research-20261015.json and docs/evidence/tnuva-cottage-cheese-duchan-cart-20261015.json.',
       sources: [
+        {
+          label: 'Duchan Ganei Shmuel public store API (branch 2175) — ₪6.30 per tub, in stock',
+          url: 'https://www.duchan.co.il/?catalogProduct=12053'
+        },
+        {
+          label: 'Duchan delivery area (גן שמואל: ₪28, no minimum order)',
+          url: 'https://www.duchan.co.il/v2/retailers/1420/branches/2175/areas?appId=4&deliveryTypeId=1&languageId=1'
+        },
+        {
+          label: 'Duchan anonymous cart quotes for the four batches',
+          url: 'docs/evidence/tnuva-cottage-cheese-duchan-cart-20261015.json'
+        },
         {
           label: 'Tiv Taam public store API (branch 924, Ramat HaHayal)',
           url: 'https://www.tivtaam.co.il/?catalogProduct=12053'

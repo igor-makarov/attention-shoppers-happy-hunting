@@ -186,7 +186,7 @@ function oldPersistedCoffeemanEightPackObservation(overrides = {}) {
 test('the checked-in shipping policies are structurally valid', () => {
   const result = validatePolicies(SHIPPING_POLICIES);
   assert.equal(result.ok, true, JSON.stringify(result.results));
-  assert.equal(SHIPPING_POLICIES.length, 6);
+  assert.equal(SHIPPING_POLICIES.length, 7);
   const pucks = SHIPPING_POLICIES.find(policy => policy.id === pucksHomeDeliveryPolicy.id);
   assert.ok(pucks, 'the evidenced Pucks rule is a checked-in policy');
   assert.equal(pucks.origin, 'observed_cart', 'a cart-observed rule is never relabelled as published');
@@ -243,6 +243,20 @@ test('the checked-in shipping policies are structurally valid', () => {
   assert.equal(coffee4u.rule.amount.amount, 30);
   assert.equal(coffee4u.alternatives[0].amount.amount, 15);
   assert.equal(coffee4u.destination.observed.courierLocalities, 1269, 'the observed closed locality list stays structured');
+  const duchan = SHIPPING_POLICIES.find(policy => policy.id === 'duchan-cottage-ganei-shmuel-home-delivery');
+  assert.ok(duchan, 'the verified Duchan cottage-cheese rule is a checked-in policy');
+  assert.equal(duchan.origin, 'published');
+  assert.equal(duchan.certainty, 'verified');
+  assert.equal(duchan.rule.amount.amount, 28);
+  assert.equal(duchan.rule.minOrder, null, 'the Ganei Shmuel area publishes no minimum order');
+  assert.equal(duchan.rule.freeThreshold.amount, 599);
+  assert.equal(duchan.rule.thresholdSemantics, 'above', 'the vendor wording "above ₪599" is preserved');
+  assert.deepEqual(duchan.destination.localities, ['ganei-shmuel']);
+  assert.match(duchan.destination.caveat, /₪250 minimum order/, 'the regional areas’ higher minimum is disclosed');
+  assert.equal(duchan.observedFor.carts.length, 4, 'all four exact-batch cart quotes are recorded');
+  for (const total of ['₪53.20', '₪65.80', '₪78.40', '₪91.00']) {
+    assert.ok(duchan.observedFor.carts.some(cart => cart.includes(total)), `the cart evidence records ${total}`);
+  }
 });
 
 test('an old persisted CoffeeMan single-pack offer gains the published rule and its cart-observed alternative', () => {

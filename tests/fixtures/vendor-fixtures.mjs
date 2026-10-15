@@ -21,7 +21,8 @@ export const FIXTURE_BY_OFFER = {
   'pucks:classico-250g': 'pucks-product.html',
   'coffee4u:crema-e-gusto-250g-ground': 'coffee4u-product.windows-1255.html',
   'tivtaam:tnuva-cottage-5-250g': 'tivtaam-product.json',
-  'yuda:tnuva-cottage-5-250g': 'yuda-product.json'
+  'yuda:tnuva-cottage-5-250g': 'yuda-product.json',
+  'duchan:tnuva-cottage-5-250g': 'duchan-product.json'
 };
 
 const WINDOWS_1255 = 'text/html; charset=windows-1255';
@@ -36,7 +37,8 @@ const CONTENT_TYPE_BY_FILE = {
   'coffee4u-product.windows-1255.html': WINDOWS_1255,
   'coffee4u-product.outofstock.windows-1255.html': WINDOWS_1255,
   'tivtaam-product.json': 'application/json; charset=utf-8',
-  'yuda-product.json': 'application/json; charset=utf-8'
+  'yuda-product.json': 'application/json; charset=utf-8',
+  'duchan-product.json': 'application/json; charset=utf-8'
 };
 
 export const FIXTURES_DIR = new URL('./', import.meta.url);

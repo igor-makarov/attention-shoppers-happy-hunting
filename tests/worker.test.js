@@ -289,11 +289,11 @@ test('cottage cheese API resolves exact batches and never borrows coffee offers 
     assert.equal(board.targetGrams, quantity * 250);
     assert.equal(board.destination.id, 'haifa');
     assert.equal(board.deliveryOnly, true);
-    assert.equal(board.best, null, 'no exact batch is ranked: the observed listings are below their vendor minimums');
-    assert.equal(board.counts.observed, 2, 'the seeded Tiv Taam and Super Yuda cottage-cheese listings are observed');
+    assert.equal(board.best, null, 'no exact batch is ranked: the observed listings are below their vendor minimums or outside the destination');
+    assert.equal(board.counts.observed, 3, 'the seeded Tiv Taam, Super Yuda and Duchan cottage-cheese listings are observed');
     assert.deepEqual(board.pickup, []);
     assert.deepEqual(board.batchComparisons.map(batch => [batch.quantity, batch.best]), [[4, null], [6, null], [8, null], [10, null]]);
-    assert.deepEqual(board.freshness.vendors.map(vendor => vendor.vendorId), ['tivtaam', 'yuda'], 'only the vendors with a cottage-cheese offer are listed');
+    assert.deepEqual(board.freshness.vendors.map(vendor => vendor.vendorId), ['tivtaam', 'yuda', 'duchan'], 'only the vendors with a cottage-cheese offer are listed');
     assert.ok(board.freshness.lastObservationAt, 'the cheese board freshness uses its own cheese observation');
     const tivtaamQuote = board.unrankable.find(quote => quote.vendor.id === 'tivtaam');
     assert.ok(tivtaamQuote, 'the observed Tiv Taam listing stays visible');
@@ -301,7 +301,7 @@ test('cottage cheese API resolves exact batches and never borrows coffee offers 
     const yudaQuote = board.unrankable.find(quote => quote.vendor.id === 'yuda');
     assert.ok(yudaQuote, 'the observed Super Yuda listing stays visible');
     assert.ok(yudaQuote.reasons.length > 0, 'the Haifa destination is not covered by the researched Super Yuda areas');
-    assert.equal(board.product.sourcing.status, 'pending');
+    assert.equal(board.product.sourcing.status, 'partial');
   }
   // The default locality is inside the researched Tiv Taam areas, so the block
   // there is the vendor's own published minimum order rather than coverage.
@@ -313,6 +313,21 @@ test('cottage cheese API resolves exact batches and never borrows coffee offers 
   assert.ok(telAvivYuda, 'Super Yuda is compared for the default locality');
   assert.ok(telAvivYuda.reasons.some(reason => /below the vendor minimum order of ₪150/.test(reason)), JSON.stringify(telAvivYuda.reasons));
   assert.equal(telAviv.best, null, 'a below-minimum batch is never ranked');
+  // The verified Duchan listing delivers only to its local Ganei Shmuel area,
+  // where all four exact batches are purchasable and ranked with the anonymous
+  // cart quotes; the default locality must stay unranked with the coverage
+  // reason instead of borrowing those totals.
+  const ganeiShmuel = await (await worker.fetch(new Request(`https://example.test/api/board?product=${productId}&quantity=10&dest=ganei-shmuel`), envWith(store), {})).json();
+  assert.equal(ganeiShmuel.destination.id, 'ganei-shmuel');
+  assert.equal(ganeiShmuel.best.vendor.id, 'duchan');
+  assert.equal(ganeiShmuel.best.itemTotalIls, 63);
+  assert.equal(ganeiShmuel.best.shipping.amountIls, 28);
+  assert.equal(ganeiShmuel.best.totalIls, 91);
+  assert.deepEqual(ganeiShmuel.batchComparisons.map(batch => [batch.quantity, batch.best?.totalIls ?? null]), [[4, 53.2], [6, 65.8], [8, 78.4], [10, 91]]);
+  const defaultDuchan = telAviv.unrankable.find(quote => quote.vendor.id === 'duchan');
+  assert.ok(defaultDuchan, 'the Duchan listing stays visible for the default locality');
+  assert.ok(defaultDuchan.reasons.some(reason => /does not include Tel Aviv–Yafo/.test(reason)), JSON.stringify(defaultDuchan.reasons));
+  assert.equal(telAviv.best, null, 'the default locality never borrows the Ganei Shmuel totals');
   const get = async query => (await worker.fetch(new Request(`https://example.test/api/board?product=${productId}&${query}`), envWith(store), {})).json();
   assert.equal((await get('grams=2000')).targetQuantity, 8);
   assert.equal((await get('quantity=5')).targetQuantity, 4);

@@ -13,9 +13,10 @@ import { coffeeman } from './coffeeman.js';
 import { coffee4u } from './coffee4u.js';
 import { tivtaam } from './tivtaam.js';
 import { yuda } from './yuda.js';
+import { duchan } from './duchan.js';
 
 export function registeredVendors() {
-  return [coffeeman, pucks, coffee4u, tivtaam, yuda];
+  return [coffeeman, pucks, coffee4u, tivtaam, yuda, duchan];
 }
 
 /** Every host any adapter may contact. Used for the refresh-time allowlist. */
