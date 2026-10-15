@@ -13,10 +13,15 @@ import { coffeeman } from './coffeeman.js';
 import { coffee4u } from './coffee4u.js';
 import { tivtaam } from './tivtaam.js';
 import { yuda } from './yuda.js';
-import { duchan } from './duchan.js';
 
 export function registeredVendors() {
-  return [coffeeman, pucks, coffee4u, tivtaam, yuda, duchan];
+  return [coffeeman, pucks, coffee4u, tivtaam, yuda];
+}
+
+// Its evidenced delivery area excludes Tel Aviv. Retain its parser and recorded
+// evidence as history, but do not refresh or surface it in the active app.
+export function isVendorInScope(id) {
+  return id !== 'duchan';
 }
 
 /** Every host any adapter may contact. Used for the refresh-time allowlist. */

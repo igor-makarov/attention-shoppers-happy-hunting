@@ -566,10 +566,11 @@ test('duchan parser classifies through the English name and refuses other tub si
   );
 });
 
-test('duchan adapter routes its single offer through the recorded fixture', async () => {
+test('archived Duchan adapter still parses its recorded evidence without re-registering it', async () => {
   const { duchan } = await import('../src/vendors/duchan.js');
   const fetchText = async url => {
-    const hit = await readFixtureForUrl(url);
+    assert.equal(url, duchan.offers[0].url);
+    const hit = { text: read('duchan-product.json').toString('utf8'), contentType: 'application/json' };
     assert.ok(hit, `fixture for ${url}`);
     return { ok: true, status: 200, text: hit.text, contentType: hit.contentType };
   };

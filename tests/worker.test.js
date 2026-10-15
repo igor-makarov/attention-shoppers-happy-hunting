@@ -80,9 +80,9 @@ test('catalog route lists the product, destinations and vendor allowlist without
   const body = await response.json();
   assert.equal(body.products[0].id, 'lavazza-crema-e-gusto-vacuum-ground');
   assert.equal(body.products.length, 2, 'coffee and the newly requested cottage cheese are selectable');
-  assert.ok(body.destinations.length >= 5);
+  assert.deepEqual(body.destinations.map(item => item.id), ['tel-aviv']);
   const vendorIds = body.vendors.map(vendor => vendor.id).sort();
-  assert.deepEqual(vendorIds, ['coffee4u', 'coffeeman', 'duchan', 'pucks', 'tivtaam', 'yuda']);
+  assert.deepEqual(vendorIds, ['coffee4u', 'coffeeman', 'pucks', 'tivtaam', 'yuda']);
   const coffee4u = body.vendors.find(vendor => vendor.id === 'coffee4u');
   assert.match(coffee4u.offers[0].url, /^https:\/\/www\.coffee4u\.co\.il\/product\//);
   assert.match(body.vendors[0].offers[0].url, /^https:\/\//);
@@ -147,7 +147,7 @@ test('board response is public-cacheable and reflects quantity and destination',
   const response = await worker.fetch(new Request('https://example.test/api/board?grams=250&dest=eilat&variant=classico'), envWith(store), {});
   assert.match(response.headers.get('cache-control'), /max-age=300/);
   const board = await response.json();
-  assert.equal(board.destination.id, 'eilat');
+  assert.equal(board.destination.id, 'tel-aviv', 'old locality links use the only active destination');
   assert.equal(board.best.units, 1);
   assert.equal(board.best.totalIls, 58);
 });
@@ -256,12 +256,12 @@ test('scheduled handler refreshes and persists through the BOARD binding', async
     globalThis.fetch = originalFetch;
   }
   const snapshot = await store.snapshot();
-  assert.equal(snapshot.observations.length, 8);
+  assert.equal(snapshot.observations.length, 7);
   assert.equal(snapshot.meta.lastRefreshAt.trigger, 'cron');
   assert.equal(snapshot.meta.fx.rates.USD.rate, 3.05);
   const run = snapshot.runs[0];
   assert.equal(run.trigger, 'cron');
-  assert.equal(run.requests, 9);
+  assert.equal(run.requests, 8);
 });
 
 test('the catalog lists the two authorized products with no coffee variant selection', async () => {
@@ -287,20 +287,20 @@ test('cottage cheese API resolves exact batches and never borrows coffee offers 
     assert.equal(board.product.id, productId);
     assert.equal(board.targetQuantity, quantity);
     assert.equal(board.targetGrams, quantity * 250);
-    assert.equal(board.destination.id, 'haifa');
+    assert.equal(board.destination.id, 'tel-aviv');
     assert.equal(board.deliveryOnly, true);
     assert.equal(board.best, null, 'no exact batch is ranked: the observed listings are below their vendor minimums or outside the destination');
-    assert.equal(board.counts.observed, 3, 'the seeded Tiv Taam, Super Yuda and Duchan cottage-cheese listings are observed');
+    assert.equal(board.counts.observed, 2, 'only Tel Aviv grocery listings are compared');
     assert.deepEqual(board.pickup, []);
     assert.deepEqual(board.batchComparisons.map(batch => [batch.quantity, batch.best]), [[4, null], [6, null], [8, null], [10, null]]);
-    assert.deepEqual(board.freshness.vendors.map(vendor => vendor.vendorId), ['tivtaam', 'yuda', 'duchan'], 'only the vendors with a cottage-cheese offer are listed');
+    assert.deepEqual(board.freshness.vendors.map(vendor => vendor.vendorId), ['tivtaam', 'yuda'], 'only the vendors with a cottage-cheese offer are listed');
     assert.ok(board.freshness.lastObservationAt, 'the cheese board freshness uses its own cheese observation');
     const tivtaamQuote = board.unrankable.find(quote => quote.vendor.id === 'tivtaam');
     assert.ok(tivtaamQuote, 'the observed Tiv Taam listing stays visible');
-    assert.ok(tivtaamQuote.reasons.length > 0, 'the Haifa destination is not covered by the researched Tiv Taam areas');
+    assert.ok(tivtaamQuote.reasons.length > 0, 'the exact batch is below the Tiv Taam minimum');
     const yudaQuote = board.unrankable.find(quote => quote.vendor.id === 'yuda');
     assert.ok(yudaQuote, 'the observed Super Yuda listing stays visible');
-    assert.ok(yudaQuote.reasons.length > 0, 'the Haifa destination is not covered by the researched Super Yuda areas');
+    assert.ok(yudaQuote.reasons.length > 0, 'the exact batch is below the Super Yuda minimum');
     assert.equal(board.product.sourcing.status, 'partial');
   }
   // The default locality is inside the researched Tiv Taam areas, so the block
@@ -313,25 +313,34 @@ test('cottage cheese API resolves exact batches and never borrows coffee offers 
   assert.ok(telAvivYuda, 'Super Yuda is compared for the default locality');
   assert.ok(telAvivYuda.reasons.some(reason => /below the vendor minimum order of ₪150/.test(reason)), JSON.stringify(telAvivYuda.reasons));
   assert.equal(telAviv.best, null, 'a below-minimum batch is never ranked');
-  // The verified Duchan listing delivers only to its local Ganei Shmuel area,
-  // where all four exact batches are purchasable and ranked with the anonymous
-  // cart quotes; the default locality must stay unranked with the coverage
-  // reason instead of borrowing those totals.
-  const ganeiShmuel = await (await worker.fetch(new Request(`https://example.test/api/board?product=${productId}&quantity=10&dest=ganei-shmuel`), envWith(store), {})).json();
-  assert.equal(ganeiShmuel.destination.id, 'ganei-shmuel');
-  assert.equal(ganeiShmuel.best.vendor.id, 'duchan');
-  assert.equal(ganeiShmuel.best.itemTotalIls, 63);
-  assert.equal(ganeiShmuel.best.shipping.amountIls, 28);
-  assert.equal(ganeiShmuel.best.totalIls, 91);
-  assert.deepEqual(ganeiShmuel.batchComparisons.map(batch => [batch.quantity, batch.best?.totalIls ?? null]), [[4, 53.2], [6, 65.8], [8, 78.4], [10, 91]]);
-  const defaultDuchan = telAviv.unrankable.find(quote => quote.vendor.id === 'duchan');
-  assert.ok(defaultDuchan, 'the Duchan listing stays visible for the default locality');
-  assert.ok(defaultDuchan.reasons.some(reason => /does not include Tel Aviv–Yafo/.test(reason)), JSON.stringify(defaultDuchan.reasons));
-  assert.equal(telAviv.best, null, 'the default locality never borrows the Ganei Shmuel totals');
+  // A previously shared out-of-area link must not restore the retired scope.
+  const oldLink = await (await worker.fetch(new Request(`https://example.test/api/board?product=${productId}&quantity=10&dest=ganei-shmuel`), envWith(store), {})).json();
+  assert.equal(oldLink.destination.id, 'tel-aviv');
+  assert.equal(oldLink.best, null);
+  assert.deepEqual(oldLink.batchComparisons.map(batch => batch.best), [null, null, null, null]);
+  assert.ok([...oldLink.ranked, ...oldLink.unrankable, ...oldLink.staleOrUnavailable].every(row => row.vendor.id !== 'duchan'), 'historical rows never restore the out-of-area vendor');
+  assert.ok(!oldLink.publishedSnapshot.appliedVendors.includes('duchan'));
   const get = async query => (await worker.fetch(new Request(`https://example.test/api/board?product=${productId}&${query}`), envWith(store), {})).json();
   assert.equal((await get('grams=2000')).targetQuantity, 8);
   assert.equal((await get('quantity=5')).targetQuantity, 4);
   assert.equal((await get('quantity=10&grams=1000')).targetQuantity, 10);
+});
+
+test('historical out-of-area stored evidence cannot freshen the Tel Aviv cheese board', async () => {
+  const { buildBoardBody } = await import('../src/index.js');
+  const { PUBLISHED_SNAPSHOT } = await import('../src/data/published-observations.js');
+  const duchan = PUBLISHED_SNAPSHOT.observations.find(row => row.vendor.id === 'duchan');
+  assert.ok(duchan);
+  const store = createMemoryStore({ observations: [duchan] });
+  const board = await buildBoardBody({
+    url: new URL('https://example.test/api/board?product=tnuva-cottage-cheese-5-percent&quantity=4&dest=ganei-shmuel'),
+    store, now: Date.parse('2026-10-15T21:00:00Z'), published: { observations: [] }
+  });
+  assert.equal(board.destination.id, 'tel-aviv');
+  assert.equal(board.best, null);
+  assert.equal(board.counts.observed, 0);
+  assert.equal(board.freshness.lastObservationAt, null);
+  assert.ok(board.freshness.vendors.every(vendor => vendor.vendorId !== 'duchan'));
 });
 
 test('an old product URL for a retired line falls back to Crema e Gusto and says so', async () => {

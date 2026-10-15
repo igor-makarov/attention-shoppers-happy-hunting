@@ -20,9 +20,8 @@ import { pucks } from '../src/vendors/pucks.js';
 import { coffee4u } from '../src/vendors/coffee4u.js';
 import { tivtaam } from '../src/vendors/tivtaam.js';
 import { yuda } from '../src/vendors/yuda.js';
-import { duchan } from '../src/vendors/duchan.js';
 import { products } from '../src/catalog.js';
-import { DESTINATIONS } from '../src/lib/quote.js';
+import { SHOPPING_DESTINATIONS } from '../src/lib/quote.js';
 import { createObservation, registeredVendors } from '../src/vendors/index.js';
 import { refreshFreshness, newestObservationAt } from '../src/refresh.js';
 import { buildBoardBody, publicProducts, publicVendors } from '../src/index.js';
@@ -84,7 +83,7 @@ export async function fixtureObservations(now = Date.now()) {
     };
   };
   const observations = [];
-  for (const vendor of [coffeeman, pucks, coffee4u, tivtaam, yuda, duchan]) {
+  for (const vendor of [coffeeman, pucks, coffee4u, tivtaam, yuda]) {
     const outcome = await vendor.observe({ fetchText: fixtureFetch, now, logger: null });
     if (outcome.failures?.length) {
       throw new Error(`${vendor.id}: fixture parse failed: ${JSON.stringify(outcome.failures)}`);
@@ -158,7 +157,7 @@ export function termsDemoObservation(now = Date.now()) {
       service: 'home_delivery',
       certainty: 'verified',
       amount: { amount: 15, currency: 'ILS' },
-      destination: { scope: 'localities', localities: ['tel-aviv', 'eilat'] },
+      destination: { scope: 'localities', localities: ['tel-aviv'] },
       minOrder: { amount: 30, currency: 'ILS' },
       freeThreshold: { amount: 100, currency: 'ILS' },
       note: 'QA-only demo offer for shipping-term rendering. Not a real vendor listing.'
@@ -318,7 +317,7 @@ async function handle(request, response, { observations, now, withTermsDemo, wit
   if (url.pathname === '/api/catalog') {
     return json(response, {
       products: publicProducts(),
-      destinations: DESTINATIONS,
+      destinations: SHOPPING_DESTINATIONS,
       vendors: publicVendors()
     });
   }

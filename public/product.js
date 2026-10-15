@@ -419,6 +419,7 @@ function renderControls() {
     destination.addEventListener('change', () => update({ destination: destination.value }));
   }
   destination.value = state.destination;
+  destination.disabled = (state.catalog?.destinations?.length ?? 0) === 1;
 }
 
 function selectDestination(id) {

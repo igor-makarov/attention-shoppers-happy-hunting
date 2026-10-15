@@ -5,7 +5,7 @@
 // after a deployment may start one throttled initial refresh.
 
 import { products, resolveProductRequest } from './catalog.js';
-import { quoteBoard, findDestination, DESTINATIONS } from './lib/quote.js';
+import { quoteBoard, SHOPPING_DESTINATIONS } from './lib/quote.js';
 import { policySummary } from './lib/policies.js';
 import { promotionSummary } from './lib/promotions.js';
 import { PUBLISHED_SNAPSHOT } from './data/published-observations.js';
@@ -14,7 +14,7 @@ import {
 } from './lib/published-observations.js';
 import { runRefresh, maybeInitialRefresh, refreshFreshness, newestObservationAt } from './refresh.js';
 import { durableStore, storeClient } from './store.js';
-import { registeredVendors } from './vendors/index.js';
+import { registeredVendors, isVendorInScope } from './vendors/index.js';
 
 export { BoardStore } from './store.js';
 
@@ -34,7 +34,7 @@ export default {
       return handleHealth(env);
     }
     if (url.pathname === '/api/catalog') {
-      return json({ products: publicProducts(), destinations: DESTINATIONS, vendors: publicVendors() });
+      return json({ products: publicProducts(), destinations: SHOPPING_DESTINATIONS, vendors: publicVendors() });
     }
     if (url.pathname === '/api/board') {
       scheduleInitialRefresh(env, ctx);
@@ -79,7 +79,7 @@ async function handleHealth(env) {
       const store = storeClient(durableStore(env));
       const snapshot = await store.snapshot();
       refresh = snapshot.meta?.lastRefreshAt?.value ?? null;
-      lastObservationAt = newestObservationAt(snapshot.observations, TRACKED_PRODUCT_IDS);
+      lastObservationAt = newestObservationAt(scopedObservations(snapshot.observations), TRACKED_PRODUCT_IDS);
     }
   } catch (cause) {
     error = 'storage unavailable';
@@ -120,14 +120,16 @@ export async function buildBoardBody({ url, store, now = Date.now(), published =
   // quantity/locality are preserved. It never creates a second view or filters
   // any listing out.
   const grams = url.searchParams.get('grams') ?? undefined;
-  const destination = findDestination(url.searchParams.get('dest'));
+  // Old links for other cities resolve to the owner's only active locality.
+  const destination = SHOPPING_DESTINATIONS[0];
   const stored = await store.snapshot();
   // Read-only merge of the checked-in runner-research snapshot: an offer the live
   // store has no current observation for (grocery egress blocked, or a vendor not
   // attempted yet) is shown from that evidence with its recorded time and source,
   // while a current stored observation always wins. The store is never written.
   const liveChecks = liveChecksForProduct(stored.vendors ?? {}, productId);
-  const merged = mergePublishedObservations(stored.observations, { now, liveChecks, snapshot: published });
+  const scopedPublished = { ...published, observations: scopedObservations(published?.observations ?? []) };
+  const merged = mergePublishedObservations(scopedObservations(stored.observations), { now, liveChecks, snapshot: scopedPublished });
   const lastObservationAt = newestObservationAt(merged.observations, [productId]);
   const board = quoteBoard({
     observations: merged.observations,
@@ -146,7 +148,7 @@ export async function buildBoardBody({ url, store, now = Date.now(), published =
     requestedRetiredProduct: retired ? { id: retired.id, line: retired.line } : null,
     // Which checked-in runner-research evidence this read used and for which
     // offers, so a snapshot row is never mistaken for a Worker refresh.
-    publishedSnapshot: { ...publishedSnapshotSummary(published, now), appliedVendors: publishedVendors },
+    publishedSnapshot: { ...publishedSnapshotSummary(scopedPublished, now), appliedVendors: publishedVendors },
     freshness: {
       ...refreshFreshness(lastObservationAt ? stored.meta?.lastRefreshAt?.value ?? null : null, now, lastObservationAt),
       fx: stored.meta?.fx ? { asOf: stored.meta.fx.asOf, fetchedAt: stored.meta.fx.fetchedAt, source: stored.meta.fx.source?.name ?? null } : null,
@@ -164,7 +166,7 @@ async function handleStatus(env) {
   if (!env.BOARD) return json({ status: 'storage not configured', vendors: [], runs: [] });
   const store = storeClient(durableStore(env));
   const snapshot = await store.snapshot();
-  const lastObservationAt = newestObservationAt(snapshot.observations, TRACKED_PRODUCT_IDS);
+  const lastObservationAt = newestObservationAt(scopedObservations(snapshot.observations), TRACKED_PRODUCT_IDS);
   return json({
     lastRefreshAt: snapshot.meta?.lastRefreshAt?.value ?? null,
     lastObservationAt,
@@ -176,11 +178,11 @@ async function handleStatus(env) {
     shippingPolicies: policySummary(Date.now()),
     // The checked-in runner-research snapshot the board may read from when the
     // live store has no current observation for an offer.
-    publishedSnapshot: publishedSnapshotSummary(PUBLISHED_SNAPSHOT, Date.now()),
+    publishedSnapshot: publishedSnapshotSummary({ ...PUBLISHED_SNAPSHOT, observations: scopedObservations(PUBLISHED_SNAPSHOT.observations) }, Date.now()),
     // Published quantity promotions (item-price discounts) the board may apply,
     // with the same review-date discipline.
     promotions: promotionSummary(Date.now()),
-    vendors: Object.values(snapshot.vendors ?? {}).map(state => ({
+    vendors: Object.values(snapshot.vendors ?? {}).filter(state => isVendorInScope(state.vendorId)).map(state => ({
       vendorId: state.vendorId,
       lastAttemptAt: state.lastAttemptAt,
       lastSuccessAt: state.lastSuccessAt,
@@ -206,6 +208,10 @@ export function publicVendors() {
     homepage: vendor.homepage,
     offers: vendor.offers.map(offer => ({ id: offer.id, url: offer.url, kind: offer.kind, productId: offer.productId ?? null }))
   }));
+}
+
+function scopedObservations(rows) {
+  return rows.filter(row => isVendorInScope(row.vendor?.id ?? row.key?.split(':')[0]));
 }
 
 /** Public product shape: identity and packaging. No blend/variant selection exists. */

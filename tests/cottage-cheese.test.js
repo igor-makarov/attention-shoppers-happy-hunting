@@ -138,9 +138,8 @@ test('the recorded Tiv Taam listing is observed and quoted but stays unranked be
 
 test('the recorded Duchan listing ranks all four exact batches with its anonymous cart quotes', async () => {
   const { parseDuchanProduct } = await import('../src/vendors/duchan.js');
-  const { readFixtureForUrl } = await import('./fixtures/vendor-fixtures.mjs');
-  const apiUrl = 'https://www.duchan.co.il/v2/retailers/1420/branches/2175/products?catalogProductId=12053&ignoreBranchVisibility=true&appId=4&languageId=2';
-  const hit = await readFixtureForUrl(apiUrl);
+  const { readFixture } = await import('./fixtures/vendor-fixtures.mjs');
+  const hit = await readFixture('duchan-product.json');
   assert.ok(hit, 'the recorded Duchan API response routes to the tracked offer');
   const observation = parseDuchanProduct(hit.text, { now });
   const ganeiShmuel = DESTINATIONS.find(destination => destination.id === 'ganei-shmuel');
@@ -167,32 +166,13 @@ test('the recorded Duchan listing ranks all four exact batches with its anonymou
   assert.equal(telAviv.unrankable[0].shipping.amount, 28, 'the known rate stays visible even where coverage is unproven');
 });
 
-test('the sourcing hint names only real localities backed by a policy and the recorded Duchan offer', async () => {
-  const { SHIPPING_POLICIES } = await import('../src/lib/policies.js');
+test('Tel Aviv sourcing does not offer an out-of-area locality or vendor', async () => {
+  const { registeredVendors } = await import('../src/vendors/index.js');
   const product = productById(productId);
-  const available = product.sourcing?.availableLocalities ?? [];
-  assert.ok(available.length >= 1, 'the sourcing record names the verified purchasable locality');
-  assert.equal(typeof product.sourcing.summary, 'string');
-  assert.ok(product.sourcing.summary.length <= 280, 'the visible empty-state summary stays concise');
-  assert.match(product.sourcing.summary, /minimum order/, 'the summary explains the exact-batch shortfall');
-  for (const id of available) {
-    const destination = DESTINATIONS.find(item => item.id === id);
-    assert.ok(destination, `destination ${id} is selectable`);
-    const policies = SHIPPING_POLICIES.filter(policy =>
-      policy.productIds.includes(productId) && policy.destination?.localities?.includes(id));
-    assert.ok(policies.length >= 1, `a validated shipping policy covers ${id} for this product`);
-  }
-  // The hint must point at a locality the recorded observation actually ranks,
-  // so it can never advertise totals the board cannot produce.
-  const { parseDuchanProduct } = await import('../src/vendors/duchan.js');
-  const { readFixtureForUrl } = await import('./fixtures/vendor-fixtures.mjs');
-  const hit = await readFixtureForUrl('https://www.duchan.co.il/v2/retailers/1420/branches/2175/products?catalogProductId=12053&ignoreBranchVisibility=true&appId=4&languageId=2');
-  assert.ok(hit, 'the recorded Duchan API response is available');
-  const observation = parseDuchanProduct(hit.text, { now });
-  for (const id of available) {
-    const destination = DESTINATIONS.find(item => item.id === id);
-    const result = quoteBoard({ observations: [observation], productId, now, destination, targetQuantity: 4 });
-    assert.equal(result.best?.vendor?.id, 'duchan', `the hint locality ${id} ranks the recorded Duchan offer`);
-    assert.ok(result.best.totalIls > 0);
-  }
+  assert.deepEqual(product.sourcing.availableLocalities, []);
+  assert.ok(product.sourcing.summary.length <= 280);
+  assert.match(product.sourcing.summary, /Tel Aviv/);
+  assert.match(product.sourcing.summary, /minimum order/);
+  assert.ok(!JSON.stringify(product.sourcing).includes('duchan'));
+  assert.ok(registeredVendors().every(vendor => vendor.id !== 'duchan'), 'out-of-area vendor is no longer refreshed');
 });

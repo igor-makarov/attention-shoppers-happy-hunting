@@ -7,7 +7,7 @@ import { startQaServer, fixtureObservations } from '../scripts/qa-server.mjs';
 
 test('fixture observations parse through the production adapters', async () => {
   const observations = await fixtureObservations(Date.parse('2026-10-12T11:00:00.000Z'));
-  assert.equal(observations.length, 9, 'five coffee offers plus the Tiv Taam, Super Yuda and Duchan cottage-cheese listings plus the QA-only legacy blend-keyed row');
+  assert.equal(observations.length, 8, 'five coffee offers plus the Tiv Taam and Super Yuda cottage-cheese listings plus the QA-only legacy blend-keyed row');
   assert.ok(observations.every(item => ['lavazza-crema-e-gusto-vacuum-ground', 'tnuva-cottage-cheese-5-percent'].includes(item.product.productId)), 'only tracked lines are parsed');
   const coffeeman = observations.find(item => item.vendor.id === 'coffeeman');
   assert.equal(coffeeman.product.form, 'ground');
@@ -85,9 +85,8 @@ test('QA fixture server can add the labelled terms-demo offer without touching t
     assert.ok(termsBoard.best.labels.some(label => /Free shipping threshold met/.test(label)));
 
     const restricted = await (await fetch(`${terms.url}/api/board?grams=2000&dest=jerusalem&variant=classico`)).json();
-    const demo = restricted.unrankable.find(quote => quote.vendor.id === 'qa-terms-demo');
-    assert.ok(demo, 'the locality-restricted demo offer is unrankable for Jerusalem');
-    assert.match(demo.reasons.join(' '), /does not include Jerusalem/);
+    assert.equal(restricted.destination.id, 'tel-aviv', 'old city queries normalize to the only active locality');
+    assert.equal(restricted.best.vendor.id, 'qa-terms-demo');
   } finally {
     await plain.close();
     await terms.close();
@@ -151,7 +150,7 @@ test('QA fixture server serves the board API and static assets offline', async (
     assert.equal(unstatedVariant.best.vendor.id, 'coffeeman', 'the ranking compares every eligible offer');
 
     const catalog = await (await fetch(`${server.url}/api/catalog`)).json();
-    assert.deepEqual(catalog.vendors.map(vendor => vendor.id).sort(), ["coffee4u", "coffeeman", "duchan", "pucks", "tivtaam", "yuda"]);
+    assert.deepEqual(catalog.vendors.map(vendor => vendor.id).sort(), ["coffee4u", "coffeeman", "pucks", "tivtaam", "yuda"]);
     assert.deepEqual(catalog.products.map(item => item.id), ["lavazza-crema-e-gusto-vacuum-ground", "tnuva-cottage-cheese-5-percent"], "only the two authorized products drive the UI");
 
     // An old shared URL that still names a retired line must fall back to the
@@ -174,7 +173,7 @@ test('QA fixture server serves the board API and static assets offline', async (
     } finally {
       await staleServer.close();
     }
-    assert.ok(catalog.destinations.length >= 5);
+    assert.deepEqual(catalog.destinations.map(item => item.id), ['tel-aviv']);
 
     const index = await fetch(`${server.url}/`);
     assert.equal(index.status, 200);

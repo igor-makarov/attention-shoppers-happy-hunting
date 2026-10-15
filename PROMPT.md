@@ -1,3 +1,9 @@
+## Latest owner scope — Tel Aviv only (2026-10-15)
+
+The owner explicitly says: **"Also focus it only on tel aviv."** This supersedes every older instruction below about selectable localities, Ganei Shmuel winners or research in other cities. Focus the site, source discovery, delivery/cart quotes, production checks and Shurik work on **delivery to Tel Aviv–Yafo only** for the two authorized products. The public catalog has only `tel-aviv`; old links to other cities normalize to it. Duchan has been removed from the active refresh registry and its historical rows are excluded from the public comparison because its verified coverage is outside Tel Aviv. Keep its original evidence as history; do not spend iterations refreshing or expanding it, or researching other cities as a workaround.
+
+For plain Tnuva 5% 250 g tubs, continue exact batches **4/6/8/10**, delivery only, minimizing items + shipping + mandatory fees. Tiv Taam's ₪300 and Super Yuda's ₪150 minimums exclude all four standalone batches, so no qualifying Tel Aviv total is verified yet. Find permitted, evidenced Tel Aviv delivery options with applicable minimums, stock, limits, geography and all charges; do not invent a winner, add filler items or relax the exact-batch requirement. Preserve the repaired layout and verify the actual deployed Tel Aviv pages/API on desktop and mobile. Continue **opencode-go / step-5-preview-free / high**, preserving task/history and all no-Cloudflare-administration rules.
+
 ## New owner instruction — Tnuva cottage cheese (2026-10-15)
 
 ### Current model — owner-authorized switch (2026-10-15)

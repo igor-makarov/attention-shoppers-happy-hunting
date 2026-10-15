@@ -81,6 +81,8 @@ conditional)` label so its quantity/destination condition stays visible.
 
 ## Layout and components
 
+- The owner's current scope is Tel Aviv–Yafo only (2026-10-15). Show that locality explicitly as a fixed control, with no city switch or out-of-area suggestion. Preserve quantities when normalizing old shared links to Tel Aviv.
+
 - On product pages, the selected offer (or the explanation when no offer qualifies) comes first after the controls. The cottage-cheese table comparing all four batches follows it, so the selected delivered total stays in the first mobile viewport.
 
 - A single centered column (max 1240 px) with a responsive control grid that reflows on mobile; on

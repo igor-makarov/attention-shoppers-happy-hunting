@@ -31,6 +31,10 @@ export function findDestination(id) {
   return DESTINATIONS.find(item => item.id === id) ?? DESTINATIONS[DESTINATIONS.length - 1];
 }
 
+// Owner scope, 2026-10-15. Historical destinations stay available to the pure
+// quote engine for recorded evidence; the public app compares Tel Aviv only.
+export const SHOPPING_DESTINATIONS = [DESTINATIONS[0]];
+
 const AVAILABILITY_LABELS = {
   in_stock: 'In stock (observed)',
   out_of_stock: 'Out of stock (observed)',

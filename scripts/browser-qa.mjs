@@ -311,7 +311,7 @@ try {
       && productView.pageOverflow === false,
     JSON.stringify({ rects: productView.totals.map(t => t.rect), overflow: productView.pageOverflow }));
   check('product: quantity 500 g is the pressed default', productView.quantityPressed.some(([label, pressed]) => label === '500 g' && pressed === 'true'), productView.quantityPressed.join(' | '));
-  check('product: destination selector lists Israeli localities', productView.destinationOptions.length >= 5, productView.destinationOptions.join(' | '));
+  check('product: Tel Aviv is the only locality', productView.destinationOptions.length === 1 && /Tel Aviv/.test(productView.destinationOptions[0]), productView.destinationOptions.join(' | '));
   check('product: no blend/variant selector, menu entry or variant warning exists',
     productView.variantControls === 0 && !/blend variant|another variant/i.test(productView.bodyText ?? ''),
     `controls=${productView.variantControls}`);
@@ -742,11 +742,8 @@ try {
   check('interaction: per-kg price recalculated for 1 kg', (kgState.perKg ?? '').includes(`${ils(api1000.best?.ilsPerKg)} per kg`), kgState.perKg);
   check('interaction: quantity is reflected in the shareable product URL', /^\/product\//.test(kgState.url ?? '') && /grams=1000/.test(kgState.url ?? ''), kgState.url);
 
-  await evaluate(wd, `(() => { const select = document.getElementById('destination'); select.value = 'eilat'; select.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
-  await waitForPage(wd, `document.querySelector('#best-offer .totals__cell--total .totals__value')?.textContent === ${JSON.stringify(expected1000Eilat)}`, 15_000, 'destination update to Eilat');
-  const eilat = await evaluate(wd, `({ total: document.querySelector('#best-offer .totals__cell--total .totals__value')?.textContent ?? null, url: location.search })`);
-  check(`interaction: destination change recalculates for Eilat (${expected1000Eilat}) and stays in the URL`,
-    eilat.total === expected1000Eilat && /dest=eilat/.test(eilat.url ?? ''), JSON.stringify(eilat));
+  check('scope: the locality control is fixed to Tel Aviv–Yafo',
+    await evaluate(wd, `document.getElementById('destination').disabled && document.getElementById('destination').options.length === 1 && document.getElementById('destination').value === 'tel-aviv'`));
 
   // Keyboard: Tab moves focus to the next quantity button with a visible focus ring.
   await evaluate(wd, `(() => { document.querySelector('#quantity-group button[data-grams="250"]').focus(); return true; })()`);
@@ -906,9 +903,9 @@ try {
     pressed: [...document.querySelectorAll('#quantity-group button')].filter(b => b.getAttribute('aria-pressed') === 'true').map(b => b.textContent.trim()),
     destination: document.getElementById('destination')?.value ?? null
   })`);
-  check('legacy: an old query URL forwards to the product page keeping quantity and locality, discarding the variant',
-    legacy.path === productPath && /grams=750/.test(legacy.search) && /dest=haifa/.test(legacy.search) && !/variant=/.test(legacy.search)
-      && legacy.pressed.includes('750 g') && legacy.destination === 'haifa',
+  check('legacy: an old query URL forwards to the product page keeping quantity, normalizing to Tel Aviv and discarding the variant',
+    legacy.path === productPath && /grams=750/.test(legacy.search) && /dest=tel-aviv/.test(legacy.search) && !/variant=/.test(legacy.search)
+      && legacy.pressed.includes('750 g') && legacy.destination === 'tel-aviv',
     JSON.stringify(legacy));
 
   await wd('POST', '/url', { url: `${base}/?product=lavazza-qualita-oro-vacuum-ground&grams=500&dest=tel-aviv` });
@@ -949,7 +946,7 @@ try {
     search: location.search
   })`);
   check('shareable: a directly loaded product URL restores quantity and locality with no variant control',
-    shared.total === expected1000Eilat && shared.pressed.includes('1 kg') && shared.destination === 'eilat'
+    shared.total === expected1000Eilat && shared.pressed.includes('1 kg') && shared.destination === 'tel-aviv'
       && shared.variantControl === null && !/variant=/.test(shared.search ?? ''),
     JSON.stringify(shared));
 
@@ -968,11 +965,11 @@ try {
   const malformedBoard = await fetchBoard(base, 500, 'other');
   check('shareable: a malformed shared URL adopts the quoted 500 g / fallback locality, drops variant and rewrites the shareable query',
     malformedShared.pressed.includes('500 g')
-      && malformedShared.destination === 'other'
-      && /Elsewhere in Israel/.test(malformedShared.destinationText ?? '')
+      && malformedShared.destination === 'tel-aviv'
+      && /Tel Aviv/.test(malformedShared.destinationText ?? '')
       && malformedShared.total === ils(malformedBoard.best?.totalIls)
       && /grams=500/.test(malformedShared.search ?? '')
-      && /dest=other/.test(malformedShared.search ?? '')
+      && /dest=tel-aviv/.test(malformedShared.search ?? '')
       && !/variant=/.test(malformedShared.search ?? ''),
     JSON.stringify(malformedShared));
 
@@ -1203,7 +1200,7 @@ try {
       terms2000.best?.vendor.id === 'qa-terms-demo' && terms.total === expectedTermsTotal
         && terms.conditions.includes('Minimum order ₪30.00')
         && terms.conditions.includes('Free-shipping threshold met (from ₪100.00)')
-        && terms.conditions.includes('Delivery area: only Tel Aviv–Yafo, Eilat')
+        && terms.conditions.includes('Delivery area: only Tel Aviv–Yafo')
         && terms.shipping === 'Free (threshold met)',
       `${terms.total} :: ${terms.conditions.join(' | ')}`);
     check('freshness: a stopped scheduled refresh is labelled in the footer',
@@ -1235,12 +1232,8 @@ try {
 
     await wd('POST', '/url', { url: `${termsServer.url}${productPath}?grams=2000&dest=jerusalem` });
     await waitForProduct(wd);
-    const restricted = await evaluate(wd, `(() => ({
-      reasons: [...document.querySelectorAll('#unknown-offers .unknown__reason')].map(node => node.textContent.trim()),
-      unknownOpen: document.querySelector('#unknown-offers')?.open ?? null
-    }))()`);
-    check('terms: the locality restriction moves the demo offer to the missing-information disclosure for Jerusalem',
-      restricted.reasons.some(text => text.includes('does not include')), JSON.stringify(restricted));
+    check('scope: an old Jerusalem URL normalizes to Tel Aviv and cannot change the locality control',
+      await evaluate(wd, `document.getElementById('destination').value === 'tel-aviv' && new URLSearchParams(location.search).get('dest') === 'tel-aviv' && document.getElementById('destination').disabled`));
   } finally {
     await termsServer.close();
   }
@@ -1304,7 +1297,7 @@ try {
     check('cottage cheese: exact tub controls and all four batch totals render on mobile',
       cheeseView.heading === 'Tnuva 5% cottage cheese'
         && cheeseView.buttons.join(',') === '4 tubs,6 tubs,8 tubs,10 tubs'
-        && cheeseView.selected === '6 tubs' && cheeseView.dest === 'haifa'
+        && cheeseView.selected === '6 tubs' && cheeseView.dest === 'tel-aviv'
         && cheeseView.batches === 4 && cheeseView.unknown === 4
         && !cheeseView.overflow && !cheeseView.pickup && !/coffee/i.test(cheeseView.subtitle), JSON.stringify(cheeseView));
     const cheesePending = await evaluate(wd, `({
@@ -1313,29 +1306,23 @@ try {
       hintButton: (() => { const b = document.querySelector('#verified-locality-hint button'); return b ? { tag: b.tagName, type: b.type, text: b.textContent } : null; })(),
       noteHidden: !document.body.innerText.includes('Real delivered totals are ranked for the Ganei Shmuel')
     })`);
-    check('cottage cheese: the pending state explains the exact-batch shortfall in plain language and points to the verified locality',
+    check('cottage cheese: the pending state explains the Tel Aviv minimums with no out-of-area suggestion',
       /No offer can be ranked for this selection right now/.test(cheeseView.text)
         && /minimum order above every exact 4–10 tub batch/.test(cheesePending.summary)
         && /Tiv Taam ₪300/.test(cheesePending.summary)
         && /Super Yuda ₪150/.test(cheesePending.summary)
-        && /Verified delivered totals are ranked for/.test(cheesePending.hint)
-        && /Ganei Shmuel/.test(cheesePending.hint)
-        && cheesePending.hintButton?.tag === 'BUTTON' && cheesePending.hintButton?.type === 'button'
-        && cheesePending.noteHidden, JSON.stringify(cheesePending));
+        && !cheesePending.hint && !cheesePending.hintButton, JSON.stringify(cheesePending));
     const whyDetails = await evaluate(wd, `(() => {
       const d = [...document.querySelectorAll('details.disclosure')].find(node => /Why no total is shown/.test(node.querySelector('summary')?.textContent ?? ''));
       if (!d) return null;
       d.open = true;
       return { open: d.open, text: d.innerText };
     })()`);
-    check('cottage cheese: the full sourcing note and listing sources stay behind the "Why no total is shown" disclosure',
-      whyDetails?.open === true
-        && /Real delivered totals are ranked for the Ganei Shmuel/.test(whyDetails.text)
-        && /₪53\.20\/₪65\.80\/₪78\.40\/₪91\.00/.test(whyDetails.text)
-        && /₪300 minimum order/.test(whyDetails.text)
-        && /Super Haviv/.test(whyDetails.text)
+    check('cottage cheese: the Tel Aviv sourcing note and listing links remain available in the disclosure',
+      whyDetails?.open === true && /Only delivery to Tel Aviv/.test(whyDetails.text)
+        && /₪300 minimum order/.test(whyDetails.text) && /₪150 minimum/.test(whyDetails.text)
         && /Tiv Taam public store API/.test(whyDetails.text)
-        && /Duchan anonymous cart quotes/.test(whyDetails.text), JSON.stringify(whyDetails).slice(0, 900));
+        && !/Duchan|Ganei Shmuel/.test(whyDetails.text), JSON.stringify(whyDetails).slice(0, 900));
     await setDetailsOpen(wd, '#unknown-offers', true);
     await waitFor(() => evaluate(wd, `document.getElementById('unknown-offers')?.open === true`), 10_000, 'unknown-offers disclosure');
     const cheeseUnknown = await evaluate(wd, `document.getElementById('unknown-offers')?.innerText ?? ''`);
@@ -1353,42 +1340,19 @@ try {
     await wd('POST', `/element/${elementId(ten)}/click`, {});
     await waitFor(() => evaluate(wd, `document.querySelector('#quantity-group [aria-pressed="true"]')?.textContent === '10 tubs' && new URLSearchParams(location.search).get('quantity') === '10'`), 10_000, 'ten-tub selection');
     check('cottage cheese: a quantity change preserves the delivery locality in its shareable URL',
-      await evaluate(wd, `new URLSearchParams(location.search).get('dest') === 'haifa' && !new URLSearchParams(location.search).has('grams')`), '10 tubs / Haifa');
+      await evaluate(wd, `new URLSearchParams(location.search).get('dest') === 'tel-aviv' && !new URLSearchParams(location.search).has('grams')`), '10 tubs / Tel Aviv');
     await setContentViewport(wd, 1440, 1000);
     await screenshot(wd, 'cottage-cheese-desktop-1440.png');
-    // The pending-state hint is a real button: one activation switches the
-    // delivery locality and keeps the shareable URL in sync. The detailed
-    // Ganei Shmuel ranking check below still verifies the API/UI values.
-    await evaluate(wd, `document.querySelector('#verified-locality-hint button')?.click()`);
-    await waitFor(() => evaluate(wd, `document.getElementById('destination')?.value === 'ganei-shmuel' && new URLSearchParams(location.search).get('dest') === 'ganei-shmuel'`), 15_000, 'locality hint switch');
-    check('cottage cheese: the pending-state locality button switches to Ganei Shmuel and keeps the shareable URL in sync',
-      await evaluate(wd, `document.getElementById('destination')?.value === 'ganei-shmuel' && new URLSearchParams(location.search).get('dest') === 'ganei-shmuel' && !new URLSearchParams(location.search).has('variant')`), 'Ganei Shmuel via hint');
     await wd('POST', '/url', { url: `${base}${cheesePath}?grams=2000&dest=jerusalem` });
     await waitForProduct(wd);
     check('cottage cheese: legacy weight links normalize to the equivalent exact tub batch',
       await evaluate(wd, `document.querySelector('#quantity-group [aria-pressed="true"]')?.textContent === '8 tubs' && new URLSearchParams(location.search).get('quantity') === '8' && !new URLSearchParams(location.search).has('grams')`), '2000 g → 8 tubs');
 
-    // The Ganei Shmuel locality is the one verified purchasable exact-batch area
-    // (Duchan's anonymous cart quotes: ₪53.20/₪65.80/₪78.40/₪91.00). Selecting
-    // it must rank those real totals while the default locality keeps its
-    // pending state, and no coffee offer may leak into the dairy page.
-    const apiCheeseGanei = await fetchBoard(base, 2500, 'ganei-shmuel', cheese.id);
+    // Old links cannot bring an out-of-area vendor back into the comparison.
     await wd('POST', '/url', { url: `${base}${cheesePath}?quantity=10&dest=ganei-shmuel` });
-    await waitForPage(wd, `document.querySelector('#best-offer .totals__cell--total .totals__value')?.textContent === ${JSON.stringify(ils(apiCheeseGanei.best?.totalIls))}`, 15_000, 'Ganei Shmuel Duchan total');
-    const ganei = await evaluate(wd, `({
-      total: document.querySelector('#best-offer .totals__cell--total .totals__value')?.textContent ?? null,
-      vendor: document.getElementById('best-offer')?.innerText ?? '',
-      rows: [...document.querySelectorAll('#batch-comparison tbody tr')].map(row => row.innerText),
-      text: document.body.innerText
-    })`);
-    check('cottage cheese: the Ganei Shmuel locality ranks the verified Duchan cart totals for every exact batch',
-      apiCheeseGanei.best?.vendor?.id === 'duchan'
-        && apiCheeseGanei.batchComparisons?.map(batch => batch.best?.totalIls ?? null).join(',') === '53.2,65.8,78.4,91'
-        && ganei.total === ils(apiCheeseGanei.best?.totalIls)
-        && /Duchan/.test(ganei.vendor) && /₪28\.00/.test(ganei.vendor) && /₪63\.00/.test(ganei.vendor)
-        && ganei.rows.length === 4 && ganei.rows.every(row => /Duchan/.test(row))
-        && !/CoffeeMan|Pucks|Coffee4U/.test(ganei.text), JSON.stringify(ganei));
-    await firstScreenScreenshot(wd, 'cottage-cheese-ganei-shmuel-mobile-390.png');
+    await waitForProduct(wd);
+    check('cottage cheese: an old Ganei Shmuel link resolves to Tel Aviv without a false winner',
+      await evaluate(wd, `document.getElementById('destination').value === 'tel-aviv' && new URLSearchParams(location.search).get('dest') === 'tel-aviv' && !document.getElementById('best-offer') && !document.body.innerText.includes('Duchan')`));
 
     // A deployment whose grocery refresh has not stored any observation yet (the
     // real production state while the Worker's grocery egress is blocked) must
@@ -1418,11 +1382,11 @@ try {
       now: Date.parse('2026-10-15T21:00:00Z') });
     try {
       await setContentViewport(wd, 1440, 1000);
-      await wd('POST', '/url', { url: `${publishedServer.url}${cheesePath}?quantity=4&dest=ganei-shmuel` });
+      await wd('POST', '/url', { url: `${publishedServer.url}${cheesePath}?quantity=4&dest=tel-aviv` });
       await waitForProduct(wd);
       await screenshot(wd, 'cottage-cheese-published-desktop.png');
       await setContentViewport(wd, 390, 844);
-      await wd('POST', '/url', { url: `${publishedServer.url}${cheesePath}?quantity=4&dest=ganei-shmuel` });
+      await wd('POST', '/url', { url: `${publishedServer.url}${cheesePath}?quantity=4&dest=tel-aviv` });
       await waitForProduct(wd);
       await firstScreenScreenshot(wd, 'cottage-cheese-published-mobile.png');
       const published = await evaluate(wd, `(() => {
@@ -1433,21 +1397,20 @@ try {
           totalBottom: rect?.bottom,
           height: innerHeight,
           overflow: document.documentElement.scrollWidth > innerWidth + 1,
-          firstDecision: document.getElementById('decision')?.firstElementChild?.id,
+          firstDecision: document.getElementById('decision')?.firstElementChild?.className,
           rows: [...document.querySelectorAll('#batch-comparison tbody tr')].map(row => row.textContent),
           evidence: document.getElementById('published-evidence-notice')?.textContent,
           failed: document.getElementById('failing-sources-notice')?.textContent,
           pending: document.getElementById('pending-sources-notice')?.textContent
         };
       })()`);
-      check('cottage cheese: the selected delivered total precedes the batch table and fits the first mobile screen',
-        published.firstDecision === 'best-offer' && published.total?.includes(ils(53.2))
-          && published.totalBottom <= published.height && !published.overflow, JSON.stringify(published));
-      check('cottage cheese: published evidence renders all four real totals with failed and pending live checks',
-        [53.2, 65.8, 78.4, 91].every((total, index) => published.rows[index]?.includes(ils(total)))
+      check('cottage cheese: the Tel Aviv explanation precedes the batch table without horizontal overflow',
+        published.firstDecision === 'empty' && !published.total && !published.overflow, JSON.stringify(published));
+      check('cottage cheese: published Tel Aviv evidence preserves minimum-order exclusions and failed live checks',
+        published.rows.length === 4 && published.rows.every(row => row.includes('Not available'))
           && /2026/.test(published.evidence ?? '') && /runner research/i.test(published.evidence ?? '')
           && /tivtaam/.test(published.failed ?? '') && /yuda/.test(published.failed ?? '')
-          && /403/.test(published.failed ?? '') && /duchan/.test(published.pending ?? ''), JSON.stringify(published));
+          && /403/.test(published.failed ?? '') && !/duchan/.test(published.evidence ?? ''), JSON.stringify(published));
       await wd('POST', '/url', { url: `${publishedServer.url}${cheesePath}?quantity=4&dest=tel-aviv` });
       await waitForProduct(wd);
       check('cottage cheese: published evidence never makes the Ganei Shmuel quote a Tel Aviv offer',

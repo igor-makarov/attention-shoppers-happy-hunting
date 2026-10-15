@@ -33,13 +33,13 @@ test('cron:offline simulation runs the full fixture pipeline twice in a row', as
 
     for (const [label, { report }] of [['first', first], ['second', second]]) {
       assert.equal(report.mode, 'offline fixtures', `${label} run mode`);
-      assert.equal(report.summary.requests, 9, `${label} run stays inside the request budget`);
+      assert.equal(report.summary.requests, 8, `${label} run stays inside the request budget`);
       assert.deepEqual(
         report.summary.vendors.map(vendor => [vendor.vendorId, vendor.saved, vendor.skipped ?? false]),
-        [['coffeeman', 3, false], ['pucks', 1, false], ['coffee4u', 1, false], ['tivtaam', 1, false], ['yuda', 1, false], ['duchan', 1, false]],
+        [['coffeeman', 3, false], ['pucks', 1, false], ['coffee4u', 1, false], ['tivtaam', 1, false], ['yuda', 1, false]],
         `${label} run refreshes every vendor`
       );
-      assert.equal(report.offers.length, 8, `${label} run persists every tracked offer`);
+      assert.equal(report.offers.length, 7, `${label} run persists every tracked offer`);
       assert.ok(report.offers.every(offer => ['lavazza-crema-e-gusto-vacuum-ground', 'tnuva-cottage-cheese-5-percent'].includes(offer.productId)), `${label} run stays on the tracked product lines`);
       assert.ok(report.offers.every(offer => offer.observedAt === report.summary.startedAt), `${label} run observations are fresh`);
       assert.ok(report.fx?.usd?.rate > 0, `${label} run records an FX reference rate`);
@@ -48,8 +48,8 @@ test('cron:offline simulation runs the full fixture pipeline twice in a row', as
     // The fixture run keeps its own state file so it can never consume the live
     // run's backoff window, and the state really is persisted between runs.
     const state = JSON.parse(await readFile(join(dir, '.shurik-local', 'board-offline.json'), 'utf8'));
-    assert.equal(state.observations.length, 8);
-    assert.equal(Object.keys(state.vendors).length, 6);
+    assert.equal(state.observations.length, 7);
+    assert.equal(Object.keys(state.vendors).length, 5);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

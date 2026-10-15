@@ -1,5 +1,15 @@
 # Project status
 
+## Owner scope — Tel Aviv–Yafo only (2026-10-15)
+
+The owner explicitly restricted the task to **Tel Aviv**. The public catalog now exposes only Tel Aviv–Yafo, the UI fixes that locality, and old/unsupported destination links normalize to it while preserving quantity. The current Shurik brief and project instructions prioritize Tel Aviv delivery research and verification only. Exact cheese batches remain 4/6/8/10 × 250 g tubs, delivery only, minimizing items + shipping + mandatory fees; no filler items or relaxed minimums are authorized.
+
+Duchan's verified coverage excludes Tel Aviv, so its adapter is no longer in the active refresh registry, its historical stored/published rows cannot enter the shopping comparison or freshen it, and the Ganei Shmuel suggestion and source links are removed from the product UI. Its original parser, policies and evidence remain historical records. The pure quote engine retains historical destinations for evidence validation; public API requests cannot select them. Tiv Taam and Super Yuda remain observed but unranked: their ₪300/₪150 minimums exceed every standalone batch. No qualifying Tel Aviv cheese total has been verified.
+
+**Validation:** `npm run verify` passes **223/223 tests** and the local Wrangler dry-run bundle. Offline browser QA passes **129/129 checks**, zero JavaScript errors, including fixed locality, old-city link normalization, all four excluded batches, published evidence and live-failure warnings. Natively inspected 390×844 mobile and 1440×1000 desktop captures: [mobile](evidence/ui-review/tel-aviv-only-mobile-20261015.png), [desktop](evidence/ui-review/tel-aviv-only-desktop-20261015.png), [browser report](evidence/browser-qa-tel-aviv-only-20261015.json). These are local fixture/evidence renders, not a new vendor observation or production screenshot.
+
+**Lifecycle / next task:** generation 6 was paused through the normal stop action to apply this scope without competing edits, retaining checkpoint `fb98945` and Step 5 free/high. Publish through the normal main push and resume with this brief. First verify the deployed Tel Aviv pages/API, then find a permitted Tel Aviv source whose actual minimum and delivery terms allow the exact cheese batches. No other-city research or Cloudflare administration is authorized.
+
 ## Owner layout repair — comparison render and mobile ordering (2026-10-15)
 
 The owner's broken-layout report exposed an actual runtime regression: `renderFooterStatus` in checkpoint `f6e61b8` used an undeclared disclosure body, so the product comparison was never inserted after the controls. The offline browser run reproduced the product-render timeout. Shurik was stopped through its normal lifecycle (generation 5, final checkpoint `9a81263`), preserving the task/history and Step 5 free/high configuration; that final checkpoint restored the missing declaration. Direct follow-up repairs put the selected offer/no-total explanation before the four-batch table, restore consecutive-failure/error details, and fix the fixture server's ignored empty-snapshot argument.
