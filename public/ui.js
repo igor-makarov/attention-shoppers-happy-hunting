@@ -181,6 +181,47 @@ export function failedCheckNote(quote) {
   return 'Last check failed — showing the last successful observation.';
 }
 
+/**
+ * Visible card-face label for an offer shown from the checked-in published
+ * observation snapshot instead of a live Worker refresh. Runner research is real,
+ * dated evidence, but it is not a scheduled refresh of the deployed Worker, so a
+ * shopper must be able to tell the two apart. The observed date is the evidence's
+ * own recorded time, never the time this page happened to be opened.
+ */
+export function publishedEvidenceNote(quote) {
+  const provenance = quote?.provenance;
+  if (provenance?.kind !== 'published_snapshot') return null;
+  const when = timeLabel(provenance.recordedAt);
+  const origin = provenance.origin ?? 'runner-research';
+  return `Runner-researched evidence (${origin}), observed ${when} — published research, not a live Worker refresh.`;
+}
+
+/**
+ * What the Worker's own scheduled check last did for the source behind one
+ * offer, when that check was not the successful refresh that produced the
+ * displayed row. Keeps a failed or never-attempted runtime check visible next
+ * to published evidence instead of letting it disappear behind the totals.
+ */
+export function liveCheckNote(quote) {
+  const check = quote?.liveCheck;
+  if (!check || check.state === 'checked') return null;
+  if (check.state === 'failed') {
+    const when = check.attemptedAt ? ` (last attempt ${timeLabel(check.attemptedAt)})` : '';
+    return `The Worker's scheduled check for this source is failing${when}: ${check.error ?? 'no error recorded'}.`;
+  }
+  if (check.state === 'pending') {
+    return 'No scheduled check has run for this source on this deployment yet.';
+  }
+  return null;
+}
+
+/** Label for one per-source live-check state, used in the refresh diagnostics. */
+export function liveCheckStateLabel(state) {
+  if (state === 'pending') return 'not attempted on this deployment';
+  if (state === 'failed') return 'failing';
+  return 'checked';
+}
+
 export function statusBadge(status, label) {
   const kind = status === 'in_stock' ? 'in_stock' : status === 'out_of_stock' ? 'out_of_stock' : 'unknown';
   return el('span', { class: `status status--${kind}`, text: label });

@@ -13,7 +13,8 @@ import {
   el, money, bidi, timeLabel, dueLabel, truncate,
   packDescription, quantityDescription, itemSubtotalText,
   totalsBlock, statusBadge, offerLink, conditionsList, caveatBlock,
-  coverageQualifier, failedCheckNote, diagnosticsDisclosure
+  coverageQualifier, failedCheckNote, diagnosticsDisclosure,
+  publishedEvidenceNote, liveCheckNote, liveCheckStateLabel
 } from './ui.js';
 
 const params = new URLSearchParams(location.search);
@@ -252,8 +253,7 @@ function renderBestOffer(quote, board) {
     el('div', { class: 'offer__vendor' }, bidi(quote.vendor.name), ' ', statusBadge(quote.availability, quote.availabilityLabel))));
   card.append(el('p', { class: 'offer__pack', text: packLine(quote) }));
   card.append(totalsBlock(quote));
-  const failedNote = failedCheckNote(quote);
-  if (failedNote) card.append(el('p', { class: 'qualifier qualifier--failure', text: failedNote }));
+  appendCheckNotes(card, quote);
   const qualifier = coverageQualifier(quote);
   if (qualifier) card.append(el('p', { class: 'qualifier' }, el('strong', { text: 'Conditional total: ' }), bidi(qualifier)));
   const delivery = deliveryOptionsDisclosure(quote);
@@ -261,6 +261,22 @@ function renderBestOffer(quote, board) {
   card.append(el('p', { class: 'offer__links' }, offerLink(quote, 'Open the vendor page')));
   card.append(diagnosticsDisclosure(quote));
   return card;
+}
+
+/**
+ * Card-face evidence notes for one offer: a failed last check, published
+ * runner-research provenance, and what the Worker's own scheduled check last
+ * did for that source. Together they answer "why should I trust this total"
+ * without opening a disclosure, and keep a failed or never-attempted runtime
+ * check visible even when the displayed row is published research.
+ */
+function appendCheckNotes(card, quote) {
+  const failedNote = failedCheckNote(quote);
+  if (failedNote) card.append(el('p', { class: 'qualifier qualifier--failure', text: failedNote }));
+  const evidenceNote = publishedEvidenceNote(quote);
+  if (evidenceNote) card.append(el('p', { class: 'qualifier qualifier--evidence', text: evidenceNote }));
+  const liveNote = liveCheckNote(quote);
+  if (liveNote) card.append(el('p', { class: 'qualifier qualifier--pending', text: liveNote }));
 }
 
 /**
@@ -296,8 +312,7 @@ function renderOtherOffer(quote, board) {
     el('div', { class: 'offer__delta', text: offerDeltaText(quote, board) })));
   card.append(el('p', { class: 'offer__pack', text: packLine(quote) }));
   card.append(totalsBlock(quote));
-  const failedNote = failedCheckNote(quote);
-  if (failedNote) card.append(el('p', { class: 'qualifier qualifier--failure', text: failedNote }));
+  appendCheckNotes(card, quote);
   const qualifier = coverageQualifier(quote);
   if (qualifier) card.append(el('p', { class: 'qualifier', text: qualifier }));
   const delivery = deliveryOptionsDisclosure(quote);
@@ -360,6 +375,7 @@ function renderUnknownDisclosure(entries) {
     if (quote.shipping?.certainty === 'unknown' || quote.shipping?.amount == null) {
       card.append(el('p', { class: 'unknown__reason', text: 'Shipping not published. Needed for a delivered total: a published rate or a public checkout-estimator quote for this quantity and locality. A missing rate is never counted as free.' }));
     }
+    appendCheckNotes(card, quote);
     card.append(el('p', { class: 'unknown__reason', text: quote.reasons.join('. ') || quote.labels.join('. ') || 'Not enough verified information yet.' }));
     const caveat = caveatBlock(quote);
     if (caveat) card.append(caveat);
@@ -513,10 +529,27 @@ function renderFooterStatus(board) {
   }
   const vendors = board.freshness?.vendors ?? [];
   const failing = vendors.filter(vendor => (vendor.consecutiveFailures ?? 0) > 0);
+  const pending = vendors.filter(vendor => vendor.state === 'pending');
   const freshness = board.freshness ?? {};
   const dataAsOf = freshness.dataAsOf ?? freshness.lastRefreshAt ?? freshness.lastObservationAt ?? null;
   const wrap = el('div', { class: 'meta-line' });
   wrap.append(el('div', { text: `Board data as of: ${timeLabel(dataAsOf)} · Offers observed: ${board.counts.observed} · Ranked: ${board.counts.ranked}` }));
+  // Which offers a shopper actually sees came from the checked-in runner-research
+  // snapshot while the Worker's own refresh is blocked or pending. Labelled
+  // visibly, with its recorded date, so published research is never mistaken for
+  // a live refresh.
+  const evidence = runnerEvidenceNotice(board.publishedSnapshot);
+  if (evidence) wrap.append(evidence);
+  // Sources whose scheduled check failed or has never run on this deployment
+  // stay visible even when the store never saved an offer for them.
+  if (pending.length) {
+    wrap.append(el('div', { class: 'status status--note', attrs: { id: 'pending-sources-notice' },
+      text: `No scheduled check has run yet for: ${pending.map(vendor => vendor.vendorId).join(', ')}.` }));
+  }
+  if (failing.length) {
+    wrap.append(el('div', { class: 'status status--stale status--note', attrs: { id: 'failing-sources-notice' },
+      text: `${failing.length} source(s) failing: ${failing.map(vendor => `${vendor.vendorId}${vendor.lastErrors?.[0] ? ` (${truncate(vendor.lastErrors[0], 80)})` : ''}`).join('; ')}` }));
+  }
   if (freshness.stale) {
     const age = freshness.ageHours;
     wrap.append(el('div', { class: 'status status--stale status--note', text: freshness.lastRefreshAt
@@ -525,23 +558,42 @@ function renderFooterStatus(board) {
         ? `No completed scheduled refresh; the newest offer observation is ${age} h old — prices may be out of date.`
         : 'No scheduled refresh has completed yet — prices may be missing or out of date.' }));
   }
-  if (failing.length) wrap.append(el('div', { class: 'status status--stale status--note', text: `${failing.length} source(s) failing` }));
-  const body = el('div', { class: 'disclosure__body' });
   if (freshness.fx) {
     body.append(el('div', { text: `Exchange rates: ${freshness.fx.source ?? 'Bank of Israel'} published ${freshness.fx.asOf ?? 'unknown'} · fetched ${timeLabel(freshness.fx.fetchedAt)}` }));
   } else {
     body.append(el('div', { text: 'Exchange rates: no official rate table stored yet, so foreign-currency offers cannot be ranked.' }));
   }
   for (const vendor of vendors) {
-    body.append(el('div', { text: `${vendor.vendorId}: last success ${timeLabel(vendor.lastSuccessAt)} · last attempt ${timeLabel(vendor.lastAttemptAt)}` }));
+    const origin = vendor.publishedObservations
+      ? `${vendor.publishedObservations} offer(s) shown from published runner research`
+      : vendor.storedObservations
+        ? `${vendor.storedObservations} offer(s) from a live Worker refresh`
+        : 'no offer shown for this source';
+    const note = vendor.note ? ` · ${vendor.note}` : '';
+    body.append(el('div', { text: `${vendor.vendorId}: ${liveCheckStateLabel(vendor.state)} · last success ${timeLabel(vendor.lastSuccessAt)} · last attempt ${timeLabel(vendor.lastAttemptAt)} · ${origin}${note}` }));
   }
   const nextDue = vendors.map(vendor => vendor.nextAttemptAt).filter(Boolean).sort()[0] ?? null;
   if (nextDue) body.append(el('div', { text: `Next source check due (approximate, set by each vendor's last run): ${dueLabel(nextDue)}` }));
-  for (const vendor of failing) {
-    body.append(el('div', { text: `${vendor.vendorId}: ${vendor.consecutiveFailures} consecutive failure(s) · next attempt ${dueLabel(vendor.nextAttemptAt)}${vendor.lastErrors?.[0] ? ` · last error: ${vendor.lastErrors[0]}` : ''}` }));
-  }
-  wrap.append(el('details', { class: 'disclosure' }, el('summary', { text: 'Refresh diagnostics' }), body));
+  wrap.append(el('details', { class: 'disclosure' },
+    el('summary', { text: board.publishedSnapshot?.appliedVendors?.length ? 'Refresh and evidence diagnostics' : 'Refresh diagnostics' }), body));
   return wrap;
+}
+
+/**
+ * Visible notice naming the checked-in runner-research evidence this board read
+ * used: which run it came from, when it was recorded and which sources show a
+ * published row instead of a live Worker refresh. Null when the live store
+ * answered for every offer, so a fully refreshed board says nothing about it.
+ */
+function runnerEvidenceNotice(snapshot) {
+  const applied = snapshot?.appliedVendors ?? [];
+  if (!applied.length) return null;
+  const label = snapshot.label ?? 'a recorded runner research run';
+  const parts = [`Published runner research in use: ${label}, recorded ${timeLabel(snapshot.recordedAt)} — shown for ${applied.join(', ')}.`];
+  parts.push(snapshot.expired
+    ? 'Every published row is now older than the freshness window, so it stays visible as dated evidence and no longer ranks.'
+    : 'These offers are research evidence with their own recorded observation times, not live Worker refreshes.');
+  return el('div', { class: 'status status--note', attrs: { id: 'published-evidence-notice' }, text: parts.join(' ') });
 }
 
 function slug(value) {
