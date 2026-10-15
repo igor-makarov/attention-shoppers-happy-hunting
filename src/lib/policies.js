@@ -369,12 +369,65 @@ export const coffee4uHomeDeliveryPolicy = {
   reviewBy: '2026-11-11T00:00:00.000Z'
 };
 
+/**
+ * Tiv Taam cottage-cheese home delivery, read from the store's own public
+ * branch API on 2026-10-15. Branch 924 (Ramat HaHayal, Tel Aviv–Yafo) is the
+ * online delivery branch; its areas endpoint lists seven delivery areas, each
+ * at ₪29.90 home delivery and none with a per-area minimum. The site terms
+ * (clause 16.1) publish a ₪300 minimum order, which is what keeps a standalone
+ * 4-10 tub batch below the vendor minimum instead of pretending the anonymous
+ * cart total is a purchasable delivered quote. Coverage is limited to the
+ * listed areas (part of Tel Aviv–Yafo plus Ramat HaSharon, Ramat Gan, Bnei
+ * Brak, Herzliya and Rosh HaAyin), so the destination scope lists only the
+ * overlapping selectable destination and carries the area restriction as a
+ * caveat. An anonymous cart API was also inspected: it quoted
+ * item + ₪29.90 for 4/6/8/10 tubs (₪54.30/₪66.50/₪78.70/₪90.90) without a
+ * minimum warning, but the published ₪300 minimum order is the vendor's own
+ * condition and is treated as binding. No street address, login or order was
+ * involved. Evidence: docs/evidence/tnuva-cottage-cheese-runner-research-20261015.json.
+ */
+export const tivtaamCottageCheesePolicy = {
+  id: 'tivtaam-cottage-tel-aviv-north-delivery',
+  version: 1,
+  vendorId: 'tivtaam',
+  productIds: ['tnuva-cottage-cheese-5-percent'],
+  itemUrlPrefixes: ['https://www.tivtaam.co.il/?catalogProduct=12053'],
+  service: 'home_delivery',
+  origin: 'published',
+  certainty: 'verified',
+  rule: {
+    amount: { amount: 29.9, currency: 'ILS' },
+    freeThreshold: null,
+    thresholdSemantics: null,
+    minOrder: { amount: 300, currency: 'ILS' },
+    maxTotalGrams: null
+  },
+  destination: {
+    scope: 'localities',
+    localities: ['tel-aviv'],
+    caveat: 'Tiv Taam’s Ramat HaHayal branch (the online delivery branch) publishes home delivery only to these areas: ת״א צפון (רמת אביב, רמת החייל, אפקה), רמת השרון, רמת גן, בני ברק, הרצליה and ראש העין. Only part of Tel Aviv–Yafo is covered, coverage outside these areas is not established, and the ₪300 minimum order applies per order. Confirm the address at checkout.',
+    caveatSource: 'https://www.tivtaam.co.il/v2/retailers/1062/branches/924/areas?appId=4&deliveryTypeId=1&languageId=2'
+  },
+  evidence: {
+    url: 'https://www.tivtaam.co.il/v2/retailers/1062/branches/924/areas?appId=4&deliveryTypeId=1&languageId=2',
+    retrievedAt: '2026-10-15T16:18:00Z',
+    note: 'Public branch API read from the GitHub Actions runner on 2026-10-15: branch 924 (Ramat HaHayal, Tel Aviv–Yafo) lists seven active delivery areas, each with deliveryAreaPrice ₪29.90 and deliveryMinimumCost null. The published site terms clause 16.1 set the minimum order at ₪300. An anonymous cart API quote for exact batches (4/6/8/10 tubs) returned item totals ₪24.40/₪36.60/₪48.80/₪61.00 plus ₪29.90 delivery = ₪54.30/₪66.50/₪78.70/₪90.90 with no minimum warning, but the checkout requires login, so the published minimum order is treated as the binding condition. See docs/evidence/tnuva-cottage-cheese-runner-research-20261015.json.'
+  },
+  observedFor: {
+    carts: ['4 tubs = 1 kg (₪24.40 + ₪29.90 = ₪54.30)', '6 tubs = 1.5 kg (₪36.60 + ₪29.90 = ₪66.50)', '8 tubs = 2 kg (₪48.80 + ₪29.90 = ₪78.70)', '10 tubs = 2.5 kg (₪61.00 + ₪29.90 = ₪90.90)'],
+    destinations: ['Tel Aviv–Yafo / 6100000 (ת״א צפון areas only)'],
+    note: 'Anonymous public cart API quotes; no street address, login, payment or order submission. The ₪300 published minimum order means these standalone batch carts are below the vendor minimum.'
+  },
+  reviewBy: '2026-11-14T00:00:00.000Z'
+};
+
 /** Every validated policy the shared evaluator may apply. */
 export const SHIPPING_POLICIES = [
   pucksHomeDeliveryPolicy,
   coffeemanSingleFourPackPolicy,
   coffeemanEightPackPolicy,
-  coffee4uHomeDeliveryPolicy
+  coffee4uHomeDeliveryPolicy,
+  tivtaamCottageCheesePolicy
 ];
 
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;
