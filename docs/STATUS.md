@@ -1,5 +1,15 @@
 # Project status
 
+## Owner layout repair — comparison render and mobile ordering (2026-10-15)
+
+The owner's broken-layout report exposed an actual runtime regression: `renderFooterStatus` in checkpoint `f6e61b8` used an undeclared disclosure body, so the product comparison was never inserted after the controls. The offline browser run reproduced the product-render timeout. Shurik was stopped through its normal lifecycle (generation 5, final checkpoint `9a81263`), preserving the task/history and Step 5 free/high configuration; that final checkpoint restored the missing declaration. Direct follow-up repairs put the selected offer/no-total explanation before the four-batch table, restore consecutive-failure/error details, and fix the fixture server's ignored empty-snapshot argument.
+
+Browser QA now collects actual JavaScript errors instead of assigning an empty error list, captures a failing page, and exercises the empty-store + real published grocery evidence case. CI runs the full browser suite after verify; AGENTS.md and PROMPT.md also require rendered desktop/mobile checks before UI checkpoints, including Shurik checkpoints that do not trigger CI. This does not change the owner-configured automatic main-push publication route.
+
+**Validation:** `npm run verify` passes 222/222 tests and the local Wrangler dry-run build. Offline browser QA passes 130/130 checks, with zero JavaScript errors. Native inspection of 1440×1000 desktop and 390×844 mobile captures confirms the selected cheese delivered total is visible by y=582, with no horizontal overflow; the four real batch totals and failed/pending runtime labels render, while Tel Aviv remains correctly unranked. [Browser report](evidence/browser-qa-layout-repair-20261015.json), [mobile](evidence/ui-review/layout-repair-cheese-mobile-20261015.png), [desktop](evidence/ui-review/layout-repair-cheese-desktop-20261015.png). These are local renders using recorded evidence, not production screenshots or new vendor checks.
+
+**Next task / limit:** publish through the normal main push, check the resulting build, then resume Shurik on the unchanged Step 5 free/high configuration with actual public-page/API verification first. This Codex environment cannot reach the production host directly; do not turn local screenshots or a build success into a claim of native production inspection.
+
 ## Owner model switch — free Step 5, highest supported reasoning (2026-10-15)
 
 The owner explicitly requested **free Step 5 at its highest reasoning**. The configured model is now **opencode-go / step-5-preview-free / high**. Shurik's current Pi AI metadata lists low, medium and high for this model; high is the highest supported setting. The workflow's default and explicit control-action inputs, PROMPT.md, AGENTS.md, README and deployment instructions now agree. This supersedes the earlier DeepSeek/max configuration; no automatic model fallback is authorized.

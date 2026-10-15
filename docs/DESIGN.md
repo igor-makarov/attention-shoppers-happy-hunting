@@ -81,6 +81,8 @@ conditional)` label so its quantity/destination condition stays visible.
 
 ## Layout and components
 
+- On product pages, the selected offer (or the explanation when no offer qualifies) comes first after the controls. The cottage-cheese table comparing all four batches follows it, so the selected delivered total stays in the first mobile viewport.
+
 - A single centered column (max 1240 px) with a responsive control grid that reflows on mobile; on
   small screens the quantity group and the locality group each take the full row, so the selected
   locality text is not clipped inside a half-width native `<select>` (verified at 390 px). No

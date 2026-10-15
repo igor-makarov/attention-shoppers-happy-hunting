@@ -95,6 +95,7 @@ let fixtureServer = null;
 let base = LIVE_BASE;
 const chrome = spawn('chromedriver', [`--port=${PORT}`, '--allowed-ips='], { stdio: ['ignore', 'pipe', 'pipe'] });
 let session;
+let wd;
 try {
   if (!base) {
     fixtureServer = await startQaServer({ port: FIXTURE_PORT });
@@ -170,6 +171,7 @@ try {
     capabilities: {
       alwaysMatch: {
         browserName: 'chrome',
+        'goog:loggingPrefs': { browser: 'ALL' },
         'goog:chromeOptions': {
           binary: process.env.CHROME_BIN ?? '/usr/bin/google-chrome',
           args: ['--headless=new', '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--log-level=SEVERE']
@@ -178,7 +180,7 @@ try {
     }
   });
   const sessionId = session.sessionId ?? session.value?.sessionId;
-  const wd = (method, path, body) => webdriver(method, `/session/${sessionId}${path}`, body);
+  wd = (method, path, body) => webdriver(method, `/session/${sessionId}${path}`, body);
   await wd('POST', '/timeouts', { implicit: 0, pageLoad: 30_000, script: 20_000 });
   await mkdir(OUT, { recursive: true });
 
@@ -1409,16 +1411,70 @@ try {
     } finally {
       await emptyDairyServer.close();
     }
+
+    // Reproduce production's empty grocery store plus the dated published
+    // evidence, including the failed Worker fetches and never-checked source.
+    const publishedServer = await startQaServer({ port: 0, withPublishedDairy: true,
+      now: Date.parse('2026-10-15T21:00:00Z') });
+    try {
+      await setContentViewport(wd, 1440, 1000);
+      await wd('POST', '/url', { url: `${publishedServer.url}${cheesePath}?quantity=4&dest=ganei-shmuel` });
+      await waitForProduct(wd);
+      await screenshot(wd, 'cottage-cheese-published-desktop.png');
+      await setContentViewport(wd, 390, 844);
+      await wd('POST', '/url', { url: `${publishedServer.url}${cheesePath}?quantity=4&dest=ganei-shmuel` });
+      await waitForProduct(wd);
+      await firstScreenScreenshot(wd, 'cottage-cheese-published-mobile.png');
+      const published = await evaluate(wd, `(() => {
+        const total = document.querySelector('#best-offer .totals__cell--total');
+        const rect = total?.getBoundingClientRect();
+        return {
+          total: total?.textContent,
+          totalBottom: rect?.bottom,
+          height: innerHeight,
+          overflow: document.documentElement.scrollWidth > innerWidth + 1,
+          firstDecision: document.getElementById('decision')?.firstElementChild?.id,
+          rows: [...document.querySelectorAll('#batch-comparison tbody tr')].map(row => row.textContent),
+          evidence: document.getElementById('published-evidence-notice')?.textContent,
+          failed: document.getElementById('failing-sources-notice')?.textContent,
+          pending: document.getElementById('pending-sources-notice')?.textContent
+        };
+      })()`);
+      check('cottage cheese: the selected delivered total precedes the batch table and fits the first mobile screen',
+        published.firstDecision === 'best-offer' && published.total?.includes(ils(53.2))
+          && published.totalBottom <= published.height && !published.overflow, JSON.stringify(published));
+      check('cottage cheese: published evidence renders all four real totals with failed and pending live checks',
+        [53.2, 65.8, 78.4, 91].every((total, index) => published.rows[index]?.includes(ils(total)))
+          && /2026/.test(published.evidence ?? '') && /runner research/i.test(published.evidence ?? '')
+          && /tivtaam/.test(published.failed ?? '') && /yuda/.test(published.failed ?? '')
+          && /403/.test(published.failed ?? '') && /duchan/.test(published.pending ?? ''), JSON.stringify(published));
+      await wd('POST', '/url', { url: `${publishedServer.url}${cheesePath}?quantity=4&dest=tel-aviv` });
+      await waitForProduct(wd);
+      check('cottage cheese: published evidence never makes the Ganei Shmuel quote a Tel Aviv offer',
+        await evaluate(wd, `!document.getElementById('best-offer') && document.querySelector('.empty')?.textContent.includes('minimum order')`));
+    } finally {
+      await publishedServer.close();
+    }
   }
 
-  // Console errors are collected through the log endpoint; a clean run has none.
-  report.consoleErrors = [];
-  await wd('DELETE', '');
-  report.sessionClosed = true;
 } catch (error) {
   report.error = error?.stack ?? String(error);
   console.error('browser QA error:', error);
+  if (wd) await screenshot(wd, 'failure.png').catch(() => {});
 } finally {
+  if (wd) {
+    try {
+      const logs = await wd('POST', '/log', { type: 'browser' });
+      report.consoleErrors = (logs.value ?? []).filter(entry => entry.level === 'SEVERE'
+        && (entry.source === 'javascript' || entry.source === 'console-api'));
+      check('the browser reports no JavaScript errors', report.consoleErrors.length === 0,
+        report.consoleErrors.map(entry => entry.message).join('\n'));
+    } catch (error) {
+      report.error ??= `Could not collect browser errors: ${error.message}`;
+    }
+    await wd('DELETE', '').catch(() => {});
+    report.sessionClosed = true;
+  }
   chrome.kill('SIGTERM');
   if (fixtureServer) await fixtureServer.close();
   report.finishedAt = new Date().toISOString();

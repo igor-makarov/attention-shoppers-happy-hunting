@@ -160,7 +160,6 @@ function renderFallbackNotice(board) {
 /** Default view: best eligible offer plus progressively disclosed comparison. */
 function renderDecision(board) {
   const section = el('section', { class: 'decision', attrs: { id: 'decision' } });
-  if (board.batchComparisons) section.append(renderBatches(board));
   if (!board.best) {
     const sourcing = board.product?.sourcing ?? {};
     // With no stored observation yet (for example a fresh deployment whose first
@@ -202,6 +201,7 @@ function renderDecision(board) {
     const others = board.ranked.slice(1);
     if (others.length) section.append(renderCompareDisclosure(others, board));
   }
+  if (board.batchComparisons) section.append(renderBatches(board));
   const pickup = board.pickup ?? [];
   if (pickup.length && !board.deliveryOnly) section.append(renderPickupDisclosure(pickup));
   const unknownEntries = [...(board.unrankable ?? []), ...(board.staleOrUnavailable ?? [])];
@@ -571,7 +571,10 @@ function renderFooterStatus(board) {
         ? `${vendor.storedObservations} offer(s) from a live Worker refresh`
         : 'no offer shown for this source';
     const note = vendor.note ? ` · ${vendor.note}` : '';
-    body.append(el('div', { text: `${vendor.vendorId}: ${liveCheckStateLabel(vendor.state)} · last success ${timeLabel(vendor.lastSuccessAt)} · last attempt ${timeLabel(vendor.lastAttemptAt)} · ${origin}${note}` }));
+    const failure = vendor.consecutiveFailures > 0
+      ? ` · ${vendor.consecutiveFailures} consecutive failure(s) · last error: ${vendor.lastErrors?.[0] ?? 'unknown'}`
+      : '';
+    body.append(el('div', { text: `${vendor.vendorId}: ${liveCheckStateLabel(vendor.state)} · last success ${timeLabel(vendor.lastSuccessAt)} · last attempt ${timeLabel(vendor.lastAttemptAt)} · ${origin}${failure}${note}` }));
   }
   const nextDue = vendors.map(vendor => vendor.nextAttemptAt).filter(Boolean).sort()[0] ?? null;
   if (nextDue) body.append(el('div', { text: `Next source check due (approximate, set by each vendor's last run): ${dueLabel(nextDue)}` }));

@@ -334,7 +334,7 @@ async function handle(request, response, { observations, now, withTermsDemo, wit
         vendors: vendorStates ?? {}
       })
     };
-    const board = await buildBoardBody({ url, store: storeView, now, snapshot });
+    const board = await buildBoardBody({ url, store: storeView, now, published: snapshot });
     return json(response, {
       ...board,
       qa: {

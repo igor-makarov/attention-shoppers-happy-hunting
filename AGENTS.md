@@ -33,5 +33,6 @@ Read PROMPT.md, docs/DESIGN.md, docs/ARCHITECTURE.md and docs/STATUS.md before w
 - Never invent stock, product identity, prices, shipping, delivery times or successful refreshes. Publish evidence and timestamps; preserve unknowns and previous good data on errors.
 - Colors must convey status or meaning. No emoji in the website typography. Use labels and monochrome vector wayfinding symbols.
 - Run npm run verify before completing each change. Keep dependencies pinned and package-lock.json current.
+- For changes to public JavaScript, HTML or CSS, also run npm run qa:browser, inspect the affected desktop/mobile captures, and require zero JavaScript errors before publishing a checkpoint. A successful bundle does not verify page rendering.
 - Finish each iteration by updating docs/STATUS.md with completed work, test results, next task and any blocking evidence.
 - Mark the site ready for the owner's Cloudflare handoff only when the acceptance checks in PROMPT.md pass. Do not deploy it yourself.
