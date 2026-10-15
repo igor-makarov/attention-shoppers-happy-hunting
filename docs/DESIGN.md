@@ -70,7 +70,12 @@ conditional)` label so its quantity/destination condition stays visible.
   `Delivery options and conditions` and `Offer details and check history` per offer, one
   `Compare other offers (n)` disclosure for the rest of the ranking, one collapsed
   `Self-pickup options (n)` disclosure, and an `Offers with missing information (n)` disclosure that is
-  only rendered when something is actually missing.
+  only rendered when something is actually missing. When no offer can be ranked for the selected
+  locality, the page states the exact-batch shortfall in one plain sentence, offers a one-click switch
+  to a locality with verified purchasable totals when the sourcing record has one
+  (`sourcing.availableLocalities`, only rendered when a validated policy and a real observation rank
+  there), and keeps the full research note and listing links behind a `Why no total is shown`
+  disclosure instead of opening with a provenance wall.
 
 ## Layout and components
 
