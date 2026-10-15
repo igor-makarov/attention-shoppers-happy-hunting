@@ -239,3 +239,42 @@ export function liveCheckNote(check) {
   }
   return null;
 }
+
+/**
+ * Per-vendor live-check rows for the board API. Every registered vendor with an
+ * offer for the product is listed — including one whose store row does not exist
+ * yet, which reports `pending` — so a failed or pending runtime check stays
+ * visible even when the database never saved that vendor's offer. `sources` is
+ * the merge's per-offer origin map, so the row also says how many of the offers
+ * a shopper actually sees came from the published snapshot.
+ */
+export function vendorCheckEntries({ vendors = registeredVendors(), vendorStates = {}, productId, sources = new Map() } = {}) {
+  const states = vendorStates ?? {};
+  const out = [];
+  for (const vendor of vendors) {
+    const offers = (vendor.offers ?? []).filter(offer => (offer.productId ?? null) === productId);
+    if (!offers.length) continue;
+    const state = states[vendor.id] ?? null;
+    let publishedObservations = 0;
+    let storedObservations = 0;
+    for (const offer of offers) {
+      const identity = offerIdentity({ vendor: { id: vendor.id }, itemUrl: offer.itemUrl ?? offer.url });
+      const origin = sources.get(identity);
+      if (origin === 'published_snapshot') publishedObservations += 1;
+      else if (origin === 'worker_refresh') storedObservations += 1;
+    }
+    out.push({
+      vendorId: vendor.id,
+      lastAttemptAt: state?.lastAttemptAt ?? null,
+      lastSuccessAt: state?.lastSuccessAt ?? null,
+      consecutiveFailures: state?.consecutiveFailures ?? 0,
+      nextAttemptAt: state?.nextAttemptAt ?? null,
+      lastErrors: state?.lastErrors ?? [],
+      state: vendorCheckState(state),
+      publishedObservations,
+      storedObservations,
+      note: liveCheckNote(liveCheckForVendor(state))
+    });
+  }
+  return out;
+}

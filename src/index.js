@@ -8,6 +8,10 @@ import { products, resolveProductRequest } from './catalog.js';
 import { quoteBoard, findDestination, DESTINATIONS } from './lib/quote.js';
 import { policySummary } from './lib/policies.js';
 import { promotionSummary } from './lib/promotions.js';
+import { PUBLISHED_SNAPSHOT } from './data/published-observations.js';
+import {
+  mergePublishedObservations, publishedSnapshotSummary, liveChecksForProduct, vendorCheckEntries
+} from './lib/published-observations.js';
 import { runRefresh, maybeInitialRefresh, refreshFreshness, newestObservationAt } from './refresh.js';
 import { durableStore, storeClient } from './store.js';
 import { registeredVendors } from './vendors/index.js';
@@ -92,6 +96,19 @@ async function handleBoard(request, env, ctx, url) {
     });
   }
   const store = storeClient(durableStore(env));
+  return json(await buildBoardBody({ url, store, now: Date.now() }), 200, {
+    'Vary': 'Accept-Encoding',
+    'Access-Control-Allow-Origin': '*'
+  });
+}
+
+/**
+ * Build the board payload for one request. Exported so the time-sensitive board
+ * behavior (a published snapshot crossing its stale window, a newer stored
+ * observation winning over a published row) can be verified deterministically
+ * instead of depending on the wall clock. Public routes pass the real clock.
+ */
+export async function buildBoardBody({ url, store, now = Date.now() }) {
   // Owner correction 2026-10-12: only Crema e Gusto is tracked. An old shared
   // URL that still names a retired line (Qualità Oro, Qualità Rossa, Suerte)
   // falls back to the tracked product and says so instead of reviving it.
@@ -105,42 +122,42 @@ async function handleBoard(request, env, ctx, url) {
   const grams = url.searchParams.get('grams') ?? undefined;
   const destination = findDestination(url.searchParams.get('dest'));
   const snapshot = await store.snapshot();
-  const lastObservationAt = newestObservationAt(snapshot.observations, [productId]);
+  // Read-only merge of the checked-in runner-research snapshot: an offer the live
+  // store has no current observation for (grocery egress blocked, or a vendor not
+  // attempted yet) is shown from that evidence with its recorded time and source,
+  // while a current stored observation always wins. The store is never written.
+  const liveChecks = liveChecksForProduct(snapshot.vendors ?? {}, productId);
+  const merged = mergePublishedObservations(snapshot.observations, { now, liveChecks });
+  const lastObservationAt = newestObservationAt(merged.observations, [productId]);
   const board = quoteBoard({
-    observations: snapshot.observations,
+    observations: merged.observations,
     productId,
     targetGrams: grams,
     targetQuantity: url.searchParams.get('quantity'),
     destination,
     fx: snapshot.meta?.fx ?? null,
-    now: Date.now()
+    now
   });
   const vendors = snapshot.vendors ?? {};
-  return json({
+  const publishedVendors = [...new Set(merged.backfilled.map(entry => entry.vendorId).filter(Boolean))].sort();
+  return {
     ...board,
     product: publicProduct(product),
     requestedRetiredProduct: retired ? { id: retired.id, line: retired.line } : null,
+    // Which checked-in runner-research evidence this read used and for which
+    // offers, so a snapshot row is never mistaken for a Worker refresh.
+    publishedSnapshot: { ...publishedSnapshotSummary(PUBLISHED_SNAPSHOT, now), appliedVendors: publishedVendors },
     freshness: {
-      ...refreshFreshness(lastObservationAt ? snapshot.meta?.lastRefreshAt?.value ?? null : null, Date.now(), lastObservationAt),
+      ...refreshFreshness(lastObservationAt ? snapshot.meta?.lastRefreshAt?.value ?? null : null, now, lastObservationAt),
       fx: snapshot.meta?.fx ? { asOf: snapshot.meta.fx.asOf, fetchedAt: snapshot.meta.fx.fetchedAt, source: snapshot.meta.fx.source?.name ?? null } : null,
-      vendors: Object.values(vendors).filter(state => registeredVendors().some(vendor =>
-        vendor.id === state.vendorId && vendor.offers.some(offer => offer.productId === productId)
-      )).map(state => ({
-        vendorId: state.vendorId,
-        lastAttemptAt: state.lastAttemptAt,
-        lastSuccessAt: state.lastSuccessAt,
-        consecutiveFailures: state.consecutiveFailures,
-        nextAttemptAt: state.nextAttemptAt,
-        lastErrors: state.lastErrors ?? []
-      }))
+      vendors: vendorCheckEntries({ vendorStates: vendors, productId, sources: merged.sources })
     },
     status: board.ranked.length > 0
-      ? 'Delivered totals ranked from verified observations.'
+      ? (publishedVendors.length
+        ? 'Delivered totals ranked from verified observations; some offers are runner-researched evidence published while the live refresh is blocked or pending.'
+        : 'Delivered totals ranked from verified observations.')
       : 'No offer currently has enough verified information to rank. Unknowns are listed below.'
-  }, 200, {
-    'Vary': 'Accept-Encoding',
-    'Access-Control-Allow-Origin': '*'
-  });
+  };
 }
 
 async function handleStatus(env) {
@@ -157,6 +174,9 @@ async function handleStatus(env) {
     // force, when it was observed and when it must be re-checked. An expired
     // policy stops enriching offers until browser research renews it.
     shippingPolicies: policySummary(Date.now()),
+    // The checked-in runner-research snapshot the board may read from when the
+    // live store has no current observation for an offer.
+    publishedSnapshot: publishedSnapshotSummary(PUBLISHED_SNAPSHOT, Date.now()),
     // Published quantity promotions (item-price discounts) the board may apply,
     // with the same review-date discipline.
     promotions: promotionSummary(Date.now()),
