@@ -75,7 +75,9 @@ conditional)` label so its quantity/destination condition stays visible.
   to a locality with verified purchasable totals when the sourcing record has one
   (`sourcing.availableLocalities`, only rendered when a validated policy and a real observation rank
   there), and keeps the full research note and listing links behind a `Why no total is shown`
-  disclosure instead of opening with a provenance wall.
+  disclosure instead of opening with a provenance wall. With no stored grocery observation at all the
+  page says so plainly, keeps the research behind a `Sourcing research` disclosure and offers no
+  locality switch that cannot rank anything.
 
 ## Layout and components
 
