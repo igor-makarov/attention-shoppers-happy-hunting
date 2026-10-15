@@ -186,7 +186,7 @@ function oldPersistedCoffeemanEightPackObservation(overrides = {}) {
 test('the checked-in shipping policies are structurally valid', () => {
   const result = validatePolicies(SHIPPING_POLICIES);
   assert.equal(result.ok, true, JSON.stringify(result.results));
-  assert.equal(SHIPPING_POLICIES.length, 4);
+  assert.equal(SHIPPING_POLICIES.length, 5);
   const pucks = SHIPPING_POLICIES.find(policy => policy.id === pucksHomeDeliveryPolicy.id);
   assert.ok(pucks, 'the evidenced Pucks rule is a checked-in policy');
   assert.equal(pucks.origin, 'observed_cart', 'a cart-observed rule is never relabelled as published');

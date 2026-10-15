@@ -82,7 +82,7 @@ test('catalog route lists the product, destinations and vendor allowlist without
   assert.equal(body.products.length, 2, 'coffee and the newly requested cottage cheese are selectable');
   assert.ok(body.destinations.length >= 5);
   const vendorIds = body.vendors.map(vendor => vendor.id).sort();
-  assert.deepEqual(vendorIds, ['coffee4u', 'coffeeman', 'pucks']);
+  assert.deepEqual(vendorIds, ['coffee4u', 'coffeeman', 'pucks', 'tivtaam']);
   const coffee4u = body.vendors.find(vendor => vendor.id === 'coffee4u');
   assert.match(coffee4u.offers[0].url, /^https:\/\/www\.coffee4u\.co\.il\/product\//);
   assert.match(body.vendors[0].offers[0].url, /^https:\/\//);
@@ -236,7 +236,7 @@ test('status exposes the validated promotion summary and the shipping policies',
   assert.equal(promotion.minItemSubtotal, 250);
   assert.equal(promotion.excludesMultipacks, true);
   assert.equal(promotion.expired, false);
-  assert.equal(status.shippingPolicies.length, 4, 'the four validated shipping policies stay exposed');
+  assert.equal(status.shippingPolicies.length, 5, 'the five validated shipping policies stay exposed');
 });
 
 test('website requests fall through to static assets', async () => {
@@ -256,12 +256,12 @@ test('scheduled handler refreshes and persists through the BOARD binding', async
     globalThis.fetch = originalFetch;
   }
   const snapshot = await store.snapshot();
-  assert.equal(snapshot.observations.length, 5);
+  assert.equal(snapshot.observations.length, 6);
   assert.equal(snapshot.meta.lastRefreshAt.trigger, 'cron');
   assert.equal(snapshot.meta.fx.rates.USD.rate, 3.05);
   const run = snapshot.runs[0];
   assert.equal(run.trigger, 'cron');
-  assert.equal(run.requests, 6);
+  assert.equal(run.requests, 7);
 });
 
 test('the catalog lists the two authorized products with no coffee variant selection', async () => {
@@ -289,15 +289,24 @@ test('cottage cheese API resolves exact batches and never borrows coffee offers 
     assert.equal(board.targetGrams, quantity * 250);
     assert.equal(board.destination.id, 'haifa');
     assert.equal(board.deliveryOnly, true);
-    assert.equal(board.best, null);
-    assert.equal(board.counts.observed, 0);
+    assert.equal(board.best, null, 'no exact batch is ranked: the only observed listing is below its vendor minimum');
+    assert.equal(board.counts.observed, 1, 'the seeded Tiv Taam cottage-cheese listing is observed');
     assert.deepEqual(board.pickup, []);
     assert.deepEqual(board.batchComparisons.map(batch => [batch.quantity, batch.best]), [[4, null], [6, null], [8, null], [10, null]]);
-    assert.deepEqual(board.freshness.vendors, []);
-    assert.equal(board.freshness.lastObservationAt, null);
-    assert.equal(board.freshness.lastRefreshAt, null, 'a successful coffee refresh is not a cheese refresh');
+    assert.deepEqual(board.freshness.vendors.map(vendor => vendor.vendorId), ['tivtaam'], 'only the vendor with a cottage-cheese offer is listed');
+    assert.ok(board.freshness.lastObservationAt, 'the cheese board freshness uses its own cheese observation');
+    const tivtaamQuote = board.unrankable.find(quote => quote.vendor.id === 'tivtaam');
+    assert.ok(tivtaamQuote, 'the observed Tiv Taam listing stays visible');
+    assert.ok(tivtaamQuote.reasons.length > 0, 'the Haifa destination is not covered by the researched Tiv Taam areas');
     assert.equal(board.product.sourcing.status, 'pending');
   }
+  // The default locality is inside the researched Tiv Taam areas, so the block
+  // there is the vendor's own published minimum order rather than coverage.
+  const telAviv = await (await worker.fetch(new Request(`https://example.test/api/board?product=${productId}&quantity=10&dest=tel-aviv`), envWith(store), {})).json();
+  const telAvivQuote = telAviv.unrankable.find(quote => quote.vendor.id === 'tivtaam');
+  assert.ok(telAvivQuote, 'Tiv Taam is compared for the default locality');
+  assert.ok(telAvivQuote.reasons.some(reason => /below the vendor minimum order of ₪300/.test(reason)), JSON.stringify(telAvivQuote.reasons));
+  assert.equal(telAviv.best, null, 'a below-minimum batch is never ranked');
   const get = async query => (await worker.fetch(new Request(`https://example.test/api/board?product=${productId}&${query}`), envWith(store), {})).json();
   assert.equal((await get('grams=2000')).targetQuantity, 8);
   assert.equal((await get('quantity=5')).targetQuantity, 4);

@@ -189,7 +189,7 @@ test('the production cron sequence keeps a six-hour cadence and recovers from th
   const offPhase = await tick('2026-10-12T18:17:20.000Z');
   assert.equal(offPhase.requests, 0, 'an off-phase tick makes no vendor request');
   assert.equal(offPhase.saved, 0);
-  assert.equal(offPhase.skipped, 3);
+  assert.equal(offPhase.skipped, 4);
   assert.equal(offPhase.lastRefreshAt, '2026-10-12T15:52:12.000Z');
   assert.equal(offPhase.freshness.stale, false, 'the board stays fresh through the off-phase tick');
 

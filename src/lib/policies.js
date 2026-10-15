@@ -410,8 +410,8 @@ export const tivtaamCottageCheesePolicy = {
   },
   evidence: {
     url: 'https://www.tivtaam.co.il/v2/retailers/1062/branches/924/areas?appId=4&deliveryTypeId=1&languageId=2',
-    retrievedAt: '2026-10-15T16:18:00Z',
-    note: 'Public branch API read from the GitHub Actions runner on 2026-10-15: branch 924 (Ramat HaHayal, Tel Aviv–Yafo) lists seven active delivery areas, each with deliveryAreaPrice ₪29.90 and deliveryMinimumCost null. The published site terms clause 16.1 set the minimum order at ₪300. An anonymous cart API quote for exact batches (4/6/8/10 tubs) returned item totals ₪24.40/₪36.60/₪48.80/₪61.00 plus ₪29.90 delivery = ₪54.30/₪66.50/₪78.70/₪90.90 with no minimum warning, but the checkout requires login, so the published minimum order is treated as the binding condition. See docs/evidence/tnuva-cottage-cheese-runner-research-20261015.json.'
+    retrievedAt: '2026-10-15T17:05:00Z',
+    note: 'Public branch API read from the GitHub Actions runner on 2026-10-15 and re-verified at 17:05 UTC: branch 924 (Ramat HaHayal, Tel Aviv–Yafo) lists seven active delivery areas, each with deliveryAreaPrice ₪29.90 and deliveryMinimumCost null. The published site terms clause 16.1 and the retailer config minimumOrderPrice set the minimum order at ₪300. An anonymous cart API quote for exact batches (4/6/8/10 tubs) returned item totals ₪24.40/₪36.60/₪48.80/₪61.00 plus ₪29.90 delivery = ₪54.30/₪66.50/₪78.70/₪90.90 with no minimum warning, but the checkout requires login, so the published minimum order is treated as the binding condition. The product API row selected for pricing is the active ₪6.10 row (id 5662070); a hidden inactive ₪5.70 row is never priced. See docs/evidence/tnuva-cottage-cheese-runner-research-20261015.json.'
   },
   observedFor: {
     carts: ['4 tubs = 1 kg (₪24.40 + ₪29.90 = ₪54.30)', '6 tubs = 1.5 kg (₪36.60 + ₪29.90 = ₪66.50)', '8 tubs = 2 kg (₪48.80 + ₪29.90 = ₪78.70)', '10 tubs = 2.5 kg (₪61.00 + ₪29.90 = ₪90.90)'],

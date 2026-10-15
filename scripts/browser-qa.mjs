@@ -1275,7 +1275,10 @@ try {
     await unknownServer.close();
   }
 
-  // The dairy page has exact tub quantities and honest pending delivery totals.
+  // The dairy page has exact tub quantities and honest pending delivery totals:
+  // the fixture board carries no cottage-cheese observation, so the sourcing
+  // note must name the real blocker (Tiv Taam's ₪300 minimum order) instead of
+  // inventing a total, and no coffee vendor may leak into the dairy page.
   const cheese = catalog.products.find(item => item.id === 'tnuva-cottage-cheese-5-percent');
   if (cheese) {
     const cheesePath = `/product/${cheese.id}`;
@@ -1300,8 +1303,9 @@ try {
         && cheeseView.selected === '6 tubs' && cheeseView.dest === 'haifa'
         && cheeseView.batches === 4 && cheeseView.unknown === 4
         && !cheeseView.overflow && !cheeseView.pickup && !/coffee/i.test(cheeseView.subtitle), JSON.stringify(cheeseView));
-    check('cottage cheese: missing delivery evidence does not become free shipping or a coffee winner',
-      /No delivery quote has been verified/.test(cheeseView.text)
+    check('cottage cheese: the sourcing note names the minimum-order blocker and no total or coffee winner is claimed',
+      /₪300 minimum order/.test(cheeseView.text)
+        && /Tiv Taam/.test(cheeseView.text)
         && !/Best known delivered total|CoffeeMan|Pucks|Coffee4U|₪0/.test(cheeseView.text), cheeseView.text.slice(0, 1000));
     await firstScreenScreenshot(wd, 'cottage-cheese-mobile-390.png');
     await contrastReport(wd, 'body', 'the cottage-cheese pending comparison (mobile)');

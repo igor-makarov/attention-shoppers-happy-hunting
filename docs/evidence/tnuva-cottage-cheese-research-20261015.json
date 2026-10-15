@@ -3,7 +3,12 @@
   "productId": "tnuva-cottage-cheese-5-percent",
   "requestedProduct": "Tnuva 5% plain cottage cheese",
   "assumedTubGrams": 250,
-  "requestedBatches": [4, 6, 8, 10],
+  "requestedBatches": [
+    4,
+    6,
+    8,
+    10
+  ],
   "fulfillment": "delivery only",
   "objective": "lowest item subtotal plus shipping and mandatory fees for each exact batch",
   "locality": {
@@ -12,7 +17,7 @@
     "note": "Existing app default retained. A clarification about locality and standard 250 g tubs was offered; locality remains selectable."
   },
   "method": "Connected web search and text-page inspection; no live anonymous grocery cart was inspected.",
-  "status": "delivery_quotes_pending",
+  "status": "superseded_for_access_by_runner_record",
   "sources": [
     {
       "name": "Bastale product listing",
@@ -45,15 +50,25 @@
   ],
   "access": {
     "runnerPolicy": "restricted",
-    "customAllowedHosts": ["boi.org.il", "coffeeman.co.il", "pucks.co.il", "www.boi.org.il", "www.coffeeman.co.il", "www.pucks.co.il"],
+    "customAllowedHosts": [
+      "boi.org.il",
+      "coffeeman.co.il",
+      "pucks.co.il",
+      "www.boi.org.il",
+      "www.coffeeman.co.il",
+      "www.pucks.co.il"
+    ],
     "groceryHostsConfigured": false,
-    "note": "The managed runner has no configured grocery host access. Connected web search provides leads but does not establish a deterministic runtime source or a verified cart. No denied connection was bypassed and no network configuration was changed."
+    "note": "The managed runner has no configured grocery host access. Connected web search provides leads but does not establish a deterministic runtime source or a verified cart. No denied connection was bypassed and no network configuration was changed.",
+    "correction": "The runnerPolicy/customAllowedHosts fields above describe the Codex cloud environment that produced the original text-page research. The GitHub Actions runner has direct public HTTPS access; the follow-up research record docs/evidence/tnuva-cottage-cheese-runner-research-20261015.json re-checked the sources from the runner on 2026-10-15 and registered the Tiv Taam adapter."
   },
   "runtime": {
-    "groceryAdapterRegistered": false,
-    "priceObservations": 0,
+    "groceryAdapterRegistered": true,
+    "adapter": "src/vendors/tivtaam.js (tivtaam/1)",
+    "priceObservations": 1,
     "deliveredTotalsVerified": 0,
-    "note": "All batch totals remain unknown. Coffee observations and successful coffee refresh times are excluded from the dairy board."
+    "note": "Tiv Taam is observed at ₪6.10 per 250 g tub with ₪29.90 home delivery; every exact 4/6/8/10-tub batch is below the vendor’s published ₪300 minimum order, so no purchasable delivered total is ranked. All batch totals remain unknown on the board."
   },
-  "nextStep": "Confirm tub size/locality, enable supported grocery-source access, then verify fixed listings and anonymous delivery quotes for each exact batch, including stock, caps, minimum order, service fees and locality coverage. Register a tested deterministic adapter only after source evidence exists."
+  "nextStep": "Find a permitted vendor whose minimum order a requested exact batch can meet (or an owner decision to allow filling to a vendor minimum); re-check the Bastale listing for restock. See the runner research record for the full source/blocker evidence.",
+  "supersededBy": "docs/evidence/tnuva-cottage-cheese-runner-research-20261015.json"
 }

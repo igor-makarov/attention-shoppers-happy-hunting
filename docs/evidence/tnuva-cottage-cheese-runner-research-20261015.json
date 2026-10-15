@@ -1,0 +1,219 @@
+{
+  "researchDate": "2026-10-15",
+  "researchStartedAt": "2026-10-15T16:45:00Z",
+  "researchFinishedAt": "2026-10-15T17:08:00Z",
+  "productId": "tnuva-cottage-cheese-5-percent",
+  "requestedProduct": "Tnuva 5% plain cottage cheese, standard 250 g tubs",
+  "requestedBatches": [
+    4,
+    6,
+    8,
+    10
+  ],
+  "fulfillment": "delivery only",
+  "defaultLocality": "tel-aviv (Tel Aviv–Yafo / 6100000)",
+  "environment": {
+    "where": "GitHub Actions hosted runner (ubuntu, GitHub-hosted IP space)",
+    "note": "The host restrictions recorded in docs/evidence/tnuva-cottage-cheese-research-20261015.json describe the Codex cloud environment. The Actions runner has direct public HTTPS access; every fetch below was made from the runner with curl and the store's own public endpoints. No proxy, credential, login, order, street address or access-control bypass was used."
+  },
+  "outcome": "one_usable_source_found_batches_below_its_minimum",
+  "runtime": {
+    "adapterRegistered": true,
+    "adapter": "src/vendors/tivtaam.js (parserVersion tivtaam/1)",
+    "fixture": "tests/fixtures/tivtaam-product.json (verbatim public API response recorded 2026-10-15)",
+    "policy": "src/lib/policies.js tivtaam-cottage-tel-aviv-north-delivery v1 (home delivery ₪29.90, published minimum order ₪300, seven delivery areas)",
+    "deliveredTotalsRanked": 0,
+    "note": "All four exact batches (4/6/8/10 tubs = ₪54.30/₪66.50/₪78.70/₪90.90 item + delivery) are below the vendor's published ₪300 minimum order, so no batch is ranked as a purchasable delivered total. The observed listing stays visible as unrankable with the exact reason."
+  },
+  "sources": [
+    {
+      "id": "tivtaam",
+      "name": "Tiv Taam (טיב טעם), online branch 924 Ramat HaHayal",
+      "status": "accessible_verified_but_batches_below_minimum",
+      "product": {
+        "catalogProductId": 12053,
+        "branchProductId": 5662070,
+        "branchProductIdIgnoredHiddenRow": 1521501,
+        "names": {
+          "he": "קוטג' 5% מהדרין",
+          "en": "Cottage Tnuva (5%) 250 g",
+          "ru": "גבינת קוטג 5% 250 גר"
+        },
+        "weightGrams": 250,
+        "numberOfItems": 1,
+        "aisle": "מוצרי חלב",
+        "barcodeOnImagePath": "7290004127329",
+        "productApiUrl": "https://www.tivtaam.co.il/v2/retailers/1062/branches/924/products?catalogProductId=12053&ignoreBranchVisibility=true&appId=4&languageId=2",
+        "productPageUrl": "https://www.tivtaam.co.il/?catalogProduct=12053",
+        "observedPriceIls": 6.1,
+        "priceCurrency": "ILS",
+        "priceNote": "The API returns two rows for the same catalog product: the sellable active row at ₪6.10 (id 5662070, isActive true, isVisible true, isOutOfStock false) and a hidden inactive row at ₪5.70 (id 1521501). The adapter selects the sellable row and never prices the hidden one.",
+        "stockEvidence": "branch.isOutOfStock=false together with isActive=true and isVisible=true; this is the store's own branch flag, not a price-only scrape.",
+        "purchaseCapEvidence": "The public anonymous cart API accepted 10 tubs of this listing without a quantity-limit warning (total 10 × ₪6.10 = ₪61.00); no per-line cap was observed up to the largest requested batch. The site does not publish a numeric cap for this item.",
+        "observedAt": "2026-10-15T17:05:00Z"
+      },
+      "delivery": {
+        "service": "home_delivery",
+        "areasEndpoint": "https://www.tivtaam.co.il/v2/retailers/1062/branches/924/areas?appId=4&deliveryTypeId=1&languageId=2",
+        "areasObserved": [
+          {
+            "id": 2446,
+            "name": "ת\"א צפון",
+            "priceIls": 29.9,
+            "deliveryMinimumCost": null
+          },
+          {
+            "id": 2447,
+            "name": "רמת השרון",
+            "priceIls": 29.9,
+            "deliveryMinimumCost": null
+          },
+          {
+            "id": 2450,
+            "name": "רמת גן מרכז",
+            "priceIls": 29.9,
+            "deliveryMinimumCost": null
+          },
+          {
+            "id": 2452,
+            "name": "ראש העין",
+            "priceIls": 29.9,
+            "deliveryMinimumCost": null
+          },
+          {
+            "id": 8708,
+            "name": "בני ברק בלבד",
+            "priceIls": 29.9,
+            "deliveryMinimumCost": null
+          },
+          {
+            "id": 8962,
+            "name": "הרצליה בלבד",
+            "priceIls": 29.9,
+            "deliveryMinimumCost": null
+          },
+          {
+            "id": 10006,
+            "name": "רמת גן",
+            "priceIls": 29.9,
+            "deliveryMinimumCost": null
+          }
+        ],
+        "areaEndpointNote": "Each area was read from the public endpoint /v2/retailers/1062/branches/924/areas/<id> on 2026-10-15; the branch list endpoint /v2/retailers/1062/branches?isOnline=true was used to confirm that branch 924 is the online delivery branch and to enumerate its areas.",
+        "coverage": "Part of Tel Aviv–Yafo (ת״א צפון: רמת אביב, רמת החייל, אפקה) plus Ramat HaSharon, Ramat Gan, Bnei Brak, Herzliya and Rosh HaAyin. Jaffa and other parts of Tel Aviv–Yafo are outside the published areas; the site treats the default locality as covered with this caveat.",
+        "minimumOrder": {
+          "amountIls": 300,
+          "source": "https://htmlcache.blob.core.windows.net/html-production-env/r-1062/desktop/multi-true/data.js (retailer config minimumOrderPrice: \"300\") and the published site terms clause 16.1: \"סכום המינימום להזמנה הינו 300 ₪\" (the minimum order amount is ₪300). Clause 16 also says Tiv Taam need not supply orders whose total is not above the minimum.",
+          "observedAt": "2026-10-15T17:05:00Z"
+        },
+        "robots": "https://www.tivtaam.co.il/robots.txt: Crawl-delay 4; /cart*, /user* and /search* disallowed; the product API and the catalogProduct page are not disallowed. The adapter declares crawlDelayMs 4000."
+      },
+      "anonymousCartQuotes": {
+        "method": "Public anonymous cart API: POST /v2/retailers/1062/branches/924/carts with {\"lines\":[{\"retailerProductId\":5662070,\"quantity\":N,\"type\":1}]}, then POST /carts/<id>/delivery-line {areaId:2446, deliveryTypeIds:[1]} and PATCH /carts/<id> {deliveryProduct:true, deliveryProduct_Id:1966627, deliveryType:1}. No login, street address, payment or order submission; the checkout itself requires login and was not entered.",
+        "quotes": [
+          {
+            "tubs": 4,
+            "orderedGrams": 1000,
+            "itemTotalIls": 24.4,
+            "deliveryIls": 29.9,
+            "deliveredTotalIls": 54.3
+          },
+          {
+            "tubs": 6,
+            "orderedGrams": 1500,
+            "itemTotalIls": 36.6,
+            "deliveryIls": 29.9,
+            "deliveredTotalIls": 66.5
+          },
+          {
+            "tubs": 8,
+            "orderedGrams": 2000,
+            "itemTotalIls": 48.8,
+            "deliveryIls": 29.9,
+            "deliveredTotalIls": 78.7
+          },
+          {
+            "tubs": 10,
+            "orderedGrams": 2500,
+            "itemTotalIls": 61.0,
+            "deliveryIls": 29.9,
+            "deliveredTotalIls": 90.9
+          }
+        ],
+        "minimumWarning": "The anonymous cart API did not show a minimum-order warning, but the checkout requires login and the published ₪300 minimum order is the vendor's own binding condition, so every standalone batch is below the minimum and is not ranked.",
+        "reproducedAt": "2026-10-15T17:00:00Z"
+      },
+      "observedOfferCreated": true
+    },
+    {
+      "id": "bastale",
+      "name": "Bastale (בָּסְטַלֶ'ה), Givatayim",
+      "status": "accessible_product_out_of_stock",
+      "productUrl": "https://www.bastale.co.il/product-details/75069/קוטג_5%25_תנובה_250_גרם",
+      "observed": {
+        "name": "קוטג 5% תנובה 250 גרם",
+        "priceIls": 7.9,
+        "unitPrice": "₪3.16 per 100 g",
+        "availability": "https://schema.org/OutOfStock",
+        "renderedStock": "מוצר לא במלאי (product not in stock)",
+        "deliveryAreas": "Tel Aviv–Yafo: ₪30 delivery with a ₪200–₪220 minimum, limited areas (כיכר המדינה / דרום תל אביב / צפון תל אביב); Givatayim and Ramat Gan: ₪25 with a ₪150 minimum; other Gush Dan cities ₪30 with ₪200–₪250 minimums",
+        "deliveryAreasUrl": "https://www.bastale.co.il/delivery-areas",
+        "observedAt": "2026-10-15T16:55:00Z"
+      },
+      "limitation": "The tracked Tnuva 5% 250 g listing is out of stock, so no delivered quote can be made. The price and delivery terms are recorded for future re-checks; they are not a current purchasable total."
+    },
+    {
+      "id": "freshmarket",
+      "name": "Fresh Market (פרשמרקט)",
+      "status": "accessible_but_no_tel_aviv_coverage",
+      "observed": {
+        "onlineBranch": "2792 כרמים, ראשון לציון",
+        "deliveryAreaPriceIls": 34,
+        "deliveryMinimumCostIls": 200,
+        "branches": "Only Rishon LeZion branches are online; no Tel Aviv–Yafo delivery area was found.",
+        "observedAt": "2026-10-15T16:52:00Z"
+      },
+      "limitation": "Not applicable to the default Tel Aviv–Yafo locality; recorded so the coverage gap is explicit."
+    }
+  ],
+  "blockedSources": [
+    {
+      "name": "Wolt / Wolt Market (including Carrefour, Eden Teva, Alma Market venues)",
+      "status": "blocked_by_vendor_terms",
+      "evidence": "Wolt's Israeli Terms of Use clause 12.3 (https://explore.wolt.com/he/isr/terms, read 2026-10-15): \"וולט אוסרת על גרידת מידע (scraping) או על ביצוע כל איסוף שיטתי אחר של נתונים או תוכן מהשירות של וולט (לרבות תוכן הנגיש גם ללא התחברות לחשבון המשתמש)\" — Wolt forbids scraping or any other systematic collection of data or content from its service, including content accessible without login.",
+      "note": "Venue pages for the default locality do list Tnuva 5% 250 g tubs (Carrefour Pankes ₪6.90, Eden Teva Gan Ha'ir ₪6.90, Alma Market Dizengoff ₪7.00, each with a ₪70 minimum and ₪10 base delivery), but the terms prohibit systematic collection, so no Wolt observation, adapter or ranking is registered. These amounts are recorded only as the reason Wolt was excluded."
+    },
+    {
+      "name": "Shufersal Online",
+      "status": "blocked_from_runner",
+      "evidence": "https://www.shufersal.co.il/online/he/ and the search page return a 444-byte S3 maintenance/error page from the runner IP space (checked 2026-10-15 16:50 UTC); no product or price data is served. No attempt was made to defeat the block.",
+      "note": "The mandated price-transparency file server (prices.shufersal.co.il) is reachable, but it publishes physical-store price files only and cannot establish online delivery fees, minimum orders or stock."
+    },
+    {
+      "name": "Rami Levy Online",
+      "status": "blocked_from_runner",
+      "evidence": "https://www.rami-levy.co.il/ and /api/v2/catalog return HTTP 403 from the runner (checked 2026-10-15 16:59 UTC)."
+    },
+    {
+      "name": "Yohananof",
+      "status": "blocked_from_runner",
+      "evidence": "https://yochananof.co.il/ returns HTTP 403 with server: rdwr (Radware bot protection) from the runner (checked 2026-10-15 16:59 UTC)."
+    },
+    {
+      "name": "Super-Pharm Online",
+      "status": "blocked_from_runner",
+      "evidence": "https://shop.super-pharm.co.il/ returns a JavaScript bot-challenge document (kramericaindustries.ac_v2.lib.js / winsocks()) with non-standard HTTP 247 from the runner (checked 2026-10-15 17:00 UTC)."
+    },
+    {
+      "name": "Victory, Keshet Teamim, Carrefour Israel, Super Yuda, Quik",
+      "status": "blocked_from_runner",
+      "evidence": "Each returns a Cloudflare HTTP 403 challenge from the runner (checked 2026-10-15 16:50–17:02 UTC)."
+    },
+    {
+      "name": "Machsanei Hashuk, Hatzihinam, Yeinot Bitan, Osher Ad online shop",
+      "status": "no_reachable_storefront",
+      "evidence": "DNS or connection failures for the storefront domains; osherad.co.il is a WordPress marketing site with no reachable online store (checked 2026-10-15 17:02 UTC)."
+    }
+  ],
+  "nextStep": "The Tiv Taam listing is observed and quoted but every requested exact batch is below its published ₪300 minimum, so no delivered winner exists yet. To rank the batches, one of: the owner accepts filling an order to the vendor minimum (outside the exact-batch scope), a permitted vendor with a minimum at or below the batch total is found, or a grocery source becomes accessible without defeating bot protection or vendor terms. The Bastale listing should be re-checked for restock."
+}

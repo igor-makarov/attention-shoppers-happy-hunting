@@ -117,3 +117,19 @@ test('a new product without observed offers keeps every delivered batch total un
   assert.deepEqual(result.batchComparisons.map(batch => batch.best), [null, null, null, null]);
   assert.equal(result.counts.observed, 0);
 });
+
+test('the recorded Tiv Taam listing is observed and quoted but stays unranked below its published minimum', async () => {
+  const { parseTivtaamProduct } = await import('../src/vendors/tivtaam.js');
+  const { readFixtureForUrl } = await import('./fixtures/vendor-fixtures.mjs');
+  const apiUrl = 'https://www.tivtaam.co.il/v2/retailers/1062/branches/924/products?catalogProductId=12053&ignoreBranchVisibility=true&appId=4&languageId=2';
+  const hit = await readFixtureForUrl(apiUrl);
+  assert.ok(hit, 'the recorded Tiv Taam API response routes to the tracked offer');
+  const observation = parseTivtaamProduct(hit.text, { now });
+  const result = board([observation], { targetQuantity: 10 });
+  assert.equal(result.counts.observed, 1, 'the real listing is observed');
+  assert.equal(result.best, null, 'no exact batch is purchasable below the ₪300 minimum');
+  assert.match(result.unrankable[0].reasons.join(' '), /below the vendor minimum order of ₪300/);
+  assert.equal(result.unrankable[0].shipping.amount, 29.9, 'the researched ₪29.90 home-delivery rate is still carried on the visible offer');
+  assert.equal(result.unrankable[0].shipping.serviceLabel, 'Home delivery');
+  assert.deepEqual(result.batchComparisons.map(batch => batch.best), [null, null, null, null]);
+});

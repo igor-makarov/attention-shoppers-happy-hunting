@@ -1,6 +1,6 @@
 # Deployment notes and owner handoffs
 
-Local addition (2026-10-15): the authorized catalog now contains Crema e Gusto and Tnuva 5% cottage cheese. Cheese has exact 4/6/8/10-tub delivery-only comparisons but **no registered grocery adapter or verified delivery totals yet**. This change is locally verified only; it has not been deployed or production-verified. The older one-product production evidence below remains historical. Runtime/runner grocery access and verified source/parser evidence are needed before a grocery adapter can refresh the cheese. No Cloudflare configuration was changed.
+Local addition (2026-10-15): the authorized catalog now contains Crema e Gusto and Tnuva 5% cottage cheese. Cheese has exact 4/6/8/10-tub delivery-only comparisons and one registered grocery adapter (`src/vendors/tivtaam.js`, 2026-10-15) whose observed Tiv Taam listing is below the vendor's published ₪300 minimum order for every requested batch, so **no purchasable delivered total is ranked yet**. This change is locally verified only; it has not been deployed or production-verified. The older one-product production evidence below remains historical. Runtime/runner grocery access and verified source/parser evidence are needed before a grocery adapter can refresh the cheese. No Cloudflare configuration was changed.
 
 Current state (2026-10-12): handoff 1 (OpenCode key plus loop control) is complete, and the owner
 reports the Cloudflare side connected and serving **https://attention-shoppers.igormaka.workers.dev**
