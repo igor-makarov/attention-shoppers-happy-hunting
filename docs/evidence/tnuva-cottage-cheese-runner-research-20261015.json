@@ -514,6 +514,11 @@
       "revisedAt": "2026-10-15T19:10:00Z",
       "by": "iteration 4-112 (GitHub Actions runner)",
       "summary": "Settled the Super Haviv Petah Tikva lead without ranking it: the store's own published terms (quoted in the source record) set a ₪200 site minimum and a ₪34 delivery fee, contradicting the branch area field's ₪10; every exact 4-10 tub batch (₪60.00-₪99.00 delivered) is below the terms minimum. A fresh bounded anonymous cart attempt reproduced the Radware block on the delivery-applying PATCH (third block; the delivery-line POST is accepted and the cart line activates at ₪26.00 for 4 tubs), so no cart total can be read and no ranking is claimed. Re-checked Bastale (still out of stock at ₪7.90) and Shufersal (still the 444-byte maintenance/error page from the runner, even with a browser user agent). No new reachable Tel Aviv–Yafo grocery source was found."
+    },
+    {
+      "revisedAt": "2026-10-15T21:35:00Z",
+      "by": "iteration 7-119 (GitHub Actions runner)",
+      "summary": "Owner scope narrowed to Tel Aviv–Yafo delivery only, so the re-sweep targeted Tel Aviv coverage exclusively: every previously blocked low-minimum chain (Verona Market ₪20, Twins Market ₪75, Sholik ₪80, MCK, Hinam Plus, Keshet Teamim, Victory, Mahsanei Shuk) and four not-yet-checked Tel Aviv delivery services (Zapp, Getir, Bolt Market, 10bis) were probed once each with the honest user agent. No new permitted Tel Aviv–Yafo source: the low-minimum chains are unreachable/challenged, Getir and Zapp are unreachable/challenged, Bolt Market and 10bis expose no Israeli grocery interface, and Wolt/Yango Deli stay terms-excluded. Duchan was not refreshed or expanded (out of the active registry and out of the authorized locality). The deployed public site was then verified read-only: the production probe passes (published runner-research rows keep their recorded times and failed live checks; the four Tel Aviv batches stay unranked with their exact minimum-order reasons) and an offline-browser live run of the real public pages passed 129/129 checks at 1440×1000 and 390×844 with zero JavaScript errors, natively inspected from saved captures. A fresh bounded runner source check at 21:33 UTC re-verified Tiv Taam ₪6.10/in stock and Super Yuda ₪6.70/in stock unchanged and was published as the newer checked-in snapshot runner-source-check-20261015T213336."
     }
   ],
   "configVerification20261015T1925Z": {
@@ -526,5 +531,121 @@
       "superhaviv": "area 9997 \"פתח תקווה\" deliveryMinimumCost 10 with retailerProductDeliveryPrice/Branch 34; area 10019 \"קרית אונו,גבעת שמואל\" deliveryMinimumCost 200; the store agreementText publishes a ₪200 site minimum (the conflict recorded above). Not ranked."
     },
     "note": "The values confirm every checked-in grocery policy amount and minimum; no policy change was needed."
-  }
+  },
+  "telAvivResweep20261015T2125Z": {
+    "checkedAt": "2026-10-15T21:25:00Z",
+    "by": "iteration 7-119 (GitHub Actions runner)",
+    "scope": "Tel Aviv–Yafo delivery only, per the owner instruction of 2026-10-15. One bounded read-only request per host with the honest AttentionShoppersBot/0.1 user agent and a 20 s timeout. No challenge was solved, no alternate host was used to read a blocked store, no credential, login, cart, order or street address was involved.",
+    "recheckedPreviouslyBlockedHosts": [
+      {
+        "host": "verona-market.co.il",
+        "result": "no response (DNS/connection failure from the runner); previously a Cloudflare challenge",
+        "note": "Verona Market publishes the lowest minimum in the Israeli grocery space (₪20), so this remains the most valuable blocked source for the exact-batch task."
+      },
+      {
+        "host": "twinsmarket.co.il",
+        "result": "no response (DNS/connection failure from the runner); previously a Cloudflare challenge",
+        "note": "₪75 minimum would still be too high for the 4-tub batch (₪24.40 items) but low enough for 6-10 tubs; blocked."
+      },
+      {
+        "host": "sholik.net",
+        "result": "no response (DNS/connection failure from the runner); previously a Cloudflare challenge",
+        "note": "₪80 minimum; blocked."
+      },
+      {
+        "host": "mck.co.il",
+        "result": "no response (DNS/connection failure from the runner); previously a Cloudflare challenge"
+      },
+      {
+        "host": "hinam-plus.com",
+        "result": "no response (DNS/connection failure from the runner); previously a Cloudflare challenge"
+      },
+      {
+        "host": "keshet-teamim.co.il",
+        "result": "no response (DNS/connection failure from the runner); previously a Cloudflare challenge"
+      },
+      {
+        "host": "victoryonline.co.il",
+        "result": "no response (DNS/connection failure from the runner); previously a Cloudflare challenge"
+      },
+      {
+        "host": "carrefour.co.il",
+        "result": "HTTP 403 Cloudflare challenge (5,487 bytes), unchanged"
+      },
+      {
+        "host": "quik.co.il",
+        "result": "HTTP 403 Cloudflare challenge (5,487 bytes), unchanged"
+      },
+      {
+        "host": "www.rami-levy.co.il",
+        "result": "HTTP 403 Cloudflare challenge (5,488 bytes), unchanged"
+      },
+      {
+        "host": "yochananof.co.il",
+        "result": "HTTP 403 (Radware), unchanged"
+      },
+      {
+        "host": "www.mahsanei-shuk.co.il",
+        "result": "no response (DNS/connection failure); previously unreachable",
+        "note": "₪150 minimum, above every exact batch even if reachable."
+      },
+      {
+        "host": "www.shufersal.co.il",
+        "result": "HTTP 200 with the same 444-byte S3 maintenance/error page, unchanged (re-checked with a browser user agent as well)"
+      }
+    ],
+    "newlyCheckedTelAvivDeliveryServices": [
+      {
+        "name": "Zapp (quick commerce, Tel Aviv)",
+        "hosts": [
+          "zapp.co.il",
+          "www.zapp.co.il"
+        ],
+        "result": "DNS failure from the runner; no storefront, API or terms text reached. No observation or adapter is registered.",
+        "status": "no_reachable_storefront"
+      },
+      {
+        "name": "Getir Israel",
+        "hosts": [
+          "getir.com/il/",
+          "getir.co.il"
+        ],
+        "result": "getir.com/il/ answers HTTP 403 (Cloudflare challenge, 919 bytes); getir.co.il does not resolve. No product, price, minimum or coverage evidence obtained.",
+        "status": "blocked_from_runner"
+      },
+      {
+        "name": "Bolt Market",
+        "hosts": [
+          "market.bolt.eu"
+        ],
+        "result": "HTTP 200 (415,895 bytes) for the public landing page, but the served shell exposes no Israeli locality, no Tel Aviv coverage and no product/catalog interface, and no public product or delivery-rate endpoint was found. Without evidence that it delivers to Tel Aviv–Yafo it cannot be a source for this locality.",
+        "status": "no_israeli_coverage_evidence"
+      },
+      {
+        "name": "10bis",
+        "hosts": [
+          "www.10bis.co.il"
+        ],
+        "result": "HTTP 200 (11,647 bytes) JavaScript application shell with no grocery/market surface and no public product interface in the served document. Restaurant delivery is not a grocery listing source for the tracked product.",
+        "status": "no_grocery_interface_evidence"
+      }
+    ],
+    "conclusions": [
+      "No new permitted Tel Aviv–Yafo grocery source was found. The reachable, permitted Tel Aviv–Yafo sources remain Tiv Taam (₪6.10/tub, ₪29.90 delivery, ₪300 minimum) and Super Yuda (₪6.70/tub, ₪35 delivery, ₪150 minimum), both above every exact 4/6/8/10-tub batch.",
+      "The only concrete low-minimum option in the researched space (Verona Market ₪20) is unreachable from the runner (DNS failure where a Cloudflare challenge previously answered); Twins Market ₪75 and Sholik ₪80 are equally unreachable. None of these was bypassed.",
+      "Quick-commerce alternatives that do cover Tel Aviv (Zapp, Getir) are unreachable or bot-challenged from the runner; Wolt and Yango Deli stay excluded by their published terms; Bolt Market and 10bis expose no Israeli grocery interface. No vendor terms were bypassed and no alternate host was used.",
+      "Ranking a Tel Aviv–Yafo batch still requires either an owner decision to fill an order to a vendor minimum (outside the exact-batch scope), a vendor/maintainer action to permit the Worker or runner egress to a low-minimum store, or a newly published vendor rule. No winner is invented and no filler item is added."
+    ]
+  },
+  "scopeUpdate20261015T2135Z": {
+    "setBy": "owner instruction 2026-10-15: \"Also focus it only on tel aviv.\"",
+    "effect": [
+      "The active task, source discovery, delivery/cart quotes, production checks and Shurik research cover delivery to Tel Aviv–Yafo only for the two authorized products.",
+      "The public catalog exposes only tel-aviv; links naming another locality normalize to it while preserving quantity.",
+      "Duchan is out of the active refresh registry and its historical rows are excluded from the public comparison; its verified coverage is outside Tel Aviv. Its original evidence above stays as history and is not refreshed or expanded.",
+      "The earlier nextStep options that suggest selecting Ganei Shmuel, or refreshing Duchan, are superseded for the current task; they remain recorded above as history."
+    ],
+    "unchangedConstraints": "Exact batches of 4/6/8/10 × 250 g tubs, delivery only, minimizing items + shipping + mandatory fees. No filler items, no relaxed minimums, no invented winner, no proxy or access-control bypass, no Cloudflare administration."
+  },
+  "nextStepTelAvivOnly20261015T2135Z": "Tel Aviv–Yafo still has no purchasable exact batch: Tiv Taam (₪6.10, ₪29.90 delivery, ₪300 minimum) and Super Yuda (₪6.70, ₪35, ₪150) publish minimums above every exact 4/6/8/10-tub batch, and no other permitted Tel Aviv–Yafo source is reachable or terms-permitted (see telAvivResweep20261015T2125Z). The deployed public board shows exactly that, with the observed prices, rates, minimum-order reasons, runner-research labels and failed Worker checks. Remaining routes to a ranked Tel Aviv batch: (a) an owner decision to fill an order to a vendor minimum (outside the exact-batch scope), (b) a permitted public interface or egress permission for a low-minimum Tel Aviv store (Verona Market ₪20, Twins Market ₪75 or Sholik ₪80 are unreachable from the runner and the Worker), or (c) a vendor publishing a lower minimum for Tel Aviv home delivery. No other-city research or Duchan refresh is authorized."
 }

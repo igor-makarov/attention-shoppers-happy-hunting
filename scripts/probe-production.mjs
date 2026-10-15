@@ -416,6 +416,43 @@ const coffeeRowFresh = (board, quote) => (board?.ranked ?? []).includes(quote);
 const staleLabelled = quote => (quote?.labels ?? []).some(label => /Stale observation/.test(String(label))) && quote?.totalIls == null;
 const eightPackQuote = coffeemanRows(boards.board2000).find(quote => quote.vendor?.id === 'coffeeman' && (quote.product?.packCount ?? 1) === 8) ?? null;
 const eightPackPolicy = shippingPolicies.find(policy => policy?.id === 'coffeeman-8pack-il-cart-quote') ?? null;
+
+// Which timestamp a displayed row's item observation must match depends on where
+// the row came from, so the probe has to read the row's own provenance instead of
+// assuming the Worker refreshed it:
+//   * `worker_refresh` — the row is the store's own observation and must carry the
+//     vendor's last successful check (the read-time policy refresh never moves it);
+//   * `published_snapshot` — the row is checked-in runner research shown while the
+//     Worker's refresh is blocked. It must keep the snapshot's recorded time (never
+//     a timestamp assigned during the read or the deploy), stay labelled runner
+//     research, and keep the vendor's failed live check visible on the row itself.
+// Without this, an honest published-research row reported as a false regression
+// (CoffeeMan's HTTP 403 has kept its stored row stale since 2026-10-13).
+const publishedSnapshot = statusBody.publishedSnapshot ?? null;
+const vendorById = new Map((statusBody.vendors ?? []).map(vendor => [vendor.vendorId, vendor]));
+const publishedRowHonest = (quote, snapshot = publishedSnapshot) => {
+  if (!quote || quote.provenance?.kind !== 'published_snapshot') return false;
+  const vendorId = quote.vendor?.id ?? null;
+  const vendor = vendorById.get(vendorId) ?? null;
+  const checkFailed = (vendor?.consecutiveFailures ?? 0) > 0;
+  return Boolean(snapshot)
+    && snapshot.recordedAt === quote.observedAt
+    && (snapshot.vendors ?? []).includes(vendorId)
+    && quote.provenance.origin === 'runner-research'
+    && quote.provenance.snapshotId === snapshot.id
+    && quote.observedAt !== statusBody.lastRefreshAt
+    // An expired snapshot stays visible as dated evidence, but it stops ranking
+    // under the existing stale-data rule: a published row past the stale window
+    // must carry the stale label and claim no total.
+    && (snapshot.expired !== true || staleLabelled(quote))
+    && (!checkFailed || (quote.liveCheck?.state === 'failed' && quote.liveCheck?.error === (vendor?.lastErrors?.[0] ?? null)));
+};
+const storedRowHonest = quote => {
+  if (!quote || quote.provenance?.kind !== 'worker_refresh') return false;
+  const vendor = vendorById.get(quote.vendor?.id ?? '') ?? null;
+  return quote.provenance.recordedAt === quote.observedAt
+    && (vendor == null || vendor.lastSuccessAt == null || quote.observedAt === vendor.lastSuccessAt);
+};
 check(
   'the CoffeeMan 8-pack offer serves the current cart-quote policy without advancing its item observation',
   Boolean(eightPackQuote)
@@ -424,14 +461,37 @@ check(
     && eightPackQuote.shipping?.policy?.version === eightPackPolicy.version
     && eightPackQuote.shipping?.amountIls === 20
     && (coffeeRowFresh(boards.board2000, eightPackQuote) || staleLabelled(eightPackQuote))
-    && (coffeemanVendor?.lastSuccessAt == null || eightPackQuote.observedAt === coffeemanVendor.lastSuccessAt),
+    && (publishedRowHonest(eightPackQuote) || storedRowHonest(eightPackQuote)),
   JSON.stringify({
     policy: eightPackQuote?.shipping?.policy ?? null,
     shippingIls: eightPackQuote?.shipping?.amountIls ?? null,
     itemObservedAt: eightPackQuote?.observedAt ?? null,
     vendorLastSuccessAt: coffeemanVendor?.lastSuccessAt ?? null,
+    origin: eightPackQuote?.provenance?.kind ?? null,
+    snapshotRecordedAt: publishedSnapshot?.recordedAt ?? null,
+    liveCheck: eightPackQuote?.liveCheck?.state ?? null,
     stale: eightPackQuote ? !coffeeRowFresh(boards.board2000, eightPackQuote) : null
   })
+);
+
+// Published-snapshot integrity, checked across every board the probe reads: a row
+// shown from the checked-in runner research must keep that run's recorded time and
+// its runner-research label, must never wear the Worker's refresh time, and must
+// keep a failed scheduled check visible. This is the acceptance rule for showing
+// researched evidence on the public board while the runtime refresh is blocked.
+const snapshotRows = [...boardRows(boards.board500), ...boardRows(boards.board2000), ...boardRows(endpoints.boardDairy8.body)]
+  .filter(quote => quote?.provenance?.kind === 'published_snapshot');
+const storedRows = [...boardRows(boards.board500), ...boardRows(boards.board2000), ...boardRows(endpoints.boardDairy8.body)]
+  .filter(quote => quote?.provenance?.kind === 'worker_refresh');
+check(
+  'published snapshot rows keep their recorded observation time, runner-research label and failed live check',
+  snapshotRows.length > 0 && snapshotRows.every(quote => publishedRowHonest(quote)),
+  `${snapshotRows.length} published row(s): ${snapshotRows.map(quote => `${quote.vendor?.id}:${quote.observedAt}${quote.liveCheck?.state === 'failed' ? `/live-check-failed(${quote.liveCheck.error})` : ''}`).join(', ') || 'none'}`
+);
+check(
+  'Worker-refreshed rows still carry the store observation time and are not confused with the snapshot',
+  storedRows.length > 0 && storedRows.every(quote => storedRowHonest(quote)),
+  `${storedRows.length} stored row(s): ${storedRows.map(quote => `${quote.vendor?.id}:${quote.observedAt}`).join(', ') || 'none'}; snapshot recordedAt=${publishedSnapshot?.recordedAt ?? null}; lastRefreshAt=${statusBody.lastRefreshAt ?? null}`
 );
 
 // Scoped cart-observed free conditions: once the deployed build exposes them,

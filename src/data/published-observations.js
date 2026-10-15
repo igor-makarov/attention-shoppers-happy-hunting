@@ -13,21 +13,20 @@
 // counted as a Worker refresh and never used to claim a fresh vendor check.
 
 export const PUBLISHED_SNAPSHOT = {
-  "id": "runner-source-check-20261015T200921",
-  "label": "Runner source check — 2026-10-15 20:09 UTC",
+  "id": "runner-source-check-20261015T213336",
+  "label": "Runner source check — 2026-10-15 21:33 UTC",
   "origin": "runner-research",
   "source": "GitHub Actions runner · npm run check:sources (bounded fetcher, published crawl delays, AttentionShoppersBot user agent)",
-  "recordedAt": "2026-10-15T20:09:21.189Z",
+  "recordedAt": "2026-10-15T21:33:36.968Z",
   "window": {
-    "startedAt": "2026-10-15T20:09:21.189Z",
-    "finishedAt": "2026-10-15T20:09:46.714Z"
+    "startedAt": "2026-10-15T21:33:36.968Z",
+    "finishedAt": "2026-10-15T21:33:55.361Z"
   },
-  "evidence": "docs/evidence/source-check-20261015T2009Z.json",
+  "evidence": "docs/evidence/source-check-20261015T2133Z.json",
   "mode": "live",
   "adapters": [
     "coffee4u@coffee4u/3",
     "coffeeman@coffeeman/7",
-    "duchan@duchan/1",
     "pucks@pucks/7",
     "tivtaam@tivtaam/1",
     "yuda@yuda/1"
@@ -65,7 +64,7 @@ export const PUBLISHED_SNAPSHOT = {
         "url": "https://www.coffee4u.co.il/product/lavazza-crema-e-gusto-250-gr-%D7%98%D7%97%D7%95%D7%9F",
         "value": "http://schema.org/InStock",
         "note": "Availability comes from the product page offer microdata, not from a price-only scrape.",
-        "retrievedAt": "2026-10-15T20:09:21.189Z"
+        "retrievedAt": "2026-10-15T21:33:36.968Z"
       },
       "shipping": {
         "mode": "delivery",
@@ -137,7 +136,7 @@ export const PUBLISHED_SNAPSHOT = {
         "note": "Published door-to-door courier rate: ₪30.00 (עד 1-5 ימי עסקים). The same page publishes delivery to a pickup point for ₪15.00 (up to 5 kg, up to 7 business days), a different service that is not used for the ranked delivered total. Free self-pickup at the shop is available and is kept separate from delivery. Rendered anonymous checkout (2026-10-13T02:02:12Z): the door-to-door method requires an exact match from a closed list of 1,269 Israeli localities (תל אביב - יפו, אילת, ירושלים, חיפה, באר שבע selected, fee unchanged); the ₪15 pickup-point method lists 426 localities with pickup spots, and all five selectable localities (תל אביב - יפו, ירושלים, חיפה, באר שבע, אילת) are on it and quoted ₪76 + ₪15 = ₪91 for a 500 g cart (observed 2026-10-13T08:06:00Z).",
         "evidence": {
           "url": "https://www.coffee4u.co.il/product/lavazza-crema-e-gusto-250-gr-%D7%98%D7%97%D7%95%D7%9F",
-          "retrievedAt": "2026-10-15T20:09:21.189Z",
+          "retrievedAt": "2026-10-15T21:33:36.968Z",
           "note": "Delivery options are listed next to the product on the product page. Checkout coverage observed in the rendered anonymous checkout; see docs/evidence/browser-research/2026-10-13-coffee4u-destination-extension.json."
         },
         "policy": {
@@ -152,11 +151,11 @@ export const PUBLISHED_SNAPSHOT = {
       "promotions": [],
       "mandatoryFees": [],
       "maxUnits": null,
-      "observedAt": "2026-10-15T20:09:21.189Z",
+      "observedAt": "2026-10-15T21:33:36.968Z",
       "evidence": [
         {
           "url": "https://www.coffee4u.co.il/product/lavazza-crema-e-gusto-250-gr-%D7%98%D7%97%D7%95%D7%9F",
-          "retrievedAt": "2026-10-15T20:09:21.189Z",
+          "retrievedAt": "2026-10-15T21:33:36.968Z",
           "note": "Item price and listed availability parsed from the vendor product page."
         }
       ],
@@ -193,7 +192,7 @@ export const PUBLISHED_SNAPSHOT = {
         "url": "https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
         "value": "http://schema.org/InStock",
         "note": "Availability comes from the product page offer microdata, not from a price-only scrape.",
-        "retrievedAt": "2026-10-15T20:09:21.189Z"
+        "retrievedAt": "2026-10-15T21:33:36.968Z"
       },
       "shipping": {
         "mode": "delivery",
@@ -308,7 +307,7 @@ export const PUBLISHED_SNAPSHOT = {
         },
         "evidence": {
           "url": "https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
-          "retrievedAt": "2026-10-15T20:09:21.189Z",
+          "retrievedAt": "2026-10-15T21:33:36.968Z",
           "note": "Delivery options are listed on the product page."
         },
         "policy": {
@@ -347,18 +346,18 @@ export const PUBLISHED_SNAPSHOT = {
           "wording": "כל הקפה טחון ב-10% הנחה. קונים קפה טחון מכל המותגים המובילים ב-250 ש\"ח ומקבלים 10% הנחה אוטומטית בקופה על הקפה שבחרתם. (לא כולל מארזים ובאנדלים)",
           "evidence": {
             "url": "https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
-            "retrievedAt": "2026-10-15T20:09:21.189Z",
+            "retrievedAt": "2026-10-15T21:33:36.968Z",
             "note": "Promotion banner parsed from the product page HTML (promotionName/promotionDesc)."
           }
         }
       ],
       "mandatoryFees": [],
       "maxUnits": null,
-      "observedAt": "2026-10-15T20:09:21.189Z",
+      "observedAt": "2026-10-15T21:33:36.968Z",
       "evidence": [
         {
           "url": "https://www.coffeeman.co.il/product/250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
-          "retrievedAt": "2026-10-15T20:09:21.189Z",
+          "retrievedAt": "2026-10-15T21:33:36.968Z",
           "note": "Item price and listed availability parsed from the vendor product page."
         }
       ],
@@ -395,7 +394,7 @@ export const PUBLISHED_SNAPSHOT = {
         "url": "https://www.coffeeman.co.il/product/4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
         "value": "http://schema.org/InStock",
         "note": "Availability comes from the product page offer microdata, not from a price-only scrape.",
-        "retrievedAt": "2026-10-15T20:09:21.189Z"
+        "retrievedAt": "2026-10-15T21:33:36.968Z"
       },
       "shipping": {
         "mode": "delivery",
@@ -510,7 +509,7 @@ export const PUBLISHED_SNAPSHOT = {
         },
         "evidence": {
           "url": "https://www.coffeeman.co.il/product/4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
-          "retrievedAt": "2026-10-15T20:09:21.189Z",
+          "retrievedAt": "2026-10-15T21:33:36.968Z",
           "note": "Delivery options are listed on the product page."
         },
         "policy": {
@@ -531,11 +530,11 @@ export const PUBLISHED_SNAPSHOT = {
       "promotions": [],
       "mandatoryFees": [],
       "maxUnits": null,
-      "observedAt": "2026-10-15T20:09:21.189Z",
+      "observedAt": "2026-10-15T21:33:36.968Z",
       "evidence": [
         {
           "url": "https://www.coffeeman.co.il/product/4-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
-          "retrievedAt": "2026-10-15T20:09:21.189Z",
+          "retrievedAt": "2026-10-15T21:33:36.968Z",
           "note": "Item price and listed availability parsed from the vendor product page."
         }
       ],
@@ -572,7 +571,7 @@ export const PUBLISHED_SNAPSHOT = {
         "url": "https://www.coffeeman.co.il/product/8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
         "value": "http://schema.org/InStock",
         "note": "Availability comes from the product page offer microdata, not from a price-only scrape.",
-        "retrievedAt": "2026-10-15T20:09:21.189Z"
+        "retrievedAt": "2026-10-15T21:33:36.968Z"
       },
       "shipping": {
         "mode": "delivery",
@@ -646,99 +645,15 @@ export const PUBLISHED_SNAPSHOT = {
       "promotions": [],
       "mandatoryFees": [],
       "maxUnits": null,
-      "observedAt": "2026-10-15T20:09:21.189Z",
+      "observedAt": "2026-10-15T21:33:36.968Z",
       "evidence": [
         {
           "url": "https://www.coffeeman.co.il/product/8-%D7%90%D7%A8%D7%99%D7%96%D7%95%D7%AA-250-%D7%92%D7%A8%D7%9D-%D7%A7%D7%A4%D7%94-%D7%98%D7%97%D7%95%D7%9F-lavazza-crema-e-gusto-classico",
-          "retrievedAt": "2026-10-15T20:09:21.189Z",
+          "retrievedAt": "2026-10-15T21:33:36.968Z",
           "note": "Item price and listed availability parsed from the vendor product page."
         }
       ],
       "parserVersion": "coffeeman/7"
-    },
-    {
-      "key": "duchan:12053:cottage_cheese:250g:x1",
-      "vendor": {
-        "id": "duchan",
-        "name": "Duchan Ganei Shmuel (דוכן גן שמואל)",
-        "homepage": "https://www.duchan.co.il"
-      },
-      "itemUrl": "https://www.duchan.co.il/?catalogProduct=12053",
-      "product": {
-        "productId": "tnuva-cottage-cheese-5-percent",
-        "name": "Cottage Tnuva (5%) 250 g",
-        "sku": "12053",
-        "gtin": "269780",
-        "form": "cottage_cheese",
-        "packGrams": 250,
-        "packCount": 1,
-        "totalGrams": 250,
-        "category": "Cottage Cheese"
-      },
-      "price": {
-        "amount": 6.3,
-        "currency": "ILS"
-      },
-      "availability": "in_stock",
-      "availabilityEvidence": {
-        "url": "https://www.duchan.co.il/v2/retailers/1420/branches/2175/products?catalogProductId=12053&ignoreBranchVisibility=true&appId=4&languageId=2",
-        "value": "isActive=true isVisible=true isOutOfStock=false quantityLimit=999",
-        "note": "Availability comes from the store API branch flags (isActive, isVisible, isOutOfStock), not from a price-only scrape. The ignored rows (0) are recorded for provenance only and never priced.",
-        "retrievedAt": "2026-10-15T20:09:21.189Z"
-      },
-      "shipping": {
-        "mode": "delivery",
-        "service": "home_delivery",
-        "certainty": "verified",
-        "amount": {
-          "amount": 28,
-          "currency": "ILS"
-        },
-        "minOrder": null,
-        "freeThreshold": {
-          "amount": 599,
-          "currency": "ILS"
-        },
-        "freeThresholdSemantics": "above",
-        "freeThresholdOrigin": "published",
-        "freeThresholdEvidence": {
-          "url": "https://www.duchan.co.il/?catalogProduct=12053",
-          "note": "The store banner and FAQ publish free delivery above ₪599 (valid until 31.12.2026); every requested 4-10 tub batch stays below it, so the ₪28 delivery line applies."
-        },
-        "destination": {
-          "scope": "localities",
-          "localities": [
-            "ganei-shmuel"
-          ],
-          "caveat": "Duchan Ganei Shmuel’s online branch publishes home delivery to the local גן שמואל area (₪28, no minimum order) and lists Pardes Hanna-Karkur, Or Akiva, Zikhron Ya’akov, Harish, Caesarea and other Hadera-region localities; every other published area carries a ₪250 minimum order, so only the גן שמואל area is part of the selectable delivered comparison. Confirm the address at checkout.",
-          "caveatSource": "https://www.duchan.co.il/v2/retailers/1420/branches/2175/areas?appId=4&deliveryTypeId=1&languageId=1"
-        },
-        "note": "Public branch API read from the GitHub Actions runner on 2026-10-15: branch 2175 (דוכן גן שמואל) returned the tracked listing at ₪6.30 per 250 g tub with isActive/isVisible true, isOutOfStock false and quantityLimit 999; its גן שמואל area publishes deliveryAreaPrice ₪28 and no deliveryMinimumCost. The store banner and FAQ publish free delivery above ₪599 (valid until 31.12.2026) and state there is no minimum order; the region’s other areas publish a ₪250 minimum. Anonymous public cart API quotes for exact 4/6/8/10 tub batches added the ₪28 delivery line: ₪25.20/₪37.80/₪50.40/₪63.00 item + ₪28 = ₪53.20/₪65.80/₪78.40/₪91.00. No street address, login, payment or order was involved. See docs/evidence/tnuva-cottage-cheese-duchan-cart-20261015.json. Home delivery only; self-pickup is not part of the delivered comparison.",
-        "policy": {
-          "id": "duchan-cottage-ganei-shmuel-home-delivery",
-          "version": 1,
-          "origin": "published",
-          "retrievedAt": "2026-10-15T18:35:00Z",
-          "reviewBy": "2026-11-14T00:00:00.000Z",
-          "thresholdSemantics": "above"
-        },
-        "evidence": {
-          "url": "https://www.duchan.co.il/v2/retailers/1420/branches/2175/areas?appId=4&deliveryTypeId=1&languageId=1",
-          "retrievedAt": "2026-10-15T18:35:00Z",
-          "note": "Public branch API read from the GitHub Actions runner on 2026-10-15: branch 2175 (דוכן גן שמואל) returned the tracked listing at ₪6.30 per 250 g tub with isActive/isVisible true, isOutOfStock false and quantityLimit 999; its גן שמואל area publishes deliveryAreaPrice ₪28 and no deliveryMinimumCost. The store banner and FAQ publish free delivery above ₪599 (valid until 31.12.2026) and state there is no minimum order; the region’s other areas publish a ₪250 minimum. Anonymous public cart API quotes for exact 4/6/8/10 tub batches added the ₪28 delivery line: ₪25.20/₪37.80/₪50.40/₪63.00 item + ₪28 = ₪53.20/₪65.80/₪78.40/₪91.00. No street address, login, payment or order was involved. See docs/evidence/tnuva-cottage-cheese-duchan-cart-20261015.json."
-        }
-      },
-      "promotions": [],
-      "mandatoryFees": [],
-      "maxUnits": 999,
-      "observedAt": "2026-10-15T20:09:21.189Z",
-      "evidence": [
-        {
-          "url": "https://www.duchan.co.il/?catalogProduct=12053",
-          "retrievedAt": "2026-10-15T20:09:21.189Z",
-          "note": "Item price and listed availability parsed from the vendor product page."
-        }
-      ]
     },
     {
       "key": "pucks:Lav69:ground:250g:x1",
@@ -770,7 +685,7 @@ export const PUBLISHED_SNAPSHOT = {
         "url": "https://pucks.co.il/product/lavazza-crema-e-gusto-ground-coffee-250g",
         "value": "https://schema.org/InStock",
         "note": "Availability comes from the product page structured data, not from a price-only scrape.",
-        "retrievedAt": "2026-10-15T20:09:21.189Z"
+        "retrievedAt": "2026-10-15T21:33:36.968Z"
       },
       "shipping": {
         "mode": "delivery",
@@ -809,11 +724,11 @@ export const PUBLISHED_SNAPSHOT = {
       "promotions": [],
       "mandatoryFees": [],
       "maxUnits": null,
-      "observedAt": "2026-10-15T20:09:21.189Z",
+      "observedAt": "2026-10-15T21:33:36.968Z",
       "evidence": [
         {
           "url": "https://pucks.co.il/product/lavazza-crema-e-gusto-ground-coffee-250g",
-          "retrievedAt": "2026-10-15T20:09:21.189Z",
+          "retrievedAt": "2026-10-15T21:33:36.968Z",
           "note": "Item price and listed availability parsed from the vendor product page."
         }
       ],
@@ -847,7 +762,7 @@ export const PUBLISHED_SNAPSHOT = {
         "url": "https://www.tivtaam.co.il/v2/retailers/1062/branches/924/products?catalogProductId=12053&ignoreBranchVisibility=true&appId=4&languageId=2",
         "value": "isActive=true isVisible=true isOutOfStock=false",
         "note": "Availability comes from the store API branch flags (isActive, isVisible, isOutOfStock), not from a price-only scrape. The ignored rows (1) are recorded for provenance only and never priced.",
-        "retrievedAt": "2026-10-15T20:09:21.189Z"
+        "retrievedAt": "2026-10-15T21:33:36.968Z"
       },
       "shipping": {
         "mode": "delivery",
@@ -888,11 +803,11 @@ export const PUBLISHED_SNAPSHOT = {
       "promotions": [],
       "mandatoryFees": [],
       "maxUnits": null,
-      "observedAt": "2026-10-15T20:09:21.189Z",
+      "observedAt": "2026-10-15T21:33:36.968Z",
       "evidence": [
         {
           "url": "https://www.tivtaam.co.il/?catalogProduct=12053",
-          "retrievedAt": "2026-10-15T20:09:21.189Z",
+          "retrievedAt": "2026-10-15T21:33:36.968Z",
           "note": "Item price and listed availability parsed from the vendor product page."
         }
       ]
@@ -925,7 +840,7 @@ export const PUBLISHED_SNAPSHOT = {
         "url": "https://www.yuda.co.il/v2/retailers/1492/branches/2481/products?catalogProductId=12053&ignoreBranchVisibility=true&appId=4&languageId=2",
         "value": "isActive=true isVisible=true isOutOfStock=false quantityLimit=999",
         "note": "Availability comes from the store API branch flags (isActive, isVisible, isOutOfStock), not from a price-only scrape. The ignored rows (0) are recorded for provenance only and never priced.",
-        "retrievedAt": "2026-10-15T20:09:21.189Z"
+        "retrievedAt": "2026-10-15T21:33:36.968Z"
       },
       "shipping": {
         "mode": "delivery",
@@ -966,11 +881,11 @@ export const PUBLISHED_SNAPSHOT = {
       "promotions": [],
       "mandatoryFees": [],
       "maxUnits": 999,
-      "observedAt": "2026-10-15T20:09:21.189Z",
+      "observedAt": "2026-10-15T21:33:36.968Z",
       "evidence": [
         {
           "url": "https://www.yuda.co.il/?catalogProduct=12053",
-          "retrievedAt": "2026-10-15T20:09:21.189Z",
+          "retrievedAt": "2026-10-15T21:33:36.968Z",
           "note": "Item price and listed availability parsed from the vendor product page."
         }
       ]

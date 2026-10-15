@@ -328,9 +328,16 @@ test('cottage cheese API resolves exact batches and never borrows coffee offers 
 
 test('historical out-of-area stored evidence cannot freshen the Tel Aviv cheese board', async () => {
   const { buildBoardBody } = await import('../src/index.js');
-  const { PUBLISHED_SNAPSHOT } = await import('../src/data/published-observations.js');
-  const duchan = PUBLISHED_SNAPSHOT.observations.find(row => row.vendor.id === 'duchan');
-  assert.ok(duchan);
+  const { readFixture } = await import('./fixtures/vendor-fixtures.mjs');
+  const { parseDuchanProduct } = await import('../src/vendors/duchan.js');
+  // Historical evidence, not current refresh input: the recorded Duchan API response
+  // is parsed exactly as it was when the Ganei Shmuel locality was still published.
+  // The adapter is out of the active registry now, so the row is constructed from
+  // that recorded run instead of being read from the published snapshot (which only
+  // ever holds the vendors the current registry can refresh).
+  const hit = await readFixture('duchan-product.json');
+  const duchan = parseDuchanProduct(hit.text, { now: Date.parse('2026-10-15T18:30:00Z') });
+  assert.equal(duchan.vendor.id, 'duchan');
   const store = createMemoryStore({ observations: [duchan] });
   const board = await buildBoardBody({
     url: new URL('https://example.test/api/board?product=tnuva-cottage-cheese-5-percent&quantity=4&dest=ganei-shmuel'),
@@ -341,6 +348,18 @@ test('historical out-of-area stored evidence cannot freshen the Tel Aviv cheese 
   assert.equal(board.counts.observed, 0);
   assert.equal(board.freshness.lastObservationAt, null);
   assert.ok(board.freshness.vendors.every(vendor => vendor.vendorId !== 'duchan'));
+  // The same stale out-of-area evidence must not enter the board through the
+  // published-snapshot merge either: the registry no longer refreshes it and the
+  // engine rejects its destination scope.
+  const merged = await buildBoardBody({
+    url: new URL('https://example.test/api/board?product=tnuva-cottage-cheese-5-percent&quantity=4&dest=tel-aviv'),
+    store: createMemoryStore(), now: Date.parse('2026-10-15T21:00:00Z'),
+    published: { observations: [duchan] }
+  });
+  assert.equal(merged.destination.id, 'tel-aviv');
+  assert.equal(merged.best, null);
+  assert.equal(merged.counts.observed, 0);
+  assert.ok([...merged.ranked, ...merged.unrankable, ...merged.staleOrUnavailable].every(row => row.vendor.id !== 'duchan'));
 });
 
 test('an old product URL for a retired line falls back to Crema e Gusto and says so', async () => {
