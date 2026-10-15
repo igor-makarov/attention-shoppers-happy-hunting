@@ -199,7 +199,9 @@ test('QA fixture server serves the board API and static assets offline', async (
 
 test('a historical retired row cannot make the fixture board look fresh', async () => {
   const now = Date.parse('2026-10-12T11:00:00.000Z');
-  const server = await startQaServer({ port: 0, now, interruptedRefresh: true });
+  // The empty snapshot isolates this check from the published-research merge: the
+  // retired-row masking rule below is about stored rows only.
+  const server = await startQaServer({ port: 0, now, interruptedRefresh: true, withEmptyDairy: true });
   try {
     // Every tracked offer is 30 hours old; the retired historical row is newer and
     // must not become the freshness anchor for the single-product board.

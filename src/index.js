@@ -108,7 +108,7 @@ async function handleBoard(request, env, ctx, url) {
  * observation winning over a published row) can be verified deterministically
  * instead of depending on the wall clock. Public routes pass the real clock.
  */
-export async function buildBoardBody({ url, store, now = Date.now() }) {
+export async function buildBoardBody({ url, store, now = Date.now(), published = PUBLISHED_SNAPSHOT }) {
   // Owner correction 2026-10-12: only Crema e Gusto is tracked. An old shared
   // URL that still names a retired line (Qualità Oro, Qualità Rossa, Suerte)
   // falls back to the tracked product and says so instead of reviving it.
@@ -121,13 +121,13 @@ export async function buildBoardBody({ url, store, now = Date.now() }) {
   // any listing out.
   const grams = url.searchParams.get('grams') ?? undefined;
   const destination = findDestination(url.searchParams.get('dest'));
-  const snapshot = await store.snapshot();
+  const stored = await store.snapshot();
   // Read-only merge of the checked-in runner-research snapshot: an offer the live
   // store has no current observation for (grocery egress blocked, or a vendor not
   // attempted yet) is shown from that evidence with its recorded time and source,
   // while a current stored observation always wins. The store is never written.
-  const liveChecks = liveChecksForProduct(snapshot.vendors ?? {}, productId);
-  const merged = mergePublishedObservations(snapshot.observations, { now, liveChecks });
+  const liveChecks = liveChecksForProduct(stored.vendors ?? {}, productId);
+  const merged = mergePublishedObservations(stored.observations, { now, liveChecks, snapshot: published });
   const lastObservationAt = newestObservationAt(merged.observations, [productId]);
   const board = quoteBoard({
     observations: merged.observations,
@@ -135,10 +135,10 @@ export async function buildBoardBody({ url, store, now = Date.now() }) {
     targetGrams: grams,
     targetQuantity: url.searchParams.get('quantity'),
     destination,
-    fx: snapshot.meta?.fx ?? null,
+    fx: stored.meta?.fx ?? null,
     now
   });
-  const vendors = snapshot.vendors ?? {};
+  const vendors = stored.vendors ?? {};
   const publishedVendors = [...new Set(merged.backfilled.map(entry => entry.vendorId).filter(Boolean))].sort();
   return {
     ...board,
@@ -146,10 +146,10 @@ export async function buildBoardBody({ url, store, now = Date.now() }) {
     requestedRetiredProduct: retired ? { id: retired.id, line: retired.line } : null,
     // Which checked-in runner-research evidence this read used and for which
     // offers, so a snapshot row is never mistaken for a Worker refresh.
-    publishedSnapshot: { ...publishedSnapshotSummary(PUBLISHED_SNAPSHOT, now), appliedVendors: publishedVendors },
+    publishedSnapshot: { ...publishedSnapshotSummary(published, now), appliedVendors: publishedVendors },
     freshness: {
-      ...refreshFreshness(lastObservationAt ? snapshot.meta?.lastRefreshAt?.value ?? null : null, now, lastObservationAt),
-      fx: snapshot.meta?.fx ? { asOf: snapshot.meta.fx.asOf, fetchedAt: snapshot.meta.fx.fetchedAt, source: snapshot.meta.fx.source?.name ?? null } : null,
+      ...refreshFreshness(lastObservationAt ? stored.meta?.lastRefreshAt?.value ?? null : null, now, lastObservationAt),
+      fx: stored.meta?.fx ? { asOf: stored.meta.fx.asOf, fetchedAt: stored.meta.fx.fetchedAt, source: stored.meta.fx.source?.name ?? null } : null,
       vendors: vendorCheckEntries({ vendorStates: vendors, productId, sources: merged.sources })
     },
     status: board.ranked.length > 0

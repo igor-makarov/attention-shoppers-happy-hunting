@@ -558,6 +558,7 @@ function renderFooterStatus(board) {
         ? `No completed scheduled refresh; the newest offer observation is ${age} h old — prices may be out of date.`
         : 'No scheduled refresh has completed yet — prices may be missing or out of date.' }));
   }
+  const body = el('div', { class: 'disclosure__body' });
   if (freshness.fx) {
     body.append(el('div', { text: `Exchange rates: ${freshness.fx.source ?? 'Bank of Israel'} published ${freshness.fx.asOf ?? 'unknown'} · fetched ${timeLabel(freshness.fx.fetchedAt)}` }));
   } else {

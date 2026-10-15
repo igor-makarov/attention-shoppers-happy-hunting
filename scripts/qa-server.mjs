@@ -21,11 +21,12 @@ import { coffee4u } from '../src/vendors/coffee4u.js';
 import { tivtaam } from '../src/vendors/tivtaam.js';
 import { yuda } from '../src/vendors/yuda.js';
 import { duchan } from '../src/vendors/duchan.js';
-import { products, resolveProductRequest } from '../src/catalog.js';
-import { quoteBoard, findDestination, DESTINATIONS } from '../src/lib/quote.js';
+import { products } from '../src/catalog.js';
+import { DESTINATIONS } from '../src/lib/quote.js';
 import { createObservation, registeredVendors } from '../src/vendors/index.js';
 import { refreshFreshness, newestObservationAt } from '../src/refresh.js';
-import { publicProducts, publicVendors } from '../src/index.js';
+import { buildBoardBody, publicProducts, publicVendors } from '../src/index.js';
+import { PUBLISHED_SNAPSHOT } from '../src/data/published-observations.js';
 import { readFixtureForUrl } from '../tests/fixtures/vendor-fixtures.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -39,6 +40,22 @@ const TRACKED_PRODUCT_IDS = products.map(product => product.id);
 // It is fixture metadata about a simulated vendor outage, never a claim about a real
 // vendor response.
 export const FAILED_ATTEMPT_REASON = 'HTTP 503 from the vendor product page';
+// The simulated production grocery-egress failure for the published-evidence
+// scenario: the store WAFs answer the deployed Worker's honest fetches with 403
+// while the same bounded fetch succeeds from the runner. Fixture metadata, never
+// a claim that any new vendor response was observed.
+export const GROCERY_EGRESS_BLOCK_REASON = 'HTTP 403 from the store API (Worker egress)';
+// An empty snapshot for the QA-only "no evidence at all" scenario: it proves the
+// zero-observation copy path without inventing any observation value.
+const EMPTY_SNAPSHOT = {
+  ...PUBLISHED_SNAPSHOT,
+  id: 'qa-empty-snapshot',
+  label: 'QA empty snapshot (no published evidence)',
+  observations: [],
+  unavailableVendors: []
+};
+// The exact grocery vendors the production board tracks, for the scenario states.
+const GROCERY_VENDOR_IDS = ['tivtaam', 'yuda', 'duchan'];
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -193,15 +210,19 @@ export function unknownShippingDemoObservation(now = Date.now()) {
  * Start a local HTTP server that behaves like the deployed read-only board.
  * Returns { url, port, observations, close }.
  */
-export async function startQaServer({ port = 0, now = Date.now(), withTermsDemo = false, withUnknownDemo = false, staleRefresh = false, interruptedRefresh = false, failedAttempt = false, withEmptyDairy = false } = {}) {
+export async function startQaServer({ port = 0, now = Date.now(), withTermsDemo = false, withUnknownDemo = false, staleRefresh = false, interruptedRefresh = false, failedAttempt = false, withEmptyDairy = false, withPublishedDairy = false } = {}) {
   let observations = await fixtureObservations(failedAttempt ? now - 30 * 60 * 1000 : now);
   if (withTermsDemo) observations.push(termsDemoObservation(now));
   if (withUnknownDemo) observations.push(unknownShippingDemoObservation(now));
   // `withEmptyDairy` simulates a deployment where the grocery refresh has not
-  // stored any observation yet (the real production state while the Worker's
-  // grocery egress is blocked): the cheese board must say so plainly and must
-  // not offer a locality switch that cannot rank anything.
-  if (withEmptyDairy) observations = observations.filter(observation => !['tivtaam', 'yuda', 'duchan'].includes(observation.vendor.id));
+  // stored any observation yet and no published evidence exists at all (the QA
+  // empty snapshot): the cheese board must say so plainly and must not offer a
+  // locality switch that cannot rank anything. `withPublishedDairy` is the real
+  // production state of 2026-10-15: no stored grocery observation either, but
+  // the checked-in runner-research snapshot fills the board at read time.
+  if (withEmptyDairy || withPublishedDairy) {
+    observations = observations.filter(observation => !GROCERY_VENDOR_IDS.includes(observation.vendor.id));
+  }
   // `failedAttempt` simulates the most recent vendor check failing while the last
   // successful observation is preserved: the fixture pages are parsed 30 minutes
   // before the server's reference time, then the ranked CoffeeMan offer and the
@@ -217,13 +238,64 @@ export async function startQaServer({ port = 0, now = Date.now(), withTermsDemo 
       observation.lastError = FAILED_ATTEMPT_REASON;
     }
   }
+  // Per-vendor runtime state the Worker's scheduled refresh would have stored.
+  // Mirrors handleBoard's `snapshot.vendors` so the QA board exercises the same
+  // live-check logic (failed / pending / checked) as the deployed Worker.
+  const vendorStates = {};
+  for (const vendor of registeredVendors()) {
+    const failed = failedAttempt && (vendor.id === 'coffeeman' || vendor.id === 'pucks');
+    const lastSuccessAt = observations.find(row => row.vendor.id === vendor.id && row.observedAt)?.observedAt
+      ?? new Date(now).toISOString();
+    vendorStates[vendor.id] = {
+      vendorId: vendor.id,
+      lastAttemptAt: new Date(now).toISOString(),
+      lastSuccessAt: failed ? lastSuccessAt : new Date(now).toISOString(),
+      consecutiveFailures: failed ? 1 : 0,
+      // Synthetic due time: six hours after a successful refresh (matching the
+      // Worker's schedule) or the 30-minute failure backoff so the footer
+      // next-check and failure lines are both testable offline.
+      nextAttemptAt: new Date(now + (failed ? 30 * 60 * 1000 : 6 * 60 * 60 * 1000)).toISOString(),
+      lastErrors: failed ? [FAILED_ATTEMPT_REASON] : []
+    };
+  }
+  if (withPublishedDairy) {
+    // The production grocery state: Tiv Taam and Super Yuda's first Worker
+    // fetches failed with HTTP 403 (their last good coffee-independent state
+    // keeps lastSuccessAt null because no grocery row was ever stored), and
+    // Duchan was added after that cron tick, so it has never been attempted on
+    // this deployment and must stay visibly pending.
+    const attemptedAt = new Date(now - 30 * 60 * 1000).toISOString();
+    for (const id of ['tivtaam', 'yuda']) {
+      vendorStates[id] = {
+        vendorId: id,
+        lastAttemptAt: attemptedAt,
+        lastSuccessAt: null,
+        consecutiveFailures: 1,
+        nextAttemptAt: new Date(now + 30 * 60 * 1000).toISOString(),
+        lastErrors: [GROCERY_EGRESS_BLOCK_REASON]
+      };
+      // A total fetch failure leaves an attempt marker with no observation time,
+      // exactly as the refresh pipeline stores it.
+      const offer = registeredVendors().find(vendor => vendor.id === id)?.offers?.find(item => item.productId === 'tnuva-cottage-cheese-5-percent');
+      observations.push({
+        key: `${id}:offer:${offer?.id ?? 'unknown'}`,
+        attemptedAt,
+        lastError: GROCERY_EGRESS_BLOCK_REASON,
+        product: {},
+        price: {},
+        shipping: {}
+      });
+    }
+    delete vendorStates.duchan;
+  }
+  const snapshot = withEmptyDairy ? EMPTY_SNAPSHOT : PUBLISHED_SNAPSHOT;
   // `staleRefresh` simulates a board whose scheduled refresh has stopped running: the
   // offers are still as fresh as the fixture timestamps say, but the refresh is old.
   // `interruptedRefresh` simulates a run that saved observations but was stopped before
   // writing the completion marker (for example a redeploy killed the background job).
   const lastRefreshAt = interruptedRefresh ? null : new Date(staleRefresh ? now - 30 * 60 * 60 * 1000 : now).toISOString();
   const server = createServer((request, response) => {
-    handle(request, response, { observations, now, withTermsDemo, withUnknownDemo, lastRefreshAt, staleRefresh, interruptedRefresh, failedAttempt }).catch(error => {
+    handle(request, response, { observations, now, withTermsDemo, withUnknownDemo, lastRefreshAt, staleRefresh, interruptedRefresh, failedAttempt, withEmptyDairy, withPublishedDairy, vendorStates, snapshot }).catch(error => {
       response.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
       response.end(`qa server error: ${error?.message ?? error}`);
     });
@@ -241,7 +313,7 @@ export async function startQaServer({ port = 0, now = Date.now(), withTermsDemo 
   };
 }
 
-async function handle(request, response, { observations, now, withTermsDemo, withUnknownDemo, lastRefreshAt, staleRefresh, interruptedRefresh, failedAttempt }) {
+async function handle(request, response, { observations, now, withTermsDemo, withUnknownDemo, lastRefreshAt, staleRefresh, interruptedRefresh, failedAttempt, withEmptyDairy, withPublishedDairy, vendorStates, snapshot }) {
   const url = new URL(request.url, 'http://127.0.0.1');
   if (url.pathname === '/api/catalog') {
     return json(response, {
@@ -251,52 +323,38 @@ async function handle(request, response, { observations, now, withTermsDemo, wit
     });
   }
   if (url.pathname === '/api/board') {
-    const { product, retired } = resolveProductRequest(url.searchParams.get('product'));
-    // The obsolete `variant` query parameter is ignored, exactly like the Worker:
-    // old shared URLs resolve to the one unified comparison.
-    const grams = url.searchParams.get('grams') ?? undefined;
-    const destination = findDestination(url.searchParams.get('dest'));
-    const board = quoteBoard({ observations, productId: product.id, targetGrams: grams,
-      targetQuantity: url.searchParams.get('quantity'), destination, fx: null, now });
+    // Build the board through the Worker's own board builder, against a read-only
+    // store view of the fixture observations, so the QA harness exercises the
+    // real published-snapshot merge, live-check states and quote engine instead
+    // of a second implementation that could drift from production.
+    const storeView = {
+      snapshot: async () => ({
+        observations,
+        meta: { fx: null, lastRefreshAt: lastRefreshAt ? { value: lastRefreshAt } : null },
+        vendors: vendorStates ?? {}
+      })
+    };
+    const board = await buildBoardBody({ url, store: storeView, now, snapshot });
     return json(response, {
       ...board,
-      product: publicProducts().find(item => item.id === product.id) ?? null,
-      requestedRetiredProduct: retired ? { id: retired.id, line: retired.line } : null,
-      freshness: {
-        ...refreshFreshness(board.counts.observed ? lastRefreshAt : null, now, newestObservationAt(observations, [product.id])),
-        fx: null,
-        vendors: registeredVendors().filter(vendor => vendor.offers.some(offer => offer.productId === product.id)).map(vendor => {
-          const failed = failedAttempt && (vendor.id === 'coffeeman' || vendor.id === 'pucks');
-          const lastSuccessAt = observations.find(row => row.vendor.id === vendor.id && row.observedAt)?.observedAt
-            ?? new Date(now).toISOString();
-          return {
-            vendorId: vendor.id,
-            lastAttemptAt: new Date(now).toISOString(),
-            lastSuccessAt: failed ? lastSuccessAt : new Date(now).toISOString(),
-            consecutiveFailures: failed ? 1 : 0,
-            // Synthetic due time: six hours after a successful refresh (matching the
-            // Worker's schedule) or the 30-minute failure backoff so the footer
-            // next-check and failure lines are both testable offline.
-            nextAttemptAt: new Date(now + (failed ? 30 * 60 * 1000 : 6 * 60 * 60 * 1000)).toISOString(),
-            lastErrors: failed ? [FAILED_ATTEMPT_REASON] : []
-          };
-        })
-      },
-      status: board.ranked.length > 0
-        ? 'Delivered totals ranked from verified observations.'
-        : 'No offer currently has enough verified information to rank. Unknowns are listed below.',
       qa: {
         mode: 'fixtures',
         demoOffers: (withTermsDemo ? 1 : 0) + (withUnknownDemo ? 1 : 0),
         staleRefresh,
         interruptedRefresh,
         failedAttempt,
+        emptyDairy: Boolean(withEmptyDairy),
+        publishedDairy: Boolean(withPublishedDairy),
         previousCheckMetadata: 1,
         note: withTermsDemo
           ? 'Offline browser QA server. Recorded fixtures plus one clearly labelled QA-only terms demo offer (not a real vendor) and one synthetic previous-check price for change rendering.'
           : withUnknownDemo
             ? 'Offline browser QA server. Recorded fixtures plus one clearly labelled QA-only offer without a shipping rate (not a real vendor).'
-            : 'Offline browser QA server. Data comes from tests/fixtures, not a live refresh; one offer carries synthetic previous-check metadata for change rendering.'
+            : withPublishedDairy
+              ? 'Offline browser QA server. Fixture observations with the grocery rows removed (the production state while the Worker grocery egress is blocked), so the checked-in runner-research snapshot fills the board with its recorded times; Tiv Taam/Super Yuda report simulated HTTP 403 failures and Duchan is pending.'
+              : withEmptyDairy
+                ? 'Offline browser QA server. Fixture observations with the grocery rows removed and no published snapshot, to exercise the zero-observation copy path.'
+                : 'Offline browser QA server. Data comes from tests/fixtures, not a live refresh; one offer carries synthetic previous-check metadata for change rendering.'
       }
     });
   }
