@@ -17,9 +17,9 @@ on:
         type: string
         default: main
       reasoning:
-        description: Continuation field required by Shurik; start/resume use max
+        description: Continuation field required by Shurik; start/resume use high
         type: string
-        default: max
+        default: high
       seconds:
         description: Agent time per iteration, 10–1800 seconds
         type: string
@@ -68,8 +68,8 @@ jobs:
         with:
           inputs: ${{ toJSON(inputs) }}
           provider: opencode-go
-          model: deepseek-v4.1-flash
-          reasoning: max
+          model: step-5-preview-free
+          reasoning: high
           create-pr: 'false'
           workflow: shurik.yml
           checkpoint-seconds: 300
