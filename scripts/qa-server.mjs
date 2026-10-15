@@ -193,10 +193,15 @@ export function unknownShippingDemoObservation(now = Date.now()) {
  * Start a local HTTP server that behaves like the deployed read-only board.
  * Returns { url, port, observations, close }.
  */
-export async function startQaServer({ port = 0, now = Date.now(), withTermsDemo = false, withUnknownDemo = false, staleRefresh = false, interruptedRefresh = false, failedAttempt = false } = {}) {
-  const observations = await fixtureObservations(failedAttempt ? now - 30 * 60 * 1000 : now);
+export async function startQaServer({ port = 0, now = Date.now(), withTermsDemo = false, withUnknownDemo = false, staleRefresh = false, interruptedRefresh = false, failedAttempt = false, withEmptyDairy = false } = {}) {
+  let observations = await fixtureObservations(failedAttempt ? now - 30 * 60 * 1000 : now);
   if (withTermsDemo) observations.push(termsDemoObservation(now));
   if (withUnknownDemo) observations.push(unknownShippingDemoObservation(now));
+  // `withEmptyDairy` simulates a deployment where the grocery refresh has not
+  // stored any observation yet (the real production state while the Worker's
+  // grocery egress is blocked): the cheese board must say so plainly and must
+  // not offer a locality switch that cannot rank anything.
+  if (withEmptyDairy) observations = observations.filter(observation => !['tivtaam', 'yuda', 'duchan'].includes(observation.vendor.id));
   // `failedAttempt` simulates the most recent vendor check failing while the last
   // successful observation is preserved: the fixture pages are parsed 30 minutes
   // before the server's reference time, then the ranked CoffeeMan offer and the

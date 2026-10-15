@@ -1387,6 +1387,28 @@ try {
         && ganei.rows.length === 4 && ganei.rows.every(row => /Duchan/.test(row))
         && !/CoffeeMan|Pucks|Coffee4U/.test(ganei.text), JSON.stringify(ganei));
     await firstScreenScreenshot(wd, 'cottage-cheese-ganei-shmuel-mobile-390.png');
+
+    // A deployment whose grocery refresh has not stored any observation yet (the
+    // real production state while the Worker's grocery egress is blocked) must
+    // say so plainly and must not offer a locality switch that cannot rank.
+    const emptyDairyServer = await startQaServer({ port: 0, withEmptyDairy: true });
+    try {
+      await wd('POST', '/url', { url: `${emptyDairyServer.url}${cheesePath}?quantity=4&dest=tel-aviv` });
+      await waitForProduct(wd);
+      const emptyDairy = await evaluate(wd, `({
+        summary: document.querySelector('.empty p')?.textContent ?? '',
+        hint: !!document.getElementById('verified-locality-hint'),
+        disclosure: [...document.querySelectorAll('details.disclosure')].map(d => d.querySelector('summary')?.textContent ?? '').find(t => /Sourcing research|Why no total/.test(t)) ?? null,
+        text: document.body.innerText
+      })`);
+      check('cottage cheese: with no stored grocery observation the pending state says so and offers no locality switch',
+        /No delivery quote has been observed for this product yet/.test(emptyDairy.summary)
+          && emptyDairy.hint === false
+          && emptyDairy.disclosure === 'Sourcing research'
+          && !/Verified delivered totals are ranked for/.test(emptyDairy.text), JSON.stringify(emptyDairy));
+    } finally {
+      await emptyDairyServer.close();
+    }
   }
 
   // Console errors are collected through the log endpoint; a clean run has none.

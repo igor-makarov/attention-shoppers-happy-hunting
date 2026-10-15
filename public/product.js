@@ -162,12 +162,22 @@ function renderDecision(board) {
   if (board.batchComparisons) section.append(renderBatches(board));
   if (!board.best) {
     const sourcing = board.product?.sourcing ?? {};
+    // With no stored observation yet (for example a fresh deployment whose first
+    // grocery refresh failed), say so plainly and do not offer a locality switch
+    // that cannot rank anything until an observation exists.
+    const observedCount = board.counts?.observed ?? 0;
+    const summaryText = observedCount === 0
+      ? 'No delivery quote has been observed for this product yet. The scheduled refresh retries automatically; the researched sources are listed below.'
+      : (sourcing.summary ?? sourcing.note ?? 'Ranking needs a fresh confirmed stock observation and a published or observed shipping rate. The offers with missing information below explain exactly what is missing.');
     const empty = el('div', { class: 'empty' },
       el('strong', { text: 'No offer can be ranked for this selection right now.' }),
-      el('p', { text: sourcing.summary ?? sourcing.note ?? 'Ranking needs a fresh confirmed stock observation and a published or observed shipping rate. The offers with missing information below explain exactly what is missing.' }));
-    // When the sourcing record has a locality with verified purchasable totals,
-    // make it one click away instead of hiding it in the research note.
-    const available = (sourcing.availableLocalities ?? []).filter(id => id !== state.destination);
+      el('p', { text: summaryText }));
+    // When the sourcing record has a locality with verified purchasable totals
+    // and the board actually holds observations, make it one click away instead
+    // of hiding it in the research note.
+    const available = observedCount > 0
+      ? (sourcing.availableLocalities ?? []).filter(id => id !== state.destination)
+      : [];
     if (available.length) {
       const hint = el('p', { class: 'meta-line', attrs: { id: 'verified-locality-hint' } });
       hint.append('Verified delivered totals are ranked for ');
@@ -181,7 +191,7 @@ function renderDecision(board) {
     section.append(empty);
     const sources = sourcing.sources ?? [];
     if (sourcing.note || sources.length) section.append(el('details', { class: 'disclosure' },
-      el('summary', { text: 'Why no total is shown' }),
+      el('summary', { text: observedCount === 0 ? 'Sourcing research' : 'Why no total is shown' }),
       el('div', { class: 'disclosure__body' },
         sourcing.note ? el('p', { text: sourcing.note }) : null,
         sources.length ? el('p', { text: 'These listings have no verified delivered total for the selected batch and locality.' }) : null,
