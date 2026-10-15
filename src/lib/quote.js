@@ -91,6 +91,27 @@ export function offerIdentity(observation) {
 }
 
 /**
+ * Age of one observation in ms, or null when it carries no usable observation
+ * time. A failure-only marker row (no `observedAt`) therefore never counts as a
+ * fresh check.
+ */
+export function observationAge(observation, now = Date.now()) {
+  const parsed = observation?.observedAt ? Date.parse(observation.observedAt) : NaN;
+  if (!Number.isFinite(parsed)) return null;
+  return now - parsed;
+}
+
+/**
+ * Is this observation too old (or timestamped in the future) to rank? The one
+ * rule behind the board's stale labels; the published-snapshot merge uses the
+ * same predicate so an expired snapshot stops ranking exactly like a stored row.
+ */
+export function observationIsStale(observation, now = Date.now(), staleAfterMs = DEFAULT_STALE_AFTER_MS) {
+  const ageMs = observationAge(observation, now);
+  return ageMs == null || ageMs > staleAfterMs || ageMs < -CLOCK_SKEW_MS;
+}
+
+/**
  * Collapse rows that describe the same offer, keeping the most recently
  * observed row (failure markers without an observation time are passed through
  * and dropped by the quoting loop, exactly as before). This is what keeps a
@@ -263,8 +284,8 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
   const shippingCurrency = shipping.amount?.currency ?? price.currency ?? null;
   const publishedShipping = toIls(shippingAmount, shippingCurrency, fx);
 
-  const ageMs = observation.observedAt ? now - Date.parse(observation.observedAt) : null;
-  const stale = ageMs == null || ageMs > staleAfterMs || ageMs < -CLOCK_SKEW_MS;
+  const ageMs = observationAge(observation, now);
+  const stale = observationIsStale(observation, now, staleAfterMs);
   const freshness = ageMs == null ? 'unknown' : stale ? 'stale' : 'fresh';
 
   const base = {
@@ -288,6 +309,25 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
     ageHours: ageMs == null ? null : Math.round((ageMs / 3_600_000) * 10) / 10,
     observedAt: observation.observedAt ?? null,
     attemptedAt: observation.attemptedAt ?? null,
+    // Where the row came from: a Worker refresh (the scheduled pipeline's own
+    // observation) or a checked-in published snapshot of runner research. A
+    // published row always carries its snapshot id, source and recorded time so
+    // runner research can never be presented as a live refresh.
+    provenance: observation.published
+      ? {
+          kind: 'published_snapshot',
+          snapshotId: observation.published.snapshotId ?? null,
+          origin: observation.published.origin ?? null,
+          source: observation.published.source ?? null,
+          recordedAt: observation.published.recordedAt ?? observation.observedAt ?? null,
+          evidence: observation.published.evidence ?? null,
+          note: observation.published.note ?? null
+        }
+      : { kind: 'worker_refresh', recordedAt: observation.observedAt ?? null },
+    // What the Worker's own scheduled check last did for this vendor, when the
+    // displayed row did not come from a successful refresh (failed, or not yet
+    // attempted on this deployment). Null when the live pipeline is current.
+    liveCheck: observation.liveCheck ?? null,
     // A failed last attempt keeps the previous good price and stock, but the
     // board must be able to say that the most recent check failed instead of
     // presenting the row as freshly re-checked.
@@ -383,6 +423,12 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
     reasons.push('Pack weight is not stated, so the delivered price per kilogram cannot be calculated');
     return base;
   }
+
+  // A stale row is labelled as soon as it is detected, not only where the quoting
+  // flow happens to stop: an expired published-snapshot row blocked by a minimum
+  // order or a coverage list must still say that its check is too old, instead of
+  // presenting only the block reason as if it were current.
+  if (stale) base.labels.push('Stale observation — the last successful check is too old to rank');
 
   const units = Math.max(1, Math.ceil(grams / product.totalGrams));
   base.units = units;
@@ -568,7 +614,6 @@ export function quoteOffer(observation, { grams, destination, fx, now, staleAfte
 
   base.shipping.amountIls = round2(shippingIls);
   if (stale) {
-    labels.push('Stale observation — the last successful check is too old to rank');
     base.group = 'stale_unavailable';
     return base;
   }
