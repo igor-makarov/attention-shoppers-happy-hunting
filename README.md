@@ -29,9 +29,9 @@ failed instead of presenting the row as freshly re-checked. See [current status]
 
 ## Coding loop
 
-The workflow uses [igor-makarov/shurik@v1](https://github.com/igor-makarov/shurik), opencode-go/deepseek-v4.1-flash and max reasoning. The owner chose direct work on main and has added the OPENCODE_API_KEY Actions secret. The first handoff is complete; the main loop will develop the tracker while Cloudflare remains disconnected. Check the Actions page and shurik-control/main for live loop state.
+The workflow uses [igor-makarov/shurik@v1](https://github.com/igor-makarov/shurik), opencode-go/step-5-preview-free and high reasoning (the model's highest supported level, owner instruction 2026-10-15). The owner chose direct work on main and has added the OPENCODE_API_KEY Actions secret. The first handoff is complete; the main loop will develop the tracker while Cloudflare remains disconnected. Check the Actions page and shurik-control/main for live loop state.
 
-DeepSeek V4.1 Flash is present in Shurik's pinned Pi AI catalog and supports low, high and max reasoning. Its native adapter preserves reasoning content across tool calls. The owner authorized this switch after Step 5 returned repeated unavailable-endpoint errors. No further model fallback is permitted without an owner instruction.
+Free Step 5 (`step-5-preview-free`) is present in Shurik's current Pi AI catalog and supports low, medium and high reasoning; `high` is the maximum supported setting for this model. The owner explicitly authorized returning to this model on 2026-10-15, superseding the earlier DeepSeek configuration. Provider errors must be reported without an unrequested model fallback.
 
 ## Deployment and refreshing
 

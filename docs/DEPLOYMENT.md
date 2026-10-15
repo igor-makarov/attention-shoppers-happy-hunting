@@ -15,16 +15,16 @@ Cloudflare. The outstanding production checks are listed at the end of this file
 
 Add OPENCODE_API_KEY under repository Settings → Secrets and variables → Actions → New repository secret. Paste it only in GitHub's secret form, never into chat, a prompt, a dispatch input or a commit.
 
-The repository variable SHURIK_ENABLED starts false, so scheduled recovery and manual dispatch cannot start a model loop before setup is finished. The owner has added the key and authorized DeepSeek V4.1 Flash on OpenCode Go. After the key is present, the maintainer sets SHURIK_ENABLED true and dispatches:
+The repository variable SHURIK_ENABLED starts false, so scheduled recovery and manual dispatch cannot start a model loop before setup is finished. The owner has added the key and now authorizes free Step 5 (`opencode-go/step-5-preview-free`) with its highest supported `high` reasoning (2026-10-15). After the key is present, the maintainer sets SHURIK_ENABLED true and dispatches:
 
 ```sh
 gh workflow run shurik.yml --repo igor-makarov/attention-shoppers-happy-hunting --ref main \
   -f command=start -f loop_id=main -f seconds=1800
 ```
 
-Provider, model and reasoning are fixed in the workflow's control action to opencode-go / deepseek-v4.1-flash / max. Further model changes require an owner instruction and a workflow update. The initial loop writes directly to main. Unless a deadline is supplied it continues until stopped, including after ordinary agent answers. Provider availability and the owner's OpenCode Go allowance apply.
+Provider, model and reasoning are fixed in the workflow's control action to opencode-go / step-5-preview-free / high (the model's highest supported reasoning). Further model changes require an owner instruction and a workflow update. The initial loop writes directly to main. Unless a deadline is supplied it continues until stopped, including after ordinary agent answers. Provider availability and the owner's OpenCode Go allowance apply.
 
-To stop, dispatch command=stop and loop_id=main. Record the durable stop before turning SHURIK_ENABLED false. To resume, use command=resume, loop_id=main; the workflow supplies max reasoning again and updates the saved model to DeepSeek V4.1 Flash. Control/session history and Actions logs are public; do not add private material to this task.
+To stop, dispatch command=stop and loop_id=main. Record the durable stop before turning SHURIK_ENABLED false. To resume, use command=resume, loop_id=main; the workflow supplies high reasoning and updates the saved model to free Step 5. Control/session history and Actions logs are public; do not add private material to this task.
 
 The connected GitHub integration can also retry a known failed Actions job when CLI API access is unavailable. On 2026-10-15 it retried the existing failed **resume control** job after verifying that the loop was stopped and that the saved workflow/configuration matched the current one. Shurik resumed generation 4 and dispatched iteration 106 from the latest `main` commit containing the cottage-cheese brief. Verify the resulting control state and new iteration's source commit; a retry acknowledgment alone is not evidence of an active loop. This used the normal Actions lifecycle and did not edit the Shurik control branch or engine.
 

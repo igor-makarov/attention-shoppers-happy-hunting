@@ -1,5 +1,9 @@
 ## New owner instruction — Tnuva cottage cheese (2026-10-15)
 
+### Current model — owner-authorized switch (2026-10-15)
+
+The owner explicitly asks to switch Shurik to **free Step 5 at its highest supported reasoning**. Use **opencode-go / step-5-preview-free / high**. Shurik's current Pi AI model metadata supports low, medium and high for this model; high is the highest supported level, and max/xhigh are unsupported. This supersedes every older DeepSeek/max or Step 5 reasoning instruction below. Do not silently substitute another model if the provider fails; preserve the checkpoint and report the actual failure. Continue the existing cottage-cheese/live-site task and its saved history with this configuration.
+
 ### Owner follow-up — the results must be visible on the actual site (2026-10-15)
 
 The owner asks why none of the reported work appears **in the site itself**. Treat this as the next acceptance gap. The latest saved production probe (2026-10-15T1845Z) confirms the two-product catalog and grocery policy code are deployed, but the production store has no grocery observations: Tiv Taam and Super Yuda's first Worker fetches failed with HTTP 403, and Duchan was added after that cron tick. Runner research and fixture screenshots are not production results. The status report must distinguish those states; do not call a researched quote available on the site until its actual public board displays it.
@@ -16,7 +20,7 @@ Add plain **Tnuva 5% cottage cheese**, assuming the standard **250 g tub**, alon
 
 The cheese page, exact-batch engine and three grocery adapters are implemented. Runner research has verified Duchan's Ganei Shmuel quotes, while Tiv Taam and Super Yuda's exact Tel Aviv batches remain below minimum order. Production grocery observations are still missing as described above: do not invent a winner or present a coffee refresh as cheese freshness. Confirm price, stock, purchase caps, minimum order, locality coverage and all charges before ranking a new listing. See docs/evidence/tnuva-cottage-cheese-research-20261015.json for current leads and access limits. The delivery locality remains selectable; use the existing Tel Aviv–Yafo default until the owner chooses another city.
 
-The research record's host restrictions describe the Codex cloud environment, not the GitHub Actions runner. Check the Actions runner's own permitted public access before declaring a grocery source blocked. Continue with standard 250 g tubs and the existing selectable Tel Aviv–Yafo default without waiting for a clarification; retain these assumptions visibly and incorporate any later owner correction. Keep the configured opencode-go/deepseek-v4.1-flash/max setup and the existing Shurik engine/control workflow unchanged.
+The research record's host restrictions describe the Codex cloud environment, not the GitHub Actions runner. Check the Actions runner's own permitted public access before declaring a grocery source blocked. Continue with standard 250 g tubs and the existing selectable Tel Aviv–Yafo default without waiting for a clarification; retain these assumptions visibly and incorporate any later owner correction. Use the owner-authorized opencode-go/step-5-preview-free model with high reasoning. Keep the existing Shurik engine and lifecycle workflow intact.
 
 ## Overseer cart-identity acceptance follow-up — 2026-10-13 10:15 UTC
 
