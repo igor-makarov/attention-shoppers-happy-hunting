@@ -21,18 +21,21 @@
     "adapterRegistered": true,
     "adapters": [
       "src/vendors/tivtaam.js (tivtaam/1)",
-      "src/vendors/yuda.js (yuda/1)"
+      "src/vendors/yuda.js (yuda/1)",
+      "src/vendors/duchan.js (duchan/1)"
     ],
     "fixtures": [
       "tests/fixtures/tivtaam-product.json",
-      "tests/fixtures/yuda-product.json"
+      "tests/fixtures/yuda-product.json",
+      "tests/fixtures/duchan-product.json"
     ],
     "policies": [
       "tivtaam-cottage-tel-aviv-north-delivery v1 (home delivery ₪29.90, published minimum order ₪300)",
-      "yuda-cottage-tel-aviv-home-delivery v1 (home delivery ₪35, published minimum order ₪150)"
+      "yuda-cottage-tel-aviv-home-delivery v1 (home delivery ₪35, published minimum order ₪150)",
+      "duchan-cottage-ganei-shmuel-home-delivery v1 (home delivery ₪28, no minimum order, free delivery published above ₪599)"
     ],
-    "deliveredTotalsRanked": 0,
-    "note": "Both observed listings stay visible as unrankable: every exact 4/6/8/10-tub batch is below each vendor's published minimum order (Tiv Taam ₪300; Super Yuda ₪150), so no standalone batch is purchasable and no delivered total is ranked. The dairy board reports the exact reason per vendor."
+    "deliveredTotalsRanked": 4,
+    "note": "For the Ganei Shmuel (גן שמואל) delivery area every exact 4/6/8/10-tub batch is purchasable and ranked with anonymous public cart quotes: ₪53.20/₪65.80/₪78.40/₪91.00 (Duchan Ganei Shmuel). The default Tel Aviv–Yafo locality stays unranked (Tiv Taam ₪300 minimum, Super Yuda ₪150 minimum, Duchan does not deliver there); no total is invented for it."
   },
   "sources": [
     {
@@ -389,7 +392,7 @@
       "note": "Challenges were not bypassed and no alternate host was used to retrieve a blocked store's data. The configs themselves are public platform metadata and were used only for research (names, domains, published minimums, online branches)."
     }
   ],
-  "nextStep": "For the default Tel Aviv–Yafo locality no reachable permitted vendor can sell an exact 4-10 tub batch: Tiv Taam ₪300 minimum and Super Yuda ₪150 minimum both exceed every batch item total, and the remaining reachable groceries do not cover Tel Aviv–Yafo. Options: (a) owner adds Petah Tikva as a selectable locality, where Super Haviv carries the listing at ₪6.50 with a ₪10 minimum and ₪34 published area delivery (computed batch totals ₪60/₪73/₪86/₪99); (b) owner allows filling an order to a vendor minimum (outside exact-batch scope); (c) a blocked low-minimum TLV chain (Verona ₪20, Twins ₪75, Sholik ₪80, Quik, Wolt Market, Yango Deli) becomes reachable without bypassing its protection; (d) re-check Bastale for restock (its Tel Aviv minimum still exceeds every batch). The first production attempt at the two registered grocery adapters is the 18:17 UTC cron tick.",
+  "nextStep": "For the default Tel Aviv–Yafo locality no reachable permitted vendor can sell an exact 4-10 tub batch (Tiv Taam ₪300, Super Yuda ₪150, Duchan no TLV area). The verified purchasable option is the local Ganei Shmuel area (Duchan, ₪53.20-₪91.00), now selectable. Remaining leads: settle Super Haviv Petah Tikva (₪6.50, ₪34 area delivery, area minimum ₪10 vs published terms ₪200, applied-delivery cart read WAF-blocked) with a permitted read or an owner-accepted published-rate basis; re-check Bastale for restock; or an owner decision to allow filling an order to a vendor minimum. See docs/evidence/tnuva-cottage-cheese-duchan-cart-20261015.json.",
   "liveAdapterVerification": {
     "tool": "npm run check:sources (live, bounded fetcher through the registered adapters)",
     "startedAt": "2026-10-15T17:44:22.906Z",
@@ -488,6 +491,11 @@
       "revisedAt": "2026-10-15T18:10:00Z",
       "by": "iteration 4-110 (GitHub Actions runner)",
       "summary": "Re-checked Bastale (still out of stock) and probed additional Israeli grocery domains (all blocked, terms-excluded, unrelated or unreachable). Corrected the Super Haviv finding: the tracked listing IS carried at branch 3507 (₪6.50, in stock) but the branch only delivers to Petah Tikva / Kiryat Ono / Givat Shmuel, so it cannot serve the default Tel Aviv–Yafo locality. A standalone 4-10 tub batch would be purchasable there (item ₪26-₪65 + ₪34 published area delivery), which makes Petah Tikva the one concrete low-minimum locality option if the owner wants to add it; this iteration did not change the selectable destinations."
+    },
+    {
+      "revisedAt": "2026-10-15T18:45:00Z",
+      "by": "iteration 4-111 (GitHub Actions runner)",
+      "summary": "Duchan Ganei Shmuel verified as the first purchasable exact-batch source: branch 2175 carries the tracked listing at ₪6.30, its local גן שמואל area publishes ₪28 delivery with no minimum order, and anonymous public cart quotes for exact 4/6/8/10-tub batches added the ₪28 delivery line (₪53.20/₪65.80/₪78.40/₪91.00). Adapter src/vendors/duchan.js (duchan/1), fixture tests/fixtures/duchan-product.json and policy duchan-cottage-ganei-shmuel-home-delivery v1 registered; the selectable ganei-shmuel destination exposes the totals while the default Tel Aviv–Yafo locality stays unranked. Super Haviv Petah Tikva re-checked: the listing is real and a cart line activates by row id 20230801, but the delivery-applying PATCH is Radware-blocked and the published minimum statements conflict (area ₪10 vs terms ₪200), so it stays unranked. Cart-line identity learning: stor.ai carts accept a listing by the row id, not the branchProductId."
     }
   ]
 }

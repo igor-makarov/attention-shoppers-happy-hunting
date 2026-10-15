@@ -1349,7 +1349,7 @@ try {
       apiCheeseGanei.best?.vendor?.id === 'duchan'
         && apiCheeseGanei.batchComparisons?.map(batch => batch.best?.totalIls ?? null).join(',') === '53.2,65.8,78.4,91'
         && ganei.total === ils(apiCheeseGanei.best?.totalIls)
-        && /Duchan/.test(ganei.vendor) && /Shipping: ₪28/.test(ganei.vendor) && /Item subtotal: ₪63/.test(ganei.vendor)
+        && /Duchan/.test(ganei.vendor) && /₪28\.00/.test(ganei.vendor) && /₪63\.00/.test(ganei.vendor)
         && ganei.rows.length === 4 && ganei.rows.every(row => /Duchan/.test(row))
         && !/CoffeeMan|Pucks|Coffee4U/.test(ganei.text), JSON.stringify(ganei));
     await firstScreenScreenshot(wd, 'cottage-cheese-ganei-shmuel-mobile-390.png');
