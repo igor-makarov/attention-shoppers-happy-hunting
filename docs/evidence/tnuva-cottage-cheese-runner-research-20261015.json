@@ -515,5 +515,16 @@
       "by": "iteration 4-112 (GitHub Actions runner)",
       "summary": "Settled the Super Haviv Petah Tikva lead without ranking it: the store's own published terms (quoted in the source record) set a ₪200 site minimum and a ₪34 delivery fee, contradicting the branch area field's ₪10; every exact 4-10 tub batch (₪60.00-₪99.00 delivered) is below the terms minimum. A fresh bounded anonymous cart attempt reproduced the Radware block on the delivery-applying PATCH (third block; the delivery-line POST is accepted and the cart line activates at ₪26.00 for 4 tubs), so no cart total can be read and no ranking is claimed. Re-checked Bastale (still out of stock at ₪7.90) and Shufersal (still the 444-byte maintenance/error page from the runner, even with a browser user agent). No new reachable Tel Aviv–Yafo grocery source was found."
     }
-  ]
+  ],
+  "configVerification20261015T1925Z": {
+    "checkedAt": "2026-10-15T19:22:00Z",
+    "method": "Public retailer configs on the platform CDN (gzip data.js decompressed): r-1062 tivtaam, r-1492 yuda, r-1420 duchan, r-1579 superhaviv. These are the platform's own public config files (Azure blob CDN, no WAF); no vendor page, cart or access control was touched.",
+    "results": {
+      "tivtaam": "minimumOrderPrice \"300\"; all seven deliveryTypeId-1 areas (2446, 2447, 2450, 2452, 8708, 8962, 10006) publish retailerProductDeliveryPrice/retailerBranchProductDeliveryPrice 29.90 with no deliveryMinimumCost; the ₪600 minimum belongs to area 2193 \"איסוף מיוחד\" with deliveryTypeId 2 (special pickup, not home delivery). Matches the registered policy.",
+      "yuda": "minimumOrderPrice \"150\"; areas 6219/6221/6215 (all Tel Aviv) publish deliveryMinimumCost 150 and retailerBranchProductDeliveryPrice 35 (the generic retailerProductDeliveryPrice 32 is overridden by the branch price; the live areas API returns deliveryAreaPrice 35). Matches the registered policy.",
+      "duchan": "no site minimumOrderPrice; area 4604 \"גן שמואל\" has no deliveryMinimumCost and publishes 28; every other area publishes deliveryMinimumCost 250. Matches the registered policy.",
+      "superhaviv": "area 9997 \"פתח תקווה\" deliveryMinimumCost 10 with retailerProductDeliveryPrice/Branch 34; area 10019 \"קרית אונו,גבעת שמואל\" deliveryMinimumCost 200; the store agreementText publishes a ₪200 site minimum (the conflict recorded above). Not ranked."
+    },
+    "note": "The values confirm every checked-in grocery policy amount and minimum; no policy change was needed."
+  }
 }
