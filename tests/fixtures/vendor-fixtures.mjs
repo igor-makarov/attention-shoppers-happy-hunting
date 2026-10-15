@@ -5,7 +5,8 @@
 // new tracked offer cannot silently lose its fixture. Every fixture is a
 // minimized excerpt of a real public product page (see docs/SOURCES.md).
 //
-// Only the tracked Crema e Gusto offers are mapped here. The retired
+// Only the tracked offers are mapped here: Crema e Gusto coffee listings and the
+// Tiv Taam cottage-cheese API response. The retired
 // Qualità Oro / Qualità Rossa / Suerte excerpts live in
 // ./historical-retired/ and are never fetched or routed by the tools.
 
@@ -18,7 +19,8 @@ export const FIXTURE_BY_OFFER = {
   'coffeeman:classico-1000g-4pack': 'coffeeman-4pack-product.windows-1255.html',
   'coffeeman:classico-2000g-8pack': 'coffeeman-8pack-product.windows-1255.html',
   'pucks:classico-250g': 'pucks-product.html',
-  'coffee4u:crema-e-gusto-250g-ground': 'coffee4u-product.windows-1255.html'
+  'coffee4u:crema-e-gusto-250g-ground': 'coffee4u-product.windows-1255.html',
+  'tivtaam:tnuva-cottage-5-250g': 'tivtaam-product.json'
 };
 
 const WINDOWS_1255 = 'text/html; charset=windows-1255';
@@ -31,7 +33,8 @@ const CONTENT_TYPE_BY_FILE = {
   'pucks-product.outofstock.html': 'text/html; charset=utf-8',
   'pucks-product.preorder.html': 'text/html; charset=utf-8',
   'coffee4u-product.windows-1255.html': WINDOWS_1255,
-  'coffee4u-product.outofstock.windows-1255.html': WINDOWS_1255
+  'coffee4u-product.outofstock.windows-1255.html': WINDOWS_1255,
+  'tivtaam-product.json': 'application/json; charset=utf-8'
 };
 
 export const FIXTURES_DIR = new URL('./', import.meta.url);

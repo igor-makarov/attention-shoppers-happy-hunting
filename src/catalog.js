@@ -93,15 +93,23 @@ export const PRODUCTS = [
     notes: 'Compare the lowest total including delivery and mandatory fees for exact batches of 4, 6, 8 or 10 standard 250 g tubs. Other brands, fat percentages, flavoured cottage cheese and other tub sizes are excluded.',
     sourcing: {
       status: 'pending',
-      note: 'No delivery quote has been verified for these batches yet. Item price, stock, quantity limits, minimum order and all delivery fees need confirmation for the selected locality.',
+      note: 'Delivery quotes are pending. Tiv Taam’s public store API and terms establish ₪6.10 per 250 g tub plus ₪29.90 home delivery to ת״א צפון, but its published ₪300 minimum order is above every requested standalone batch (4-10 tubs = ₪54.30-₪90.90), so no exact batch is purchasable there. Other chains are blocked by bot protection or vendor terms; see docs/evidence/tnuva-cottage-cheese-runner-research-20261015.json. Totals stay unknown until a vendor can deliver a batch at or above its minimum.',
       sources: [
         {
-          label: 'Bastale product listing',
-          url: 'https://www.bastale.co.il/product-details/75069/קוטג_5%25_תנובה_250_גרם'
+          label: 'Tiv Taam public store API (branch 924, Ramat HaHayal)',
+          url: 'https://www.tivtaam.co.il/?catalogProduct=12053'
         },
         {
-          label: 'Wolt Market Ben Yehuda cottage-cheese listings',
-          url: 'https://wolt.com/he/isr/tel-aviv/venue/wolt-market-ben-yehuda/items/menucategory-109'
+          label: 'Tiv Taam delivery areas (₪29.90, seven areas)',
+          url: 'https://www.tivtaam.co.il/v2/retailers/1062/branches/924/areas/2446?appId=4&deliveryTypeId=1&languageId=2'
+        },
+        {
+          label: 'Runner research record (prices, minimum order, blocked sources)',
+          url: 'docs/evidence/tnuva-cottage-cheese-runner-research-20261015.json'
+        },
+        {
+          label: 'Bastale product listing (observed out of stock 2026-10-15)',
+          url: 'https://www.bastale.co.il/product-details/75069/קוטג_5%25_תנובה_250_גרם'
         }
       ]
     }

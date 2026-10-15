@@ -11,9 +11,10 @@
 import { pucks } from './pucks.js';
 import { coffeeman } from './coffeeman.js';
 import { coffee4u } from './coffee4u.js';
+import { tivtaam } from './tivtaam.js';
 
 export function registeredVendors() {
-  return [coffeeman, pucks, coffee4u];
+  return [coffeeman, pucks, coffee4u, tivtaam];
 }
 
 /** Every host any adapter may contact. Used for the refresh-time allowlist. */
