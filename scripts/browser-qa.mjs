@@ -1331,6 +1331,28 @@ try {
     await waitForProduct(wd);
     check('cottage cheese: legacy weight links normalize to the equivalent exact tub batch',
       await evaluate(wd, `document.querySelector('#quantity-group [aria-pressed="true"]')?.textContent === '8 tubs' && new URLSearchParams(location.search).get('quantity') === '8' && !new URLSearchParams(location.search).has('grams')`), '2000 g → 8 tubs');
+
+    // The Ganei Shmuel locality is the one verified purchasable exact-batch area
+    // (Duchan's anonymous cart quotes: ₪53.20/₪65.80/₪78.40/₪91.00). Selecting
+    // it must rank those real totals while the default locality keeps its
+    // pending state, and no coffee offer may leak into the dairy page.
+    const apiCheeseGanei = await fetchBoard(base, 2500, 'ganei-shmuel', cheese.id);
+    await wd('POST', '/url', { url: `${base}${cheesePath}?quantity=10&dest=ganei-shmuel` });
+    await waitForPage(wd, `document.querySelector('#best-offer .totals__cell--total .totals__value')?.textContent === ${JSON.stringify(ils(apiCheeseGanei.best?.totalIls))}`, 15_000, 'Ganei Shmuel Duchan total');
+    const ganei = await evaluate(wd, `({
+      total: document.querySelector('#best-offer .totals__cell--total .totals__value')?.textContent ?? null,
+      vendor: document.getElementById('best-offer')?.innerText ?? '',
+      rows: [...document.querySelectorAll('#batch-comparison tbody tr')].map(row => row.innerText),
+      text: document.body.innerText
+    })`);
+    check('cottage cheese: the Ganei Shmuel locality ranks the verified Duchan cart totals for every exact batch',
+      apiCheeseGanei.best?.vendor?.id === 'duchan'
+        && apiCheeseGanei.batchComparisons?.map(batch => batch.best?.totalIls ?? null).join(',') === '53.2,65.8,78.4,91'
+        && ganei.total === ils(apiCheeseGanei.best?.totalIls)
+        && /Duchan/.test(ganei.vendor) && /Shipping: ₪28/.test(ganei.vendor) && /Item subtotal: ₪63/.test(ganei.vendor)
+        && ganei.rows.length === 4 && ganei.rows.every(row => /Duchan/.test(row))
+        && !/CoffeeMan|Pucks|Coffee4U/.test(ganei.text), JSON.stringify(ganei));
+    await firstScreenScreenshot(wd, 'cottage-cheese-ganei-shmuel-mobile-390.png');
   }
 
   // Console errors are collected through the log endpoint; a clean run has none.

@@ -1,0 +1,244 @@
+{
+  "researchDate": "2026-10-15",
+  "recordedAt": "2026-10-15T18:38:00Z",
+  "by": "iteration 4-111 (GitHub Actions runner)",
+  "productId": "tnuva-cottage-cheese-5-percent",
+  "requestedProduct": "Tnuva 5% plain cottage cheese, standard 250 g tubs",
+  "requestedBatches": [
+    4,
+    6,
+    8,
+    10
+  ],
+  "fulfillment": "delivery only",
+  "objective": "lowest item subtotal plus shipping and mandatory fees for each exact batch",
+  "defaultLocality": "tel-aviv (unchanged)",
+  "environment": {
+    "where": "GitHub Actions hosted runner (ubuntu, GitHub-hosted IP space)",
+    "note": "Every fetch below was made from the runner against the store's own public endpoints with curl. No proxy, credential, login, payment, street address, order or access-control bypass was used. Cart ids are deliberately not recorded."
+  },
+  "outcome": "purchasable_exact_batches_found_for_ganei_shmuel_area",
+  "runtime": {
+    "adapterRegistered": true,
+    "adapters": [
+      "src/vendors/duchan.js (duchan/1)"
+    ],
+    "fixtures": [
+      "tests/fixtures/duchan-product.json"
+    ],
+    "policies": [
+      "duchan-cottage-ganei-shmuel-home-delivery v1 (home delivery ₪28, no minimum order, free delivery published above ₪599)"
+    ],
+    "deliveredTotalsRanked": 4,
+    "selectableLocalityAdded": "ganei-shmuel",
+    "note": "For the Ganei Shmuel (גן שמואל) delivery area every exact 4/6/8/10-tub batch is purchasable and ranked with anonymous public cart quotes: ₪53.20/₪65.80/₪78.40/₪91.00. The default Tel Aviv–Yafo locality stays unranked (Tiv Taam ₪300 minimum, Super Yuda ₪150 minimum, Duchan does not deliver there); no total is invented for it."
+  },
+  "sources": [
+    {
+      "id": "duchan",
+      "name": "Duchan Ganei Shmuel (דוכן גן שמואל), branch 2175 — the store's only online branch",
+      "status": "verified_purchasable_exact_batches",
+      "product": {
+        "catalogProductId": 12053,
+        "rowId": 9469068,
+        "branchProductId": 16375166,
+        "names": {
+          "he": "קוטג' 5%",
+          "en": "Cottage Tnuva (5%) 250 g",
+          "localName": "קוטג 5% תנובה 250 גרם"
+        },
+        "weightGrams": 250,
+        "numberOfItems": 1,
+        "gtin": "7290004127329",
+        "productApiUrl": "https://www.duchan.co.il/v2/retailers/1420/branches/2175/products?catalogProductId=12053&ignoreBranchVisibility=true&appId=4&languageId=2",
+        "productPageUrl": "https://www.duchan.co.il/?catalogProduct=12053",
+        "observedPriceIls": 6.3,
+        "priceCurrency": "ILS",
+        "stockEvidence": "branch.isActive=true, isVisible=true, isOutOfStock=false — the store's own branch flags, not a price-only scrape",
+        "purchaseCapEvidence": "The product API publishes quantityLimit 999 per line, far above the largest requested batch. Anonymous carts accepted 4/6/8/10-tub lines without a limit warning.",
+        "observedAt": "2026-10-15T18:27:00Z"
+      },
+      "delivery": {
+        "service": "home_delivery",
+        "areasEndpoint": "https://www.duchan.co.il/v2/retailers/1420/branches/2175/areas?appId=4&deliveryTypeId=1&languageId=1",
+        "localAreaObserved": {
+          "id": 4604,
+          "name": "גן שמואל",
+          "deliveryMinimumCost": null,
+          "deliveryAreaPriceIls": 28,
+          "isActive": true,
+          "branchId": 2175,
+          "polygonBounds": {
+            "lat": [
+              32.4467827,
+              32.4576428
+            ],
+            "lon": [
+              34.9462517,
+              34.9571616
+            ]
+          }
+        },
+        "regionalAreasObserved": "The retailer config (https://htmlcache.blob.core.windows.net/html-production-env/r-1420/desktop/multi-true/data.js) lists further areas around the Hadera/Pardes Hanna region (Pardes Hanna-Karkur, Ein Iron/Kfar Pines, Telmi Elazar, Harish, Or Akiva, Zikhron Ya'akov, Caesarea and others) with deliveryMinimumCost ₪250 each; only the local גן שמואל area has no minimum.",
+        "minimumOrder": {
+          "amountIls": null,
+          "publishedStatement": "The store FAQ publishes \"האם יש סכום מינימום להזמנה?\" — \"לא, אבל המשלוח יהיה חינם מעל 599₪\" (Is there a minimum order amount? No, but delivery is free above ₪599).",
+          "source": "https://htmlcache.blob.core.windows.net/html-production-env/r-1420/desktop/multi-true/data.js (FAQ + banner \"משלוחים חינם בקנייה מעל 599 ש''ח\", valid until 31.12.2026)"
+        },
+        "freeThreshold": {
+          "amountIls": 599,
+          "semantics": "above",
+          "note": "Every requested batch (₪25.20-₪63.00 item) stays below ₪599, so the ₪28 delivery line applies."
+        },
+        "coverage": "The local גן שמואל area polygon around the store; the FAQ lists the wider Hadera-region delivery localities, but those areas publish the ₪250 minimum. Coverage outside the published areas is not established.",
+        "robots": "https://www.duchan.co.il/robots.txt: Crawl-delay 4; /cart*, /user*, /search* disallowed; the product API and the catalogProduct page are not disallowed. The adapter declares crawlDelayMs 4000."
+      },
+      "anonymousCartQuotes": {
+        "method": "Public anonymous cart API: POST /v2/retailers/1420/branches/2175/carts with {\"lines\":[{\"retailerProductId\":9469068,\"quantity\":N,\"type\":1}]}, then POST /carts/<id>/delivery-line {\"areaId\":4604,\"deliveryTypeIds\":[1]}, then PATCH /carts/<id> {\"deliveryProduct\":true,\"deliveryProduct_Id\":9468093,\"deliveryType\":1}. The PATCH response carries the computed cart. No login, street address, payment or order submission; the checkout itself was not entered.",
+        "lineIdentityNote": "The cart accepts the listing only by its row id (retailerProductId 9469068). Supplying the branchProductId instead marks the line inactive, so that value is never used for a quote.",
+        "quotes": [
+          {
+            "tubs": 4,
+            "orderedGrams": 1000,
+            "itemTotalIls": 25.2,
+            "deliveryLineLabel": "דמי משלוח",
+            "deliveryIls": 28,
+            "deliveredTotalIls": 53.2,
+            "observedAt": "2026-10-15T18:29:04Z"
+          },
+          {
+            "tubs": 6,
+            "orderedGrams": 1500,
+            "itemTotalIls": 37.8,
+            "deliveryLineLabel": "דמי משלוח",
+            "deliveryIls": 28,
+            "deliveredTotalIls": 65.8,
+            "observedAt": "2026-10-15T18:32:10Z"
+          },
+          {
+            "tubs": 8,
+            "orderedGrams": 2000,
+            "itemTotalIls": 50.4,
+            "deliveryLineLabel": "דמי משלוח",
+            "deliveryIls": 28,
+            "deliveredTotalIls": 78.4,
+            "observedAt": "2026-10-15T18:32:22Z"
+          },
+          {
+            "tubs": 10,
+            "orderedGrams": 2500,
+            "itemTotalIls": 63,
+            "deliveryLineLabel": "דמי משלוח",
+            "deliveryIls": 28,
+            "deliveredTotalIls": 91,
+            "observedAt": "2026-10-15T18:32:34Z"
+          }
+        ],
+        "arithmetic": "Each cart total equals item subtotal + the single ₪28 delivery line; no other fee, discount or deposit appeared."
+      },
+      "observedOfferCreated": true
+    },
+    {
+      "id": "superhaviv",
+      "name": "Super Haviv (סופר חביב), branch 3507 Petah Tikva",
+      "status": "accessible_published_rate_cart_total_blocked_by_waf",
+      "product": {
+        "catalogProductId": 12053,
+        "rowId": 20230801,
+        "branchProductId": 54053230,
+        "names": {
+          "he": "קוטג' 5%",
+          "en": "Cottage Tnuva (5%) 250 g"
+        },
+        "weightGrams": 250,
+        "observedPriceIls": 6.5,
+        "stockEvidence": "branch.isActive=true, isVisible=true, isOutOfStock=false",
+        "quantityLimit": 999,
+        "productApiUrl": "https://www.superhaviv.co.il/v2/retailers/1579/branches/3507/products?catalogProductId=12053&ignoreBranchVisibility=true&appId=4&languageId=2",
+        "observedAt": "2026-10-15T18:22:45Z"
+      },
+      "delivery": {
+        "areasEndpoint": "https://www.superhaviv.co.il/v2/retailers/1579/branches/3507/areas?appId=4&deliveryTypeId=1&languageId=1",
+        "petahTikvaArea": {
+          "id": 9997,
+          "name": "פתח תקווה",
+          "deliveryMinimumCost": 10,
+          "deliveryAreaPriceIls": 34,
+          "isActive": true,
+          "branchId": 3507
+        },
+        "otherArea": {
+          "id": 10019,
+          "name": "קרית אונו,גבעת שמואל",
+          "deliveryMinimumCost": 200,
+          "deliveryAreaPriceIls": 34
+        },
+        "minimumOrderConflict": "The store's published terms text (agreementText in the public config) states a site minimum of ₪200 and a ₪34 delivery fee, and mentions an expired free-delivery-above-₪499 promotion (valid until 31.12.2025). The live branch config and the storefront's own checkout code resolve the minimum as area.deliveryMinimumCost first (₪10 for Petah Tikva), but the two published statements conflict and no cart total could be read to settle it.",
+        "coverage": "Petah Tikva area only; the second area is Kiryat Ono / Givat Shmuel. No Tel Aviv–Yafo area is published."
+      },
+      "anonymousCartAttempt": {
+        "cartCreate": "A 4-tub line activated in the anonymous cart (item total ₪26.00) when supplied with the row id 20230801.",
+        "deliveryLine": "POST /carts/<id>/delivery-line {\"areaId\":9997,\"deliveryTypeIds\":[1]} returned {\"error\":null}.",
+        "deliveryPatch": "PATCH /carts/<id> {\"deliveryProduct\":true,\"deliveryProduct_Id\":20722246,\"deliveryType\":1} returned the store's Radware \"Unauthorized Request Blocked\" page (HTTP 200 HTML, 3,559 bytes) instead of the computed cart, twice (18:24Z and 18:29Z). No challenge was bypassed and no total is claimed.",
+        "blocker": "The applied-delivery cart total cannot be read from the runner for this store; the adapter is therefore not registered/ranked until a permitted read confirms the minimum and the fee."
+      }
+    },
+    {
+      "id": "tivtaam",
+      "status": "unchanged_observed_but_batches_below_minimum",
+      "note": "Retained from docs/evidence/tnuva-cottage-cheese-runner-research-20261015.json: ₪6.10 per tub + ₪29.90 home delivery, ₪300 published minimum; anonymous cart quotes exist but no standalone batch is purchasable."
+    },
+    {
+      "id": "yuda",
+      "status": "unchanged_observed_but_batches_below_minimum",
+      "note": "Retained from docs/evidence/tnuva-cottage-cheese-runner-research-20261015.json: ₪6.70 per tub + ₪35 home delivery, ₪150 published minimum; cart reads remain WAF-challenged."
+    }
+  ],
+  "rankedTotals": {
+    "locality": "ganei-shmuel (Ganei Shmuel / גן שמואל)",
+    "vendor": "duchan",
+    "batches": [
+      {
+        "tubs": 4,
+        "orderedGrams": 1000,
+        "itemSubtotalIls": 25.2,
+        "shippingIls": 28,
+        "deliveredTotalIls": 53.2,
+        "ilsPerKg": 53.2
+      },
+      {
+        "tubs": 6,
+        "orderedGrams": 1500,
+        "itemSubtotalIls": 37.8,
+        "shippingIls": 28,
+        "deliveredTotalIls": 65.8,
+        "ilsPerKg": 43.87
+      },
+      {
+        "tubs": 8,
+        "orderedGrams": 2000,
+        "itemSubtotalIls": 50.4,
+        "shippingIls": 28,
+        "deliveredTotalIls": 78.4,
+        "ilsPerKg": 39.2
+      },
+      {
+        "tubs": 10,
+        "orderedGrams": 2500,
+        "itemSubtotalIls": 63,
+        "shippingIls": 28,
+        "deliveredTotalIls": 91,
+        "ilsPerKg": 36.4
+      }
+    ],
+    "note": "Totals come from the anonymous cart quotes above; ilsPerKg is the delivered total divided by the ordered grams (rounded)."
+  },
+  "nextStep": "The default Tel Aviv–Yafo locality still has no purchasable exact batch: Tiv Taam (₪300) and Super Yuda (₪150) minimums exceed every batch, and Duchan publishes no Tel Aviv area. Options remain: owner selects another covered city/area, owner allows filling an order to a vendor minimum, or a blocked low-minimum chain becomes reachable without bypassing its protection. The Super Haviv Petah Tikva lead needs a permitted applied-delivery cart read (or an owner-accepted published-rate basis with the ₪200/₪10 conflict disclosed) before it can be ranked.",
+  "liveAdapterVerification": {
+    "tool": "npm run check:sources (live, bounded fetcher through the registered adapters)",
+    "startedAt": "2026-10-15T18:38:47.994Z",
+    "finishedAt": "2026-10-15T18:39:06.419Z",
+    "result": "All six adapters passed: duchan ok (₪6.30 ILS, in_stock, 713 ms) plus coffeeman (3 offers), pucks (1), coffee4u (1), tivtaam (₪6.10) and yuda (₪6.70).",
+    "evidence": "docs/evidence/source-check-20261015T1838Z.json"
+  }
+}
