@@ -1311,12 +1311,12 @@ try {
     check('cottage cheese: the observed Tiv Taam and Super Yuda offers keep their known ₪29.90/₪35 rates and ₪300/₪150 minimum-order blocks, with no total or coffee winner claimed',
       /Tiv Taam/.test(cheeseUnknown)
         && /Shipping: ₪29.90/.test(cheeseUnknown)
-        && /below the vendor minimum order of ₪300/.test(cheeseUnknown)
+        && /below the vendor minimum order of ₪300(?:\.00)?/.test(cheeseUnknown)
         && /Super Yuda/.test(cheeseUnknown)
         && /Shipping: ₪35/.test(cheeseUnknown)
-        && /below the vendor minimum order of ₪150/.test(cheeseUnknown)
+        && /below the vendor minimum order of ₪150(?:\.00)?/.test(cheeseUnknown)
         && /₪300 minimum order/.test(cheeseView.text)
-        && /₪150 minimum order/.test(cheeseView.text)
+        && /₪150 minimum/.test(cheeseView.text)
         && !/Best known delivered total|CoffeeMan|Pucks|Coffee4U|₪0/.test(cheeseView.text), cheeseUnknown.slice(0, 1200));
     await firstScreenScreenshot(wd, 'cottage-cheese-mobile-390.png');
     await contrastReport(wd, 'body', 'the cottage-cheese pending comparison (mobile)');

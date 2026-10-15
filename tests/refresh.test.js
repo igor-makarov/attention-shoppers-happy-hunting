@@ -189,7 +189,7 @@ test('the production cron sequence keeps a six-hour cadence and recovers from th
   const offPhase = await tick('2026-10-12T18:17:20.000Z');
   assert.equal(offPhase.requests, 0, 'an off-phase tick makes no vendor request');
   assert.equal(offPhase.saved, 0);
-  assert.equal(offPhase.skipped, 4);
+  assert.equal(offPhase.skipped, 5);
   assert.equal(offPhase.lastRefreshAt, '2026-10-12T15:52:12.000Z');
   assert.equal(offPhase.freshness.stale, false, 'the board stays fresh through the off-phase tick');
 
@@ -202,7 +202,7 @@ test('the production cron sequence keeps a six-hour cadence and recovers from th
   assert.ok(beforeDue.ageHours > 8 && beforeDue.ageHours < 9);
   const firstOnPhase = await tick('2026-10-13T00:17:20.000Z');
   assert.equal(firstOnPhase.requests, 8);
-  assert.equal(firstOnPhase.saved, 4, 'the due tick refreshes every vendor');
+  assert.equal(firstOnPhase.saved, 5, 'the due tick refreshes every vendor');
   assert.equal(firstOnPhase.skipped, 0);
   assert.equal(firstOnPhase.freshness.stale, false);
 
@@ -218,7 +218,7 @@ test('the production cron sequence keeps a six-hour cadence and recovers from th
   for (const entry of ticks) {
     assert.equal(entry.skipped, 0, `${entry.startIso} refreshes instead of skipping every vendor`);
     assert.equal(entry.requests, 8, `${entry.startIso} re-checks the seven tracked offers and the rate table`);
-    assert.equal(entry.saved, 4, `${entry.startIso} saves an observation for every vendor`);
+    assert.equal(entry.saved, 5, `${entry.startIso} saves an observation for every vendor`);
     assert.equal(entry.freshness.stale, false, `${entry.startIso} keeps the board fresh`);
   }
 
@@ -848,7 +848,7 @@ test('retired product URLs have no fixture route, so offline tools cannot serve 
   // retired excerpts can be reached through the fixture fetch used by the
   // offline tools, tests and browser QA server.
   const mapped = trackedOffers().filter(offer => offer.file);
-  assert.equal(mapped.length, 6, 'the six tracked offers have fixtures');
+  assert.equal(mapped.length, 7, 'the seven tracked offers have fixtures');
   assert.ok(mapped.every(offer => ['lavazza-crema-e-gusto-vacuum-ground', 'tnuva-cottage-cheese-5-percent'].includes(offer.productId)));
   const fixtureFetch = createFixtureFetch();
   const retiredResponse = await fixtureFetch(retiredUrls[0]);

@@ -93,7 +93,7 @@ export const PRODUCTS = [
     notes: 'Compare the lowest total including delivery and mandatory fees for exact batches of 4, 6, 8 or 10 standard 250 g tubs. Other brands, fat percentages, flavoured cottage cheese and other tub sizes are excluded.',
     sourcing: {
       status: 'pending',
-      note: 'Delivery quotes are pending. Tiv Taam’s public store API and terms establish ₪6.10 per 250 g tub plus ₪29.90 home delivery to ת״א צפון, but its published ₪300 minimum order is above every requested standalone batch (4-10 tubs = ₪54.30-₪90.90), so no exact batch is purchasable there. Other chains are blocked by bot protection or vendor terms; see docs/evidence/tnuva-cottage-cheese-runner-research-20261015.json. Totals stay unknown until a vendor can deliver a batch at or above its minimum.',
+      note: 'Delivery quotes are pending. Two independent public store APIs are observed: Tiv Taam (₪6.10 per 250 g tub plus ₪29.90 home delivery, ₪300 minimum order) and Super Yuda (₪6.70 plus ₪35, ₪150 minimum). Every exact 4-10-tub batch (₪26.80-₪90.90 item plus delivery) is below both vendors’ published minimum orders, so no standalone batch is purchasable and no delivered total is ranked. The low-minimum delivery services found in research (Wolt Market, Yango Deli) are excluded by their terms, and the reachable small groceries are bot-protected or do not cover Tel Aviv–Yafo; see docs/evidence/tnuva-cottage-cheese-runner-research-20261015.json. Totals stay unknown until a vendor can deliver a batch at or above its minimum.',
       sources: [
         {
           label: 'Tiv Taam public store API (branch 924, Ramat HaHayal)',
@@ -104,7 +104,15 @@ export const PRODUCTS = [
           url: 'https://www.tivtaam.co.il/v2/retailers/1062/branches/924/areas/2446?appId=4&deliveryTypeId=1&languageId=2'
         },
         {
-          label: 'Runner research record (prices, minimum order, blocked sources)',
+          label: 'Super Yuda public store API (branch 2481, ישעיהו Tel Aviv)',
+          url: 'https://www.yuda.co.il/?catalogProduct=12053'
+        },
+        {
+          label: 'Super Yuda delivery area (₪35, ₪150 minimum)',
+          url: 'https://www.yuda.co.il/v2/retailers/1492/branches/2481/areas?appId=4&deliveryTypeId=1&languageId=1'
+        },
+        {
+          label: 'Runner research record (prices, minimum orders, blocked sources)',
           url: 'docs/evidence/tnuva-cottage-cheese-runner-research-20261015.json'
         },
         {
