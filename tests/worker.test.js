@@ -82,7 +82,7 @@ test('catalog route lists the product, destinations and vendor allowlist without
   assert.equal(body.products.length, 2, 'coffee and the newly requested cottage cheese are selectable');
   assert.ok(body.destinations.length >= 5);
   const vendorIds = body.vendors.map(vendor => vendor.id).sort();
-  assert.deepEqual(vendorIds, ['coffee4u', 'coffeeman', 'pucks', 'tivtaam', 'yuda']);
+  assert.deepEqual(vendorIds, ['coffee4u', 'coffeeman', 'duchan', 'pucks', 'tivtaam', 'yuda']);
   const coffee4u = body.vendors.find(vendor => vendor.id === 'coffee4u');
   assert.match(coffee4u.offers[0].url, /^https:\/\/www\.coffee4u\.co\.il\/product\//);
   assert.match(body.vendors[0].offers[0].url, /^https:\/\//);
@@ -236,7 +236,7 @@ test('status exposes the validated promotion summary and the shipping policies',
   assert.equal(promotion.minItemSubtotal, 250);
   assert.equal(promotion.excludesMultipacks, true);
   assert.equal(promotion.expired, false);
-  assert.equal(status.shippingPolicies.length, 6, 'the six validated shipping policies stay exposed');
+  assert.equal(status.shippingPolicies.length, 7, 'the seven validated shipping policies stay exposed');
 });
 
 test('website requests fall through to static assets', async () => {
@@ -256,12 +256,12 @@ test('scheduled handler refreshes and persists through the BOARD binding', async
     globalThis.fetch = originalFetch;
   }
   const snapshot = await store.snapshot();
-  assert.equal(snapshot.observations.length, 7);
+  assert.equal(snapshot.observations.length, 8);
   assert.equal(snapshot.meta.lastRefreshAt.trigger, 'cron');
   assert.equal(snapshot.meta.fx.rates.USD.rate, 3.05);
   const run = snapshot.runs[0];
   assert.equal(run.trigger, 'cron');
-  assert.equal(run.requests, 8);
+  assert.equal(run.requests, 9);
 });
 
 test('the catalog lists the two authorized products with no coffee variant selection', async () => {

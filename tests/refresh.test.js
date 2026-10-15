@@ -49,10 +49,10 @@ test('scheduled refresh persists observations without a browser', async () => {
   const calls = [];
   const summary = await run({ store, fetchImpl: fixtureFetch({ calls }), now: NOW, trigger: 'cron' });
   assert.equal(summary.trigger, 'cron');
-  assert.equal(summary.vendors.length, 5);
-  assert.equal(summary.requests, 8, 'three CoffeeMan listings, one Pucks listing, Coffee4U, the Tiv Taam and Super Yuda cottage-cheese listings and one FX request');
+  assert.equal(summary.vendors.length, 6);
+  assert.equal(summary.requests, 9, 'three CoffeeMan listings, one Pucks listing, Coffee4U, the Tiv Taam, Super Yuda and Duchan cottage-cheese listings and one FX request');
   const snapshot = await store.snapshot();
-  assert.equal(snapshot.observations.length, 7, 'the five Crema e Gusto offers plus the tracked Tiv Taam and Super Yuda cottage-cheese listings are observed');
+  assert.equal(snapshot.observations.length, 8, 'the five Crema e Gusto offers plus the tracked Tiv Taam, Super Yuda and Duchan cottage-cheese listings are observed');
   assert.deepEqual(
     [...new Set(snapshot.observations.map(o => o.product.productId))].sort(),
     ['lavazza-crema-e-gusto-vacuum-ground', 'tnuva-cottage-cheese-5-percent'],
@@ -132,7 +132,7 @@ test('a successful vendor counts as due a little before its stored due time', ()
 test('a cron tick just before the six-hour mark refreshes instead of skipping every vendor', async () => {
   const store = createMemoryStore();
   const first = await run({ store, fetchImpl: fixtureFetch(), now: NOW, trigger: 'cron' });
-  assert.equal(first.requests, 8);
+  assert.equal(first.requests, 9);
   const refreshAt = (await store.snapshot()).meta.lastRefreshAt.value;
   for (const vendorId of ['coffeeman', 'pucks', 'coffee4u', 'tivtaam']) {
     assert.equal(Date.parse((await store.getVendorState(vendorId)).nextAttemptAt), NOW + REFRESH_INTERVAL_MS);
@@ -148,8 +148,8 @@ test('a cron tick just before the six-hour mark refreshes instead of skipping ev
     trigger: 'cron'
   });
   assert.equal(tick.vendors.filter(vendor => vendor.skipped).length, 0, 'no vendor is skipped by cron phase drift');
-  assert.equal(tick.requests, 8, 'all seven tracked offers and the rate table are re-checked');
-  assert.equal(tick.vendors.filter(vendor => (vendor.saved ?? 0) > 0).length, 5, 'every vendor saved an observation on the tick');
+  assert.equal(tick.requests, 9, 'all eight tracked offers and the rate table are re-checked');
+  assert.equal(tick.vendors.filter(vendor => (vendor.saved ?? 0) > 0).length, 6, 'every vendor saved an observation on the tick');
   const after = (await store.snapshot()).meta.lastRefreshAt.value;
   assert.ok(after, 'the completed tick advances lastRefreshAt, so the board stays fresh');
   assert.ok(Date.parse(after) >= Date.parse(refreshAt), 'lastRefreshAt never moves backwards');
@@ -181,7 +181,7 @@ test('the production cron sequence keeps a six-hour cadence and recovers from th
   // The post-deployment initial refresh completed off-phase at 15:52:12 and left
   // every vendor due at 21:52:12.
   const initial = await run({ store, fetchImpl, now: simMs, trigger: 'initial', timeSource, clock: () => simMs });
-  assert.equal(initial.requests, 8);
+  assert.equal(initial.requests, 9);
   assert.equal((await store.snapshot()).meta.lastRefreshAt.value, '2026-10-12T15:52:12.000Z');
 
   // 18:17 UTC tick: every vendor is still inside its window, so the run is
@@ -189,7 +189,7 @@ test('the production cron sequence keeps a six-hour cadence and recovers from th
   const offPhase = await tick('2026-10-12T18:17:20.000Z');
   assert.equal(offPhase.requests, 0, 'an off-phase tick makes no vendor request');
   assert.equal(offPhase.saved, 0);
-  assert.equal(offPhase.skipped, 5);
+  assert.equal(offPhase.skipped, 6);
   assert.equal(offPhase.lastRefreshAt, '2026-10-12T15:52:12.000Z');
   assert.equal(offPhase.freshness.stale, false, 'the board stays fresh through the off-phase tick');
 
@@ -201,8 +201,8 @@ test('the production cron sequence keeps a six-hour cadence and recovers from th
   assert.equal(beforeDue.stale, true, 'off-phase data past the eight-hour threshold reads as stale, not silently fresh');
   assert.ok(beforeDue.ageHours > 8 && beforeDue.ageHours < 9);
   const firstOnPhase = await tick('2026-10-13T00:17:20.000Z');
-  assert.equal(firstOnPhase.requests, 8);
-  assert.equal(firstOnPhase.saved, 5, 'the due tick refreshes every vendor');
+  assert.equal(firstOnPhase.requests, 9);
+  assert.equal(firstOnPhase.saved, 6, 'the due tick refreshes every vendor');
   assert.equal(firstOnPhase.skipped, 0);
   assert.equal(firstOnPhase.freshness.stale, false);
 
@@ -217,8 +217,8 @@ test('the production cron sequence keeps a six-hour cadence and recovers from th
   ];
   for (const entry of ticks) {
     assert.equal(entry.skipped, 0, `${entry.startIso} refreshes instead of skipping every vendor`);
-    assert.equal(entry.requests, 8, `${entry.startIso} re-checks the seven tracked offers and the rate table`);
-    assert.equal(entry.saved, 5, `${entry.startIso} saves an observation for every vendor`);
+    assert.equal(entry.requests, 9, `${entry.startIso} re-checks the eight tracked offers and the rate table`);
+    assert.equal(entry.saved, 6, `${entry.startIso} saves an observation for every vendor`);
     assert.equal(entry.freshness.stale, false, `${entry.startIso} keeps the board fresh`);
   }
 
@@ -237,7 +237,7 @@ test('the production cron sequence keeps a six-hour cadence and recovers from th
   // advanced the marker.
   const runs = await store.listRuns(10);
   assert.equal(runs.filter(runEntry => runEntry.requests === 0).length, 1);
-  assert.equal(runs.filter(runEntry => runEntry.requests === 8).length, 6, 'the initial run and the five on-phase ticks each fetched every offer');
+  assert.equal(runs.filter(runEntry => runEntry.requests === 9).length, 6, 'the initial run and the five on-phase ticks each fetched every offer');
 });
 
 test('a vendor failure inside the cron sequence keeps its previous good offer and recovers on the next due tick', async () => {
@@ -261,7 +261,7 @@ test('a vendor failure inside the cron sequence keeps its previous good offer an
   const coffeemanResult = failing.vendors.find(vendor => vendor.vendorId === 'coffeeman');
   assert.equal(coffeemanResult.ok, false);
   assert.equal(coffeemanResult.saved, 0);
-  assert.equal(failing.vendors.filter(vendor => (vendor.saved ?? 0) > 0).length, 4, 'the other four vendors are not blocked by the failure');
+  assert.equal(failing.vendors.filter(vendor => (vendor.saved ?? 0) > 0).length, 5, 'the other five vendors are not blocked by the failure');
   const keptCoffeeman = (await store.snapshot()).observations.find(observation => observation.vendor.id === 'coffeeman' && observation.product.packCount === 1);
   assert.equal(keptCoffeeman.price.amount, 33, 'the previous good price is preserved');
   assert.equal(keptCoffeeman.observedAt, goodCoffeeman.observedAt, 'the successful observation time is not overwritten');
@@ -599,20 +599,20 @@ test('refresh runs started in the same tick cannot both acquire the lease', asyn
   ]);
   const summaries = [first, second];
   assert.equal(summaries.filter(summary => summary.skipped).length, 1, 'exactly one run is skipped');
-  assert.equal(summaries.find(summary => !summary.skipped).requests, 8);
-  assert.equal(calls.length, 8, 'the losing run performs no vendor or FX requests');
+  assert.equal(summaries.find(summary => !summary.skipped).requests, 9);
+  assert.equal(calls.length, 9, 'the losing run performs no vendor or FX requests');
 });
 
 test('a zero-request run does not claim a completed refresh', async () => {
   const store = createMemoryStore();
   const first = await run({ store, fetchImpl: fixtureFetch(), now: NOW });
-  assert.equal(first.requests, 8);
+  assert.equal(first.requests, 9);
   const refreshAt = (await store.snapshot()).meta.lastRefreshAt.value;
 
   // Every vendor is still inside its six-hour window, so this run fetches nothing.
   const idle = await run({ store, fetchImpl: fixtureFetch(), now: NOW + 60_000 });
   assert.equal(idle.requests, 0);
-  assert.equal(idle.vendors.filter(vendor => vendor.skipped).length, 5, 'all vendors are backed off');
+  assert.equal(idle.vendors.filter(vendor => vendor.skipped).length, 6, 'all vendors are backed off');
   const after = (await store.snapshot()).meta.lastRefreshAt.value;
   assert.equal(after, refreshAt, 'an empty run must not look like a fresh observation');
   const runs = await store.listRuns(5);
@@ -812,7 +812,7 @@ test('retired-line observations and attempt markers are pruned from the live sto
   const summary = await run({ store, fetchImpl: fixtureFetch(), now: NOW });
   assert.equal(summary.pruned, 2, 'the retired observation and the retired attempt marker are removed');
   const snapshot = await store.snapshot();
-  assert.equal(snapshot.observations.length, 7, 'only the seven tracked offers remain after the refresh');
+  assert.equal(snapshot.observations.length, 8, 'only the eight tracked offers remain after the refresh');
   assert.ok(!snapshot.observations.some(o => o.product?.productId === 'lavazza-qualita-oro-vacuum-ground'));
   assert.ok(!snapshot.observations.some(o => o.key === 'pucks:offer:suerte-250g'));
   assert.ok(snapshot.observations.every(o => ['lavazza-crema-e-gusto-vacuum-ground', 'tnuva-cottage-cheese-5-percent'].includes(o.product.productId)), 'tracked lines are never pruned');
@@ -848,7 +848,7 @@ test('retired product URLs have no fixture route, so offline tools cannot serve 
   // retired excerpts can be reached through the fixture fetch used by the
   // offline tools, tests and browser QA server.
   const mapped = trackedOffers().filter(offer => offer.file);
-  assert.equal(mapped.length, 7, 'the seven tracked offers have fixtures');
+  assert.equal(mapped.length, 8, 'the eight tracked offers have fixtures');
   assert.ok(mapped.every(offer => ['lavazza-crema-e-gusto-vacuum-ground', 'tnuva-cottage-cheese-5-percent'].includes(offer.productId)));
   const fixtureFetch = createFixtureFetch();
   const retiredResponse = await fixtureFetch(retiredUrls[0]);
@@ -864,7 +864,7 @@ test('a run that only refreshes the FX table does not claim a completed offer re
   // three hours old, so this run fetches only the rate table.
   const fxOnly = await run({ store, fetchImpl: fixtureFetch(), now: NOW + 3 * 60 * 60 * 1000 + 1000 });
   assert.equal(fxOnly.requests, 1, 'only the FX request is made');
-  assert.equal(fxOnly.vendors.filter(vendor => vendor.skipped).length, 5, 'every vendor is inside its backoff window');
+  assert.equal(fxOnly.vendors.filter(vendor => vendor.skipped).length, 6, 'every vendor is inside its backoff window');
   const after = (await store.snapshot()).meta.lastRefreshAt.value;
   assert.equal(after, refreshAt, 'refreshing only the rate table must not look like a fresh offer check');
 });
