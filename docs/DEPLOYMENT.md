@@ -26,6 +26,8 @@ Provider, model and reasoning are fixed in the workflow's control action to open
 
 To stop, dispatch command=stop and loop_id=main. Record the durable stop before turning SHURIK_ENABLED false. To resume, use command=resume, loop_id=main; the workflow supplies max reasoning again and updates the saved model to DeepSeek V4.1 Flash. Control/session history and Actions logs are public; do not add private material to this task.
 
+The connected GitHub integration can also retry a known failed Actions job when CLI API access is unavailable. On 2026-10-15 it retried the existing failed **resume control** job after verifying that the loop was stopped and that the saved workflow/configuration matched the current one. Shurik resumed generation 4 and dispatched iteration 106 from the latest `main` commit containing the cottage-cheese brief. Verify the resulting control state and new iteration's source commit; a retry acknowledgment alone is not evidence of an active loop. This used the normal Actions lifecycle and did not edit the Shurik control branch or engine.
+
 ## 2. Cloudflare Git integration
 
 Expected as configured by the owner; the coding loop does not administer Cloudflare. The owner connects the repo from the Cloudflare dashboard, not through Shurik.
