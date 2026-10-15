@@ -441,6 +441,11 @@ function normalizeQuotedSelection() {
   if (changed) syncUrl({ keepRequestedProduct: true });
 }
 
+/** A product whose sourcing is not fully available still shows the pending label while it has no observations. */
+function sourcingPending(status) {
+  return status === 'pending' || status === 'partial';
+}
+
 function updateFooterStatus() {
   const node = document.getElementById('footer-status');
   if (!node) return;
@@ -449,7 +454,7 @@ function updateFooterStatus() {
     return;
   }
   const f = state.board?.freshness;
-  if (state.board?.counts?.observed === 0 && state.board?.product?.sourcing?.status === 'pending') {
+  if (state.board?.counts?.observed === 0 && sourcingPending(state.board?.product?.sourcing?.status)) {
     node.textContent = 'Delivery quotes for this product have not been verified yet.';
     return;
   }
@@ -470,7 +475,7 @@ function updateFooterStatus() {
 
 /** Board-level freshness and per-vendor diagnostics behind one disclosure. */
 function renderFooterStatus(board) {
-  if (board.counts?.observed === 0 && board.product?.sourcing?.status === 'pending') {
+  if (board.counts?.observed === 0 && sourcingPending(board.product?.sourcing?.status)) {
     return el('p', { class: 'meta-line', text: 'No verified offer observations for this product yet.' });
   }
   const vendors = board.freshness?.vendors ?? [];
