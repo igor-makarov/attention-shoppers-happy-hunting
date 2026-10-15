@@ -1276,10 +1276,11 @@ try {
   }
 
   // The dairy page has exact tub quantities and honest unranked delivery
-  // totals: the fixture board carries the real Tiv Taam listing, whose known
-  // ₪29.90 home-delivery rate must stay visible while every exact batch is
-  // blocked below the published ₪300 minimum order. No total may be invented
-  // and no coffee vendor may leak into the dairy page.
+  // totals: the fixture board carries the real Tiv Taam and Super Yuda
+  // listings, whose known ₪29.90/₪35 home-delivery rates must stay visible
+  // while every exact batch is blocked below the published ₪300/₪150 minimum
+  // orders. No total may be invented and no coffee vendor may leak into the
+  // dairy page.
   const cheese = catalog.products.find(item => item.id === 'tnuva-cottage-cheese-5-percent');
   if (cheese) {
     const cheesePath = `/product/${cheese.id}`;
@@ -1307,11 +1308,15 @@ try {
     await setDetailsOpen(wd, '#unknown-offers', true);
     await waitFor(() => evaluate(wd, `document.getElementById('unknown-offers')?.open === true`), 10_000, 'unknown-offers disclosure');
     const cheeseUnknown = await evaluate(wd, `document.getElementById('unknown-offers')?.innerText ?? ''`);
-    check('cottage cheese: the observed Tiv Taam offer keeps its known ₪29.90 rate and the ₪300 minimum-order block, with no total or coffee winner claimed',
+    check('cottage cheese: the observed Tiv Taam and Super Yuda offers keep their known ₪29.90/₪35 rates and ₪300/₪150 minimum-order blocks, with no total or coffee winner claimed',
       /Tiv Taam/.test(cheeseUnknown)
         && /Shipping: ₪29.90/.test(cheeseUnknown)
         && /below the vendor minimum order of ₪300/.test(cheeseUnknown)
+        && /Super Yuda/.test(cheeseUnknown)
+        && /Shipping: ₪35/.test(cheeseUnknown)
+        && /below the vendor minimum order of ₪150/.test(cheeseUnknown)
         && /₪300 minimum order/.test(cheeseView.text)
+        && /₪150 minimum order/.test(cheeseView.text)
         && !/Best known delivered total|CoffeeMan|Pucks|Coffee4U|₪0/.test(cheeseView.text), cheeseUnknown.slice(0, 1200));
     await firstScreenScreenshot(wd, 'cottage-cheese-mobile-390.png');
     await contrastReport(wd, 'body', 'the cottage-cheese pending comparison (mobile)');

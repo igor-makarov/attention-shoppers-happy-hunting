@@ -12,9 +12,10 @@ import { pucks } from './pucks.js';
 import { coffeeman } from './coffeeman.js';
 import { coffee4u } from './coffee4u.js';
 import { tivtaam } from './tivtaam.js';
+import { yuda } from './yuda.js';
 
 export function registeredVendors() {
-  return [coffeeman, pucks, coffee4u, tivtaam];
+  return [coffeeman, pucks, coffee4u, tivtaam, yuda];
 }
 
 /** Every host any adapter may contact. Used for the refresh-time allowlist. */
@@ -22,7 +23,7 @@ export function vendorHosts(vendors = registeredVendors()) {
   return [...new Set(vendors.flatMap(vendor => vendor.allowedHosts))];
 }
 
-export function createObservation({ vendor, itemUrl, product, price, availability, availabilityEvidence, shipping, promotions = [], mandatoryFees = [], now }) {
+export function createObservation({ vendor, itemUrl, product, price, availability, availabilityEvidence, shipping, promotions = [], mandatoryFees = [], maxUnits = null, now }) {
   const observedAt = new Date(now ?? Date.now()).toISOString();
   // Owner correction, 2026-10-12: there is no blend/variant feature, so the
   // persisted offer identity must not depend on the blend wording a listing
@@ -59,6 +60,9 @@ export function createObservation({ vendor, itemUrl, product, price, availabilit
     // before banner parsing have no field at all and may use the fallback.
     promotions: promotions.map(promotion => (promotion ? { ...promotion, evidence: stamp(promotion.evidence) } : promotion)),
     mandatoryFees,
+    // The vendor's own published per-order quantity cap, when the source states
+    // one. Null means "not stated", never "unlimited".
+    maxUnits: Number.isFinite(maxUnits) && maxUnits > 0 ? maxUnits : null,
     observedAt,
     evidence: [
       { url: itemUrl, retrievedAt: observedAt, note: 'Item price and listed availability parsed from the vendor product page.' }

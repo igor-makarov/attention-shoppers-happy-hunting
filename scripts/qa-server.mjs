@@ -19,6 +19,7 @@ import { coffeeman } from '../src/vendors/coffeeman.js';
 import { pucks } from '../src/vendors/pucks.js';
 import { coffee4u } from '../src/vendors/coffee4u.js';
 import { tivtaam } from '../src/vendors/tivtaam.js';
+import { yuda } from '../src/vendors/yuda.js';
 import { products, resolveProductRequest } from '../src/catalog.js';
 import { quoteBoard, findDestination, DESTINATIONS } from '../src/lib/quote.js';
 import { createObservation, registeredVendors } from '../src/vendors/index.js';
@@ -65,7 +66,7 @@ export async function fixtureObservations(now = Date.now()) {
     };
   };
   const observations = [];
-  for (const vendor of [coffeeman, pucks, coffee4u, tivtaam]) {
+  for (const vendor of [coffeeman, pucks, coffee4u, tivtaam, yuda]) {
     const outcome = await vendor.observe({ fetchText: fixtureFetch, now, logger: null });
     if (outcome.failures?.length) {
       throw new Error(`${vendor.id}: fixture parse failed: ${JSON.stringify(outcome.failures)}`);

@@ -82,7 +82,7 @@ test('catalog route lists the product, destinations and vendor allowlist without
   assert.equal(body.products.length, 2, 'coffee and the newly requested cottage cheese are selectable');
   assert.ok(body.destinations.length >= 5);
   const vendorIds = body.vendors.map(vendor => vendor.id).sort();
-  assert.deepEqual(vendorIds, ['coffee4u', 'coffeeman', 'pucks', 'tivtaam']);
+  assert.deepEqual(vendorIds, ['coffee4u', 'coffeeman', 'pucks', 'tivtaam', 'yuda']);
   const coffee4u = body.vendors.find(vendor => vendor.id === 'coffee4u');
   assert.match(coffee4u.offers[0].url, /^https:\/\/www\.coffee4u\.co\.il\/product\//);
   assert.match(body.vendors[0].offers[0].url, /^https:\/\//);
@@ -289,15 +289,18 @@ test('cottage cheese API resolves exact batches and never borrows coffee offers 
     assert.equal(board.targetGrams, quantity * 250);
     assert.equal(board.destination.id, 'haifa');
     assert.equal(board.deliveryOnly, true);
-    assert.equal(board.best, null, 'no exact batch is ranked: the only observed listing is below its vendor minimum');
-    assert.equal(board.counts.observed, 1, 'the seeded Tiv Taam cottage-cheese listing is observed');
+    assert.equal(board.best, null, 'no exact batch is ranked: the observed listings are below their vendor minimums');
+    assert.equal(board.counts.observed, 2, 'the seeded Tiv Taam and Super Yuda cottage-cheese listings are observed');
     assert.deepEqual(board.pickup, []);
     assert.deepEqual(board.batchComparisons.map(batch => [batch.quantity, batch.best]), [[4, null], [6, null], [8, null], [10, null]]);
-    assert.deepEqual(board.freshness.vendors.map(vendor => vendor.vendorId), ['tivtaam'], 'only the vendor with a cottage-cheese offer is listed');
+    assert.deepEqual(board.freshness.vendors.map(vendor => vendor.vendorId), ['tivtaam', 'yuda'], 'only the vendors with a cottage-cheese offer are listed');
     assert.ok(board.freshness.lastObservationAt, 'the cheese board freshness uses its own cheese observation');
     const tivtaamQuote = board.unrankable.find(quote => quote.vendor.id === 'tivtaam');
     assert.ok(tivtaamQuote, 'the observed Tiv Taam listing stays visible');
     assert.ok(tivtaamQuote.reasons.length > 0, 'the Haifa destination is not covered by the researched Tiv Taam areas');
+    const yudaQuote = board.unrankable.find(quote => quote.vendor.id === 'yuda');
+    assert.ok(yudaQuote, 'the observed Super Yuda listing stays visible');
+    assert.ok(yudaQuote.reasons.length > 0, 'the Haifa destination is not covered by the researched Super Yuda areas');
     assert.equal(board.product.sourcing.status, 'pending');
   }
   // The default locality is inside the researched Tiv Taam areas, so the block
@@ -306,6 +309,9 @@ test('cottage cheese API resolves exact batches and never borrows coffee offers 
   const telAvivQuote = telAviv.unrankable.find(quote => quote.vendor.id === 'tivtaam');
   assert.ok(telAvivQuote, 'Tiv Taam is compared for the default locality');
   assert.ok(telAvivQuote.reasons.some(reason => /below the vendor minimum order of ₪300/.test(reason)), JSON.stringify(telAvivQuote.reasons));
+  const telAvivYuda = telAviv.unrankable.find(quote => quote.vendor.id === 'yuda');
+  assert.ok(telAvivYuda, 'Super Yuda is compared for the default locality');
+  assert.ok(telAvivYuda.reasons.some(reason => /below the vendor minimum order of ₪150/.test(reason)), JSON.stringify(telAvivYuda.reasons));
   assert.equal(telAviv.best, null, 'a below-minimum batch is never ranked');
   const get = async query => (await worker.fetch(new Request(`https://example.test/api/board?product=${productId}&${query}`), envWith(store), {})).json();
   assert.equal((await get('grams=2000')).targetQuantity, 8);

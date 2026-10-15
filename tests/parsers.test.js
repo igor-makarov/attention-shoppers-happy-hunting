@@ -6,6 +6,7 @@ import { parseCoffeemanProduct, parseShippingOptions } from '../src/vendors/coff
 import { parsePucksProduct } from '../src/vendors/pucks.js';
 import { parseCoffee4uProduct, parseCoffee4uShipping } from '../src/vendors/coffee4u.js';
 import { parseTivtaamProduct, selectTivtaamProduct } from '../src/vendors/tivtaam.js';
+import { parseYudaProduct, selectYudaProduct, classifyYudaNames } from '../src/vendors/yuda.js';
 import { readFixtureForUrl } from './fixtures/vendor-fixtures.mjs';
 import { classifyListing, isRetiredProductId, resolveProductRequest } from '../src/catalog.js';
 import { coffeemanEightPackPolicy, coffeemanSingleFourPackPolicy, coffee4uHomeDeliveryPolicy } from '../src/lib/policies.js';
@@ -406,6 +407,85 @@ test('tivtaam parser never prices the retired hidden row and maps stock flags ho
   );
 });
 
+
+// Super Yuda cottage cheese (2026-10-15 owner addition, second grocery source).
+// The fixture is the real public store API response for catalogProductId 12053
+// (branch 2481, ישעיהו Tel Aviv) recorded from the GitHub Actions runner on
+// 2026-10-15; the delivery terms are the checked-in policy, not the product
+// response.
+test('yuda fixture selects the visible Tel Aviv branch row and keeps the cottage-cheese identity', () => {
+  const json = read('yuda-product.json').toString('utf8');
+  const observation = parseYudaProduct(json, { now });
+  assert.equal(observation.vendor.id, 'yuda');
+  assert.equal(observation.product.productId, 'tnuva-cottage-cheese-5-percent');
+  assert.equal(observation.product.form, 'cottage_cheese');
+  assert.equal(observation.product.sku, '12053');
+  assert.equal(observation.product.packGrams, 250);
+  assert.equal(observation.product.packCount, 1);
+  assert.equal(observation.product.totalGrams, 250);
+  assert.equal(observation.price.amount, 6.7);
+  assert.equal(observation.price.currency, 'ILS');
+  assert.equal(observation.availability, 'in_stock');
+  assert.match(observation.availabilityEvidence.value, /isActive=true/);
+  assert.match(observation.availabilityEvidence.value, /quantityLimit=999/);
+  assert.match(observation.availabilityEvidence.note, /never priced/);
+  assert.equal(observation.maxUnits, 999, 'the published per-line cap travels with the row');
+  assert.equal(observation.shipping.service, 'home_delivery');
+  assert.equal(observation.shipping.amount.amount, 35);
+  assert.equal(observation.shipping.minOrder.amount, 150);
+  assert.equal(observation.shipping.certainty, 'verified');
+  assert.deepEqual(observation.shipping.destination.localities, ['tel-aviv']);
+  assert.match(observation.shipping.destination.caveat, /minimum order/);
+  assert.equal(observation.itemUrl, 'https://www.yuda.co.il/?catalogProduct=12053');
+});
+
+test('yuda parser classifies through the vendor name that states the brand and never prices a hidden row', () => {
+  const base = {
+    productId: 12053,
+    weight: 250,
+    quantityLimit: 999,
+    names: {
+      '1': { long: "קוטג' 5% מהדרין" },
+      '2': { long: "קוטג‘ 5% תנובה מהדרין 250 גרם" }
+    },
+    branch: { id: 2481, regularPrice: 6.7, isActive: true, isVisible: true, isOutOfStock: false, aisleName: 'מוצרי חלב וביצים,' }
+  };
+  const hidden = { ...base, branch: { ...base.branch, id: 2441, regularPrice: 5.7, isVisible: false } };
+  assert.equal(selectYudaProduct([hidden, base]).branch.regularPrice, 6.7, 'the visible row is selected, not the cheaper hidden one');
+  assert.equal(selectYudaProduct([hidden]).branch.regularPrice, 5.7, 'a hidden row is still the only evidence when nothing is sellable');
+  assert.equal(selectYudaProduct([]), null);
+  assert.equal(classifyYudaNames(base).matched.classification.productId, 'tnuva-cottage-cheese-5-percent', 'the second name states Tnuva, 5% and 250 g');
+
+  const oos = parseYudaProduct(JSON.stringify({ total: 1, products: [{ ...base, branch: { ...base.branch, isOutOfStock: true } }] }), { now });
+  assert.equal(oos.availability, 'out_of_stock', 'the branch out-of-stock flag is not a price-only scrape');
+
+  assert.throws(() => parseYudaProduct('not json', { now }), /did not return JSON/);
+  assert.throws(() => parseYudaProduct(JSON.stringify({ total: 0, products: [] }), { now }), /No sellable branch product/);
+  assert.throws(
+    () => parseYudaProduct(JSON.stringify({ products: [{ ...base, names: { '1': { long: 'קוטג 9%' }, '2': { long: 'קוטג 9% תנובה 250 גרם' } } }] }), { now }),
+    /does not match the tracked product/,
+    'a 9% listing is refused instead of being merged into the 5% comparison'
+  );
+  assert.throws(
+    () => parseYudaProduct(JSON.stringify({ products: [{ ...base, names: { '1': { long: 'קוטג 5% תנובה 500 גרם' }, '2': { long: 'קוטג 5% תנובה 500 גרם' } } }] }), { now }),
+    /does not match the tracked product/,
+    'a 500 g tub is refused instead of being merged into the 250 g comparison'
+  );
+});
+
+test('yuda adapter routes its single offer through the recorded fixture', async () => {
+  const { yuda } = await import('../src/vendors/yuda.js');
+  const fetchText = async url => {
+    const hit = await readFixtureForUrl(url);
+    assert.ok(hit, `fixture for ${url}`);
+    return { ok: true, status: 200, text: hit.text, contentType: hit.contentType };
+  };
+  const outcome = await yuda.observe({ fetchText, now });
+  assert.equal(outcome.failures.length, 0);
+  assert.equal(outcome.observations.length, 1);
+  assert.equal(outcome.observations[0].price.amount, 6.7);
+  assert.equal(outcome.observations[0].maxUnits, 999);
+});
 test('tivtaam adapter routes its single offer through the recorded fixture', async () => {
   const { tivtaam } = await import('../src/vendors/tivtaam.js');
   const fetchText = async url => {

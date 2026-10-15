@@ -6,7 +6,7 @@
 // minimized excerpt of a real public product page (see docs/SOURCES.md).
 //
 // Only the tracked offers are mapped here: Crema e Gusto coffee listings and the
-// Tiv Taam cottage-cheese API response. The retired
+// Tiv Taam and Super Yuda cottage-cheese API responses. The retired
 // Qualità Oro / Qualità Rossa / Suerte excerpts live in
 // ./historical-retired/ and are never fetched or routed by the tools.
 
@@ -20,7 +20,8 @@ export const FIXTURE_BY_OFFER = {
   'coffeeman:classico-2000g-8pack': 'coffeeman-8pack-product.windows-1255.html',
   'pucks:classico-250g': 'pucks-product.html',
   'coffee4u:crema-e-gusto-250g-ground': 'coffee4u-product.windows-1255.html',
-  'tivtaam:tnuva-cottage-5-250g': 'tivtaam-product.json'
+  'tivtaam:tnuva-cottage-5-250g': 'tivtaam-product.json',
+  'yuda:tnuva-cottage-5-250g': 'yuda-product.json'
 };
 
 const WINDOWS_1255 = 'text/html; charset=windows-1255';
@@ -34,7 +35,8 @@ const CONTENT_TYPE_BY_FILE = {
   'pucks-product.preorder.html': 'text/html; charset=utf-8',
   'coffee4u-product.windows-1255.html': WINDOWS_1255,
   'coffee4u-product.outofstock.windows-1255.html': WINDOWS_1255,
-  'tivtaam-product.json': 'application/json; charset=utf-8'
+  'tivtaam-product.json': 'application/json; charset=utf-8',
+  'yuda-product.json': 'application/json; charset=utf-8'
 };
 
 export const FIXTURES_DIR = new URL('./', import.meta.url);

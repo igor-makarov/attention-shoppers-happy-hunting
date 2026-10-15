@@ -421,13 +421,49 @@ export const tivtaamCottageCheesePolicy = {
   reviewBy: '2026-11-14T00:00:00.000Z'
 };
 
+export const yudaCottageCheesePolicy = {
+  id: 'yuda-cottage-tel-aviv-home-delivery',
+  version: 1,
+  vendorId: 'yuda',
+  productIds: ['tnuva-cottage-cheese-5-percent'],
+  itemUrlPrefixes: ['https://www.yuda.co.il/?catalogProduct=12053'],
+  service: 'home_delivery',
+  origin: 'published',
+  certainty: 'verified',
+  rule: {
+    amount: { amount: 35, currency: 'ILS' },
+    freeThreshold: null,
+    thresholdSemantics: null,
+    minOrder: { amount: 150, currency: 'ILS' },
+    maxTotalGrams: null
+  },
+  destination: {
+    scope: 'localities',
+    localities: ['tel-aviv'],
+    caveat: 'Super Yuda publishes three online Tel Aviv–Yafo branches (ישעיהו, אינשטיין, בן ציון), each delivering only inside its own area polygon; the ₪150 minimum order applies per order. Coverage outside those areas is not established. Confirm the address at checkout.',
+    caveatSource: 'https://www.yuda.co.il/v2/retailers/1492/branches/2481/areas?appId=4&deliveryTypeId=1&languageId=1'
+  },
+  evidence: {
+    url: 'https://www.yuda.co.il/v2/retailers/1492/branches/2481/areas?appId=4&deliveryTypeId=1&languageId=1',
+    retrievedAt: '2026-10-15T17:45:00Z',
+    note: 'Public store API read from the GitHub Actions runner on 2026-10-15: branch 2481 (ישעיהו, Tel Aviv–Yafo) returned the tracked listing at ₪6.70 per 250 g tub with isActive/isVisible true, isOutOfStock false and quantityLimit 999, and its area "ישעיהו תל אביב" publishes deliveryAreaPrice ₪35 and deliveryMinimumCost ₪150. The retailer config sets minimumOrderPrice ₪150. The other two visible Tel Aviv branches (2480 אינשטיין, 2485 בן ציון) priced the same ₪6.70 with the same ₪35/₪150 terms; hidden rows (2441 בארט ₪5.70, 2483 נחלת בנימין) are never priced. The store’s Radware WAF served a bot challenge for cart PATCH/GET reads from the runner, so no anonymous-cart total was read and no cart quote is claimed. See docs/evidence/tnuva-cottage-cheese-runner-research-20261015.json.'
+  },
+  observedFor: {
+    carts: [],
+    destinations: ['Tel Aviv–Yafo (the three published online Tel Aviv branch areas only)'],
+    note: 'Published product and delivery-area endpoints only; cart totals were not readable from the runner because the store served its bot challenge for cart reads. The ₪150 published minimum order is above every requested standalone batch.'
+  },
+  reviewBy: '2026-11-14T00:00:00.000Z'
+};
+
 /** Every validated policy the shared evaluator may apply. */
 export const SHIPPING_POLICIES = [
   pucksHomeDeliveryPolicy,
   coffeemanSingleFourPackPolicy,
   coffeemanEightPackPolicy,
   coffee4uHomeDeliveryPolicy,
-  tivtaamCottageCheesePolicy
+  tivtaamCottageCheesePolicy,
+  yudaCottageCheesePolicy
 ];
 
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;
