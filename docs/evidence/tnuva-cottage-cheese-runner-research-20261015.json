@@ -144,7 +144,7 @@
           {
             "tubs": 10,
             "orderedGrams": 2500,
-            "itemTotalIls": 61.0,
+            "itemTotalIls": 61,
             "deliveryIls": 29.9,
             "deliveredTotalIls": 90.9
           }
@@ -272,13 +272,60 @@
     {
       "id": "superhaviv",
       "name": "Super Haviv (סופר חביב), Petah Tikva",
-      "status": "accessible_product_not_found_no_tel_aviv_coverage",
+      "status": "accessible_product_verified_no_tel_aviv_coverage",
       "observed": {
-        "areas": "Petah Tikva with deliveryMinimumCost ₪10 and Kiryat Ono/Givat Shmuel with ₪200; no Tel Aviv–Yafo area.",
-        "productSearch": "The public autocomplete API returned no cottage-cheese listing for this branch (several search terms checked).",
-        "observedAt": "2026-10-15T17:32:00Z"
+        "branches": "Two published online branches: 3507 פתח תקווה (areas פתח תקווה and קרית אונו,גבעת שמואל) and 3480 גבעת שמואל (area גבעת שמואל). No Tel Aviv–Yafo area.",
+        "product": {
+          "catalogProductId": 12053,
+          "branchProductId": 54053230,
+          "names": {
+            "he": "קוטג' 5%",
+            "en": "Cottage Tnuva (5%) 250 g",
+            "ru": "גבינת קוטג 5% 250 גר"
+          },
+          "weightGrams": 250,
+          "observedPriceIls": 6.5,
+          "quantityLimit": 999,
+          "stockEvidence": "branch.isActive=true, isVisible=true, isOutOfStock=false (store branch flags, not a price-only scrape)",
+          "productApiUrl": "https://www.superhaviv.co.il/v2/retailers/1579/branches/3507/products?catalogProductId=12053&ignoreBranchVisibility=true&appId=4&languageId=2"
+        },
+        "areas": "Branch 3507 area 9997 פתח תקווה: deliveryMinimumCost ₪10, deliveryAreaPrice ₪34, isActive true; the store delivery product carries a free-delivery promotion above ₪299. The קרית אונו,גבעת שמואל area is a separate area; no Tel Aviv–Yafo area exists.",
+        "computedBatchTotalsForPetahTikva": [
+          {
+            "tubs": 4,
+            "orderedGrams": 1000,
+            "itemTotalIls": 26,
+            "deliveryIls": 34,
+            "deliveredTotalIls": 60
+          },
+          {
+            "tubs": 6,
+            "orderedGrams": 1500,
+            "itemTotalIls": 39,
+            "deliveryIls": 34,
+            "deliveredTotalIls": 73
+          },
+          {
+            "tubs": 8,
+            "orderedGrams": 2000,
+            "itemTotalIls": 52,
+            "deliveryIls": 34,
+            "deliveredTotalIls": 86
+          },
+          {
+            "tubs": 10,
+            "orderedGrams": 2500,
+            "itemTotalIls": 65,
+            "deliveryIls": 34,
+            "deliveredTotalIls": 99
+          }
+        ],
+        "computedBatchNote": "Item total = observed branch price × tubs; delivery = the branch area published rate. These are computable from the observed listing plus the published area fee, not read from an anonymous cart, and they are NOT ranked because Petah Tikva is not one of the site selectable destinations (Tel Aviv–Yafo default).",
+        "observedAt": "2026-10-15T18:02:00Z",
+        "correction": "The 4-109 note \"the tracked listing was not found\" came from the autocomplete search; a direct catalogProductId 12053 lookup returns the listing on branch 3507. The listing is real, but the coverage is Petah Tikva / Kiryat Ono / Givat Shmuel only."
       },
-      "limitation": "No Tel Aviv–Yafo coverage and the tracked listing was not found, so no offer is registered."
+      "limitation": "No Tel Aviv–Yafo coverage, so the listing cannot serve the default locality and is not registered as an offer. It is the only reachable permitted grocery source found whose published minimum order (₪10) a standalone 4-10 tub batch can meet; using it requires the owner to add/choose a Petah Tikva locality, which this iteration did not do.",
+      "previousStatus": "accessible_product_not_found_no_tel_aviv_coverage"
     },
     {
       "id": "superalonit",
@@ -342,16 +389,105 @@
       "note": "Challenges were not bypassed and no alternate host was used to retrieve a blocked store's data. The configs themselves are public platform metadata and were used only for research (names, domains, published minimums, online branches)."
     }
   ],
-  "nextStep": "Both observed grocery sources are below their published minimum orders for every exact 4-10-tub batch, so no delivered total can be ranked yet. To rank a batch, one of: the owner accepts filling an order to a vendor minimum (outside the exact-batch scope), a permitted vendor whose minimum is at or below the batch total becomes reachable (the low-minimum chains are currently bot-protected or terms-excluded), or the owner chooses a locality covered by a reachable vendor with a low minimum (for example Super Haviv's Petah Tikva area at ₪10, which does not carry the tracked listing as observed). The Bastale listing should be re-checked for restock.",
+  "nextStep": "For the default Tel Aviv–Yafo locality no reachable permitted vendor can sell an exact 4-10 tub batch: Tiv Taam ₪300 minimum and Super Yuda ₪150 minimum both exceed every batch item total, and the remaining reachable groceries do not cover Tel Aviv–Yafo. Options: (a) owner adds Petah Tikva as a selectable locality, where Super Haviv carries the listing at ₪6.50 with a ₪10 minimum and ₪34 published area delivery (computed batch totals ₪60/₪73/₪86/₪99); (b) owner allows filling an order to a vendor minimum (outside exact-batch scope); (c) a blocked low-minimum TLV chain (Verona ₪20, Twins ₪75, Sholik ₪80, Quik, Wolt Market, Yango Deli) becomes reachable without bypassing its protection; (d) re-check Bastale for restock (its Tel Aviv minimum still exceeds every batch). The first production attempt at the two registered grocery adapters is the 18:17 UTC cron tick.",
   "liveAdapterVerification": {
     "tool": "npm run check:sources (live, bounded fetcher through the registered adapters)",
     "startedAt": "2026-10-15T17:44:22.906Z",
     "result": "All five adapters passed: tivtaam ok (₪6.10 ILS, in_stock, 452 ms), yuda ok (₪6.70 ILS, in_stock, 884 ms); coffeeman 3 offers, pucks 1, coffee4u 1.",
     "evidence": "docs/evidence/source-check-20261015T1744Z.json"
   },
-  "revision": {
-    "revisedAt": "2026-10-15T17:45:00Z",
-    "by": "iteration 4-109 (GitHub Actions runner)",
-    "summary": "Second independent grocery source verified (Super Yuda, yuda.co.il) and the shared stor.ai/Self-Point platform mapped. No reachable permitted vendor can deliver an exact 4-10 tub batch to Tel Aviv–Yafo because every reachable vendor's published minimum order exceeds the batch item total; the low-minimum chains are blocked by bot protection or vendor terms."
-  }
+  "recheck20261015T1810Z": {
+    "checkedAt": "2026-10-15T17:50:00Z to 2026-10-15T18:03:00Z",
+    "by": "iteration 4-110 (GitHub Actions runner)",
+    "bastale": {
+      "url": "https://www.bastale.co.il/product-details/75069/קוטג_5%25_תנובה_250_גרם",
+      "result": "still out of stock: schema.org OutOfStock and the rendered \"מוצר לא במלאי\" label; listed ₪7.90 (₪3.16 per 100 g)",
+      "note": "Even when restocked, the Tel Aviv delivery minimum (₪200-₪220) exceeds every exact 4-10 tub batch, so it would stay unrankable for the default locality."
+    },
+    "additionalDomains": [
+      {
+        "url": "https://www.ampm.co.il/",
+        "result": "HTTP 200 storefront; the only ordering route it links is https://wolt.com/en/discovery/isr_g_ampm, so ordering is Wolt (terms-excluded) and there is no independent shop to observe."
+      },
+      {
+        "url": "https://www.10bis.co.il/",
+        "result": "HTTP 200 Cloudflare-served marketplace page; no independent grocery catalog endpoint for the tracked listing was found and no product observation was made."
+      },
+      {
+        "url": "https://www.quik.co.il/",
+        "result": "HTTP 403 Cloudflare challenge from the runner (checked 2026-10-15 17:52 UTC); not bypassed."
+      },
+      {
+        "url": "https://www.carrefour.co.il/ (mega.co.il redirects here)",
+        "result": "HTTP 403 Cloudflare challenge from the runner; not bypassed."
+      },
+      {
+        "url": "https://www.volter.co.il/",
+        "result": "No HTTP response from the runner (connection failed)."
+      },
+      {
+        "url": "https://meshek.co.il/",
+        "result": "HTTP 200 produce-box store (משק רמי קנטור), not a supermarket listing; no cottage-cheese offer observed."
+      },
+      {
+        "url": "https://www.shuktlv.co.il/",
+        "result": "HTTP 200 food-tour site, not an online grocery."
+      },
+      {
+        "url": "https://www.tnuva.co.il/",
+        "result": "HTTP 403 from the runner; no public product/delivery data served."
+      },
+      {
+        "url": "https://www.mishloha.co.il/",
+        "result": "HTTP 202 (CloudFront bot guard); restaurant delivery, no grocery catalog observed."
+      },
+      {
+        "url": "https://www.yellow.co.il/",
+        "result": "Courier/delivery app landing (app.yellow.co.il); no grocery catalog observed."
+      },
+      {
+        "url": "https://www.bring.co.il/",
+        "result": "Home-design concept store, not a grocery."
+      },
+      {
+        "url": "https://bringit.co.il/",
+        "result": "Technology company (BringIT), not a grocery."
+      },
+      {
+        "url": "https://spar.co.il/",
+        "result": "Unrelated \"Spa Daniel\" site, not the SPAR grocery chain."
+      },
+      {
+        "urls": [
+          "https://www.edenteva.co.il/",
+          "https://www.tevamarket.co.il/",
+          "https://www.nizat.co.il/",
+          "https://www.makolet.co.il/",
+          "https://www.tlvmarket.co.il/",
+          "https://www.groceries.co.il/",
+          "https://www.supermarket.co.il/",
+          "https://www.hamakolet.co.il/",
+          "https://www.kenyononline.co.il/",
+          "https://www.salach.co.il/",
+          "https://www.superbareket.co.il/",
+          "https://www.zol.co.il/",
+          "https://www.groo.co.il/"
+        ],
+        "result": "DNS/connection failure from the runner; no storefront reached."
+      }
+    ],
+    "summary": "No new Tel Aviv–Yafo grocery source. The one corrected finding is Super Haviv: the tracked listing is carried at branch 3507 (₪6.50, in stock) but its published delivery areas are Petah Tikva / Kiryat Ono / Givat Shmuel only."
+  },
+  "revisions": [
+    {
+      "revisedAt": "2026-10-15T17:45:00Z",
+      "by": "iteration 4-109 (GitHub Actions runner)",
+      "summary": "Second independent grocery source verified (Super Yuda, yuda.co.il) and the shared stor.ai/Self-Point platform mapped. No reachable permitted vendor can deliver an exact 4-10 tub batch to Tel Aviv–Yafo because every reachable vendor's published minimum order exceeds the batch item total; the low-minimum chains are blocked by bot protection or vendor terms."
+    },
+    {
+      "revisedAt": "2026-10-15T18:10:00Z",
+      "by": "iteration 4-110 (GitHub Actions runner)",
+      "summary": "Re-checked Bastale (still out of stock) and probed additional Israeli grocery domains (all blocked, terms-excluded, unrelated or unreachable). Corrected the Super Haviv finding: the tracked listing IS carried at branch 3507 (₪6.50, in stock) but the branch only delivers to Petah Tikva / Kiryat Ono / Givat Shmuel, so it cannot serve the default Tel Aviv–Yafo locality. A standalone 4-10 tub batch would be purchasable there (item ₪26-₪65 + ₪34 published area delivery), which makes Petah Tikva the one concrete low-minimum locality option if the owner wants to add it; this iteration did not change the selectable destinations."
+    }
+  ]
 }

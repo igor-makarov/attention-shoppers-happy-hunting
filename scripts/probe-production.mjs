@@ -149,6 +149,9 @@ const endpoints = {
   board1000: await get('/api/board?grams=1000&dest=tel-aviv'),
   board2000: await get('/api/board?grams=2000&dest=tel-aviv'),
   board3000: await get('/api/board?grams=3000&dest=tel-aviv'),
+  // Grocery board for the second authorized product. Kept out of the coffee
+  // `boards` map below (that map asserts the coffee productId on every entry).
+  boardDairy8: await get('/api/board?product=tnuva-cottage-cheese-5-percent&dest=tel-aviv&quantity=8'),
   boardUnstated: await get('/api/board?variant=unspecified&grams=500&dest=tel-aviv'),
   retiredUrl: await get('/api/board?product=lavazza-qualita-oro-vacuum-ground&grams=500&dest=tel-aviv')
 };
@@ -264,7 +267,9 @@ const EXPECTED_POLICY_IDS = [
   'pucks-il-home-delivery',
   'coffeeman-single-4pack-il-home-delivery',
   'coffeeman-8pack-il-cart-quote',
-  'coffee4u-il-home-delivery'
+  'coffee4u-il-home-delivery',
+  'tivtaam-cottage-tel-aviv-north-delivery',
+  'yuda-cottage-tel-aviv-home-delivery'
 ];
 const shippingPolicies = Array.isArray(statusBody.shippingPolicies) ? statusBody.shippingPolicies : [];
 const policyIds = shippingPolicies.map(policy => policy?.id);
@@ -286,6 +291,59 @@ check(
   'no shipping policy is past its review date',
   shippingPolicies.length > 0 && expiredPolicies.length === 0,
   expiredPolicies.length ? `expired=[${expiredPolicies.join(', ')}]` : 'none expired'
+);
+
+// Cottage-cheese (grocery) production checks. The deployed build must serve the
+// dairy board for the tracked product with exactly the four authorized batches
+// and delivery-only scope, and it must never rank a grocery batch below its
+// vendor's published minimum order or lose an observed item price / named
+// delivery rate from the visible unrankable row. These checks pass with zero
+// grocery observations (the current honest pending state) and once the two
+// registered adapters have a successful production refresh.
+const dairyBoard = endpoints.boardDairy8.body;
+const dairyBatches = (dairyBoard?.batchComparisons ?? []).map(batch => batch.quantity);
+check(
+  'the dairy board serves the tracked product with the four exact tub batches and delivery-only scope',
+  dairyBoard?.productId === 'tnuva-cottage-cheese-5-percent'
+    && dairyBoard?.deliveryOnly === true
+    && dairyBatches.join(',') === '4,6,8,10'
+    && (dairyBoard?.pickup ?? []).length === 0,
+  JSON.stringify({ productId: dairyBoard?.productId ?? null, deliveryOnly: dairyBoard?.deliveryOnly ?? null, batches: dairyBatches.join(','), pickup: (dairyBoard?.pickup ?? []).length })
+);
+const GROCERY_VENDOR_IDS = new Set(['tivtaam', 'yuda']);
+const groceryRows = [
+  ...(dairyBoard?.ranked ?? []),
+  ...(dairyBoard?.unrankable ?? []),
+  ...(dairyBoard?.staleOrUnavailable ?? []),
+  ...(dairyBoard?.unknown ?? []),
+  ...(dairyBoard?.best ? [dairyBoard.best] : [])
+].filter(quote => GROCERY_VENDOR_IDS.has(quote.vendor?.id));
+const groceryBelowMinimum = groceryRows.filter(quote => {
+  const min = quote.shipping?.minOrder;
+  return quote.totalIls != null && Number.isFinite(min) && Number.isFinite(quote.itemTotalIls) && quote.itemTotalIls < min - 0.005;
+});
+check(
+  'no grocery batch is ranked below its vendor published minimum order',
+  groceryBelowMinimum.length === 0,
+  groceryBelowMinimum.length
+    ? groceryBelowMinimum.map(quote => `${quote.vendor?.id} item ${quote.itemTotalIls} < min ${quote.shipping?.minOrder}`).join(', ')
+    : `${groceryRows.length} observed grocery row(s)`
+);
+const groceryRowDefects = groceryRows.filter(quote => !(Number.isFinite(quote.itemTotalIls)
+  && quote.shipping != null
+  && typeof quote.shipping.serviceLabel === 'string' && quote.shipping.serviceLabel.length > 0
+  && (Number.isFinite(quote.shipping.amountIls) || quote.shipping.certainty === 'unknown')));
+check(
+  'observed grocery rows keep their item total, named delivery service and rate evidence',
+  groceryRowDefects.length === 0,
+  groceryRowDefects.length
+    ? groceryRowDefects.map(quote => `${quote.vendor?.id} item=${quote.itemTotalIls ?? null} service=${quote.shipping?.serviceLabel ?? null} rate=${quote.shipping?.amountIls ?? null}/${quote.shipping?.certainty ?? null}`).join(', ')
+    : `${groceryRows.length} row(s) complete`
+);
+check(
+  'the dairy board does not invent a winner while every batch is unrankable',
+  (dairyBoard?.counts?.ranked ?? 0) === 0 || dairyBoard?.best != null,
+  `ranked=${dairyBoard?.counts?.ranked ?? null} best=${dairyBoard?.best?.key ?? null}`
 );
 
 // The board must serve the current validated policy version wherever the rule
@@ -346,7 +404,17 @@ check(
 // cart quote while the item/stock observation stays at the vendor's last
 // successful check (the read-time policy refresh never advances it).
 const coffeemanVendor = (statusBody.vendors ?? []).find(vendor => vendor?.vendorId === 'coffeeman') ?? null;
-const eightPackQuote = (boards.board2000?.ranked ?? []).find(quote => quote.vendor?.id === 'coffeeman' && (quote.product?.packCount ?? 1) === 8) ?? null;
+// CoffeeMan's Worker egress has been failing (HTTP 403) since 2026-10-13, so a
+// stale observation is the honest production state: the rows move out of
+// `ranked` into `staleOrUnavailable` (and unmatched-cart variants into
+// `unknown`) with a stale label and no delivered total. The policy/money checks
+// therefore look in all three groups and additionally require the stale state to
+// be labelled and to claim no total, instead of failing on an honest stale row
+// or silently accepting a stale row ranked as fresh.
+const coffeemanRows = board => [...(board?.ranked ?? []), ...(board?.staleOrUnavailable ?? []), ...(board?.unknown ?? [])];
+const coffeeRowFresh = (board, quote) => (board?.ranked ?? []).includes(quote);
+const staleLabelled = quote => (quote?.labels ?? []).some(label => /Stale observation/.test(String(label))) && quote?.totalIls == null;
+const eightPackQuote = coffeemanRows(boards.board2000).find(quote => quote.vendor?.id === 'coffeeman' && (quote.product?.packCount ?? 1) === 8) ?? null;
 const eightPackPolicy = shippingPolicies.find(policy => policy?.id === 'coffeeman-8pack-il-cart-quote') ?? null;
 check(
   'the CoffeeMan 8-pack offer serves the current cart-quote policy without advancing its item observation',
@@ -355,12 +423,14 @@ check(
     && eightPackQuote.shipping?.policy?.id === 'coffeeman-8pack-il-cart-quote'
     && eightPackQuote.shipping?.policy?.version === eightPackPolicy.version
     && eightPackQuote.shipping?.amountIls === 20
+    && (coffeeRowFresh(boards.board2000, eightPackQuote) || staleLabelled(eightPackQuote))
     && (coffeemanVendor?.lastSuccessAt == null || eightPackQuote.observedAt === coffeemanVendor.lastSuccessAt),
   JSON.stringify({
     policy: eightPackQuote?.shipping?.policy ?? null,
     shippingIls: eightPackQuote?.shipping?.amountIls ?? null,
     itemObservedAt: eightPackQuote?.observedAt ?? null,
-    vendorLastSuccessAt: coffeemanVendor?.lastSuccessAt ?? null
+    vendorLastSuccessAt: coffeemanVendor?.lastSuccessAt ?? null,
+    stale: eightPackQuote ? !coffeeRowFresh(boards.board2000, eightPackQuote) : null
   })
 );
 
@@ -368,9 +438,10 @@ check(
 // the exact observed 2 kg cart must be free while a larger unobserved cart must
 // keep the published base rate. The check is skipped while the previous build is
 // still rolling out, so the probe does not report a false regression.
-const singlePack = (board, vendorId) => (board?.ranked ?? []).find(quote => quote.vendor?.id === vendorId && (quote.product?.packCount ?? 1) === 1) ?? null;
+const singlePack = (board, vendorId) => coffeemanRows(board).find(quote => quote.vendor?.id === vendorId && (quote.product?.packCount ?? 1) === 1) ?? null;
 const scopedConditionsDeployed = shippingPolicies.some(policy => (policy?.freeCartConditions ?? []).length > 0)
-  || (boards.board2000?.ranked ?? []).some(quote => (quote.shipping?.freeCartConditions ?? []).length > 0);
+  || (boards.board2000?.ranked ?? []).some(quote => (quote.shipping?.freeCartConditions ?? []).length > 0)
+  || (boards.board2000?.staleOrUnavailable ?? []).some(quote => (quote.shipping?.freeCartConditions ?? []).length > 0);
 if (scopedConditionsDeployed) {
   const single2000 = singlePack(boards.board2000, 'coffeeman');
   const single3000 = singlePack(boards.board3000, 'coffeeman');
@@ -378,16 +449,18 @@ if (scopedConditionsDeployed) {
     'the 2 kg single-pack cart applies the exact observed free condition, not a threshold',
     single2000?.shipping?.freeCondition?.id === 'singles-8'
       && single2000?.shipping?.freeThreshold === null
-      && single2000?.shipping?.amountIls === 0,
-    JSON.stringify(single2000 && { freeCondition: single2000.shipping?.freeCondition?.id ?? null, freeThreshold: single2000.shipping?.freeThreshold ?? null, shipping: single2000.shipping?.amountIls })
+      && single2000?.shipping?.amountIls === 0
+      && (coffeeRowFresh(boards.board2000, single2000) || staleLabelled(single2000)),
+    JSON.stringify(single2000 && { freeCondition: single2000.shipping?.freeCondition?.id ?? null, freeThreshold: single2000.shipping?.freeThreshold ?? null, shipping: single2000.shipping?.amountIls, stale: !coffeeRowFresh(boards.board2000, single2000) })
   );
   check(
     '3 kg of singles keeps the published base rate instead of inheriting free delivery',
     single3000?.units === 12
       && single3000?.shipping?.amountIls === 25
       && single3000?.shipping?.freeCondition == null
-      && single3000?.shipping?.freeConditionUnmatchedAboveMin === true,
-    JSON.stringify(single3000 && { units: single3000.units, shipping: single3000.shipping?.amountIls, freeCondition: single3000.shipping?.freeCondition?.id ?? null })
+      && single3000?.shipping?.freeConditionUnmatchedAboveMin === true
+      && (coffeeRowFresh(boards.board3000, single3000) || staleLabelled(single3000)),
+    JSON.stringify(single3000 && { units: single3000.units, shipping: single3000.shipping?.amountIls, freeCondition: single3000.shipping?.freeCondition?.id ?? null, stale: !coffeeRowFresh(boards.board3000, single3000) })
   );
 } else {
   check('scoped free conditions are not deployed yet', true, 'the previous build is still serving the board; skipped');
@@ -463,6 +536,7 @@ if (jsonOnly) {
     const best = boards[name]?.best;
     console.log(`${name}: best=${best ? `${best.vendor?.id} ${best.totalIls} ILS (${best.key})` : 'none'} ranked=${(boards[name]?.ranked ?? []).length} unrankable=${(boards[name]?.unrankable ?? []).length}`);
   }
+  console.log(`boardDairy8: best=${dairyBoard?.best ? `${dairyBoard.best.vendor?.id} ${dairyBoard.best.totalIls} ILS` : 'none'} ranked=${(dairyBoard?.ranked ?? []).length} unrankable=${(dairyBoard?.unrankable ?? []).length} batches=${dairyBatches.join(',')}`);
   for (const entry of checks) {
     console.log(`${entry.ok ? 'PASS' : 'FAIL'}  ${entry.name}${entry.ok ? '' : `  (${entry.detail})`}`);
   }
