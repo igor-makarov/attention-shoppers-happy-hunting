@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "key": "38866173126-1",
+  "loopId": "main",
+  "runId": "38866173126",
+  "attempt": 1,
+  "generation": 7,
+  "iteration": 187,
+  "command": "iterate",
+  "conclusion": "failure",
+  "url": "https://github.com/igor-makarov/attention-shoppers-happy-hunting/actions/runs/38866173126",
+  "headSha": "59c51fc8df1cd1eb2a929858333515e4eae8f9bd",
+  "startedAt": "2026-10-16T07:16:29Z",
+  "completedAt": "2026-10-16T07:20:31Z",
+  "collectedAt": "2026-10-16T07:21:59.146Z",
+  "interruptedOwner": true,
+  "jobs": [
+    {
+      "id": 116859405513,
+      "name": "iteration",
+      "conclusion": "failure",
+      "steps": [
+        {
+          "number": 1,
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "number": 2,
+          "name": "Run actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+          "conclusion": "success"
+        },
+        {
+          "number": 3,
+          "name": "Run igor-makarov/shurik@v1",
+          "conclusion": "failure"
+        },
+        {
+          "number": 4,
+          "name": "Preserve emergency snapshot after publication failure",
+          "conclusion": "success"
+        },
+        {
+          "number": 7,
+          "name": "Post Run igor-makarov/shurik@v1",
+          "conclusion": "success"
+        },
+        {
+          "number": 8,
+          "name": "Post Run actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+          "conclusion": "success"
+        },
+        {
+          "number": 9,
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ],
+      "log": {
+        "text": "-credentials-dd8e2219-00e5-475a-be17-30d60a3f2d93.config\n2026-10-16T07:16:36.4430705Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-dd8e2219-00e5-475a-be17-30d60a3f2d93.config\n2026-10-16T07:16:36.4461898Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-dd8e2219-00e5-475a-be17-30d60a3f2d93.config\n2026-10-16T07:16:36.4508332Z ##[endgroup]\n2026-10-16T07:16:36.4509686Z ##[group]Fetching the repository\n2026-10-16T07:16:36.4519657Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*\n2026-10-16T07:17:15.2327966Z From https://github.com/igor-makarov/attention-shoppers-happy-hunting\n2026-10-16T07:17:15.2329413Z  * [new branch]      main                -> origin/main\n2026-10-16T07:17:15.2330215Z  * [new branch]      shurik-control/main -> origin/shurik-control/main\n2026-10-16T07:17:15.2339444Z [command]/usr/bin/git branch --list --remote origin/main\n2026-10-16T07:17:15.2370378Z   origin/main\n2026-10-16T07:17:15.2377727Z [command]/usr/bin/git rev-parse refs/remotes/origin/main\n2026-10-16T07:17:15.2399794Z 59c51fc8df1cd1eb2a929858333515e4eae8f9bd\n2026-10-16T07:17:15.2401821Z ##[endgroup]\n2026-10-16T07:17:15.2402746Z ##[group]Determining the checkout info\n2026-10-16T07:17:15.2403809Z ##[endgroup]\n2026-10-16T07:17:15.2407668Z [command]/usr/bin/git sparse-checkout disable\n2026-10-16T07:17:15.2462211Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig\n2026-10-16T07:17:15.2491757Z ##[group]Checking out the ref\n2026-10-16T07:17:15.2494045Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main\n2026-10-16T07:17:15.3684174Z Switched to a new branch 'main'\n2026-10-16T07:17:15.3688146Z branch 'main' set up to track 'origin/main'.\n2026-10-16T07:17:15.3699120Z ##[endgroup]\n2026-10-16T07:17:15.3742017Z [command]/usr/bin/git log -1 --format=%H\n2026-10-16T07:17:15.3767585Z 59c51fc8df1cd1eb2a929858333515e4eae8f9bd\n2026-10-16T07:17:15.3775884Z ##[group]Removing auth\n2026-10-16T07:17:15.3776597Z Removing SSH command configuration\n2026-10-16T07:17:15.3779346Z [command]/usr/bin/git config --local --name-only --get-regexp core\\.sshCommand\n2026-10-16T07:17:15.3810697Z [command]/usr/bin/git submodule foreach --recursive sh -c \"git config --local --name-only --get-regexp 'core\\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\"\n2026-10-16T07:17:15.4001802Z Removing HTTP extra header\n2026-10-16T07:17:15.4005430Z [command]/usr/bin/git config --local --name-only --get-regexp http\\.https\\:\\/\\/github\\.com\\/\\.extraheader\n2026-10-16T07:17:15.4033291Z [command]/usr/bin/git submodule foreach --recursive sh -c \"git config --local --name-only --get-regexp 'http\\.https\\:\\/\\/github\\.com\\/\\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\"\n2026-10-16T07:17:15.4220516Z Removing includeIf entries pointing to credentials config files\n2026-10-16T07:17:15.4224360Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\\.gitdir:\n2026-10-16T07:17:15.4251841Z includeif.gitdir:/home/runner/work/attention-shoppers-happy-hunting/attention-shoppers-happy-hunting/.git.path\n2026-10-16T07:17:15.4253303Z includeif.gitdir:/home/runner/work/attention-shoppers-happy-hunting/attention-shoppers-happy-hunting/.git/worktrees/*.path\n2026-10-16T07:17:15.4254183Z includeif.gitdir:/github/workspace/.git.path\n2026-10-16T07:17:15.4254845Z includeif.gitdir:/github/workspace/.git/worktrees/*.path\n2026-10-16T07:17:15.4260544Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/attention-shoppers-happy-hunting/attention-shoppers-happy-hunting/.git.path\n2026-10-16T07:17:15.4281731Z /home/runner/work/_temp/git-credentials-dd8e2219-00e5-475a-be17-30d60a3f2d93.config\n2026-10-16T07:17:15.4291675Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/attention-shoppers-happy-hunting/attention-shoppers-happy-hunting/.git.path /home/runner/work/_temp/git-credentials-dd8e2219-00e5-475a-be17-30d60a3f2d93.config\n2026-10-16T07:17:15.4327483Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/attention-shoppers-happy-hunting/attention-shoppers-happy-hunting/.git/worktrees/*.path\n2026-10-16T07:17:15.4347670Z /home/runner/work/_temp/git-credentials-dd8e2219-00e5-475a-be17-30d60a3f2d93.config\n2026-10-16T07:17:15.4357274Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/attention-shoppers-happy-hunting/attention-shoppers-happy-hunting/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-dd8e2219-00e5-475a-be17-30d60a3f2d93.config\n2026-10-16T07:17:15.4442822Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path\n2026-10-16T07:17:15.4470737Z /github/runner_temp/git-credentials-dd8e2219-00e5-475a-be17-30d60a3f2d93.config\n2026-10-16T07:17:15.4483130Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-dd8e2219-00e5-475a-be17-30d60a3f2d93.config\n2026-10-16T07:17:15.4513921Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path\n2026-10-16T07:17:15.4533921Z /github/runner_temp/git-credentials-dd8e2219-00e5-475a-be17-30d60a3f2d93.config\n2026-10-16T07:17:15.4540194Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-dd8e2219-00e5-475a-be17-30d60a3f2d93.config\n2026-10-16T07:17:15.4579852Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url\n2026-10-16T07:17:15.4765085Z Removing credentials config '/home/runner/work/_temp/git-credentials-dd8e2219-00e5-475a-be17-30d60a3f2d93.config'\n2026-10-16T07:17:15.4776052Z ##[endgroup]\n2026-10-16T07:17:15.5153450Z ##[group]Run igor-makarov/shurik@v1\n2026-10-16T07:17:15.5154003Z with:\n2026-10-16T07:17:15.5154414Z   command: iterate\n2026-10-16T07:17:15.5155053Z   inputs: {\n  \"command\": \"iterate\",\n  \"loop_id\": \"main\",\n  \"reasoning\": \"high\",\n  \"seconds\": \"1800\",\n  \"generation\": \"7\",\n  \"iteration\": \"187\"\n}\n2026-10-16T07:17:15.5155781Z   workflow: shurik.yml\n2026-10-16T07:17:15.5158755Z   token: ***\n2026-10-16T07:17:15.5159322Z env:\n2026-10-16T07:17:15.5159820Z   OPENCODE_API_KEY: ***\n2026-10-16T07:17:15.5160180Z ##[endgroup]\n2026-10-16T07:17:15.5225372Z ##[start-action display=Run actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38;id=shurik.__actions_setup-node]\n2026-10-16T07:17:15.5331468Z ##[group]Run actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38\n2026-10-16T07:17:15.5332047Z with:\n2026-10-16T07:17:15.5332448Z   node-version: 24.14.0\n2026-10-16T07:17:15.5332852Z   check-latest: false\n2026-10-16T07:17:15.5335865Z   token: ***\n2026-10-16T07:17:15.5336377Z   package-manager-cache: true\n2026-10-16T07:17:15.5336772Z env:\n2026-10-16T07:17:15.5337281Z   OPENCODE_API_KEY: ***\n2026-10-16T07:17:15.5337684Z ##[endgroup]\n2026-10-16T07:17:15.6749342Z Attempting to download 24.14.0...\n2026-10-16T07:17:16.5024201Z Acquiring 24.14.0 - x64 from https://github.com/actions/node-versions/releases/download/24.14.0-22380502845/node-24.14.0-linux-x64.tar.gz\n2026-10-16T07:17:17.0477292Z Extracting ...\n2026-10-16T07:17:17.0582778Z [command]/usr/bin/tar xz --strip 1 --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/d74caa19-f98c-4cb4-9672-ad81598c7118 -f /home/runner/work/_temp/366193c0-61ac-429f-b092-66e561b52774\n2026-10-16T07:17:18.3686530Z Adding to the cache ...\n2026-10-16T07:17:20.4013772Z ##[group]Environment details\n2026-10-16T07:17:20.6233175Z node: v24.14.0\n2026-10-16T07:17:20.6233756Z npm: 11.9.0\n2026-10-16T07:17:20.6234152Z yarn: 1.22.22\n2026-10-16T07:17:20.6235100Z ##[endgroup]\n2026-10-16T07:17:20.6340117Z ##[end-action id=shurik.__actions_setup-node;outcome=success;conclusion=success;duration_ms=5111]\n2026-10-16T07:17:20.6351560Z ##[start-action display=Run Shurik CLI;id=shurik.shurik]\n2026-10-16T07:17:20.6387085Z ##[group]Run node \"$SHURIK_ACTION_PATH/action/run.ts\"\n2026-10-16T07:17:20.6387736Z \u001b[36;1mnode \"$SHURIK_ACTION_PATH/action/run.ts\"\u001b[0m\n2026-10-16T07:17:20.6605552Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}\n2026-10-16T07:17:20.6606022Z env:\n2026-10-16T07:17:20.6606631Z   OPENCODE_API_KEY: ***\n2026-10-16T07:17:20.6607105Z   SHURIK_ACTION_PATH: /home/runner/work/_actions/igor-makarov/shurik/v1\n2026-10-16T07:17:20.6607574Z   SHURIK_ACTION_REPOSITORY: igor-makarov/shurik\n2026-10-16T07:17:20.6608016Z   SHURIK_ACTION_REF: v1\n2026-10-16T07:17:20.6608599Z   SHURIK_INPUTS: {\n  \"command\": \"iterate\",\n  \"loop_id\": \"main\",\n  \"reasoning\": \"high\",\n  \"seconds\": \"1800\",\n  \"generation\": \"7\",\n  \"iteration\": \"187\"\n}\n2026-10-16T07:17:20.6609549Z   SHURIK_COMMAND: iterate\n2026-10-16T07:17:20.6609930Z   SHURIK_LOOP_ID: \n2026-10-16T07:17:20.6610218Z   SHURIK_PROVIDER: \n2026-10-16T07:17:20.6610605Z   SHURIK_MODEL: \n2026-10-16T07:17:20.6610912Z   SHURIK_PROMPT: \n2026-10-16T07:17:20.6611223Z   SHURIK_CHECKPOINT_SECONDS: \n2026-10-16T07:17:20.6611579Z   SHURIK_CHECKPOINT_PATHS: \n2026-10-16T07:17:20.6611943Z   SHURIK_REASONING: \n2026-10-16T07:17:20.6612302Z   SHURIK_CREATE_PR: \n2026-10-16T07:17:20.6612604Z   SHURIK_SECONDS: \n2026-10-16T07:17:20.6612901Z   SHURIK_WORK_SECONDS: \n2026-10-16T07:17:20.6613221Z   SHURIK_WAIT_SECONDS: \n2026-10-16T07:17:20.6613548Z   SHURIK_DEADLINE: \n2026-10-16T07:17:20.6613889Z   SHURIK_SOURCE_REF: \n2026-10-16T07:17:20.6614193Z   SHURIK_GENERATION: \n2026-10-16T07:17:20.6614496Z   SHURIK_ITERATION: \n2026-10-16T07:17:20.6614818Z   SHURIK_WORKFLOW: shurik.yml\n2026-10-16T07:17:20.6617578Z   GITHUB_TOKEN: ***\n2026-10-16T07:17:20.6617899Z ##[endgroup]\n2026-10-16T07:20:23.6356093Z Emergency snapshot: /home/runner/.shurik/emergency/igor-makarov/attention-shoppers-happy-hunting/main/38866173126-1\n2026-10-16T07:20:23.6358569Z Error: Command failed: git push --atomic origin f458326d97f6911ef7dca370967ff8ffd0a693a8:refs/heads/shurik-control/main 59c51fc8df1cd1eb2a929858333515e4eae8f9bd:refs/heads/main\n2026-10-16T07:20:23.6360503Z remote: error: Trace: 332ea98164a71345aff64c3570d9ba4a2a9e99a041d315a265fc07a52f8becfa        \n2026-10-16T07:20:23.6361497Z remote: error: See https://gh.io/lfs for more information.        \n2026-10-16T07:20:23.6362753Z remote: error: File state/pi-jsonl/main.jsonl is 100.00 MB; this exceeds GitHub's file size limit of 100.00 MB        \n2026-10-16T07:20:23.6364182Z remote: error: GH001: Large files detected. You may want to try Git Large File Storage - https://git-lfs.github.com.        \n2026-10-16T07:20:23.6365376Z To https://github.com/igor-makarov/attention-shoppers-happy-hunting.git\n2026-10-16T07:20:23.6366745Z  ! [remote rejected] f458326d97f6911ef7dca370967ff8ffd0a693a8 -> shurik-control/main (pre-receive hook declined)\n2026-10-16T07:20:23.6368164Z error: failed to push some refs to 'https://github.com/igor-makarov/attention-shoppers-happy-hunting.git'\n2026-10-16T07:20:23.6368775Z \n2026-10-16T07:20:23.6495029Z ##[error]Process completed with exit code 1.\n2026-10-16T07:20:23.6526013Z ##[end-action id=shurik.shurik;outcome=failure;conclusion=failure;duration_ms=183017]\n2026-10-16T07:20:23.6655466Z ##[group]Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02\n2026-10-16T07:20:23.6655989Z with:\n2026-10-16T07:20:23.6656321Z   name: shurik-emergency-38866173126\n2026-10-16T07:20:23.6656949Z   path: /home/runner/.shurik/emergency/igor-makarov/attention-shoppers-happy-hunting/main/38866173126-1\n2026-10-16T07:20:23.6657565Z   include-hidden-files: true\n2026-10-16T07:20:23.6657918Z   if-no-files-found: ignore\n2026-10-16T07:20:23.6658270Z   retention-days: 7\n2026-10-16T07:20:23.6658579Z   compression-level: 6\n2026-10-16T07:20:23.6658913Z   overwrite: false\n2026-10-16T07:20:23.6659712Z ##[endgroup]\n2026-10-16T07:20:23.8369673Z (node:3104) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\n2026-10-16T07:20:23.8371065Z (Use `node --trace-deprecation ...` to show where the warning was created)\n2026-10-16T07:20:23.9741770Z With the provided path, there will be 968 files uploaded\n2026-10-16T07:20:23.9743490Z Artifact name is valid!\n2026-10-16T07:20:23.9744199Z Root directory input is valid!\n2026-10-16T07:20:24.3174262Z Beginning upload of artifact content to blob storage\n2026-10-16T07:20:25.3622016Z (node:3104) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.\n2026-10-16T07:20:25.8568157Z Uploaded bytes 8388608\n2026-10-16T07:20:26.3584994Z Uploaded bytes 16777216\n2026-10-16T07:20:27.0095617Z Uploaded bytes 25165824\n2026-10-16T07:20:27.3205266Z Uploaded bytes 33554432\n2026-10-16T07:20:27.6520072Z Uploaded bytes 38279102\n2026-10-16T07:20:27.6940565Z Finished uploading artifact content to blob storage!\n2026-10-16T07:20:27.6943558Z SHA256 digest of uploaded artifact zip is 7d8735ecfc06b4653dbc6b652f55b007ea515b69c2e1f7a45df7851ce14bd005\n2026-10-16T07:20:27.6945730Z Finalizing artifact upload\n2026-10-16T07:20:27.9503927Z Artifact shurik-emergency-38866173126.zip successfully finalized. Artifact ID 12031243216\n2026-10-16T07:20:27.9505569Z Artifact shurik-emergency-38866173126 has been successfully uploaded! Final size is 38279102 bytes. Artifact ID is 12031243216\n2026-10-16T07:20:27.9513405Z Artifact download URL: https://github.com/igor-makarov/attention-shoppers-happy-hunting/actions/runs/38866173126/artifacts/12031243216\n2026-10-16T07:20:27.9795673Z Post job cleanup.\n2026-10-16T07:20:27.9800863Z ##[start-action display=Run actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38;id=__6213e3d1-db44-46db-8617-4a05db1ac584.__actions_setup-node]\n2026-10-16T07:20:27.9805464Z ##[end-action id=__6213e3d1-db44-46db-8617-4a05db1ac584.__actions_setup-node;outcome=skipped;conclusion=skipped;duration_ms=0]\n2026-10-16T07:20:27.9886356Z Post job cleanup.\n2026-10-16T07:20:28.0750055Z [command]/usr/bin/git version\n2026-10-16T07:20:28.0790677Z git version 2.55.0\n2026-10-16T07:20:28.0828892Z Temporarily overriding HOME='/home/runner/work/_temp/ccfb4003-13e9-4d99-b944-3a9568d3b712' before making global git config changes\n2026-10-16T07:20:28.0830663Z Adding repository directory to the temporary git global config as a safe directory\n2026-10-16T07:20:28.0835759Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/attention-shoppers-happy-hunting/attention-shoppers-happy-hunting\n2026-10-16T07:20:28.0868675Z Removing SSH command configuration\n2026-10-16T07:20:28.0875646Z [command]/usr/bin/git config --local --name-only --get-regexp core\\.sshCommand\n2026-10-16T07:20:28.0911352Z [command]/usr/bin/git submodule foreach --recursive sh -c \"git config --local --name-only --get-regexp 'core\\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\"\n2026-10-16T07:20:28.1133063Z Removing HTTP extra header\n2026-10-16T07:20:28.1140345Z [command]/usr/bin/git config --local --name-only --get-regexp http\\.https\\:\\/\\/github\\.com\\/\\.extraheader\n2026-10-16T07:20:28.1177618Z [command]/usr/bin/git submodule foreach --recursive sh -c \"git config --local --name-only --get-regexp 'http\\.https\\:\\/\\/github\\.com\\/\\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\"\n2026-10-16T07:20:28.1405068Z Removing includeIf entries pointing to credentials config files\n2026-10-16T07:20:28.1427401Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\\.gitdir:\n2026-10-16T07:20:28.1451002Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url\n2026-10-16T07:20:28.1841841Z Cleaning up orphan processes\n2026-10-16T07:20:28.2147212Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/\n",
+        "truncated": true,
+        "downloadLimited": false
+      }
+    },
+    {
+      "id": 116859406283,
+      "name": "control",
+      "conclusion": "skipped",
+      "steps": [],
+      "logUnavailable": "Error: GitHub job logs: 404"
+    },
+    {
+      "id": 116860727663,
+      "name": "recovery",
+      "conclusion": null,
+      "steps": [
+        {
+          "number": 1,
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "number": 2,
+          "name": "Run actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+          "conclusion": "success"
+        },
+        {
+          "number": 3,
+          "name": "Run igor-makarov/shurik@v1",
+          "conclusion": null
+        },
+        {
+          "number": 5,
+          "name": "Post Run igor-makarov/shurik@v1",
+          "conclusion": null
+        },
+        {
+          "number": 6,
+          "name": "Post Run actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+          "conclusion": null
+        }
+      ],
+      "logUnavailable": "Error: GitHub job logs: 404"
+    }
+  ],
+  "jobsTruncated": false
+}
